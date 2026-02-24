@@ -46,13 +46,13 @@ export default function ShowCard({ show, onPress, onDelete, onDuplicate }: ShowC
                 },
               ]);
             }}
-            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
           >
             <Text style={styles.actionBtnText}>📋</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onDelete}
-            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
           >
             <Text style={styles.deleteBtnText}>✕</Text>
           </TouchableOpacity>
@@ -113,50 +113,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   showName: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1F2937',
     flex: 1,
-    marginRight: 8,
+    marginRight: 10,
+    lineHeight: 22,
   },
   actions: {
     flexDirection: 'row',
-    gap: 4,
+    gap: 8,
   },
   actionBtnText: {
-    fontSize: 14,
-    opacity: 0.6,
+    fontSize: 18,
+    opacity: 0.7,
+    padding: 6,
   },
   deleteBtnText: {
-    fontSize: 13,
+    fontSize: 16,
     color: '#9CA3AF',
+    padding: 6,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     alignSelf: 'flex-start',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   statusBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     textTransform: 'capitalize',
   },
   date: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6B46C1',
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   completionBar: {
-    height: 4,
+    height: 5,
     backgroundColor: '#E5E7EB',
-    borderRadius: 2,
-    marginBottom: 4,
+    borderRadius: 3,
+    marginBottom: 6,
     overflow: 'hidden',
   },
   completionFill: {
@@ -164,15 +167,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#6B46C1',
   },
   completionText: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#9CA3AF',
-    marginBottom: 8,
+    marginBottom: 10,
+    fontWeight: '500',
   },
   preview: {
-    gap: 3,
+    gap: 4,
   },
   previewText: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#6B7280',
+    lineHeight: 17,
   },
 });
