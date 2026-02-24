@@ -140,6 +140,40 @@ After submission completes, manage testers and releases in App Store Connect.
 - `production` profile is intended for app store submission.
 - Bundle/package IDs are set to `com.showrunner.app` in app config.
 
+## Run on Mac (desktop, no simulator)
+
+Showrunner ships an Electron wrapper around the Vite web build so you can run it as a native macOS desktop app — **no iOS Simulator required**.
+
+Data is persisted via the browser's `localStorage` inside the Electron window, stored in the app's sandboxed profile on your Mac.
+
+### Prerequisites
+
+```bash
+npm install
+```
+
+### Start in development mode (live-reload)
+
+```bash
+npm run mac
+```
+
+This command starts the Vite dev server and opens a native macOS window pointing at `http://localhost:5173`. Changes to `src/` are reflected instantly.
+
+### Build a distributable `.app` / `.dmg`
+
+```bash
+npm run build:mac
+```
+
+This command:
+1. Compiles the web app to `dist/` via Vite.
+2. Packages it into a macOS `.dmg` (universal: x64 + arm64) using electron-builder.
+
+The output is written to `dist-electron/`. Open the `.dmg` to install **Showrunner.app** to your Applications folder.
+
+---
+
 ## Local development
 
 Start the Expo dev server (choose your target):
