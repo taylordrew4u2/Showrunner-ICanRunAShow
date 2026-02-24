@@ -2,7 +2,21 @@
 
 Showrunner is an Expo app for organizing a live show.
 
-## Just download the app
+## Data & auth model
+
+- No OAuth or account sign-in is required.
+- All app data is stored locally on the device (or browser local storage on web).
+- Data is not synced to a backend by this app.
+
+## Download the app (users)
+
+Go to the [Releases](../../releases) page on GitHub, find the latest release, and download **showrunner.apk**. Install it on your Android device — no account or build tools needed.
+
+> **iOS:** Apple does not allow direct APK-style installs. iOS builds are distributed via TestFlight. See the developer section below for details.
+
+---
+
+## Build it yourself (developers)
 
 This project is configured to produce installable mobile binaries using Expo Application Services (EAS).
 
@@ -12,7 +26,10 @@ This project is configured to produce installable mobile binaries using Expo App
 npm install
 ```
 
-### 2) Log in and initialize EAS project linkage
+### 2) Initialize EAS project linkage (developer build step only)
+
+`eas login` is only needed for developers creating cloud builds with Expo EAS.
+End users installing the app do not sign in to use Showrunner.
 
 ```bash
 eas login

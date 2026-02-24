@@ -1,0 +1,56 @@
+name: Build & attach APK to release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android APK via EAS
+        run: eas build --platform android --profile preview --non-interactive --no-wait --json > build.json
+
+      - name: Wait for EAS build to finish
+        run: |
+          BUILD_ID=$(jq -r '.[0].id' build.json)
+          echo "Waiting for build $BUILD_ID ..."
+          while true; do
+            STATUS=$(eas build:view "$BUILD_ID" --json 2>/dev/null | jq -r '.status')
+            echo "  status: $STATUS"
+            if [ "$STATUS" = "finished" ]; then break; fi
+            if [ "$STATUS" = "errored" ] || [ "$STATUS" = "canceled" ]; then
+              echo "Build failed with status: $STATUS"
+              exit 1
+            fi
+            sleep 30
+          done
+
+      - name: Download APK artifact
+        run: |
+          BUILD_ID=$(jq -r '.[0].id' build.json)
+          ARTIFACT_URL=$(eas build:view "$BUILD_ID" --json 2>/dev/null | jq -r '.artifacts.buildUrl')
+          curl -L -o showrunner.apk "$ARTIFACT_URL"
+
+      - name: Attach APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" showrunner.apk --clobber
