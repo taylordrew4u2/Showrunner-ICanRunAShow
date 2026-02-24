@@ -16,6 +16,61 @@ Go to the [Releases](../../releases) page on GitHub, find the latest release, an
 
 ---
 
+## Run as a Mac Desktop App
+
+Showrunner includes an Electron wrapper around its web build, giving you a true desktop app experience on macOS.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 18 or later
+- npm (comes with Node.js)
+
+### Development (live-reload)
+
+```bash
+npm install
+npm run mac
+```
+
+This command starts the Vite web dev server and opens the app in an Electron desktop window. The app reloads automatically when you make changes to the source in `src/`.
+
+> **Note:** `npm run mac` starts both the Vite dev server and Electron in parallel. Electron waits for the dev server to be ready before opening the window.
+
+### Production build
+
+```bash
+npm install
+npm run build:mac
+```
+
+This exports a static web build to `dist/` and then packages it with Electron into a macOS `.app` (and `.dmg` / `.zip` archives). Output is written to the `release/` folder.
+
+Open the resulting `.app` from Finder or run:
+```bash
+open release/mac*/Showrunner.app
+```
+
+### Architecture
+
+- The desktop app is an **Electron wrapper** around the Vite/React web build located in `src/`.
+- The Electron main process lives in `electron/main.js`.
+- In development, Electron loads `http://localhost:5173` (the Vite dev server).
+- In production, Electron loads the static build from `dist/index.html` bundled inside the `.app`.
+
+### Persistence
+
+App data (shows and settings) is stored in Electron's Chromium `localStorage` which persists between sessions. On macOS, this data lives in:
+
+```
+~/Library/Application Support/Showrunner/
+```
+
+To **back up** your data: copy the above directory to a safe location.
+
+To **reset** your data: delete the above directory (or clear localStorage via DevTools).
+
+---
+
 ## Build it yourself (developers)
 
 This project is configured to produce installable mobile binaries using Expo Application Services (EAS).

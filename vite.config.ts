@@ -4,6 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Relative base path is required so the app loads correctly via file:// in Electron
+  base: './',
   plugins: [
     react(),
     VitePWA({

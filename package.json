@@ -7,6 +7,13 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "web:export": "npm run build",
+    "desktop:dev": "electron electron/main.js",
+    "mac": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && npm run desktop:dev\"",
+    "build:mac": "npm run build && electron-builder --mac",
     "build:ios": "npx -y eas-cli@12.4.1 build --platform ios --profile production",
     "download:ios": "npx -y eas-cli@12.4.1 build --platform ios --profile preview",
     "build:ios:submit": "npx -y eas-cli@12.4.1 build --platform ios --profile production --auto-submit",
@@ -22,19 +29,50 @@
     "expo": "^52.0.0",
     "expo-router": "^4.0.0",
     "expo-status-bar": "^1.12.1",
-    "expo-print": "^13.6.0",
-    "expo-sharing": "^14.1.1",
+    "expo-print": "^15.0.0",
+    "expo-sharing": "^14.0.0",
     "expo-image-picker": "^15.0.0",
     "expo-document-picker": "^11.5.4",
     "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "react-native": "0.76.2",
     "@react-native-async-storage/async-storage": "^1.23.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@types/react-native": "^0.73.0",
-    "typescript": "~5.3.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "concurrently": "^9.1.2",
+    "electron": "^37.0.0",
+    "electron-builder": "^26.8.1",
+    "typescript": "~5.8.0",
+    "vite": "^7.3.1",
+    "vite-plugin-pwa": "^1.2.0",
+    "wait-on": "^8.0.3",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0"
+  },
+  "build": {
+    "appId": "com.showrunner.app",
+    "productName": "Showrunner",
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ]
+    }
   }
 }
