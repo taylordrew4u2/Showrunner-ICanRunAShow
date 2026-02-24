@@ -97,10 +97,18 @@ export default function DJMusicSection({ songs, show, settings, onChange }: Prop
         songs.map((s, i) => (
           <View key={s.id} style={styles.row}>
             <View style={styles.orderBtns}>
-              <TouchableOpacity onPress={() => moveUp(i)} disabled={i === 0}>
+              <TouchableOpacity 
+                style={styles.orderBtn}
+                onPress={() => moveUp(i)} 
+                disabled={i === 0}
+              >
                 <Text style={[styles.orderBtnText, i === 0 && styles.disabled]}>▲</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => moveDown(i)} disabled={i === songs.length - 1}>
+              <TouchableOpacity 
+                style={styles.orderBtn}
+                onPress={() => moveDown(i)} 
+                disabled={i === songs.length - 1}
+              >
                 <Text style={[styles.orderBtnText, i === songs.length - 1 && styles.disabled]}>▼</Text>
               </TouchableOpacity>
             </View>
@@ -179,33 +187,215 @@ export default function DJMusicSection({ songs, show, settings, onChange }: Prop
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 8 },
-  empty: { color: '#9CA3AF', fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  orderBtns: { marginRight: 6, alignItems: 'center', gap: 2 },
-  orderBtnText: { fontSize: 11, color: '#6B46C1', paddingVertical: 2 },
-  disabled: { color: '#D1D5DB' },
-  num: { fontSize: 12, fontWeight: '700', color: '#9CA3AF', width: 22, textAlign: 'right', marginRight: 8 },
-  info: { flex: 1 },
-  songTitle: { fontSize: 14, fontWeight: '600', color: '#1F2937' },
-  songArtist: { fontSize: 12, color: '#6B7280' },
-  meta: { fontSize: 11, color: '#9CA3AF', fontStyle: 'italic', marginTop: 1 },
-  editBtn: { backgroundColor: '#EDE9FE', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5, marginRight: 6 },
-  editBtnText: { color: '#6B46C1', fontSize: 12, fontWeight: '600' },
-  deleteBtn: { padding: 6 },
-  deleteBtnText: { color: '#EF4444', fontSize: 14 },
-  addBtn: { marginTop: 10, backgroundColor: '#F3F4F6', borderRadius: 8, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed' },
-  addBtnText: { color: '#6B46C1', fontWeight: '600', fontSize: 14 },
-  exportBtn: { marginTop: 10, backgroundColor: '#EDE9FE', borderRadius: 8, paddingVertical: 11, alignItems: 'center' },
-  exportBtnText: { color: '#6B46C1', fontWeight: '700', fontSize: 14 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937', marginBottom: 16 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: '#374151', marginBottom: 5, marginTop: 12, textTransform: 'uppercase', letterSpacing: 0.4 },
-  input: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: '#1F2937', backgroundColor: '#F9FAFB' },
-  modalBtns: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  cancelBtn: { flex: 1, backgroundColor: '#F3F4F6', borderRadius: 8, paddingVertical: 13, alignItems: 'center' },
-  cancelBtnText: { color: '#374151', fontWeight: '600', fontSize: 15 },
-  saveBtn: { flex: 1, backgroundColor: '#6B46C1', borderRadius: 8, paddingVertical: 13, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  container: { 
+    backgroundColor: '#fff', 
+    borderRadius: 14, 
+    padding: 16, 
+    marginBottom: 10 
+  },
+  empty: { 
+    color: '#9CA3AF', 
+    fontStyle: 'italic', 
+    textAlign: 'center', 
+    paddingVertical: 16,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  row: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingVertical: 12, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#F3F4F6',
+    minHeight: 52,
+  },
+  orderBtns: { 
+    marginRight: 8, 
+    alignItems: 'center', 
+    gap: 4,
+    minWidth: 44,
+    justifyContent: 'center',
+  },
+  orderBtn: { 
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 6,
+  },
+  orderBtnText: { 
+    fontSize: 13, 
+    color: '#6B46C1',
+    fontWeight: '600',
+  },
+  disabled: { 
+    color: '#D1D5DB' 
+  },
+  num: { 
+    fontSize: 13, 
+    fontWeight: '700', 
+    color: '#9CA3AF', 
+    width: 24, 
+    textAlign: 'right', 
+    marginRight: 10,
+    lineHeight: 18,
+  },
+  info: { 
+    flex: 1 
+  },
+  songTitle: { 
+    fontSize: 15, 
+    fontWeight: '600', 
+    color: '#1F2937',
+    lineHeight: 20,
+  },
+  songArtist: { 
+    fontSize: 13, 
+    color: '#6B7280',
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  meta: { 
+    fontSize: 12, 
+    color: '#9CA3AF', 
+    fontStyle: 'italic', 
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  editBtn: { 
+    backgroundColor: '#EDE9FE', 
+    borderRadius: 8, 
+    paddingHorizontal: 12, 
+    paddingVertical: 8,
+    minHeight: 44,
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  editBtnText: { 
+    color: '#6B46C1', 
+    fontSize: 14, 
+    fontWeight: '600' 
+  },
+  deleteBtn: { 
+    padding: 10,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteBtnText: { 
+    color: '#EF4444', 
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  addBtn: { 
+    marginTop: 12, 
+    backgroundColor: '#F3F4F6', 
+    borderRadius: 10, 
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderColor: '#E5E7EB', 
+    borderStyle: 'dashed',
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  addBtnText: { 
+    color: '#6B46C1', 
+    fontWeight: '600', 
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  exportBtn: { 
+    marginTop: 12, 
+    backgroundColor: '#EDE9FE', 
+    borderRadius: 10, 
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  exportBtnText: { 
+    color: '#6B46C1', 
+    fontWeight: '700', 
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  overlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.55)', 
+    justifyContent: 'flex-end' 
+  },
+  modal: { 
+    backgroundColor: '#fff', 
+    borderTopLeftRadius: 20, 
+    borderTopRightRadius: 20, 
+    padding: 24, 
+    paddingBottom: 40 
+  },
+  modalTitle: { 
+    fontSize: 20, 
+    fontWeight: '700', 
+    color: '#1F2937', 
+    marginBottom: 20,
+    lineHeight: 28,
+  },
+  fieldLabel: { 
+    fontSize: 13, 
+    fontWeight: '600', 
+    color: '#374151', 
+    marginBottom: 8, 
+    marginTop: 14, 
+    textTransform: 'uppercase', 
+    letterSpacing: 0.4 
+  },
+  input: { 
+    borderWidth: 1, 
+    borderColor: '#D1D5DB', 
+    borderRadius: 10, 
+    paddingHorizontal: 14, 
+    paddingVertical: 13, 
+    fontSize: 16, 
+    color: '#1F2937', 
+    backgroundColor: '#F9FAFB',
+    minHeight: 48,
+    lineHeight: 20,
+  },
+  modalBtns: { 
+    flexDirection: 'row', 
+    gap: 12, 
+    marginTop: 28 
+  },
+  cancelBtn: { 
+    flex: 1, 
+    backgroundColor: '#F3F4F6', 
+    borderRadius: 10, 
+    paddingVertical: 14, 
+    alignItems: 'center',
+    minHeight: 52,
+    justifyContent: 'center',
+  },
+  cancelBtnText: { 
+    color: '#374151', 
+    fontWeight: '600', 
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  saveBtn: { 
+    flex: 1, 
+    backgroundColor: '#6B46C1', 
+    borderRadius: 10, 
+    paddingVertical: 14, 
+    alignItems: 'center',
+    minHeight: 52,
+    justifyContent: 'center',
+  },
+  saveBtnText: { 
+    color: '#fff', 
+    fontWeight: '700', 
+    fontSize: 16,
+    lineHeight: 20,
+  },
 });
