@@ -7,6 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "mac": "expo start --web",
     "build:ios": "npx -y eas-cli@12.4.1 build --platform ios --profile production",
     "download:ios": "npx -y eas-cli@12.4.1 build --platform ios --profile preview",
     "build:ios:submit": "npx -y eas-cli@12.4.1 build --platform ios --profile production --auto-submit",
