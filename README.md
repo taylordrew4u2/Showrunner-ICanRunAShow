@@ -42,6 +42,22 @@ iOS (App Store/TestFlight):
 npm run build:ios
 ```
 
+## iOS release flow (TestFlight/App Store)
+
+Build and auto-submit in one command:
+
+```bash
+npm run build:ios:submit
+```
+
+Or submit the latest completed iOS build manually:
+
+```bash
+npm run submit:ios
+```
+
+After submission completes, manage testers and releases in App Store Connect.
+
 ### Notes
 
 - `preview` profile creates a downloadable Android APK for direct install.
