@@ -16,6 +16,49 @@ Go to the [Releases](../../releases) page on GitHub, find the latest release, an
 
 ---
 
+## Run on Mac (Desktop App)
+
+Showrunner ships with an Electron wrapper so it can run as a native macOS desktop window.
+
+### Prerequisites
+
+```bash
+npm install
+```
+
+### Start in development mode
+
+```bash
+npm run mac
+```
+
+This starts the Vite web dev server and opens the app in an Electron window automatically.
+Changes to source files are reflected live via hot module reload.
+
+### Build macOS installer
+
+```bash
+npm run build:mac
+```
+
+This compiles the web app and packages it into a `.dmg` installer (and a `.zip` archive) inside the `dist-electron/` directory.
+
+The build produces **arm64** (Apple Silicon) and **x64** (Intel) binaries. Apple Silicon users (M1/M2/M3 and later) should use the `arm64` DMG.
+
+#### Gatekeeper note (unsigned builds)
+
+Because these builds are not code-signed or notarized by Apple, macOS Gatekeeper will block the first launch.
+To open an unsigned DMG:
+
+1. Double-click the `.dmg` to mount it.
+2. Drag **Showrunner.app** to your **Applications** folder.
+3. In Finder, **right-click** Showrunner.app → **Open**.
+4. Click **Open** in the Gatekeeper dialog.
+
+You only need to do this once. After that, the app opens normally.
+
+---
+
 ## Build it yourself (developers)
 
 This project is configured to produce installable mobile binaries using Expo Application Services (EAS).
