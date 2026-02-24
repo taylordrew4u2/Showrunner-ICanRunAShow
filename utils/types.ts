@@ -8,13 +8,7 @@ export interface Performer {
   video?: string;       // file URI
 }
 
-export interface Artist {
-  id: string;
-  name: string;
-  photo?: string;
-  walkOnMusic?: string;
-  video?: string;
-}
+
 
 export interface ScheduleItem {
   id: string;
@@ -54,6 +48,8 @@ export interface Expense {
 
 // ─── Show ─────────────────────────────────────────────────────────────────────
 
+export type ShowStatus = 'upcoming' | 'in-progress' | 'completed' | 'cancelled';
+
 export interface Show {
   id: string;
   name: string;
@@ -62,19 +58,18 @@ export interface Show {
   time: string;
   location: string;
   venueName: string;
+  status: ShowStatus;
   // Section 2: Performers
   performers: Performer[];
-  // Section 3: Artists
-  artists: Artist[];
-  // Section 4: Schedule & Timing
+  // Section 3: Schedule & Timing
   schedule: ScheduleItem[];
-  // Section 5: Hosts
+  // Section 4: Hosts
   hosts: Host[];
-  // Section 6: DJ Music List
+  // Section 5: DJ Music List
   djSongs: DJSong[];
-  // Section 7: Staff & Crew
+  // Section 6: Staff & Crew
   staff: StaffMember[];
-  // Section 8: Expenses
+  // Section 7: Expenses
   expenses: Expense[];
   createdAt: string;
   updatedAt: string;
