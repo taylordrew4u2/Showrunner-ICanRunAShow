@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,11 @@ import {
   Alert,
   Modal,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { useFocusEffect, useRouter, Stack } from 'expo-router';
 import { loadShows, saveShow, deleteShow, loadSettings, generateId } from '../utils/storage';
-import { Show, AppSettings, DEFAULT_SETTINGS } from '../utils/types';
+import { Show, AppSettings, DEFAULT_SETTINGS, ShowStatus } from '../utils/types';
 import ShowCard from '../components/ShowCard';
 
 export default function HomeScreen() {
@@ -20,6 +21,10 @@ export default function HomeScreen() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newShowName, setNewShowName] = useState('');
   const [newShowDate, setNewShowDate] = useState('');
+  const [newShowStatus, setNewShowStatus] = useState<ShowStatus>('upcoming');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ShowStatus | 'all'>('all');
+  const [duplicateShowId, setDuplicateShowId] = useState<string | null>(null);
   const router = useRouter();
 
   useFocusEffect(
@@ -30,6 +35,14 @@ export default function HomeScreen() {
       });
     }, [])
   );
+
+  const filteredShows = useMemo(() => {
+    return shows.filter((show) => {
+      const matchesSearch = show.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || show.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [shows, searchQuery, statusFilter]);
 
   const handleCreateShow = async () => {
     if (!newShowName.trim()) {
@@ -44,8 +57,8 @@ export default function HomeScreen() {
       time: '',
       location: '',
       venueName: '',
+      status: newShowStatus,
       performers: [],
-      artists: [],
       schedule: [],
       hosts: [],
       djSongs: [],
@@ -57,8 +70,27 @@ export default function HomeScreen() {
     await saveShow(newShow);
     setNewShowName('');
     setNewShowDate('');
+    setNewShowStatus('upcoming');
     setCreateModalVisible(false);
     router.push(`/show/${newShow.id}`);
+  };
+
+  const handleDuplicateShow = async (sourceId: string) => {
+    const source = shows.find((s) => s.id === sourceId);
+    if (!source) return;
+    
+    const now = new Date().toISOString();
+    const newShow: Show = {
+      ...source,
+      id: generateId(),
+      name: `${source.name} (Copy)`,
+      status: 'upcoming',
+      createdAt: now,
+      updatedAt: now,
+    };
+    await saveShow(newShow);
+    setShows((prev) => [newShow, ...prev]);
+    Alert.alert('Success', `Show duplicated as "${newShow.name}"`);
   };
 
   const handleDeleteShow = (id: string, name: string) => {
@@ -106,24 +138,64 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Search & Filter */}
+      <View style={styles.filterSection}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search shows..."
+          placeholderTextColor="#9CA3AF"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statusFilterScroll}>
+          {(['all', 'upcoming', 'in-progress', 'completed', 'cancelled'] as const).map((status) => (
+            <TouchableOpacity
+              key={status}
+              style={[
+                styles.filterChip,
+                statusFilter === status && styles.filterChipActive,
+              ]}
+              onPress={() => setStatusFilter(status)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  statusFilter === status && styles.filterChipTextActive,
+                ]}
+              >
+                {status === 'all' ? '✓ All' : status.replace('-', ' ')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Shows Grid */}
-      {shows.length === 0 ? (
+      {filteredShows.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>🎭</Text>
-          <Text style={styles.emptyTitle}>No Shows Yet</Text>
-          <Text style={styles.emptySubtitle}>Tap "Create a Show" to get started</Text>
+          <Text style={styles.emptyTitle}>
+            {searchQuery || statusFilter !== 'all' ? 'No Shows Found' : 'No Shows Yet'}
+          </Text>
+          <Text style={styles.emptySubtitle}>
+            {searchQuery || statusFilter !== 'all'
+              ? 'Try adjusting your search or filters'
+              : 'Tap "Create a Show" to get started'}
+          </Text>
         </View>
       ) : (
         <FlatList
-          data={shows}
+          data={filteredShows}
           keyExtractor={(item) => item.id}
           numColumns={2}
           contentContainerStyle={styles.grid}
+          scrollEnabled={false}
           renderItem={({ item }) => (
             <ShowCard
               show={item}
               onPress={() => router.push(`/show/${item.id}`)}
               onDelete={() => handleDeleteShow(item.id, item.name)}
+              onDuplicate={() => handleDuplicateShow(item.id)}
             />
           )}
         />
@@ -132,44 +204,70 @@ export default function HomeScreen() {
       {/* Create Show Modal */}
       <Modal visible={createModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>New Show</Text>
+          <ScrollView contentContainerStyle={styles.modalScrollContent}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>New Show</Text>
 
-            <Text style={styles.modalLabel}>Show Name *</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="e.g. Spring Showcase 2025"
-              placeholderTextColor="#9CA3AF"
-              value={newShowName}
-              onChangeText={setNewShowName}
-              autoFocus
-            />
+              <Text style={styles.modalLabel}>Show Name *</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="e.g. Spring Showcase 2025"
+                placeholderTextColor="#9CA3AF"
+                value={newShowName}
+                onChangeText={setNewShowName}
+                autoFocus
+              />
 
-            <Text style={styles.modalLabel}>Date (optional)</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="e.g. March 15, 2025"
-              placeholderTextColor="#9CA3AF"
-              value={newShowDate}
-              onChangeText={setNewShowDate}
-            />
+              <Text style={styles.modalLabel}>Date (optional)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="e.g. March 15, 2025"
+                placeholderTextColor="#9CA3AF"
+                value={newShowDate}
+                onChangeText={setNewShowDate}
+              />
 
-            <View style={styles.modalBtns}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => {
-                  setCreateModalVisible(false);
-                  setNewShowName('');
-                  setNewShowDate('');
-                }}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={handleCreateShow}>
-                <Text style={styles.confirmBtnText}>Create</Text>
-              </TouchableOpacity>
+              <Text style={styles.modalLabel}>Status</Text>
+              <View style={styles.statusGrid}>
+                {(['upcoming', 'in-progress', 'completed', 'cancelled'] as ShowStatus[]).map((status) => (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.statusOption,
+                      newShowStatus === status && styles.statusOptionSelected,
+                    ]}
+                    onPress={() => setNewShowStatus(status)}
+                  >
+                    <Text
+                      style={[
+                        styles.statusOptionText,
+                        newShowStatus === status && styles.statusOptionTextSelected,
+                      ]}
+                    >
+                      {status.replace('-', ' ')}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.modalBtns}>
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={() => {
+                    setCreateModalVisible(false);
+                    setNewShowName('');
+                    setNewShowDate('');
+                    setNewShowStatus('upcoming');
+                  }}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.confirmBtn} onPress={handleCreateShow}>
+                  <Text style={styles.confirmBtnText}>Create</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -247,6 +345,46 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
   },
+  filterSection: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  searchInput: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#1F2937',
+    marginBottom: 10,
+  },
+  statusFilterScroll: {
+    marginBottom: 4,
+  },
+  filterChip: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterChipActive: {
+    backgroundColor: '#6B46C1',
+    borderColor: '#6B46C1',
+  },
+  filterChipText: {
+    color: '#6B7280',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filterChipTextActive: {
+    color: '#fff',
+  },
   grid: {
     padding: 8,
   },
@@ -274,6 +412,10 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
     justifyContent: 'flex-end',
   },
   modalContent: {
@@ -307,6 +449,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
     backgroundColor: '#F9FAFB',
+  },
+  statusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  statusOption: {
+    flex: 1,
+    minWidth: '48%',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+  },
+  statusOptionSelected: {
+    backgroundColor: '#EDE9FE',
+    borderColor: '#6B46C1',
+  },
+  statusOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'capitalize',
+  },
+  statusOptionTextSelected: {
+    color: '#6B46C1',
   },
   modalBtns: {
     flexDirection: 'row',
