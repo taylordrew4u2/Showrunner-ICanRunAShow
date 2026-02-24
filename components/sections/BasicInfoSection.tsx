@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
-import { Show } from '../../utils/types';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { Show, ShowStatus } from '../../utils/types';
 
 interface Props {
   show: Show;
@@ -8,6 +8,8 @@ interface Props {
 }
 
 export default function BasicInfoSection({ show, onChange }: Props) {
+  const statuses: ShowStatus[] = ['upcoming', 'in-progress', 'completed', 'cancelled'];
+  
   return (
     <View style={styles.container}>
       <Text style={styles.label}>Show Date</Text>
@@ -48,6 +50,29 @@ export default function BasicInfoSection({ show, onChange }: Props) {
         numberOfLines={3}
         textAlignVertical="top"
       />
+
+      <Text style={styles.label}>Status</Text>
+      <View style={styles.statusGrid}>
+        {statuses.map((status) => (
+          <TouchableOpacity
+            key={status}
+            style={[
+              styles.statusBtn,
+              show.status === status && styles.statusBtnActive,
+            ]}
+            onPress={() => onChange({ status })}
+          >
+            <Text
+              style={[
+                styles.statusBtnText,
+                show.status === status && styles.statusBtnTextActive,
+              ]}
+            >
+              {status.replace('-', ' ')}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 }
@@ -81,5 +106,35 @@ const styles = StyleSheet.create({
   multiline: {
     height: 80,
     textAlignVertical: 'top',
+  },
+  statusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  statusBtn: {
+    flex: 1,
+    minWidth: '48%',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+  },
+  statusBtnActive: {
+    backgroundColor: '#EDE9FE',
+    borderColor: '#6B46C1',
+  },
+  statusBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'capitalize',
+  },
+  statusBtnTextActive: {
+    color: '#6B46C1',
   },
 });

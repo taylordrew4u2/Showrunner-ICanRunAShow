@@ -65,13 +65,6 @@ export async function exportShowToPDF(show: Show, settings: AppSettings): Promis
     ${show.performers.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.name)}</td><td>${p.walkOnMusic ? '✓ Assigned' : '—'}</td></tr>`).join('')}
   </table>` : ''}
 
-  ${show.artists.length > 0 ? `
-  <h2>Artists</h2>
-  <table>
-    <tr><th>#</th><th>Name</th><th>Walk-On Music</th></tr>
-    ${show.artists.map((a, i) => `<tr><td>${i + 1}</td><td>${esc(a.name)}</td><td>${a.walkOnMusic ? '✓ Assigned' : '—'}</td></tr>`).join('')}
-  </table>` : ''}
-
   ${show.hosts.length > 0 ? `
   <h2>Hosts</h2>
   <table>
