@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Pins & Needles Show Organizer",
+    "slug": "showrunner",
+    "version": "1.0.0",
+    "scheme": "showrunner",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#6B46C1"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.showrunner.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#6B46C1"
+      },
+      "package": "com.showrunner.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos for performer and artist images.",
+          "cameraPermission": "Allow $(PRODUCT_NAME) to use your camera."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
