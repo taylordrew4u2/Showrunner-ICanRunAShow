@@ -1,5 +1,6 @@
 {
   "expo": {
+    "entryPoint": "expo-router/entry",
     "name": "Pins & Needles Show Organizer",
     "slug": "showrunner",
     "version": "1.0.1",

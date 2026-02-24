@@ -2,6 +2,53 @@
 
 Showrunner is an Expo app for organizing a live show.
 
+## Run on Mac (Desktop App)
+
+Showrunner includes an **Electron wrapper** that lets you run the app as a native macOS desktop application — no iOS simulator or mobile device required.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18 or later) and npm
+
+### 1) Install dependencies
+
+```bash
+npm install
+```
+
+### 2) Run the desktop app (development)
+
+```bash
+npm run mac
+```
+
+This starts the Vite web dev server and opens the app in an Electron window. Live reload is enabled — edits to `src/` are reflected immediately.
+
+### 3) Build a distributable `.app`
+
+```bash
+npm run build:mac
+```
+
+This builds the web assets with Vite and packages them into a macOS desktop app using [electron-builder](https://www.electron.build/). The built artifact is placed in the `release/` directory:
+
+- **`release/Showrunner-<version>.dmg`** — drag-and-drop installer
+- **`release/mac/Showrunner.app`** — standalone `.app` bundle
+
+### Data persistence
+
+All show data is stored in Electron's built-in `localStorage` (same API as the browser). On macOS this lives inside Electron's app profile folder:
+
+```
+~/Library/Application Support/Showrunner/
+```
+
+To reset app data, quit the app and delete the `Local Storage/` subfolder in that directory.
+
+> **Note:** This is a desktop wrapper around the Vite/React web build in `src/`. The Expo mobile app (`app/`) is a separate entry point for iOS/Android.
+
+---
+
 ## Data & auth model
 
 - No OAuth or account sign-in is required.
