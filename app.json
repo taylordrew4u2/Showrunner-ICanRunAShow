@@ -2,11 +2,14 @@
   "expo": {
     "name": "Pins & Needles Show Organizer",
     "slug": "showrunner",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "scheme": "showrunner",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./public/icons/app-icon.png",
     "splash": {
+      "image": "./public/icons/splash-icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#6B46C1"
     },
     "ios": {
