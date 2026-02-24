@@ -14,13 +14,15 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.showrunner.app"
+      "bundleIdentifier": "com.showrunner.app",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#6B46C1"
       },
-      "package": "com.showrunner.app"
+      "package": "com.showrunner.app",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
