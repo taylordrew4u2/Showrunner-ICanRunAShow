@@ -6,9 +6,9 @@
     "scheme": "showrunner",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "./public/icons/app-icon.png",
+    "icon": "./public/icons/icon-512x512.png",
     "splash": {
-      "image": "./public/icons/splash-icon.png",
+      "image": "./public/icons/icon-512x512.png",
       "resizeMode": "contain",
       "backgroundColor": "#6B46C1"
     },
@@ -19,6 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./public/icons/icon-512x512-maskable.png",
         "backgroundColor": "#6B46C1"
       },
       "package": "com.showrunner.app",
