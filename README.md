@@ -2,6 +2,43 @@
 
 Showrunner is an Expo app for organizing a live show.
 
+---
+
+## Run on Mac (quickest path)
+
+No Xcode, no EAS account, no Android device needed — just a browser.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18 or later recommended)
+- npm (included with Node)
+
+### Option A — one-liner helper script
+
+```bash
+bash scripts/run-mac.sh
+```
+
+The script checks for Node/npm, syncs dependencies, and opens the app in your browser.
+
+### Option B — manual commands
+
+```bash
+npm install        # install dependencies (first time only)
+npm run mac        # starts expo in web mode — opens in your browser
+```
+
+### Option C — iOS Simulator (requires Xcode)
+
+If you have Xcode installed on your Mac you can run the native iOS build instead:
+
+```bash
+npm install
+npm run ios
+```
+
+---
+
 ## Data & auth model
 
 - No OAuth or account sign-in is required.
@@ -105,6 +142,11 @@ After submission completes, manage testers and releases in App Store Connect.
 
 ## Local development
 
+Start the Expo dev server (choose your target):
+
 ```bash
-npm run start
+npm run start    # interactive menu — choose web, iOS, or Android
+npm run mac      # web only (browser) — simplest on Mac
+npm run ios      # iOS Simulator (requires Xcode on Mac)
+npm run android  # Android emulator / device
 ```
