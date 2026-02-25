@@ -1,5 +1,13 @@
 import type { Show, Scene } from '../types';
 import { SceneList } from './SceneList';
+import { BasicInfoSection } from './sections/BasicInfoSection';
+import { PerformersSection } from './sections/PerformersSection';
+import { ArtistsSection } from './sections/ArtistsSection';
+import { ScheduleSection } from './sections/ScheduleSection';
+import { HostsSection } from './sections/HostsSection';
+import { DJMusicSection } from './sections/DJMusicSection';
+import { StaffSection } from './sections/StaffSection';
+import { ExpensesSection } from './sections/ExpensesSection';
 import './ShowDetail.css';
 
 interface ShowDetailProps {
@@ -11,6 +19,10 @@ interface ShowDetailProps {
 export function ShowDetail({ show, onBack, onUpdate }: ShowDetailProps) {
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
+  }
+
+  function handleUpdate(updates: Partial<Show>) {
+    onUpdate({ ...show, ...updates });
   }
 
   return (
@@ -31,6 +43,17 @@ export function ShowDetail({ show, onBack, onUpdate }: ShowDetailProps) {
         {show.date && (
           <span>📅 {new Date(show.date).toLocaleDateString()}</span>
         )}
+      </div>
+
+      <div className="show-detail__sections">
+        <BasicInfoSection show={show} onChange={handleUpdate} />
+        <PerformersSection performers={show.performers} onChange={(performers) => handleUpdate({ performers })} />
+        <ArtistsSection artists={show.artists} onChange={(artists) => handleUpdate({ artists })} />
+        <ScheduleSection schedule={show.schedule} onChange={(schedule) => handleUpdate({ schedule })} />
+        <HostsSection hosts={show.hosts} onChange={(hosts) => handleUpdate({ hosts })} />
+        <DJMusicSection songs={show.djSongs} show={show} onChange={(djSongs) => handleUpdate({ djSongs })} />
+        <StaffSection staff={show.staff} onChange={(staff) => handleUpdate({ staff })} />
+        <ExpensesSection expenses={show.expenses} onChange={(expenses) => handleUpdate({ expenses })} />
       </div>
 
       <div className="show-detail__scenes">
