@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Host } from '../../utils/types';
 import { generateId } from '../../utils/storage';
-import { pickImage, fileBaseName } from '../../utils/filePicker';
+import { pickImage } from '../../utils/filePicker';
 
 interface Props {
   hosts: Host[];
