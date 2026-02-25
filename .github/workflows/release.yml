@@ -1,4 +1,4 @@
-name: Build & attach APK to release
+name: Build & attach binaries to release
 
 on:
   release:
@@ -8,6 +8,34 @@ permissions:
   contents: write
 
 jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build Vite web app
+        run: npx vite build --base ./
+
+      - name: Package macOS app with electron-builder
+        run: npx electron-builder --mac --config electron-builder.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attach macOS DMG to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for f in dist-electron/*.dmg dist-electron/*.zip; do
+            [ -f "$f" ] && gh release upload "${{ github.event.release.tag_name }}" "$f" --clobber
+          done
+
   build-android:
     runs-on: ubuntu-latest
     steps:
