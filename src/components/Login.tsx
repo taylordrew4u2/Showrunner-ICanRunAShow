@@ -7,7 +7,7 @@ interface LoginProps {
 }
 
 export function Login({ onLogin, loading = false }: LoginProps) {
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState('omg123');
   const [error, setError] = useState('');
 
   function handleSubmit(e: React.FormEvent) {
