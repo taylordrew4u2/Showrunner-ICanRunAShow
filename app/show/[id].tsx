@@ -11,12 +11,11 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { loadShow, saveShow, loadSettings } from '../../utils/storage';
-import { Show, AppSettings, DEFAULT_SETTINGS } from '../../utils/types';
+import { Show, AppSettings, DEFAULT_SETTINGS, ShowStatus } from '../../utils/types';
 import { exportShowToPDF } from '../../utils/pdfExport';
 import SectionHeader from '../../components/SectionHeader';
 import BasicInfoSection from '../../components/sections/BasicInfoSection';
 import PerformersSection from '../../components/sections/PerformersSection';
-import ArtistsSection from '../../components/sections/ArtistsSection';
 import ScheduleSection from '../../components/sections/ScheduleSection';
 import HostsSection from '../../components/sections/HostsSection';
 import DJMusicSection from '../../components/sections/DJMusicSection';
@@ -26,7 +25,6 @@ import ExpensesSection from '../../components/sections/ExpensesSection';
 type SectionKey =
   | 'basicInfo'
   | 'performers'
-  | 'artists'
   | 'schedule'
   | 'hosts'
   | 'djMusic'
@@ -36,7 +34,6 @@ type SectionKey =
 const ALL_SECTIONS: SectionKey[] = [
   'basicInfo',
   'performers',
-  'artists',
   'schedule',
   'hosts',
   'djMusic',
@@ -47,12 +44,11 @@ const ALL_SECTIONS: SectionKey[] = [
 const SECTION_LABELS: Record<SectionKey, string> = {
   basicInfo: '1. Basic Show Info',
   performers: '2. Performers',
-  artists: '3. Artists',
-  schedule: '4. Schedule & Timing',
-  hosts: '5. Hosts',
-  djMusic: '6. DJ Music List',
-  staff: '7. Staff & Crew',
-  expenses: '8. Itemized Expenses',
+  schedule: '3. Schedule & Timing',
+  hosts: '4. Hosts',
+  djMusic: '5. DJ Music List',
+  staff: '6. Staff & Crew',
+  expenses: '7. Itemized Expenses',
 };
 
 export default function ShowDetailScreen() {
@@ -67,7 +63,6 @@ export default function ShowDetailScreen() {
   const [expanded, setExpanded] = useState<Record<SectionKey, boolean>>({
     basicInfo: true,
     performers: false,
-    artists: false,
     schedule: false,
     hosts: false,
     djMusic: false,
@@ -132,7 +127,6 @@ export default function ShowDetailScreen() {
     if (!show) return undefined;
     switch (key) {
       case 'performers': return show.performers.length;
-      case 'artists': return show.artists.length;
       case 'schedule': return show.schedule.length;
       case 'hosts': return show.hosts.length;
       case 'djMusic': return show.djSongs.length;
@@ -233,13 +227,6 @@ function renderSection(
           onChange={(performers) => updateShow({ performers })}
         />
       );
-    case 'artists':
-      return (
-        <ArtistsSection
-          artists={show.artists}
-          onChange={(artists) => updateShow({ artists })}
-        />
-      );
     case 'schedule':
       return (
         <ScheduleSection
@@ -288,8 +275,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   content: {
-    padding: 14,
-    paddingBottom: 20,
+    padding: 16,
+    paddingBottom: 30,
   },
   centered: {
     flex: 1,
@@ -308,22 +295,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   saveHeaderBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.25)',
     borderRadius: 8,
-    marginRight: 4,
+    marginRight: 8,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   saveHeaderBtnText: {
     color: '#fff',
     fontWeight: '700',
     fontSize: 15,
+    lineHeight: 20,
   },
   nameCard: {
     backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
@@ -331,26 +322,30 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   nameLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#9CA3AF',
     letterSpacing: 1,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   nameInput: {
     color: '#1F2937',
     fontWeight: '700',
     padding: 0,
+    fontSize: 22,
+    lineHeight: 28,
   },
   sectionWrapper: {
-    marginBottom: 10,
+    marginBottom: 12,
   },
   exportBtn: {
     backgroundColor: '#1F2937',
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 16,
+    minHeight: 56,
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -362,10 +357,11 @@ const styles = StyleSheet.create({
   },
   exportBtnText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
+    lineHeight: 22,
   },
   bottomSpacer: {
-    height: 30,
+    height: 40,
   },
 });
