@@ -16,3 +16,13 @@ mac:
       arch:
         - x64
         - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+
+dmg:
+  title: Showrunner Installer
+  window:
+    width: 540
+    height: 380
