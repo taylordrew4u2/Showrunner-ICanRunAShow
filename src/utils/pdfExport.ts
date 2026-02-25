@@ -1,4 +1,4 @@
-import type { Show, AppSettings } from "../types";
+import type { Show, AppSettings, Performer, ScheduleItem, Host, DJSong, StaffMember, Expense } from "../types";
 
 function esc(text: string | undefined | null): string {
   if (!text) return "";
@@ -59,7 +59,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Performers</h2>
   <table>
     <tr><th>#</th><th>Name</th><th>Walk-On Music</th></tr>
-    ${show.performers.map((p, i) => `<tr><td>${i + 1}</td><td>${p.photo ? `<img class="photo-thumb" src="${p.photo}" />` : ""}${esc(p.name)}</td><td>${p.walkOnMusicName ? esc(p.walkOnMusicName) : "—"}</td></tr>`).join("")}
+    ${show.performers.map((p: Performer, i: number) => `<tr><td>${i + 1}</td><td>${p.photo ? `<img class="photo-thumb" src="${p.photo}" />` : ""}${esc(p.name)}</td><td>${p.walkOnMusicName ? esc(p.walkOnMusicName) : "—"}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -70,7 +70,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Artists</h2>
   <table>
     <tr><th>#</th><th>Name</th><th>Walk-On Music</th></tr>
-    ${show.artists.map((a, i) => `<tr><td>${i + 1}</td><td>${a.photo ? `<img class="photo-thumb" src="${a.photo}" />` : ""}${esc(a.name)}</td><td>${a.walkOnMusicName ? esc(a.walkOnMusicName) : "—"}</td></tr>`).join("")}
+    ${show.artists.map((a: Performer, i: number) => `<tr><td>${i + 1}</td><td>${a.photo ? `<img class="photo-thumb" src="${a.photo}" />` : ""}${esc(a.name)}</td><td>${a.walkOnMusicName ? esc(a.walkOnMusicName) : "—"}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -81,7 +81,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Schedule &amp; Timing</h2>
   <table>
     <tr><th>Time</th><th>Event</th></tr>
-    ${show.schedule.map((s) => `<tr><td>${esc(s.time)}</td><td>${esc(s.description)}</td></tr>`).join("")}
+    ${show.schedule.map((s: ScheduleItem) => `<tr><td>${esc(s.time)}</td><td>${esc(s.description)}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -92,7 +92,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Hosts</h2>
   <table>
     <tr><th>Name</th><th>Hosting</th><th>Notes</th></tr>
-    ${show.hosts.map((h) => `<tr><td>${h.photo ? `<img class="photo-thumb" src="${h.photo}" />` : ""}${esc(h.name)}</td><td>${h.isHosting ? "✓ Yes" : "No"}</td><td>${esc(h.notes)}</td></tr>`).join("")}
+    ${show.hosts.map((h: Host) => `<tr><td>${h.photo ? `<img class="photo-thumb" src="${h.photo}" />` : ""}${esc(h.name)}</td><td>${h.isHosting ? "✓ Yes" : "No"}</td><td>${esc(h.notes)}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -103,7 +103,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>DJ Music List</h2>
   <table>
     <tr><th>#</th><th>Title</th><th>Artist</th><th>Notes</th></tr>
-    ${show.djSongs.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
+    ${show.djSongs.map((s: DJSong, i: number) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -114,7 +114,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Staff &amp; Crew</h2>
   <table>
     <tr><th>Role</th><th>Person</th></tr>
-    ${show.staff.map((s) => `<tr><td>${esc(s.role)}</td><td>${esc(s.personName)}</td></tr>`).join("")}
+    ${show.staff.map((s: StaffMember) => `<tr><td>${esc(s.role)}</td><td>${esc(s.personName)}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -125,7 +125,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Itemized Expenses</h2>
   <table>
     <tr><th>Category</th><th>Item</th><th>Cost</th><th>Date</th><th>Notes</th></tr>
-    ${show.expenses.map((e) => `<tr><td>${esc(e.category)}</td><td>${esc(e.itemName)}</td><td>${formatCurrency(Number(e.cost) || 0)}</td><td>${esc(e.date)}</td><td>${esc(e.notes)}</td></tr>`).join("")}
+    ${show.expenses.map((e: Expense) => `<tr><td>${esc(e.category)}</td><td>${esc(e.itemName)}</td><td>${formatCurrency(Number(e.cost) || 0)}</td><td>${esc(e.date)}</td><td>${esc(e.notes)}</td></tr>`).join("")}
     <tr class="total-row"><td colspan="2"><strong>Total</strong></td><td><strong>${formatCurrency(totalExpenses)}</strong></td><td></td><td></td></tr>
   </table>`
       : ""
