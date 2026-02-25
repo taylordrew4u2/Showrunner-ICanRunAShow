@@ -18,6 +18,6 @@ fi
 echo "Installing dependencies..."
 npm --prefix "$(dirname "$0")/.." install
 
-# Start the web app
-echo "Starting Showrunner in your browser..."
-npm --prefix "$(dirname "$0")/.." run web
+# Start the desktop app
+echo "Starting Showrunner as a desktop app..."
+npm --prefix "$(dirname "$0")/.." run mac
