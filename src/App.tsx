@@ -20,11 +20,12 @@ export default function App() {
     saveShows(shows);
   }, [shows]);
 
-  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'scenes'>) {
+  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes'>) {
     const newShow: Show = {
       ...data,
       id: generateId(),
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       scenes: [],
     };
     setShows((prev) => [newShow, ...prev]);
