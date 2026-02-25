@@ -1,13 +1,15 @@
-import CryptoJS from 'crypto-js';
+import CryptoJS from "crypto-js";
 
-const PASSWORD_SALT = 'showrunner-salt-2024';
+const PASSWORD_SALT = "showrunner-salt-2024";
 
 /**
  * Derive a stable user ID from password hash
  * Used to organize data by user in the database
  */
 export function deriveUserId(password: string): string {
-  return CryptoJS.SHA256(password + PASSWORD_SALT).toString().substring(0, 32);
+  return CryptoJS.SHA256(password + PASSWORD_SALT)
+    .toString()
+    .substring(0, 32);
 }
 
 /**
@@ -36,7 +38,9 @@ export function encryptData(data: unknown, password: string): string {
  */
 export function decryptData<T>(encrypted: string, password: string): T {
   const key = deriveKey(password);
-  const decrypted = CryptoJS.AES.decrypt(encrypted, key).toString(CryptoJS.enc.Utf8);
+  const decrypted = CryptoJS.AES.decrypt(encrypted, key).toString(
+    CryptoJS.enc.Utf8,
+  );
   return JSON.parse(decrypted) as T;
 }
 
