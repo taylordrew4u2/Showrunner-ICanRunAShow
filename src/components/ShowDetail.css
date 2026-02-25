@@ -31,10 +31,25 @@
   text-transform: capitalize;
 }
 
-.show-detail__status--upcoming    { background: #0f3460; color: #64b5f6; }
-.show-detail__status--in-progress { background: #3e2723; color: #ffb74d; }
-.show-detail__status--completed   { background: #1b5e20; color: #a5d6a7; }
-.show-detail__status--cancelled   { background: #3e0000; color: #ef9a9a; }
+.show-detail__status--upcoming {
+  background: #0f3460;
+  color: #64b5f6;
+}
+
+.show-detail__status--in-progress {
+  background: #3e2723;
+  color: #ffb74d;
+}
+
+.show-detail__status--completed {
+  background: #1b5e20;
+  color: #a5d6a7;
+}
+
+.show-detail__status--cancelled {
+  background: #3e0000;
+  color: #ef9a9a;
+}
 
 .show-detail__meta {
   display: flex;
@@ -63,4 +78,14 @@
   color: #e0e0e0;
   margin: 0;
   line-height: 1.5;
+}
+
+.show-detail__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.show-detail__scenes {
+  margin-top: 10px;
 }
