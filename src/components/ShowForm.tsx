@@ -4,21 +4,36 @@ import './ShowForm.css';
 
 interface ShowFormProps {
   initial?: Partial<Show>;
-  onSave: (show: Omit<Show, 'id' | 'createdAt' | 'scenes'>) => void;
+  onSave: (show: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes'>) => void;
   onCancel: () => void;
 }
 
 export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
-  const [title, setTitle] = useState(initial?.title ?? '');
+  const [name, setName] = useState(initial?.name ?? '');
   const [date, setDate] = useState(initial?.date ?? '');
-  const [venue, setVenue] = useState(initial?.venue ?? '');
+  const [time, setTime] = useState(initial?.time ?? '');
+  const [venueName, setVenueName] = useState(initial?.venueName ?? '');
+  const [location, setLocation] = useState(initial?.location ?? '');
   const [status, setStatus] = useState<ShowStatus>(initial?.status ?? 'upcoming');
-  const [notes, setNotes] = useState(initial?.notes ?? '');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
-    onSave({ title: title.trim(), date, venue: venue.trim(), status, notes: notes.trim() });
+    if (!name.trim() || !date.trim() || !time.trim() || !venueName.trim()) return;
+    onSave({
+      name: name.trim(),
+      date,
+      time,
+      venueName: venueName.trim(),
+      location: location.trim(),
+      status,
+      performers: initial?.performers ?? [],
+      artists: initial?.artists ?? [],
+      schedule: initial?.schedule ?? [],
+      hosts: initial?.hosts ?? [],
+      djSongs: initial?.djSongs ?? [],
+      staff: initial?.staff ?? [],
+      expenses: initial?.expenses ?? [],
+    });
   }
 
   return (
@@ -26,34 +41,57 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
       <h2 className="show-form__title">{initial?.id ? 'Edit Show' : 'New Show'}</h2>
 
       <label className="show-form__label">
-        Title *
+        Show Name *
         <input
           className="show-form__input"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Show title"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Show name"
           required
           autoFocus
         />
       </label>
 
       <label className="show-form__label">
-        Date
+        Date *
         <input
           className="show-form__input"
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
+          required
         />
       </label>
 
       <label className="show-form__label">
-        Venue
+        Time *
         <input
           className="show-form__input"
-          value={venue}
-          onChange={(e) => setVenue(e.target.value)}
-          placeholder="Venue or location"
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          required
+        />
+      </label>
+
+      <label className="show-form__label">
+        Venue Name *
+        <input
+          className="show-form__input"
+          value={venueName}
+          onChange={(e) => setVenueName(e.target.value)}
+          placeholder="Venue name"
+          required
+        />
+      </label>
+
+      <label className="show-form__label">
+        Location
+        <input
+          className="show-form__input"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="City, address, or location details"
         />
       </label>
 
@@ -69,17 +107,6 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
         </select>
-      </label>
-
-      <label className="show-form__label">
-        Notes
-        <textarea
-          className="show-form__textarea"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Any notes about this show…"
-          rows={3}
-        />
       </label>
 
       <div className="show-form__actions">

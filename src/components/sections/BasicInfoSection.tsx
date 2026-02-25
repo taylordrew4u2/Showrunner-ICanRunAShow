@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { Show } from '../../types';
 
 interface BasicInfoSectionProps {
