@@ -1,8 +1,13 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
+// Ensure userData path is the same in dev (`electron .`) and in packaged builds.
+// Without this, dev resolves the name from package.json `name` ("showrunner"),
+// while packaged builds use electron-builder's `productName` ("Showrunner").
+app.setName('Showrunner');
+
 // When packaged by electron-builder, app.isPackaged is true.
-// In dev (launched via `electron electron/main.js`), it is false.
+// In dev (launched via `electron .`), it is false.
 const isDev = !app.isPackaged;
 
 function createWindow() {

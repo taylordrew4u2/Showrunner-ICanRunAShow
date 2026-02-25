@@ -8,7 +8,7 @@ Showrunner includes an **Electron wrapper** that lets you run the app as a nativ
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or later) and npm
+- [Node.js](https://nodejs.org/) (v20 or later) and npm
 
 ### 1) Install dependencies
 
@@ -37,7 +37,7 @@ This builds the web assets with Vite and packages them into a macOS desktop app 
 
 ### Data persistence
 
-All show data is stored in Electron's built-in `localStorage` (same API as the browser). On macOS this lives inside Electron's app profile folder:
+All show data is stored in Electron's built-in `localStorage` (same API as the browser). On macOS this lives inside Electron's app profile folder, which is the same in both dev and packaged builds:
 
 ```
 ~/Library/Application Support/Showrunner/

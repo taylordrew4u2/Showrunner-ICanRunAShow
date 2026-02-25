@@ -17,10 +17,10 @@
     "download:app": "npm run download:android",
     "build:ios:preview": "eas build --platform ios --profile preview",
     "lint": "eslint .",
-    "dev": "vite",
+    "dev": "vite --port 5173 --strictPort",
     "build": "vite build",
     "preview": "vite preview",
-    "mac": "concurrently -k \"npm run dev\" \"wait-on http://localhost:5173 && electron electron/main.js\"",
+    "mac": "concurrently -k \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
     "build:mac": "npm run build && electron-builder --mac"
   },
   "dependencies": {
