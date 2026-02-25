@@ -2,6 +2,9 @@ appId: com.showrunner.app
 productName: Showrunner
 copyright: Copyright © 2024 Showrunner
 
+extraMetadata:
+  main: desktop/main.js
+
 directories:
   output: dist-electron
 
