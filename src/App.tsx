@@ -1,55 +1,34 @@
 import { useState, useEffect } from 'react';
-import type { Show, AppSettings } from './types';
-import { DEFAULT_SETTINGS } from './types';
-import { loadShows, saveShows, saveShow, deleteShow, loadSettings } from './utils/storage';
+import type { Show } from './types';
+import { loadShows, saveShows } from './utils/storage';
 import { generateId } from './utils/id';
 import { ShowCard } from './components/ShowCard';
 import { ShowForm } from './components/ShowForm';
 import { ShowDetail } from './components/ShowDetail';
-import { Settings } from './components/Settings';
 import { Modal } from './components/Modal';
 import './App.css';
 
-type View = 'list' | 'detail' | 'settings';
+type View = 'list' | 'detail';
 
 export default function App() {
   const [shows, setShows] = useState<Show[]>(() => loadShows());
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
 
   useEffect(() => {
     saveShows(shows);
   }, [shows]);
 
-  // Reload settings when returning to list
-  useEffect(() => {
-    if (view === 'list') {
-      setSettings(loadSettings());
-    }
-  }, [view]);
-
-  function handleCreateShow(data: Pick<Show, 'name' | 'date' | 'time' | 'location' | 'venueName'>) {
-    const now = new Date().toISOString();
+  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'scenes'>) {
     const newShow: Show = {
       ...data,
       id: generateId(),
-      status: 'upcoming',
-      performers: [],
-      artists: [],
-      schedule: [],
-      hosts: [],
-      djSongs: [],
-      staff: [],
-      expenses: [],
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date().toISOString(),
+      scenes: [],
     };
     setShows((prev) => [newShow, ...prev]);
     setShowForm(false);
-    setSelectedShow(newShow);
-    setView('detail');
   }
 
   function handleDeleteShow(id: string) {
@@ -62,9 +41,8 @@ export default function App() {
   }
 
   function handleUpdateShow(updated: Show) {
-    const withTimestamp = { ...updated, updatedAt: new Date().toISOString() };
-    setShows((prev) => prev.map((s) => (s.id === withTimestamp.id ? withTimestamp : s)));
-    setSelectedShow(withTimestamp);
+    setShows((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    setSelectedShow(updated);
   }
 
   function handleBack() {
@@ -81,49 +59,27 @@ export default function App() {
             onClick={handleBack}
             aria-label="Go to shows list"
           >
-            🎤 <span>{settings.brandName || 'Show Producer'}</span>
+            🎬 <span>Showrunner</span>
           </button>
-          <div className="app-header__actions">
-            {view === 'list' && (
-              <button
-                className="btn btn--ghost"
-                onClick={() => setView('settings')}
-                title="Settings"
-              >
-                ⚙️
-              </button>
-            )}
-          </div>
+          {view === 'list' && (
+            <button
+              className="btn btn--primary"
+              onClick={() => setShowForm(true)}
+            >
+              + New Show
+            </button>
+          )}
         </div>
       </header>
 
       <main className="app-main">
         {view === 'list' && (
           <div className="shows-list">
-            {/* Brand header */}
-            <div className="brand-header">
-              <h1 className="brand-header__name">{settings.brandName || 'Show Producer'}</h1>
-              {settings.producerNames && (
-                <p className="brand-header__producers">Producers: {settings.producerNames}</p>
-              )}
-              {settings.rules && (
-                <p className="brand-header__rules">{settings.rules}</p>
-              )}
-            </div>
-
-            {/* Create button */}
-            <button
-              className="btn btn--primary create-show-btn"
-              onClick={() => setShowForm(true)}
-            >
-              + Create a Show
-            </button>
-
             {shows.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state__icon">🎤</div>
+                <div className="empty-state__icon">🎬</div>
                 <h2>No shows yet</h2>
-                <p>Tap <strong>+ Create a Show</strong> to get started.</p>
+                <p>Tap <strong>+ New Show</strong> to get started.</p>
               </div>
             ) : (
               <div className="shows-grid">
@@ -146,10 +102,6 @@ export default function App() {
             onBack={handleBack}
             onUpdate={handleUpdateShow}
           />
-        )}
-
-        {view === 'settings' && (
-          <Settings onBack={handleBack} />
         )}
       </main>
 
