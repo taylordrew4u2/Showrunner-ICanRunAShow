@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
-import { Show } from '../../utils/types';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { Show, ShowStatus } from '../../utils/types';
 
 interface Props {
   show: Show;
@@ -8,6 +8,8 @@ interface Props {
 }
 
 export default function BasicInfoSection({ show, onChange }: Props) {
+  const statuses: ShowStatus[] = ['upcoming', 'in-progress', 'completed', 'cancelled'];
+  
   return (
     <View style={styles.container}>
       <Text style={styles.label}>Show Date</Text>
@@ -48,6 +50,30 @@ export default function BasicInfoSection({ show, onChange }: Props) {
         numberOfLines={3}
         textAlignVertical="top"
       />
+
+      <Text style={styles.label}>Status</Text>
+      <View style={styles.statusGrid}>
+        {statuses.map((status) => (
+          <TouchableOpacity
+            key={status}
+            style={[
+              styles.statusBtn,
+              show.status === status && styles.statusBtnActive,
+            ]}
+            onPress={() => onChange({ status })}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.statusBtnText,
+                show.status === status && styles.statusBtnTextActive,
+              ]}
+            >
+              {status.replace('-', ' ')}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 }
@@ -55,31 +81,65 @@ export default function BasicInfoSection({ show, onChange }: Props) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 10,
-    marginBottom: 8,
+    padding: 18,
+    borderRadius: 14,
+    marginBottom: 10,
   },
   label: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 5,
-    marginTop: 10,
+    marginBottom: 8,
+    marginTop: 14,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
   input: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 16,
     color: '#1F2937',
     backgroundColor: '#F9FAFB',
+    minHeight: 48,
   },
   multiline: {
-    height: 80,
+    height: 100,
     textAlignVertical: 'top',
+    paddingTop: 13,
+  },
+  statusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 12,
+  },
+  statusBtn: {
+    flex: 1,
+    minWidth: '48%',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  statusBtnActive: {
+    backgroundColor: '#EDE9FE',
+    borderColor: '#6B46C1',
+  },
+  statusBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'capitalize',
+  },
+  statusBtnTextActive: {
+    color: '#6B46C1',
   },
 });
