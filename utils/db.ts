@@ -26,6 +26,11 @@ export async function ensureSchema(): Promise<void> {
   if (_initialised) return;
   const db = getClient();
   await db.batch([
+    `CREATE TABLE IF NOT EXISTS users (
+       id            TEXT PRIMARY KEY,
+       password_hash TEXT NOT NULL,
+       created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+     )`,
     `CREATE TABLE IF NOT EXISTS user_shows (
        id         TEXT PRIMARY KEY,
        user_id    TEXT NOT NULL,
@@ -33,11 +38,6 @@ export async function ensureSchema(): Promise<void> {
        created_at TEXT NOT NULL DEFAULT (datetime('now')),
        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
        FOREIGN KEY (user_id) REFERENCES users(id)
-     )`,
-    `CREATE TABLE IF NOT EXISTS users (
-       id            TEXT PRIMARY KEY,
-       password_hash TEXT NOT NULL,
-       created_at    TEXT NOT NULL DEFAULT (datetime('now'))
      )`,
     `CREATE TABLE IF NOT EXISTS user_settings (
        user_id TEXT PRIMARY KEY,
