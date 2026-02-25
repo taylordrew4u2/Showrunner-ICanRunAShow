@@ -59,6 +59,7 @@ export default function HomeScreen() {
       venueName: '',
       status: newShowStatus,
       performers: [],
+      artists: [],
       schedule: [],
       hosts: [],
       djSongs: [],

@@ -4,11 +4,19 @@ export interface Performer {
   id: string;
   name: string;
   walkOnMusic?: string; // file URI
-  photo?: string;       // file URI
-  video?: string;       // file URI
+  walkOnMusicName?: string;
+  photo?: string; // file URI
+  video?: string; // file URI
 }
 
-
+export interface Artist {
+  id: string;
+  name: string;
+  photo?: string;
+  walkOnMusic?: string;
+  walkOnMusicName?: string;
+  video?: string;
+}
 
 export interface ScheduleItem {
   id: string;
@@ -48,7 +56,7 @@ export interface Expense {
 
 // ─── Show ─────────────────────────────────────────────────────────────────────
 
-export type ShowStatus = 'upcoming' | 'in-progress' | 'completed' | 'cancelled';
+export type ShowStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
 
 export interface Show {
   id: string;
@@ -61,7 +69,9 @@ export interface Show {
   status: ShowStatus;
   // Section 2: Performers
   performers: Performer[];
-  // Section 3: Schedule & Timing
+  // Section 3: Artists
+  artists: Artist[];
+  // Section 4: Schedule & Timing
   schedule: ScheduleItem[];
   // Section 4: Hosts
   hosts: Host[];
@@ -84,35 +94,35 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  brandName: 'Pins & Needles',
-  producerNames: '',
-  rules: '',
+  brandName: "Show Producer",
+  producerNames: "",
+  rules: "",
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const STAFF_ROLES: string[] = [
-  'Videographer',
-  'Photographer',
-  'Sound',
-  'Lighting',
-  'Security',
-  'Ticket Sales',
-  'Stage Manager',
-  'MC',
-  'Door Person',
-  'Other',
+  "Videographer",
+  "Photographer",
+  "Sound",
+  "Lighting",
+  "Security",
+  "Ticket Sales",
+  "Stage Manager",
+  "MC",
+  "Door Person",
+  "Other",
 ];
 
 export const EXPENSE_CATEGORIES: string[] = [
-  'Venue',
-  'Equipment',
-  'Marketing',
-  'Talent',
-  'Staff',
-  'Catering',
-  'Travel',
-  'Printing',
-  'Decorations',
-  'Other',
+  "Venue",
+  "Equipment",
+  "Marketing",
+  "Talent",
+  "Staff",
+  "Catering",
+  "Travel",
+  "Printing",
+  "Decorations",
+  "Other",
 ];

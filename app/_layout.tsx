@@ -14,7 +14,7 @@ export default function RootLayout() {
       >
         <Stack.Screen
           name="index"
-          options={{ title: 'Pins & Needles' }}
+          options={{ title: 'Show Producer' }}
         />
         <Stack.Screen
           name="settings"
