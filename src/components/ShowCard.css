@@ -39,10 +39,25 @@
   white-space: nowrap;
 }
 
-.show-card__status--upcoming    { background: #0f3460; color: #64b5f6; }
-.show-card__status--in-progress { background: #3e2723; color: #ffb74d; }
-.show-card__status--completed   { background: #1b5e20; color: #a5d6a7; }
-.show-card__status--cancelled   { background: #3e0000; color: #ef9a9a; }
+.show-card__status--upcoming {
+  background: #0f3460;
+  color: #64b5f6;
+}
+
+.show-card__status--in-progress {
+  background: #3e2723;
+  color: #ffb74d;
+}
+
+.show-card__status--completed {
+  background: #1b5e20;
+  color: #a5d6a7;
+}
+
+.show-card__status--cancelled {
+  background: #3e0000;
+  color: #ef9a9a;
+}
 
 .show-card__venue,
 .show-card__date {
@@ -51,28 +66,19 @@
   margin: 4px 0;
 }
 
-.show-card__progress {
+.show-card__preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-top: 10px;
-  background: #0d1b2a;
-  border-radius: 4px;
-  height: 6px;
-  position: relative;
-  overflow: hidden;
 }
 
-.show-card__progress-bar {
-  height: 100%;
-  background: #e94560;
-  border-radius: 4px;
-  transition: width 0.3s;
-}
-
-.show-card__progress-label {
-  position: absolute;
-  right: 0;
-  top: 10px;
+.show-card__tag {
   font-size: 0.75rem;
+  background: #0d1b2a;
   color: #9e9e9e;
+  padding: 3px 8px;
+  border-radius: 6px;
 }
 
 .show-card__delete {

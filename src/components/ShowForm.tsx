@@ -1,37 +1,44 @@
 import { useState } from 'react';
-import type { Show, ShowStatus } from '../types';
+import type { Show } from '../types';
 import './ShowForm.css';
 
+type ShowCreateData = Pick<Show, 'name' | 'date' | 'time' | 'location' | 'venueName'>;
+
 interface ShowFormProps {
-  initial?: Partial<Show>;
-  onSave: (show: Omit<Show, 'id' | 'createdAt' | 'scenes'>) => void;
+  onSave: (data: ShowCreateData) => void;
   onCancel: () => void;
 }
 
-export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
-  const [title, setTitle] = useState(initial?.title ?? '');
-  const [date, setDate] = useState(initial?.date ?? '');
-  const [venue, setVenue] = useState(initial?.venue ?? '');
-  const [status, setStatus] = useState<ShowStatus>(initial?.status ?? 'upcoming');
-  const [notes, setNotes] = useState(initial?.notes ?? '');
+export function ShowForm({ onSave, onCancel }: ShowFormProps) {
+  const [name, setName] = useState('');
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [location, setLocation] = useState('');
+  const [venueName, setVenueName] = useState('');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
-    onSave({ title: title.trim(), date, venue: venue.trim(), status, notes: notes.trim() });
+    if (!name.trim()) return;
+    onSave({
+      name: name.trim(),
+      date,
+      time: time.trim(),
+      location: location.trim(),
+      venueName: venueName.trim(),
+    });
   }
 
   return (
     <form className="show-form" onSubmit={handleSubmit}>
-      <h2 className="show-form__title">{initial?.id ? 'Edit Show' : 'New Show'}</h2>
+      <h2 className="show-form__title">Create a Show</h2>
 
       <label className="show-form__label">
-        Title *
+        Show Name *
         <input
           className="show-form__input"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Show title"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Spring Showcase 2026"
           required
           autoFocus
         />
@@ -48,37 +55,32 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
       </label>
 
       <label className="show-form__label">
-        Venue
+        Show Time
         <input
           className="show-form__input"
-          value={venue}
-          onChange={(e) => setVenue(e.target.value)}
-          placeholder="Venue or location"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          placeholder="e.g. 8:00 PM"
         />
       </label>
 
       <label className="show-form__label">
-        Status
-        <select
-          className="show-form__select"
-          value={status}
-          onChange={(e) => setStatus(e.target.value as ShowStatus)}
-        >
-          <option value="upcoming">Upcoming</option>
-          <option value="in-progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+        Venue Name
+        <input
+          className="show-form__input"
+          value={venueName}
+          onChange={(e) => setVenueName(e.target.value)}
+          placeholder="Venue name"
+        />
       </label>
 
       <label className="show-form__label">
-        Notes
-        <textarea
-          className="show-form__textarea"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Any notes about this show…"
-          rows={3}
+        Location
+        <input
+          className="show-form__input"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="Address or city"
         />
       </label>
 
@@ -87,7 +89,7 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
           Cancel
         </button>
         <button type="submit" className="btn btn--primary">
-          Save
+          Create
         </button>
       </div>
     </form>
