@@ -1,0 +1,26 @@
+.settings {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.settings__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #e0e0e0;
+    margin: 0;
+}
+
+.settings__card {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.settings__save {
+    align-self: flex-start;
+}
