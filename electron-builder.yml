@@ -14,15 +14,15 @@ files:
 
 mac:
   category: public.app-category.productivity
+  icon: public/icons/icon-512x512.png
+  identity: null
   target:
     - target: dmg
       arch:
-        - x64
-        - arm64
+        - universal
     - target: zip
       arch:
-        - x64
-        - arm64
+        - universal
 
 dmg:
   title: Showrunner Installer
