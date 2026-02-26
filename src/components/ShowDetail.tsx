@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Show, Scene, AppSettings } from '../types';
 import { SceneList } from './SceneList';
 import { BasicInfoSection } from './sections/BasicInfoSection';
@@ -19,6 +20,7 @@ interface ShowDetailProps {
 }
 
 export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps) {
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
   }
@@ -114,22 +116,51 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
         {show.time && <span>⏰ {show.time}</span>}
       </div>
 
-      <div className="show-detail__sections">
-        {sections.map((section) => (
-          <section key={section.key} className="show-section">
-            <div className="show-section__header">
-              <div>
-                <h3 className="show-section__title">{section.title}</h3>
-                <p className="show-section__subtitle">{section.subtitle}</p>
+      {expandedSection === null ? (
+        <div className="show-detail__sections-grid">
+          {sections.map((section) => (
+            <div
+              key={section.key}
+              className="section-card"
+              onClick={() => setExpandedSection(section.key)}
+            >
+              <div className="section-card__header">
+                <h3 className="section-card__title">{section.title}</h3>
+                {typeof section.count === 'number' && (
+                  <span className="section-card__count">{section.count}</span>
+                )}
               </div>
-              {typeof section.count === 'number' && (
-                <span className="show-section__count">{section.count} items</span>
-              )}
+              <p className="section-card__subtitle">{section.subtitle}</p>
+              <div className="section-card__cta">Click to open →</div>
             </div>
-            <div className="show-section__content">{section.content}</div>
-          </section>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="show-detail__expanded-section">
+          <button
+            className="btn btn--ghost show-detail__back-to-grid"
+            onClick={() => setExpandedSection(null)}
+          >
+            ← Back to Grid
+          </button>
+          {sections.map((section) => 
+            section.key === expandedSection ? (
+              <section key={section.key} className="show-section show-section--expanded">
+                <div className="show-section__header">
+                  <div>
+                    <h3 className="show-section__title">{section.title}</h3>
+                    <p className="show-section__subtitle">{section.subtitle}</p>
+                  </div>
+                  {typeof section.count === 'number' && (
+                    <span className="show-section__count">{section.count} items</span>
+                  )}
+                </div>
+                <div className="show-section__content">{section.content}</div>
+              </section>
+            ) : null
+          )}
+        </div>
+      )}
 
       <div className="show-detail__scenes">
         <SceneList scenes={show.scenes ?? []} onChange={handleScenesChange} />
