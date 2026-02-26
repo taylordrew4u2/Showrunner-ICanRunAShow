@@ -44,9 +44,12 @@ export default function HostsSection({ hosts, onChange }: Props) {
       return;
     }
     if (editing) {
-      onChange(hosts.map((h) => (h.id === editing.id ? { ...editing, ...draft } : h)));
+      const updated = hosts.map((h) => (h.id === editing.id ? { ...editing, ...draft } : h));
+      onChange(draft.isHosting ? updated.map((h) => ({ ...h, isHosting: h.id === editing.id })) : updated);
     } else {
-      onChange([...hosts, { id: generateId(), ...draft }]);
+      const newHost = { id: generateId(), ...draft };
+      const updated = [...hosts, newHost];
+      onChange(draft.isHosting ? updated.map((h) => ({ ...h, isHosting: h.id === newHost.id })) : updated);
     }
     setModalVisible(false);
   };
@@ -59,7 +62,7 @@ export default function HostsSection({ hosts, onChange }: Props) {
   };
 
   const toggleHosting = (id: string) => {
-    onChange(hosts.map((h) => (h.id === id ? { ...h, isHosting: !h.isHosting } : h)));
+    onChange(hosts.map((h) => ({ ...h, isHosting: h.id === id })));
   };
 
   return (
