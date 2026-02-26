@@ -149,3 +149,46 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     setTimeout(() => printWindow.print(), 300);
   }
 }
+
+export function exportDJListToPDF(show: Show): void {
+  if (show.djSongs.length === 0) return;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${esc(show.name)} - DJ List</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1F2937; font-size: 13px; }
+    h1 { font-size: 20px; color: #1F2937; margin-bottom: 8px; }
+    .meta { color: #4B5563; margin-bottom: 4px; font-size: 13px; }
+    h2 { font-size: 15px; color: #0F766E; border-bottom: 2px solid #0F766E; padding-bottom: 6px; margin: 24px 0 10px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    th { background: #0F766E; color: #fff; padding: 8px 12px; text-align: left; font-size: 12px; }
+    td { padding: 7px 12px; border-bottom: 1px solid #E5E7EB; font-size: 13px; }
+    tr:last-child td { border-bottom: none; }
+  </style>
+</head>
+<body>
+  <h1>DJ Music List</h1>
+  <div class="meta"><strong>Show:</strong> ${esc(show.name)}</div>
+  ${show.date ? `<div class="meta"><strong>Date:</strong> ${esc(show.date)}</div>` : ''}
+  ${show.venueName ? `<div class="meta"><strong>Venue:</strong> ${esc(show.venueName)}</div>` : ''}
+
+  <h2>Song List</h2>
+  <table>
+    <tr><th>#</th><th>Title</th><th>Artist</th><th>Notes</th></tr>
+    ${show.djSongs.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join('')}
+  </table>
+</body>
+</html>`;
+
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 300);
+  }
+}
