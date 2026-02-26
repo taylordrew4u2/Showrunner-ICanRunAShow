@@ -25,6 +25,19 @@ const LOCAL_USERS_KEY = "showrunner_local_users";
 const LOCAL_SHOWS_KEY = "showrunner_local_shows";
 const LOCAL_SETTINGS_KEY = "showrunner_local_settings";
 
+let _isOfflineMode = false;
+
+/**
+ * Check if running in local-only fallback mode (remote DB unavailable)
+ */
+export function isOfflineMode(): boolean {
+  return _isOfflineMode;
+}
+
+function setOfflineMode(value: boolean): void {
+  _isOfflineMode = value;
+}
+
 type LocalUsers = Record<string, string>;
 type LocalShows = Record<string, string[]>;
 type LocalSettings = Record<string, string>;
@@ -79,6 +92,7 @@ export async function createAccount(
       "Remote account creation failed, using local fallback:",
       error,
     );
+    setOfflineMode(true);
 
     const users = readLocalJson<LocalUsers>(LOCAL_USERS_KEY, {});
     if (users[userId]) {
@@ -115,6 +129,7 @@ export async function authenticateUser(
     return storedHash === passwordHash;
   } catch (error) {
     console.warn("Remote authentication failed, using local fallback:", error);
+    setOfflineMode(true);
     const users = readLocalJson<LocalUsers>(LOCAL_USERS_KEY, {});
     return users[userId] === passwordHash;
   }
@@ -143,6 +158,7 @@ export async function loadEncryptedShows(
     });
   } catch (error) {
     console.warn("Remote show load failed, using local fallback:", error);
+    setOfflineMode(true);
     const byUser = readLocalJson<LocalShows>(LOCAL_SHOWS_KEY, {});
     const encryptedShows = byUser[userId] ?? [];
     try {
@@ -184,6 +200,7 @@ export async function saveEncryptedShows(
     }
   } catch (error) {
     console.warn("Remote show save failed, using local fallback:", error);
+    setOfflineMode(true);
     const byUser = readLocalJson<LocalShows>(LOCAL_SHOWS_KEY, {});
     byUser[userId] = shows.map((show) => encryptData(show, password));
     writeLocalJson(LOCAL_SHOWS_KEY, byUser);
@@ -215,6 +232,7 @@ export async function loadEncryptedSettings(
     return decryptData<AppSettings>(encrypted, password);
   } catch (error) {
     console.warn("Remote settings load failed, using local fallback:", error);
+    setOfflineMode(true);
     const byUser = readLocalJson<LocalSettings>(LOCAL_SETTINGS_KEY, {});
     const encrypted = byUser[userId];
     if (!encrypted) {
@@ -251,6 +269,7 @@ export async function saveEncryptedSettings(
     );
   } catch (error) {
     console.warn("Remote settings save failed, using local fallback:", error);
+    setOfflineMode(true);
     const byUser = readLocalJson<LocalSettings>(LOCAL_SETTINGS_KEY, {});
     byUser[userId] = encryptData(settings, password);
     writeLocalJson(LOCAL_SETTINGS_KEY, byUser);

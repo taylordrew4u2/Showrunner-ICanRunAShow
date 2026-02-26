@@ -9,6 +9,7 @@ import {
   saveEncryptedSettings,
   createAccount,
   authenticateUser,
+  isOfflineMode,
 } from './utils/secure-storage';
 import { Login } from './components/Login';
 import { Settings } from './components/Settings';
@@ -33,6 +34,7 @@ export default function App() {
   const [shows, setShows] = useState<Show[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -50,6 +52,7 @@ export default function App() {
         ]);
         setShows(loadedShows);
         setSettings(loadedSettings);
+        setOfflineMode(isOfflineMode());
       } catch (error) {
         console.error('Failed to load shows:', error);
         setShows([]);
@@ -89,6 +92,7 @@ export default function App() {
       }
 
       setSession({ username, password });
+      setOfflineMode(isOfflineMode());
     } catch (error) {
       console.error('Sign in failed:', error);
       setAuthError('Failed to sign in. Please try again.');
@@ -104,6 +108,7 @@ export default function App() {
     try {
       await createAccount(username, password);
       setSession({ username, password });
+      setOfflineMode(isOfflineMode());
     } catch (error) {
       console.error('Sign up failed:', error);
       const message = error instanceof Error ? error.message : '';
@@ -125,6 +130,7 @@ export default function App() {
     setSelectedShow(null);
     setShowForm(false);
     setAuthError('');
+    setOfflineMode(false);
   }
 
   async function handleSaveSettings(updatedSettings: AppSettings) {
@@ -185,6 +191,11 @@ export default function App() {
         />
       ) : (
         <div className="app">
+          {offlineMode && (
+            <div className="offline-banner">
+              📴 Offline mode - data saved locally on this device only
+            </div>
+          )}
           <header className="app-header">
             <div className="app-header__inner">
               <button
