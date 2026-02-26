@@ -16,6 +16,7 @@ import { exportShowToPDF } from '../../utils/pdfExport';
 import SectionHeader from '../../components/SectionHeader';
 import BasicInfoSection from '../../components/sections/BasicInfoSection';
 import PerformersSection from '../../components/sections/PerformersSection';
+import ArtistsSection from '../../components/sections/ArtistsSection';
 import ScheduleSection from '../../components/sections/ScheduleSection';
 import HostsSection from '../../components/sections/HostsSection';
 import DJMusicSection from '../../components/sections/DJMusicSection';
@@ -25,6 +26,7 @@ import ExpensesSection from '../../components/sections/ExpensesSection';
 type SectionKey =
   | 'basicInfo'
   | 'performers'
+  | 'artists'
   | 'schedule'
   | 'hosts'
   | 'djMusic'
@@ -34,6 +36,7 @@ type SectionKey =
 const ALL_SECTIONS: SectionKey[] = [
   'basicInfo',
   'performers',
+  'artists',
   'schedule',
   'hosts',
   'djMusic',
@@ -44,11 +47,12 @@ const ALL_SECTIONS: SectionKey[] = [
 const SECTION_LABELS: Record<SectionKey, string> = {
   basicInfo: '1. Basic Show Info',
   performers: '2. Performers',
-  schedule: '3. Schedule & Timing',
-  hosts: '4. Hosts',
-  djMusic: '5. DJ Music List',
-  staff: '6. Staff & Crew',
-  expenses: '7. Itemized Expenses',
+  artists: '3. Artists',
+  schedule: '4. Schedule & Timing',
+  hosts: '5. Hosts',
+  djMusic: '6. DJ Music List',
+  staff: '7. Staff & Crew',
+  expenses: '8. Itemized Expenses',
 };
 
 export default function ShowDetailScreen() {
@@ -63,6 +67,7 @@ export default function ShowDetailScreen() {
   const [expanded, setExpanded] = useState<Record<SectionKey, boolean>>({
     basicInfo: true,
     performers: false,
+    artists: false,
     schedule: false,
     hosts: false,
     djMusic: false,
@@ -127,6 +132,7 @@ export default function ShowDetailScreen() {
     if (!show) return undefined;
     switch (key) {
       case 'performers': return show.performers.length;
+      case 'artists': return show.artists.length;
       case 'schedule': return show.schedule.length;
       case 'hosts': return show.hosts.length;
       case 'djMusic': return show.djSongs.length;
@@ -224,6 +230,13 @@ function renderSection(
         <PerformersSection
           performers={show.performers}
           onChange={(performers) => updateShow({ performers })}
+        />
+      );
+    case 'artists':
+      return (
+        <ArtistsSection
+          artists={show.artists}
+          onChange={(artists) => updateShow({ artists })}
         />
       );
     case 'schedule':
