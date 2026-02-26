@@ -1,6 +1,40 @@
 # Showrunner
 
-Showrunner is an Expo app for organizing a live show.
+Showrunner is a live-show organizer app available on mobile (iOS & Android), web, and desktop (macOS).
+
+## Tech stack
+
+- **Mobile:** React Native with Expo SDK 54 + Expo Router v4
+- **Web:** React 19 + Vite 7 + PWA support
+- **Desktop:** Electron 40 (wraps Vite web build for macOS)
+- **Database:** Turso (libSQL) with end-to-end encryption
+- **Language:** TypeScript throughout
+
+## Features
+
+- 📅 **Schedule management** – Plan show timelines and segments
+- 🎤 **Artist & performer tracking** – Manage cast and crew details
+- 🎵 **DJ & music coordination** – Track songs and music cues
+- 👥 **Staff & host assignments** – Organize your production team
+- 💰 **Expense tracking** – Monitor show budgets
+- 📄 **PDF export** – Generate professional show documents
+- 🔒 **Secure & private** – End-to-end encryption for all your data
+- 🔄 **Multi-device sync** – Access your shows from anywhere
+
+## Quick start
+
+1. **Try the web app:** Visit [your-deployment-url] (no installation needed)
+2. **Get the mobile app:** Download from [Releases](../../releases) or App Store/TestFlight
+3. **Run on Mac:** Download the `.dmg` from [Releases](../../releases)
+4. **For developers:** Clone this repo and run `npm install` then `npm run dev`
+
+---
+
+## Web app
+
+Access Showrunner online at **[your-deployment-url]** — no installation required.
+
+The web app runs in any modern browser with full feature parity to the mobile apps. All data is synced through your account.
 
 ---
 
@@ -8,7 +42,7 @@ Showrunner is an Expo app for organizing a live show.
 
 Showrunner ships an Electron wrapper around the Vite web build so you can run it as a native macOS desktop app — **no iOS Simulator required**.
 
-Data is persisted via the browser's `localStorage` inside the Electron window, stored in the app's sandboxed profile on your Mac.
+Data is synced through your account to the cloud database, just like the web and mobile apps.
 
 ### Prerequisites
 
@@ -31,6 +65,7 @@ npm run build:mac
 ```
 
 This command:
+
 1. Compiles the web app to `dist/` via Vite.
 2. Packages it into a macOS `.dmg` (universal: x64 + arm64) using electron-builder.
 
@@ -40,9 +75,10 @@ The output is written to `dist-electron/`. Open the `.dmg` to install **Showrunn
 
 ## Data & auth model
 
-- No OAuth or account sign-in is required.
-- All app data is stored locally on the device (or browser local storage on web).
-- Data is not synced to a backend by this app.
+- **Authentication:** Password-based account system (no OAuth).
+- **Storage:** All data is encrypted and stored in a Turso database (libSQL).
+- **Security:** End-to-end encryption ensures your show data is private.
+- **Sync:** Data syncs across all your devices when you sign in.
 
 ## Download the app (users)
 
@@ -64,8 +100,9 @@ npm install
 
 ### 2) Initialize EAS project linkage (developer build step only)
 
-`eas login` is only needed for developers creating cloud builds with Expo EAS.
-End users installing the app do not sign in to use Showrunner.
+`eas login` is only needed for **developers** creating cloud builds with Expo EAS.
+
+**End users** sign in with their Showrunner account credentials after installing the app.
 
 ```bash
 eas login
@@ -141,11 +178,83 @@ After submission completes, manage testers and releases in App Store Connect.
 
 ## Local development
 
+### Mobile (Expo)
+
 Start the Expo dev server (choose your target):
 
 ```bash
 npm run start    # interactive menu — choose web, iOS, or Android
-npm run mac      # native desktop app (Electron) — simplest on Mac
 npm run ios      # iOS Simulator (requires Xcode on Mac)
 npm run android  # Android emulator / device
 ```
+
+### Web (Vite)
+
+Start the Vite web development server:
+
+```bash
+npm run dev      # Opens at http://localhost:5173
+```
+
+### Desktop (Electron + Vite)
+
+Start the macOS desktop app with live-reload:
+
+```bash
+npm run mac      # Vite dev + Electron window
+```
+
+### Environment variables
+
+Create a `.env` file in the project root:
+
+```env
+VITE_TURSO_DATABASE_URL=your_turso_database_url
+VITE_TURSO_AUTH_TOKEN=your_turso_auth_token
+```
+
+> **⚠️ Security Note:** Never commit your `.env` file or hardcode credentials in source files. The database credentials in `src/utils/db.ts` should be replaced with environment variables in production.
+
+## Build for production
+
+### Web
+
+```bash
+npm run build    # Output: dist/
+```
+
+Deploy the `dist/` folder to Vercel, Netlify, or any static hosting service.
+
+---
+
+## Project structure
+
+```text
+app/              Mobile app (Expo + React Native)
+  _layout.tsx     Root navigation layout
+  index.tsx       Home screen (show list)
+  settings.tsx    App settings
+  show/[id].tsx   Show detail screen
+
+src/              Web app (Vite + React)
+  App.tsx         Root component
+  components/     Web UI components
+  utils/          Web utilities (db, encryption, storage)
+  
+components/       Shared mobile components
+utils/            Shared mobile utilities
+
+desktop/
+  main.js         Electron main process
+
+public/           Static web assets
+scripts/          Build and deployment scripts
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+[Add your license here]
