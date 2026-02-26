@@ -1,41 +1,102 @@
 # Showrunner
 
-Showrunner is a live-show organizer app available on mobile (iOS & Android), web, and desktop (macOS).
+> A professional live-show organizer with AI-powered schedule import, multi-device sync, and end-to-end encryption.
 
-## Tech stack
+Showrunner is a comprehensive show management platform available on **mobile** (iOS & Android), **web**, and **desktop** (macOS). Designed for producers, stage managers, and event coordinators.
+
+## 🌐 Live Demo
+
+**Web App:** [https://showrunner-theta.vercel.app](https://showrunner-theta.vercel.app)
+
+## Tech Stack
 
 - **Mobile:** React Native with Expo SDK 54 + Expo Router v4
 - **Web:** React 19 + Vite 7 + PWA support
 - **Desktop:** Electron 40 (wraps Vite web build for macOS)
 - **Database:** Turso (libSQL) with end-to-end encryption
+- **AI Integration:** OpenAI GPT-4o-mini (text & vision)
+- **PDF Processing:** PDF.js for client-side extraction
 - **Language:** TypeScript throughout
+- **Styling:** Custom CSS with black/white/red theme
 
-## Features
+## ✨ Features
 
-- 📅 **Schedule management** – Plan show timelines and segments
-- 🤖 **AI-powered import** – Upload schedule files and auto-extract data with OpenAI
-- 🎤 **Artist & performer tracking** – Manage cast and crew details
-- 🎵 **DJ & music coordination** – Track songs and music cues
-- 👥 **Staff & host assignments** – Organize your production team
-- 💰 **Expense tracking** – Monitor show budgets
-- 📄 **PDF export** – Generate professional show documents
-- 🔒 **Secure & private** – End-to-end encryption for all your data
-- 🔄 **Multi-device sync** – Access your shows from anywhere
+### Core Capabilities
+- 📅 **Schedule Management** – Plan timelines with drag-and-drop organization
+- 🎤 **Cast & Crew Tracking** – Manage artists, performers, hosts, and staff
+- 🎵 **Music Coordination** – Track DJ sets, playlists, and music cues
+- 💰 **Budget Tracking** – Monitor expenses and financial planning
+- 📄 **PDF Export** – Generate professional show rundowns
 
-## Quick start
+### AI-Powered Features
+- 🤖 **Smart Import** – Upload schedule files (text, PDF, or images) and let AI extract data automatically
+- 🖼️ **Vision Recognition** – Upload screenshots or photos of schedules for instant import
+- 📄 **PDF Processing** – Extract text from multi-page PDF documents
+- ✨ **Intelligent Parsing** – Handles various time formats and layouts
 
-1. **Try the web app:** Visit [your-deployment-url] (no installation needed)
-2. **Get the mobile app:** Download from [Releases](../../releases) or App Store/TestFlight
-3. **Run on Mac:** Download the `.dmg` from [Releases](../../releases)
-4. **For developers:** Clone this repo and run `npm install` then `npm run dev`
+### Security & Sync
+- 🔒 **End-to-End Encryption** – All data encrypted at rest and in transit
+- 🔄 **Multi-Device Sync** – Seamless access across web, mobile, and desktop
+- 👤 **Private by Default** – No third-party tracking or data sharing
+
+### Design
+- 🎨 **Modern UI** – Clean black/white/red color scheme
+- 📱 **Responsive** – Optimized for all screen sizes
+- ⚡ **Fast** – Built with Vite for instant hot-reload
+
+## 🚀 Quick Start
+
+### For Users
+
+1. **Web App (Instant Access):**
+   - Visit [https://showrunner-theta.vercel.app](https://showrunner-theta.vercel.app)
+   - No installation required, works in any modern browser
+   - Full feature parity with mobile/desktop apps
+
+2. **Mobile Apps:**
+   - **Android:** Download APK from [Releases](../../releases)
+   - **iOS:** TestFlight link (coming soon)
+
+3. **Desktop (macOS):**
+   - Download `.dmg` from [Releases](../../releases)
+   - Install to Applications folder
+
+### For Developers
+
+```bash
+# Clone and install
+git clone https://github.com/taylordrew4u2/showrunner.git
+cd showrunner
+npm install
+
+# Set up environment
+cp .env.example .env.local
+# Edit .env.local with your API keys
+
+# Start development server
+npm run dev  # Web (http://localhost:5173)
+npm run start  # Mobile (Expo)
+npm run mac  # Desktop (Electron)
+```
 
 ---
 
-## Web app
+## 🌐 Web App
 
-Access Showrunner online at **[your-deployment-url]** — no installation required.
+**Live at:** [https://showrunner-theta.vercel.app](https://showrunner-theta.vercel.app)
 
-The web app runs in any modern browser with full feature parity to the mobile apps. All data is synced through your account.
+The web app runs in any modern browser with full feature parity to the mobile and desktop apps. All data is encrypted and synced through your account.
+
+### Browser Support
+- ✅ Chrome/Edge 90+
+- ✅ Firefox 88+
+- ✅ Safari 14+
+
+### PWA Support
+Install as a Progressive Web App for offline access and native-like experience:
+1. Visit the web app
+2. Click "Install" in your browser's address bar
+3. Access from your home screen or app launcher
 
 ---
 
@@ -221,70 +282,273 @@ VITE_OPENAI_API_KEY=sk-your-openai-api-key-here
 
 #### AI-Powered Schedule Import (Optional)
 
-To enable AI-powered schedule extraction from documents:
+Enable intelligent schedule extraction from documents and images:
 
+**Setup:**
 1. Get an OpenAI API key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-2. Add `VITE_OPENAI_API_KEY` to your `.env.local` file
+2. Add to your `.env.local`:
+   ```env
+   VITE_OPENAI_API_KEY=sk-proj-your-actual-openai-key-here
+   ```
 3. Restart the dev server
 
-**Features:**
-- 📄 Upload `.txt`, `.csv`, `.json`, or `.pdf` files with schedule data
-- 🖼️ Upload images (`.jpg`, `.png`, etc.) of schedules or screenshots
-- 🤖 AI automatically extracts times and descriptions from text and images
-- ✨ Handles various formats and layouts intelligently
-- 🔄 Works without AI using basic pattern matching (fallback for text files)
+**Supported File Types:**
+- 📝 **Text files:** `.txt`, `.csv`, `.json`
+- 📄 **PDF documents:** Multi-page PDFs with full text extraction
+- 🖼️ **Images:** `.jpg`, `.png`, `.gif`, `.bmp`, `.webp` (screenshots, photos, scans)
 
-**Example file format:**
-```
+**How It Works:**
+- **GPT-4o-mini** analyzes your document/image
+- Extracts times in any format (12h/24h, AM/PM, etc.)
+- Intelligently parses event descriptions
+- Handles various layouts and formats
+- Falls back to regex parsing if AI unavailable
+
+**Example Input Formats:**
+
+```text
+# Simple format
 7:00 PM - Doors open
 7:30 PM - Opening performance
 8:00 PM - Main show begins
-9:30 PM - Intermission
-10:00 PM - Show concludes
+
+# 24-hour format
+19:00 Soundcheck complete
+19:30 Doors
+20:00 Show start
+
+# Informal format
+Show starts at 8pm
+9:30 - intermission break
+Ends around 11
 ```
 
-The AI will intelligently parse and import all schedule items from text files, PDFs, and images automatically!
+**Image Support:**
+- Upload photos of printed schedules
+- Screenshot schedules from emails/documents
+- Scan handwritten rundowns
+- AI Vision extracts all visible schedule data
 
-## Build for production
+**Usage:**
+1. Navigate to any show's Schedule section
+2. Click "📁 Import Schedule from File"
+3. Select your file (text, PDF, or image)
+4. AI extracts and adds all items automatically
+5. Review and edit as needed
+
+## 🚀 Build for Production
 
 ### Web
 
+**Build:**
 ```bash
 npm run build    # Output: dist/
 ```
 
-Deploy the `dist/` folder to Vercel, Netlify, or any static hosting service.
+**Deploy to Vercel (Recommended):**
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Deploy
+vercel          # Preview deployment
+vercel --prod   # Production deployment
+```
+
+**Other Hosting Options:**
+- **Netlify:** Drag & drop the `dist/` folder
+- **GitHub Pages:** Use `gh-pages` package
+- **AWS S3:** Upload `dist/` to S3 bucket
+- **Cloudflare Pages:** Connect your repo
+
+**Environment Variables for Production:**
+Make sure to set these in your hosting platform:
+- `VITE_TURSO_DATABASE_URL`
+- `VITE_TURSO_AUTH_TOKEN`
+- `VITE_OPENAI_API_KEY` (optional, for AI import)
+
+### Mobile
+
+**Android:**
+```bash
+npm run build:android  # Production AAB for Google Play
+npm run download:android  # APK for direct install
+```
+
+**iOS:**
+```bash
+npm run build:ios  # Production build for App Store
+npm run build:ios:submit  # Build and submit to TestFlight
+```
+
+### Desktop
+
+**macOS:**
+```bash
+npm run build:mac  # Creates .dmg in dist-electron/
+```
+
+The DMG is a universal binary (Intel + Apple Silicon) ready for distribution.
 
 ---
 
-## Project structure
+## 📁 Project Structure
 
 ```text
-app/              Mobile app (Expo + React Native)
-  _layout.tsx     Root navigation layout
-  index.tsx       Home screen (show list)
-  settings.tsx    App settings
-  show/[id].tsx   Show detail screen
-
-src/              Web app (Vite + React)
-  App.tsx         Root component
-  components/     Web UI components
-  utils/          Web utilities (db, encryption, storage)
-  
-components/       Shared mobile components
-utils/            Shared mobile utilities
-
-desktop/
-  main.js         Electron main process
-
-public/           Static web assets
-scripts/          Build and deployment scripts
+📦 showrunner/
+├── 📱 app/                    # Mobile app (Expo + React Native)
+│   ├── _layout.tsx           # Root navigation layout
+│   ├── index.tsx             # Home screen (show list)
+│   ├── settings.tsx          # App settings
+│   └── show/[id].tsx         # Show detail screen
+│
+├── 🌐 src/                    # Web app (Vite + React)
+│   ├── App.tsx               # Root component
+│   ├── components/           # Web UI components
+│   │   ├── Login.tsx         # Authentication
+│   │   ├── ShowCard.tsx      # Show list item
+│   │   ├── ShowDetail.tsx    # Show detail view
+│   │   ├── ShowForm.tsx      # Create/edit show
+│   │   ├── Settings.tsx      # App settings
+│   │   ├── Modal.tsx         # Modal dialog
+│   │   ├── SceneList.tsx     # Scene management
+│   │   └── sections/         # Section components
+│   │       ├── BasicInfoSection.tsx
+│   │       ├── ScheduleSection.tsx (AI import here)
+│   │       ├── ArtistsSection.tsx
+│   │       ├── PerformersSection.tsx
+│   │       ├── HostsSection.tsx
+│   │       ├── StaffSection.tsx
+│   │       ├── DJMusicSection.tsx
+│   │       └── ExpensesSection.tsx
+│   ├── utils/                # Web utilities
+│   │   ├── db.ts             # Turso database client
+│   │   ├── encryption.ts     # E2E encryption
+│   │   ├── secure-storage.ts # Encrypted storage
+│   │   ├── aiExtractor.ts    # AI import (OpenAI + PDF.js)
+│   │   ├── pdfExport.ts      # PDF generation
+│   │   └── id.ts             # ID generation
+│   └── types/                # TypeScript types
+│
+├── 🔧 components/             # Shared mobile components
+│   ├── ShowCard.tsx          # Mobile show card
+│   ├── SectionHeader.tsx     # Section headers
+│   └── sections/             # Mobile sections
+│
+├── ⚙️ utils/                  # Shared mobile utilities
+│   ├── db.ts                 # Mobile database
+│   ├── storage.ts            # AsyncStorage wrapper
+│   ├── encryption.ts         # Mobile encryption
+│   ├── pdfExport.ts          # Mobile PDF export
+│   └── types.ts              # Mobile types
+│
+├── 🖥️ desktop/                # Electron wrapper
+│   └── main.js               # Electron main process
+│
+├── 📦 public/                 # Static web assets
+│   └── icons/                # App icons
+│
+├── 🛠️ scripts/                # Build scripts
+│   └── run-mac.sh            # macOS dev script
+│
+├── 📄 Configuration Files
+│   ├── package.json          # Dependencies & scripts
+│   ├── vite.config.ts        # Vite configuration
+│   ├── app.json              # Expo configuration
+│   ├── eas.json              # EAS Build profiles
+│   ├── electron-builder.yml  # Electron packaging
+│   ├── vercel.json           # Vercel deployment
+│   ├── tsconfig.json         # TypeScript config
+│   └── eslint.config.js      # ESLint rules
+│
+└── 📝 Documentation
+    └── README.md             # This file
 ```
 
-## Contributing
+## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Here's how you can help:
 
-## License
+### Ways to Contribute
 
-[Add your license here]
+- 🐛 **Report bugs:** Open an issue with details and reproduction steps
+- ✨ **Suggest features:** Share your ideas in GitHub Discussions
+- 📝 **Improve docs:** Fix typos or add clarifications
+- 💻 **Submit code:** Fork, branch, code, test, and PR!
+
+### Development Workflow
+
+1. **Fork and clone:**
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/showrunner.git
+   cd showrunner
+   npm install
+   ```
+
+2. **Create a feature branch:**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+3. **Make your changes:**
+   - Write clean, typed TypeScript
+   - Follow existing code style
+   - Test on web and mobile if applicable
+   - Update README if needed
+
+4. **Test your changes:**
+   ```bash
+   npm run dev      # Test web app
+   npm run start    # Test mobile app
+   npm run lint     # Check for errors
+   ```
+
+5. **Commit and push:**
+   ```bash
+   git add .
+   git commit -m "feat: add your feature description"
+   git push origin feature/your-feature-name
+   ```
+
+6. **Open a Pull Request:**
+   - Describe what you changed and why
+   - Link any related issues
+   - Wait for review and feedback
+
+### Code Style
+
+- Use TypeScript strict mode
+- Follow existing naming conventions
+- Keep functions small and focused
+- Add comments for complex logic
+- Use functional components and hooks
+
+### Questions?
+
+Open an issue or discussion if you need help getting started!
+
+## 📄 License
+
+MIT License - feel free to use this project for personal or commercial purposes.
+
+See [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **OpenAI** for GPT-4o-mini API
+- **Turso** for serverless database
+- **Vercel** for hosting
+- **Expo** for mobile framework
+- **PDF.js** for PDF processing
+
+---
+
+**Built with ❤️ by the Showrunner team**
+
+🌟 Star this repo if you find it useful!
+
+📢 Share with others who might benefit from it!
+
+
