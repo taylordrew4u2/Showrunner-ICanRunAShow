@@ -1,4 +1,5 @@
 import type { Show, AppSettings } from "../types";
+import { DEFAULT_SETTINGS } from "../types";
 import {
   encryptData,
   decryptData,
@@ -20,6 +21,27 @@ function getUserId(username: string): string {
   return deriveUserId(normalizeUsername(username));
 }
 
+const LOCAL_USERS_KEY = "showrunner_local_users";
+const LOCAL_SHOWS_KEY = "showrunner_local_shows";
+const LOCAL_SETTINGS_KEY = "showrunner_local_settings";
+
+type LocalUsers = Record<string, string>;
+type LocalShows = Record<string, string[]>;
+type LocalSettings = Record<string, string>;
+
+function readLocalJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeLocalJson<T>(key: string, value: T): void {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
 /**
  * Create a new account
  */
@@ -27,12 +49,12 @@ export async function createAccount(
   username: string,
   password: string,
 ): Promise<void> {
-  await ensureSchema();
-  const db = getClient();
   const userId = getUserId(username);
   const passwordHash = hashPassword(password);
 
   try {
+    await ensureSchema();
+    const db = getClient();
     const existing = await db.execute(`SELECT id FROM users WHERE id = ?`, [
       userId,
     ]);
@@ -49,8 +71,21 @@ export async function createAccount(
       args: [userId, passwordHash],
     });
   } catch (error) {
-    console.error("Failed to create user:", error);
-    throw error;
+    if (error instanceof Error && error.message === "ACCOUNT_EXISTS") {
+      throw error;
+    }
+
+    console.warn(
+      "Remote account creation failed, using local fallback:",
+      error,
+    );
+
+    const users = readLocalJson<LocalUsers>(LOCAL_USERS_KEY, {});
+    if (users[userId]) {
+      throw new Error("ACCOUNT_EXISTS");
+    }
+    users[userId] = passwordHash;
+    writeLocalJson(LOCAL_USERS_KEY, users);
   }
 }
 
@@ -61,12 +96,12 @@ export async function authenticateUser(
   username: string,
   password: string,
 ): Promise<boolean> {
-  await ensureSchema();
-  const db = getClient();
   const userId = getUserId(username);
   const passwordHash = hashPassword(password);
 
   try {
+    await ensureSchema();
+    const db = getClient();
     const result = await db.execute(
       `SELECT password_hash FROM users WHERE id = ?`,
       [userId],
@@ -79,8 +114,9 @@ export async function authenticateUser(
     const storedHash = result.rows[0][0] as string;
     return storedHash === passwordHash;
   } catch (error) {
-    console.error("Failed to verify account:", error);
-    return false;
+    console.warn("Remote authentication failed, using local fallback:", error);
+    const users = readLocalJson<LocalUsers>(LOCAL_USERS_KEY, {});
+    return users[userId] === passwordHash;
   }
 }
 
@@ -91,11 +127,11 @@ export async function loadEncryptedShows(
   username: string,
   password: string,
 ): Promise<Show[]> {
-  await ensureSchema();
-  const db = getClient();
   const userId = getUserId(username);
 
   try {
+    await ensureSchema();
+    const db = getClient();
     const result = await db.execute(
       `SELECT encrypted_data FROM user_shows WHERE user_id = ? ORDER BY updated_at DESC`,
       [userId],
@@ -106,8 +142,16 @@ export async function loadEncryptedShows(
       return decryptData<Show>(encrypted, password);
     });
   } catch (error) {
-    console.error("Failed to load encrypted shows:", error);
-    return [];
+    console.warn("Remote show load failed, using local fallback:", error);
+    const byUser = readLocalJson<LocalShows>(LOCAL_SHOWS_KEY, {});
+    const encryptedShows = byUser[userId] ?? [];
+    try {
+      return encryptedShows.map((encrypted) =>
+        decryptData<Show>(encrypted, password),
+      );
+    } catch {
+      return [];
+    }
   }
 }
 
@@ -119,11 +163,11 @@ export async function saveEncryptedShows(
   username: string,
   password: string,
 ): Promise<void> {
-  await ensureSchema();
-  const db = getClient();
   const userId = getUserId(username);
 
   try {
+    await ensureSchema();
+    const db = getClient();
     // Delete old shows for this user
     await db.execute(`DELETE FROM user_shows WHERE user_id = ?`, [userId]);
 
@@ -139,8 +183,10 @@ export async function saveEncryptedShows(
       );
     }
   } catch (error) {
-    console.error("Failed to save encrypted shows:", error);
-    throw error;
+    console.warn("Remote show save failed, using local fallback:", error);
+    const byUser = readLocalJson<LocalShows>(LOCAL_SHOWS_KEY, {});
+    byUser[userId] = shows.map((show) => encryptData(show, password));
+    writeLocalJson(LOCAL_SHOWS_KEY, byUser);
   }
 }
 
@@ -151,33 +197,34 @@ export async function loadEncryptedSettings(
   username: string,
   password: string,
 ): Promise<AppSettings> {
-  await ensureSchema();
-  const db = getClient();
   const userId = getUserId(username);
 
   try {
+    await ensureSchema();
+    const db = getClient();
     const result = await db.execute(
       `SELECT encrypted_data FROM user_settings WHERE user_id = ?`,
       [userId],
     );
 
     if (result.rows.length === 0) {
-      return {
-        brandName: "Show Producer",
-        producerNames: "",
-        rules: "",
-      };
+      return DEFAULT_SETTINGS;
     }
 
     const encrypted = result.rows[0][0] as string;
     return decryptData<AppSettings>(encrypted, password);
   } catch (error) {
-    console.error("Failed to load encrypted settings:", error);
-    return {
-      brandName: "Show Producer",
-      producerNames: "",
-      rules: "",
-    };
+    console.warn("Remote settings load failed, using local fallback:", error);
+    const byUser = readLocalJson<LocalSettings>(LOCAL_SETTINGS_KEY, {});
+    const encrypted = byUser[userId];
+    if (!encrypted) {
+      return DEFAULT_SETTINGS;
+    }
+    try {
+      return decryptData<AppSettings>(encrypted, password);
+    } catch {
+      return DEFAULT_SETTINGS;
+    }
   }
 }
 
@@ -189,11 +236,11 @@ export async function saveEncryptedSettings(
   username: string,
   password: string,
 ): Promise<void> {
-  await ensureSchema();
-  const db = getClient();
   const userId = getUserId(username);
 
   try {
+    await ensureSchema();
+    const db = getClient();
     const encrypted = encryptData(settings, password);
     await db.execute(
       `
@@ -203,7 +250,9 @@ export async function saveEncryptedSettings(
       [userId, encrypted],
     );
   } catch (error) {
-    console.error("Failed to save encrypted settings:", error);
-    throw error;
+    console.warn("Remote settings save failed, using local fallback:", error);
+    const byUser = readLocalJson<LocalSettings>(LOCAL_SETTINGS_KEY, {});
+    byUser[userId] = encryptData(settings, password);
+    writeLocalJson(LOCAL_SETTINGS_KEY, byUser);
   }
 }
