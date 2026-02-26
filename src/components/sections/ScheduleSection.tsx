@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
+import { importScheduleFromFile, parseScheduleManually } from '../../utils/aiExtractor';
 
 interface ScheduleSectionProps {
   schedule: ScheduleItem[];
@@ -13,6 +14,9 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
   const [editId, setEditId] = useState<string | null>(null);
   const [editTime, setEditTime] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function addItem() {
     if (!desc.trim()) return;
@@ -54,8 +58,97 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
     onChange(arr);
   }
 
+  async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    setImportError(null);
+
+    try {
+      const items = await importScheduleFromFile(file);
+      
+      // Add imported items to existing schedule
+      onChange([...schedule, ...items]);
+      
+      // Show success message
+      alert(`Successfully imported ${items.length} schedule items!`);
+      
+    } catch (error) {
+      console.error('Import error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setImportError(errorMessage);
+      
+      // If AI fails, offer manual parsing option
+      if (errorMessage.includes('API key') || errorMessage.includes('OpenAI')) {
+        const useManual = confirm(
+          'AI extraction is not available. Would you like to try basic text parsing instead?\n\n' +
+          'This will look for time patterns like "7:00 PM" in your file.'
+        );
+        
+        if (useManual) {
+          try {
+            const text = await file.text();
+            const items = parseScheduleManually(text);
+            if (items.length > 0) {
+              onChange([...schedule, ...items]);
+              alert(`Successfully imported ${items.length} schedule items using basic parsing!`);
+            } else {
+              setImportError('No schedule data found. Make sure each line has a time (e.g., "7:00 PM") followed by a description.');
+            }
+          } catch (err) {
+            setImportError('Failed to read file');
+          }
+        }
+      }
+    } finally {
+      setImporting(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }
+
+  function triggerFileInput() {
+    fileInputRef.current?.click();
+  }
+
   return (
     <div className="section-body">
+      {/* Import file section */}
+      <div style={{ marginBottom: '20px', padding: '16px', background: '#0a0a0a', border: '2px solid #1a1a1a', borderRadius: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.csv,.json,.pdf"
+            onChange={handleFileImport}
+            style={{ display: 'none' }}
+          />
+          <button 
+            className="btn btn--primary" 
+            onClick={triggerFileInput}
+            disabled={importing}
+          >
+            {importing ? '🔄 Importing...' : '📁 Import Schedule from File'}
+          </button>
+          <span style={{ fontSize: '0.85rem', color: '#999' }}>
+            Supports .txt, .csv, .json files
+          </span>
+        </div>
+        {importError && (
+          <div style={{ padding: '12px', background: 'rgba(220, 38, 38, 0.15)', border: '1px solid rgba(220, 38, 38, 0.3)', borderRadius: '8px', color: '#fee2e2', fontSize: '0.9rem' }}>
+            ⚠️ {importError}
+          </div>
+        )}
+        <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '8px', lineHeight: '1.5' }}>
+          💡 <strong>Tip:</strong> Your file should contain schedule items with times (e.g., "7:00 PM") and descriptions. 
+          The AI will automatically extract and organize them. {!import.meta.env.VITE_OPENAI_API_KEY && '(Add VITE_OPENAI_API_KEY for AI extraction)'}
+        </div>
+      </div>
+
+      {/* Manual add section */}
       <div className="section-add-row">
         <input
           className="section-field__input section-field__input--time"
