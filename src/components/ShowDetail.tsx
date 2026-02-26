@@ -1,4 +1,4 @@
-import type { Show, Scene } from '../types';
+import type { Show, Scene, AppSettings } from '../types';
 import { SceneList } from './SceneList';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
@@ -8,15 +8,17 @@ import { HostsSection } from './sections/HostsSection';
 import { DJMusicSection } from './sections/DJMusicSection';
 import { StaffSection } from './sections/StaffSection';
 import { ExpensesSection } from './sections/ExpensesSection';
+import { exportShowToPDF } from '../utils/pdfExport';
 import './ShowDetail.css';
 
 interface ShowDetailProps {
   show: Show;
+  settings: AppSettings;
   onBack: () => void;
   onUpdate: (show: Show) => void;
 }
 
-export function ShowDetail({ show, onBack, onUpdate }: ShowDetailProps) {
+export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps) {
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
   }
@@ -30,6 +32,15 @@ export function ShowDetail({ show, onBack, onUpdate }: ShowDetailProps) {
       <button className="show-detail__back btn btn--ghost" onClick={onBack}>
         ← Back
       </button>
+
+      <div className="show-detail__actions">
+        <button
+          className="btn btn--primary"
+          onClick={() => exportShowToPDF(show, settings)}
+        >
+          📄 Export to PDF
+        </button>
+      </div>
 
       <div className="show-detail__header">
         <h2 className="show-detail__title">{show.name}</h2>
