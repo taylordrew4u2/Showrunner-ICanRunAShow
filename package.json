@@ -12,6 +12,7 @@
   "dependencies": {
     "@libsql/client": "^0.17.0",
     "crypto-js": "^4.2.0",
+    "pdfjs-dist": "^5.4.624",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "workbox-window": "^7.4.0"
