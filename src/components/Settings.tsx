@@ -1,23 +1,23 @@
 import { useState, useEffect } from 'react';
 import type { AppSettings } from '../types';
-import { loadSettings, saveSettings } from '../utils/storage';
-import { DEFAULT_SETTINGS } from '../types';
 import './Settings.css';
 
 interface SettingsProps {
+  settings: AppSettings;
+  onSave: (settings: AppSettings) => void;
   onBack: () => void;
+  saving?: boolean;
 }
 
-export function Settings({ onBack }: SettingsProps) {
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+export function Settings({ settings: initialSettings, onSave, onBack, saving = false }: SettingsProps) {
+  const [settings, setSettings] = useState<AppSettings>(initialSettings);
 
   useEffect(() => {
-    setSettings(loadSettings());
-  }, []);
+    setSettings(initialSettings);
+  }, [initialSettings]);
 
   function handleSave() {
-    saveSettings(settings);
-    onBack();
+    onSave(settings);
   }
 
   return (
@@ -58,8 +58,8 @@ export function Settings({ onBack }: SettingsProps) {
         </label>
       </div>
 
-      <button className="btn btn--primary settings__save" onClick={handleSave}>
-        Save Settings
+      <button className="btn btn--primary settings__save" onClick={handleSave} disabled={saving}>
+        {saving ? 'Saving...' : 'Save Settings'}
       </button>
     </div>
   );

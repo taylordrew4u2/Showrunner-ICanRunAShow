@@ -1,20 +1,24 @@
 import { useState, useEffect } from 'react';
-import type { Show } from './types';
+import type { Show, AppSettings } from './types';
+import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
 import { 
   loadEncryptedShows, 
   saveEncryptedShows,
+  loadEncryptedSettings,
+  saveEncryptedSettings,
   createAccount,
   authenticateUser,
 } from './utils/secure-storage';
 import { Login } from './components/Login';
+import { Settings } from './components/Settings';
 import { ShowCard } from './components/ShowCard';
 import { ShowForm } from './components/ShowForm';
 import { ShowDetail } from './components/ShowDetail';
 import { Modal } from './components/Modal';
 import './App.css';
 
-type View = 'list' | 'detail';
+type View = 'list' | 'detail' | 'settings';
 
 type Session = {
   username: string;
@@ -27,6 +31,8 @@ export default function App() {
   const [authError, setAuthError] = useState('');
 
   const [shows, setShows] = useState<Show[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -38,11 +44,16 @@ export default function App() {
 
     async function loadData() {
       try {
-        const loadedShows = await loadEncryptedShows(currentSession.username, currentSession.password);
+        const [loadedShows, loadedSettings] = await Promise.all([
+          loadEncryptedShows(currentSession.username, currentSession.password),
+          loadEncryptedSettings(currentSession.username, currentSession.password),
+        ]);
         setShows(loadedShows);
+        setSettings(loadedSettings);
       } catch (error) {
         console.error('Failed to load shows:', error);
         setShows([]);
+        setSettings(DEFAULT_SETTINGS);
       }
     }
 
@@ -109,10 +120,27 @@ export default function App() {
   function handleLogout() {
     setSession(null);
     setShows([]);
+    setSettings(DEFAULT_SETTINGS);
     setView('list');
     setSelectedShow(null);
     setShowForm(false);
     setAuthError('');
+  }
+
+  async function handleSaveSettings(updatedSettings: AppSettings) {
+    if (!session) return;
+
+    setSettingsSaving(true);
+    try {
+      await saveEncryptedSettings(updatedSettings, session.username, session.password);
+      setSettings(updatedSettings);
+      setView('list');
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      alert('Failed to save settings. Please try again.');
+    } finally {
+      setSettingsSaving(false);
+    }
   }
 
   function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes'>) {
@@ -175,6 +203,12 @@ export default function App() {
                     + New Show
                   </button>
                   <button
+                    className="btn btn--secondary"
+                    onClick={() => setView('settings')}
+                  >
+                    ⚙️ Settings
+                  </button>
+                  <button
                     className="btn btn--ghost"
                     onClick={handleLogout}
                     title="Logout"
@@ -215,6 +249,15 @@ export default function App() {
                 show={selectedShow}
                 onBack={handleBack}
                 onUpdate={handleUpdateShow}
+              />
+            )}
+
+            {view === 'settings' && (
+              <Settings
+                settings={settings}
+                onSave={handleSaveSettings}
+                onBack={handleBack}
+                saving={settingsSaving}
               />
             )}
           </main>
