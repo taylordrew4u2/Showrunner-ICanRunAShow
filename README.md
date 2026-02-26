@@ -13,6 +13,7 @@ Showrunner is a live-show organizer app available on mobile (iOS & Android), web
 ## Features
 
 - 📅 **Schedule management** – Plan show timelines and segments
+- 🤖 **AI-powered import** – Upload schedule files and auto-extract data with OpenAI
 - 🎤 **Artist & performer tracking** – Manage cast and crew details
 - 🎵 **DJ & music coordination** – Track songs and music cues
 - 👥 **Staff & host assignments** – Organize your production team
@@ -211,9 +212,37 @@ Create a `.env` file in the project root:
 ```env
 VITE_TURSO_DATABASE_URL=your_turso_database_url
 VITE_TURSO_AUTH_TOKEN=your_turso_auth_token
+
+# Optional: OpenAI API key for AI-powered schedule import
+VITE_OPENAI_API_KEY=sk-your-openai-api-key-here
 ```
 
 > **⚠️ Security Note:** Never commit your `.env` file or hardcode credentials in source files. The database credentials in `src/utils/db.ts` should be replaced with environment variables in production.
+
+#### AI-Powered Schedule Import (Optional)
+
+To enable AI-powered schedule extraction from documents:
+
+1. Get an OpenAI API key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+2. Add `VITE_OPENAI_API_KEY` to your `.env.local` file
+3. Restart the dev server
+
+**Features:**
+- 📄 Upload `.txt`, `.csv`, or `.json` files with schedule data
+- 🤖 AI automatically extracts times and descriptions
+- ✨ Handles various formats and layouts
+- 🔄 Works without AI using basic pattern matching (fallback)
+
+**Example file format:**
+```
+7:00 PM - Doors open
+7:30 PM - Opening performance
+8:00 PM - Main show begins
+9:30 PM - Intermission
+10:00 PM - Show concludes
+```
+
+The AI will intelligently parse and import all schedule items automatically!
 
 ## Build for production
 
