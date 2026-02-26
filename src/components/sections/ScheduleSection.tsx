@@ -122,7 +122,7 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".txt,.csv,.json,.pdf"
+            accept=".txt,.csv,.json,.pdf,image/*"
             onChange={handleFileImport}
             style={{ display: 'none' }}
           />
@@ -134,7 +134,7 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
             {importing ? '🔄 Importing...' : '📁 Import Schedule from File'}
           </button>
           <span style={{ fontSize: '0.85rem', color: '#999' }}>
-            Supports .txt, .csv, .json files
+            Supports .txt, .csv, .json, .pdf, and images
           </span>
         </div>
         {importError && (

@@ -228,10 +228,11 @@ To enable AI-powered schedule extraction from documents:
 3. Restart the dev server
 
 **Features:**
-- 📄 Upload `.txt`, `.csv`, or `.json` files with schedule data
-- 🤖 AI automatically extracts times and descriptions
-- ✨ Handles various formats and layouts
-- 🔄 Works without AI using basic pattern matching (fallback)
+- 📄 Upload `.txt`, `.csv`, `.json`, or `.pdf` files with schedule data
+- 🖼️ Upload images (`.jpg`, `.png`, etc.) of schedules or screenshots
+- 🤖 AI automatically extracts times and descriptions from text and images
+- ✨ Handles various formats and layouts intelligently
+- 🔄 Works without AI using basic pattern matching (fallback for text files)
 
 **Example file format:**
 ```
@@ -242,7 +243,7 @@ To enable AI-powered schedule extraction from documents:
 10:00 PM - Show concludes
 ```
 
-The AI will intelligently parse and import all schedule items automatically!
+The AI will intelligently parse and import all schedule items from text files, PDFs, and images automatically!
 
 ## Build for production
 
