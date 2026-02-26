@@ -9,6 +9,12 @@
   font-size: 0.9rem;
 }
 
+.show-detail__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .show-detail__header {
   display: flex;
   align-items: center;

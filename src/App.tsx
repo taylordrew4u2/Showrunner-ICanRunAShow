@@ -258,6 +258,7 @@ export default function App() {
             {view === 'detail' && selectedShow && (
               <ShowDetail
                 show={selectedShow}
+                settings={settings}
                 onBack={handleBack}
                 onUpdate={handleUpdateShow}
               />
