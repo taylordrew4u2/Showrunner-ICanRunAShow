@@ -12,37 +12,88 @@ import { getClient, ensureSchema } from "./db";
  * Uses password-derived keys for all users
  */
 
+function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase();
+}
+
+function getUserId(username: string): string {
+  return deriveUserId(normalizeUsername(username));
+}
+
 /**
- * Initialize user in database (called on first login)
+ * Create a new account
  */
-export async function initializeUser(password: string): Promise<void> {
+export async function createAccount(
+  username: string,
+  password: string,
+): Promise<void> {
   await ensureSchema();
   const db = getClient();
-  const userId = deriveUserId(password);
+  const userId = getUserId(username);
   const passwordHash = hashPassword(password);
 
   try {
-    // Ensure user exists
+    const existing = await db.execute(`SELECT id FROM users WHERE id = ?`, [
+      userId,
+    ]);
+
+    if (existing.rows.length > 0) {
+      throw new Error("ACCOUNT_EXISTS");
+    }
+
     await db.execute({
       sql: `
-        INSERT OR IGNORE INTO users (id, password_hash)
+        INSERT INTO users (id, password_hash)
         VALUES (?, ?)
       `,
       args: [userId, passwordHash],
     });
   } catch (error) {
-    console.error("Failed to initialize user:", error);
+    console.error("Failed to create user:", error);
     throw error;
+  }
+}
+
+/**
+ * Verify account credentials
+ */
+export async function authenticateUser(
+  username: string,
+  password: string,
+): Promise<boolean> {
+  await ensureSchema();
+  const db = getClient();
+  const userId = getUserId(username);
+  const passwordHash = hashPassword(password);
+
+  try {
+    const result = await db.execute(
+      `SELECT password_hash FROM users WHERE id = ?`,
+      [userId],
+    );
+
+    if (result.rows.length === 0) {
+      return false;
+    }
+
+    const storedHash = result.rows[0][0] as string;
+    return storedHash === passwordHash;
+  } catch (error) {
+    console.error("Failed to verify account:", error);
+    return false;
   }
 }
 
 /**
  * Load encrypted shows from backend and decrypt
  */
-export async function loadEncryptedShows(password: string): Promise<Show[]> {
+export async function loadEncryptedShows(
+  username: string,
+  password: string,
+): Promise<Show[]> {
   await ensureSchema();
   const db = getClient();
-  const userId = deriveUserId(password);
+  const userId = getUserId(username);
 
   try {
     const result = await db.execute(
@@ -65,11 +116,12 @@ export async function loadEncryptedShows(password: string): Promise<Show[]> {
  */
 export async function saveEncryptedShows(
   shows: Show[],
+  username: string,
   password: string,
 ): Promise<void> {
   await ensureSchema();
   const db = getClient();
-  const userId = deriveUserId(password);
+  const userId = getUserId(username);
 
   try {
     // Delete old shows for this user
@@ -96,11 +148,12 @@ export async function saveEncryptedShows(
  * Load encrypted settings from backend
  */
 export async function loadEncryptedSettings(
+  username: string,
   password: string,
 ): Promise<AppSettings> {
   await ensureSchema();
   const db = getClient();
-  const userId = deriveUserId(password);
+  const userId = getUserId(username);
 
   try {
     const result = await db.execute(
@@ -133,11 +186,12 @@ export async function loadEncryptedSettings(
  */
 export async function saveEncryptedSettings(
   settings: AppSettings,
+  username: string,
   password: string,
 ): Promise<void> {
   await ensureSchema();
   const db = getClient();
-  const userId = deriveUserId(password);
+  const userId = getUserId(username);
 
   try {
     const encrypted = encryptData(settings, password);
@@ -151,32 +205,5 @@ export async function saveEncryptedSettings(
   } catch (error) {
     console.error("Failed to save encrypted settings:", error);
     throw error;
-  }
-}
-
-/**
- * Verify user password against stored hash
- */
-export async function verifyUserPassword(password: string): Promise<boolean> {
-  await ensureSchema();
-  const db = getClient();
-  const userId = deriveUserId(password);
-  const passwordHash = hashPassword(password);
-
-  try {
-    const result = await db.execute(
-      `SELECT password_hash FROM users WHERE id = ?`,
-      [userId],
-    );
-
-    if (result.rows.length === 0) {
-      return false;
-    }
-
-    const storedHash = result.rows[0][0] as string;
-    return storedHash === passwordHash;
-  } catch (error) {
-    console.error("Failed to verify password:", error);
-    return false;
   }
 }

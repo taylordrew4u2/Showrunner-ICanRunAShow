@@ -2,17 +2,33 @@ import { useState } from 'react';
 import './Login.css';
 
 interface LoginProps {
-  onLogin: (password: string) => void;
+  onSignIn: (username: string, password: string) => void;
+  onSignUp: (username: string, password: string) => void;
   loading?: boolean;
+  errorMessage?: string;
 }
 
-export function Login({ onLogin, loading = false }: LoginProps) {
-  const [password, setPassword] = useState('omg123');
+export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }: LoginProps) {
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+
+    const normalizedUsername = username.trim();
+
+    if (!normalizedUsername) {
+      setError('Username is required');
+      return;
+    }
+
+    if (normalizedUsername.length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
 
     if (!password.trim()) {
       setError('Password is required');
@@ -24,7 +40,12 @@ export function Login({ onLogin, loading = false }: LoginProps) {
       return;
     }
 
-    onLogin(password);
+    if (mode === 'signup') {
+      onSignUp(normalizedUsername, password);
+      return;
+    }
+
+    onSignIn(normalizedUsername, password);
   }
 
   return (
@@ -32,12 +53,27 @@ export function Login({ onLogin, loading = false }: LoginProps) {
       <div className="login__container">
         <div className="login__header">
           <h1 className="login__title">🎬 Showrunner</h1>
-          <p className="login__subtitle">Secure Show Management</p>
+          <p className="login__subtitle">
+            {mode === 'signup' ? 'Create an account to save your data' : 'Sign in to access your saved shows'}
+          </p>
         </div>
 
         <form className="login__form" onSubmit={handleSubmit}>
           <div className="login__field">
-            <label className="login__label">Enter Password</label>
+            <label className="login__label">Username</label>
+            <input
+              className="login__input"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter username"
+              disabled={loading}
+              autoFocus
+            />
+          </div>
+
+          <div className="login__field">
+            <label className="login__label">Password</label>
             <input
               className="login__input"
               type="password"
@@ -45,24 +81,35 @@ export function Login({ onLogin, loading = false }: LoginProps) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               disabled={loading}
-              autoFocus
             />
           </div>
 
-          {error && <div className="login__error">{error}</div>}
+          {(error || errorMessage) && <div className="login__error">{error || errorMessage}</div>}
 
           <button
             className="login__button"
             type="submit"
             disabled={loading}
           >
-            {loading ? 'Unlocking...' : 'Unlock'}
+            {loading ? 'Please wait...' : mode === 'signup' ? 'Create Account' : 'Sign In'}
+          </button>
+
+          <button
+            className="login__button login__button--secondary"
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              setError('');
+              setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
+            }}
+          >
+            {mode === 'signup' ? 'Already have an account? Sign In' : 'New here? Create Account'}
           </button>
         </form>
 
         <div className="login__footer">
           <p className="login__note">
-            💾 Your data is encrypted and stored securely. Use the same password on any device to access your shows.
+            💾 Your data is encrypted and saved under your account.
           </p>
         </div>
       </div>

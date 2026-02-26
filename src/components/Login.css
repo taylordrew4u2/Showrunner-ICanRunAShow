@@ -107,6 +107,18 @@
     cursor: not-allowed;
 }
 
+.login__button--secondary {
+    background: white;
+    color: #374151;
+    border: 2px solid #e5e7eb;
+}
+
+.login__button--secondary:hover:not(:disabled) {
+    box-shadow: none;
+    transform: none;
+    border-color: #cbd5e1;
+}
+
 .login__footer {
     margin-top: 24px;
     padding-top: 24px;
