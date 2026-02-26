@@ -4,8 +4,8 @@ import { generateId } from './utils/id';
 import { 
   loadEncryptedShows, 
   saveEncryptedShows,
-  initializeUser,
-  verifyUserPassword,
+  createAccount,
+  authenticateUser,
 } from './utils/secure-storage';
 import { Login } from './components/Login';
 import { ShowCard } from './components/ShowCard';
@@ -16,22 +16,29 @@ import './App.css';
 
 type View = 'list' | 'detail';
 
+type Session = {
+  username: string;
+  password: string;
+};
+
 export default function App() {
-  const [password, setPassword] = useState<string | null>(null);
-  const [loggingIn, setLoggingIn] = useState(false);
-  
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
   const [shows, setShows] = useState<Show[]>([]);
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  // Load data when password is set
+  // Load data for signed in user
   useEffect(() => {
-    if (!password) return;
+    if (!session) return;
+    const currentSession = session;
 
     async function loadData() {
       try {
-        const loadedShows = await loadEncryptedShows(password as string);
+        const loadedShows = await loadEncryptedShows(currentSession.username, currentSession.password);
         setShows(loadedShows);
       } catch (error) {
         console.error('Failed to load shows:', error);
@@ -40,50 +47,72 @@ export default function App() {
     }
 
     loadData();
-  }, [password]);
+  }, [session]);
 
   // Save shows when changed
   useEffect(() => {
-    if (!password || shows.length === 0) return;
+    if (!session || shows.length === 0) return;
+    const currentSession = session;
 
     const timeout = setTimeout(async () => {
       try {
-        await saveEncryptedShows(shows, password as string);
+        await saveEncryptedShows(shows, currentSession.username, currentSession.password);
       } catch (error) {
         console.error('Failed to save shows:', error);
       }
     }, 1000); // Debounce saves
 
     return () => clearTimeout(timeout);
-  }, [shows, password]);
+  }, [shows, session]);
 
-  async function handleLogin(pwd: string) {
-    setLoggingIn(true);
+  async function handleSignIn(username: string, password: string) {
+    setAuthError('');
+    setAuthLoading(true);
 
     try {
-      // Try to verify existing user
-      const isExisting = await verifyUserPassword(pwd);
-      
-      if (!isExisting) {
-        // New user - initialize
-        await initializeUser(pwd);
+      const isValid = await authenticateUser(username, password);
+
+      if (!isValid) {
+        setAuthError('Invalid username or password');
+        return;
       }
 
-      setPassword(pwd);
+      setSession({ username, password });
     } catch (error) {
-      console.error('Login failed:', error);
-      alert('Failed to access secure storage. Please try again.');
+      console.error('Sign in failed:', error);
+      setAuthError('Failed to sign in. Please try again.');
     } finally {
-      setLoggingIn(false);
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleSignUp(username: string, password: string) {
+    setAuthError('');
+    setAuthLoading(true);
+
+    try {
+      await createAccount(username, password);
+      setSession({ username, password });
+    } catch (error) {
+      console.error('Sign up failed:', error);
+      const message = error instanceof Error ? error.message : '';
+      if (message === 'ACCOUNT_EXISTS') {
+        setAuthError('Account already exists. Please sign in.');
+      } else {
+        setAuthError('Failed to create account. Please try again.');
+      }
+    } finally {
+      setAuthLoading(false);
     }
   }
 
   function handleLogout() {
-    setPassword(null);
+    setSession(null);
     setShows([]);
     setView('list');
     setSelectedShow(null);
     setShowForm(false);
+    setAuthError('');
   }
 
   function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes'>) {
@@ -119,8 +148,13 @@ export default function App() {
 
   return (
     <>
-      {!password ? (
-        <Login onLogin={handleLogin} loading={loggingIn} />
+      {!session ? (
+        <Login
+          onSignIn={handleSignIn}
+          onSignUp={handleSignUp}
+          loading={authLoading}
+          errorMessage={authError}
+        />
       ) : (
         <div className="app">
           <header className="app-header">

@@ -3,11 +3,11 @@ import CryptoJS from "crypto-js";
 const PASSWORD_SALT = "showrunner-salt-2024";
 
 /**
- * Derive a stable user ID from password hash
+ * Derive a stable user ID from account identifier
  * Used to organize data by user in the database
  */
-export function deriveUserId(password: string): string {
-  return CryptoJS.SHA256(password + PASSWORD_SALT)
+export function deriveUserId(identifier: string): string {
+  return CryptoJS.SHA256(identifier + PASSWORD_SALT)
     .toString()
     .substring(0, 32);
 }
