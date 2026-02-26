@@ -1,24 +1,44 @@
 .settings {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
 }
 
 .settings__title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #e0e0e0;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #ffffff;
     margin: 0;
+    letter-spacing: -0.02em;
 }
 
 .settings__card {
-    background: #16213e;
-    border: 1px solid #0f3460;
-    border-radius: 12px;
-    padding: 20px;
+    background: #0a0a0a;
+    border: 2px solid #1a1a1a;
+    border-radius: 16px;
+    padding: 28px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
+    transition: border-color 0.2s;
+}
+
+.settings__card:hover {
+    border-color: #262626;
+}
+
+.settings__card h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 4px;
+}
+
+.settings__card p {
+    font-size: 0.875rem;
+    color: #999999;
+    margin: 0;
+    line-height: 1.5;
 }
 
 .settings__save {
