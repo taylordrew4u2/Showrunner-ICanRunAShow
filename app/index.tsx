@@ -24,7 +24,6 @@ export default function HomeScreen() {
   const [newShowStatus, setNewShowStatus] = useState<ShowStatus>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ShowStatus | 'all'>('all');
-  const [duplicateShowId, setDuplicateShowId] = useState<string | null>(null);
   const router = useRouter();
 
   useFocusEffect(
