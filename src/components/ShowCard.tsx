@@ -20,7 +20,7 @@ export function ShowCard({ show, onSelect, onDelete }: ShowCardProps) {
 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
-    if (window.confirm(`Delete "${show.name}"?`)) {
+    if (window.confirm(`Delete show "${show.name}"? This cannot be undone.`)) {
       onDelete(show.id);
     }
   }

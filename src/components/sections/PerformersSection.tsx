@@ -20,7 +20,10 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
   }
 
   function deletePerformer(id: string) {
-    onChange(performers.filter((p) => p.id !== id));
+    const performer = performers.find((p) => p.id === id);
+    if (window.confirm(`Delete "${performer?.name}"? This cannot be undone.`)) {
+      onChange(performers.filter((p) => p.id !== id));
+    }
   }
 
   function startEdit(p: Performer) {

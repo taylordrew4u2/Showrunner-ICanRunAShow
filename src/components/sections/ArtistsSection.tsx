@@ -20,7 +20,10 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
   }
 
   function deleteArtist(id: string) {
-    onChange(artists.filter((a) => a.id !== id));
+    const artist = artists.find((a) => a.id === id);
+    if (window.confirm(`Delete "${artist?.name}"? This cannot be undone.`)) {
+      onChange(artists.filter((a) => a.id !== id));
+    }
   }
 
   function startEdit(a: Artist) {

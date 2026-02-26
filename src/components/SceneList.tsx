@@ -32,7 +32,10 @@ export function SceneList({ scenes, onChange }: SceneListProps) {
   }
 
   function deleteScene(id: string) {
-    onChange(scenes.filter((s) => s.id !== id));
+    const scene = scenes.find((s) => s.id === id);
+    if (window.confirm(`Delete scene "${scene?.title}"? This cannot be undone.`)) {
+      onChange(scenes.filter((s) => s.id !== id));
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

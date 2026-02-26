@@ -21,7 +21,10 @@ export function HostsSection({ hosts, onChange }: HostsSectionProps) {
   }
 
   function deleteHost(id: string) {
-    onChange(hosts.filter((h) => h.id !== id));
+    const host = hosts.find((h) => h.id === id);
+    if (window.confirm(`Delete "${host?.name}"? This cannot be undone.`)) {
+      onChange(hosts.filter((h) => h.id !== id));
+    }
   }
 
   function toggleHosting(id: string) {

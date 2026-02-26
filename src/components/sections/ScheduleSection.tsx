@@ -27,7 +27,10 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
   }
 
   function deleteItem(id: string) {
-    onChange(schedule.filter((s) => s.id !== id));
+    const item = schedule.find((s) => s.id === id);
+    if (window.confirm(`Delete schedule item "${item?.description}"? This cannot be undone.`)) {
+      onChange(schedule.filter((s) => s.id !== id));
+    }
   }
 
   function startEdit(item: ScheduleItem) {
