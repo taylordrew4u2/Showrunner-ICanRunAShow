@@ -1,4 +1,13 @@
-import type { Show, AppSettings, Performer, ScheduleItem, Host, DJSong, StaffMember, Expense } from "../types";
+import type {
+  Show,
+  AppSettings,
+  Performer,
+  ScheduleItem,
+  Host,
+  DJSong,
+  StaffMember,
+  Expense,
+} from "../types";
 
 function esc(text: string | undefined | null): string {
   if (!text) return "";
@@ -174,18 +183,18 @@ export function exportDJListToPDF(show: Show): void {
 <body>
   <h1>DJ Music List</h1>
   <div class="meta"><strong>Show:</strong> ${esc(show.name)}</div>
-  ${show.date ? `<div class="meta"><strong>Date:</strong> ${esc(show.date)}</div>` : ''}
-  ${show.venueName ? `<div class="meta"><strong>Venue:</strong> ${esc(show.venueName)}</div>` : ''}
+  ${show.date ? `<div class="meta"><strong>Date:</strong> ${esc(show.date)}</div>` : ""}
+  ${show.venueName ? `<div class="meta"><strong>Venue:</strong> ${esc(show.venueName)}</div>` : ""}
 
   <h2>Song List</h2>
   <table>
     <tr><th>#</th><th>Title</th><th>Artist</th><th>Notes</th></tr>
-    ${show.djSongs.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join('')}
+    ${show.djSongs.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
   </table>
 </body>
 </html>`;
 
-  const printWindow = window.open('', '_blank');
+  const printWindow = window.open("", "_blank");
   if (printWindow) {
     printWindow.document.write(html);
     printWindow.document.close();

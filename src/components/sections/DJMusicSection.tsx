@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { DJSong, Show } from '../../types';
 import { generateId } from '../../utils/id';
+import { exportDJListToPDF } from '../../utils/pdfExport';
 
 interface DJMusicSectionProps {
   songs: DJSong[];
@@ -135,9 +136,14 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
       </ul>
 
       {songs.length > 0 && (
-        <button className="btn btn--secondary" onClick={exportDJList} style={{ marginTop: 12 }}>
-          📤 Share / Export DJ List
-        </button>
+        <div className="section-actions">
+          <button className="btn btn--secondary" onClick={exportDJList}>
+            📤 Share / Export DJ List (Text)
+          </button>
+          <button className="btn btn--secondary" onClick={() => exportDJListToPDF(show)}>
+            🧾 Export DJ List (PDF)
+          </button>
+        </div>
       )}
     </div>
   );
