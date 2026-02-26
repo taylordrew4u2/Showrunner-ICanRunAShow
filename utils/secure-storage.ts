@@ -50,7 +50,7 @@ export async function loadEncryptedShows(password: string): Promise<Show[]> {
       [userId],
     );
 
-    return result.rows.map((row: any) => {
+    return result.rows.map((row) => {
       const encrypted = row[0] as string;
       return decryptData<Show>(encrypted, password);
     });

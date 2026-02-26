@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { loadShow, saveShow, loadSettings } from '../../utils/storage';
-import { Show, AppSettings, DEFAULT_SETTINGS, ShowStatus } from '../../utils/types';
+import { Show, AppSettings, DEFAULT_SETTINGS } from '../../utils/types';
 import { exportShowToPDF } from '../../utils/pdfExport';
 import SectionHeader from '../../components/SectionHeader';
 import BasicInfoSection from '../../components/sections/BasicInfoSection';
@@ -190,7 +190,7 @@ export default function ShowDetailScreen() {
               onToggle={() => toggleSection(key)}
               count={sectionCount(key)}
             />
-            {expanded[key] && renderSection(key, show, updateShow, settings)}
+            {expanded[key] && renderSection(key, show, updateShow)}
           </View>
         ))}
 
@@ -214,8 +214,7 @@ export default function ShowDetailScreen() {
 function renderSection(
   key: SectionKey,
   show: Show,
-  updateShow: (updates: Partial<Show>) => void,
-  settings: AppSettings
+  updateShow: (updates: Partial<Show>) => void
 ): React.ReactNode {
   switch (key) {
     case 'basicInfo':
@@ -246,7 +245,6 @@ function renderSection(
         <DJMusicSection
           songs={show.djSongs}
           show={show}
-          settings={settings}
           onChange={(djSongs) => updateShow({ djSongs })}
         />
       );

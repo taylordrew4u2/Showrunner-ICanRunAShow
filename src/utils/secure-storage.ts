@@ -152,7 +152,7 @@ export async function loadEncryptedShows(
       [userId],
     );
 
-    return result.rows.map((row: any) => {
+    return result.rows.map((row) => {
       const encrypted = row[0] as string;
       return decryptData<Show>(encrypted, password);
     });

@@ -11,18 +11,17 @@ import {
 import { DJSong } from '../../utils/types';
 import { generateId } from '../../utils/storage';
 import { exportDJListAsText } from '../../utils/pdfExport';
-import { AppSettings, Show } from '../../utils/types';
+import { Show } from '../../utils/types';
 
 interface Props {
   songs: DJSong[];
   show: Show;
-  settings: AppSettings;
   onChange: (songs: DJSong[]) => void;
 }
 
 const EMPTY = { title: '', artist: '', notes: '' };
 
-export default function DJMusicSection({ songs, show, settings, onChange }: Props) {
+export default function DJMusicSection({ songs, show, onChange }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState<DJSong | null>(null);
   const [draft, setDraft] = useState(EMPTY);
