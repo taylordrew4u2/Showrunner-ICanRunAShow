@@ -230,7 +230,7 @@ export async function loadEncryptedSettings(
 
     const encrypted = result.rows[0][0] as string;
     const settings = decryptData<AppSettings>(encrypted, password);
-    
+
     // Migrate old settings format
     return migrateSettings(settings);
   } catch (error) {
@@ -252,20 +252,23 @@ export async function loadEncryptedSettings(
 function migrateSettings(settings: any): AppSettings {
   // Handle old format with producerNames string
   if (settings.producerNames && !settings.producers) {
-    const names = settings.producerNames.split(',').map((n: string) => n.trim()).filter(Boolean);
+    const names = settings.producerNames
+      .split(",")
+      .map((n: string) => n.trim())
+      .filter(Boolean);
     settings.producers = names.map((name: string) => ({
       id: Math.random().toString(36).slice(2),
       name,
-      role: 'Producer',
+      role: "Producer",
     }));
     delete settings.producerNames;
   }
-  
+
   // Ensure new fields exist
   if (!settings.producers) settings.producers = [];
-  if (typeof settings.brandBudget !== 'number') settings.brandBudget = 0;
-  if (typeof settings.totalSpent !== 'number') settings.totalSpent = 0;
-  
+  if (typeof settings.brandBudget !== "number") settings.brandBudget = 0;
+  if (typeof settings.totalSpent !== "number") settings.totalSpent = 0;
+
   return settings as AppSettings;
 }
 

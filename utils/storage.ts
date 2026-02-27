@@ -1,8 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Show, AppSettings, DEFAULT_SETTINGS } from './types';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Show, AppSettings, DEFAULT_SETTINGS } from "./types";
 
-const SHOWS_KEY = '@showrunner_shows';
-const SETTINGS_KEY = '@showrunner_settings';
+const SHOWS_KEY = "@showrunner_shows";
+const SETTINGS_KEY = "@showrunner_settings";
 
 // ─── ID Generation ────────────────────────────────────────────────────────────
 
@@ -17,7 +17,7 @@ export async function loadShows(): Promise<Show[]> {
     const data = await AsyncStorage.getItem(SHOWS_KEY);
     return data ? JSON.parse(data) : [];
   } catch (error) {
-    console.error('Error loading shows:', error);
+    console.error("Error loading shows:", error);
     return [];
   }
 }
@@ -26,7 +26,7 @@ export async function saveShows(shows: Show[]): Promise<void> {
   try {
     await AsyncStorage.setItem(SHOWS_KEY, JSON.stringify(shows));
   } catch (error) {
-    console.error('Error saving shows:', error);
+    console.error("Error saving shows:", error);
     throw error;
   }
 }
@@ -36,7 +36,7 @@ export async function loadShow(id: string): Promise<Show | null> {
     const shows = await loadShows();
     return shows.find((s) => s.id === id) ?? null;
   } catch (error) {
-    console.error('Error loading show:', error);
+    console.error("Error loading show:", error);
     return null;
   }
 }
@@ -64,28 +64,31 @@ export async function loadSettings(): Promise<AppSettings> {
   try {
     const data = await AsyncStorage.getItem(SETTINGS_KEY);
     if (!data) return DEFAULT_SETTINGS;
-    
+
     const settings = JSON.parse(data);
-    
+
     // Migrate old format with producerNames string
     if (settings.producerNames && !settings.producers) {
-      const names = settings.producerNames.split(',').map((n: string) => n.trim()).filter(Boolean);
+      const names = settings.producerNames
+        .split(",")
+        .map((n: string) => n.trim())
+        .filter(Boolean);
       settings.producers = names.map((name: string) => ({
         id: generateId(),
         name,
-        role: 'Producer',
+        role: "Producer",
       }));
       delete settings.producerNames;
     }
-    
+
     // Ensure new fields exist
     if (!settings.producers) settings.producers = [];
-    if (typeof settings.brandBudget !== 'number') settings.brandBudget = 0;
-    if (typeof settings.totalSpent !== 'number') settings.totalSpent = 0;
-    
+    if (typeof settings.brandBudget !== "number") settings.brandBudget = 0;
+    if (typeof settings.totalSpent !== "number") settings.totalSpent = 0;
+
     return { ...DEFAULT_SETTINGS, ...settings };
   } catch (error) {
-    console.error('Error loading settings:', error);
+    console.error("Error loading settings:", error);
     return DEFAULT_SETTINGS;
   }
 }
@@ -94,7 +97,7 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   try {
     await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch (error) {
-    console.error('Error saving settings:', error);
+    console.error("Error saving settings:", error);
     throw error;
   }
 }

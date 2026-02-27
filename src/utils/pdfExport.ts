@@ -54,7 +54,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
 </head>
 <body>
   <div class="brand">${esc(settings.brandName)}</div>
-  ${settings.producers.length > 0 ? `<div class="producers">Producers: ${settings.producers.map(p => `${esc(p.name)} (${esc(p.role)})`).join(', ')}</div>` : ""}
+  ${settings.producers.length > 0 ? `<div class="producers">Producers: ${settings.producers.map((p) => `${esc(p.name)} (${esc(p.role)})`).join(", ")}</div>` : ""}
 
   <h1>${esc(show.name)}</h1>
   ${show.date ? `<div class="meta"><strong>Date:</strong> ${esc(show.date)}</div>` : ""}
