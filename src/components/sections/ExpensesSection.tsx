@@ -42,7 +42,7 @@ export function ExpensesSection({ expenses, onChange }: ExpensesSectionProps) {
 
   function deleteExpense(id: string) {
     const expense = expenses.find((e) => e.id === id);
-    if (window.confirm(`Delete expense "${expense?.description}" ($${expense?.amount})? This cannot be undone.`)) {
+    if (window.confirm(`Delete expense "${expense?.itemName}" ($${expense?.cost})? This cannot be undone.`)) {
       onChange(expenses.filter((e) => e.id !== id));
     }
   }
