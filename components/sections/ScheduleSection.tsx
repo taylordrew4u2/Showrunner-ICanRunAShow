@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,10 +18,33 @@ interface Props {
 
 const EMPTY = { time: '', description: '' };
 
+const EXAMPLE_SCHEDULE: Omit<ScheduleItem, 'id'>[] = [
+  { time: '6:00 PM', description: 'Doors Open' },
+  { time: '6:30 PM', description: 'Sound Check' },
+  { time: '7:00 PM', description: 'Opening Act' },
+  { time: '8:00 PM', description: 'Main Performance' },
+  { time: '9:30 PM', description: 'Intermission' },
+  { time: '10:00 PM', description: 'Closing Act' },
+  { time: '11:00 PM', description: 'Doors Close' },
+];
+
 export default function ScheduleSection({ schedule, onChange }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState<ScheduleItem | null>(null);
   const [draft, setDraft] = useState(EMPTY);
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Auto-populate with example schedule when empty
+  useEffect(() => {
+    if (!hasInitialized && schedule.length === 0) {
+      const exampleItems = EXAMPLE_SCHEDULE.map((item) => ({
+        ...item,
+        id: generateId(),
+      }));
+      onChange(exampleItems);
+      setHasInitialized(true);
+    }
+  }, [schedule.length, hasInitialized, onChange]);
 
   const openAdd = () => {
     setEditing(null);
