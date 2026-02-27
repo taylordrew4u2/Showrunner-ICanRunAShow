@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { importScheduleFromFile, parseScheduleManually } from '../../utils/aiExtractor';
@@ -7,6 +7,16 @@ interface ScheduleSectionProps {
   schedule: ScheduleItem[];
   onChange: (schedule: ScheduleItem[]) => void;
 }
+
+const EXAMPLE_SCHEDULE: Omit<ScheduleItem, 'id'>[] = [
+  { time: '6:00 PM', description: 'Doors Open' },
+  { time: '6:30 PM', description: 'Sound Check' },
+  { time: '7:00 PM', description: 'Opening Act' },
+  { time: '8:00 PM', description: 'Main Performance' },
+  { time: '9:30 PM', description: 'Intermission' },
+  { time: '10:00 PM', description: 'Closing Act' },
+  { time: '11:00 PM', description: 'Doors Close' },
+];
 
 export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
   const [time, setTime] = useState('');
@@ -17,6 +27,19 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Auto-populate with example schedule when empty
+  useEffect(() => {
+    if (!hasInitialized && schedule.length === 0) {
+      const exampleItems = EXAMPLE_SCHEDULE.map((item) => ({
+        ...item,
+        id: generateId(),
+      }));
+      onChange(exampleItems);
+      setHasInitialized(true);
+    }
+  }, [schedule.length, hasInitialized, onChange]);
 
   function addItem() {
     if (!desc.trim()) return;
