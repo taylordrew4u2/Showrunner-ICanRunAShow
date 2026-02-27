@@ -27,7 +27,7 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
 
   function deleteStaff(id: string) {
     const member = staff.find((s) => s.id === id);
-    if (window.confirm(`Delete "${member?.name}" (${member?.role})? This cannot be undone.`)) {
+    if (window.confirm(`Delete "${member?.personName}" (${member?.role})? This cannot be undone.`)) {
       onChange(staff.filter((s) => s.id !== id));
     }
   }

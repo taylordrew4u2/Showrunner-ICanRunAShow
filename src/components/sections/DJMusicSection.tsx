@@ -34,7 +34,7 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
 
   function deleteSong(id: string) {
     const song = songs.find((s) => s.id === id);
-    if (window.confirm(`Delete "${song?.songName}"? This cannot be undone.`)) {
+    if (window.confirm(`Delete "${song?.title}"? This cannot be undone.`)) {
       onChange(songs.filter((s) => s.id !== id));
     }
   }
