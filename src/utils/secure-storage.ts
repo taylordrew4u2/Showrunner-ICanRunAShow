@@ -229,7 +229,10 @@ export async function loadEncryptedSettings(
     }
 
     const encrypted = result.rows[0][0] as string;
-    return decryptData<AppSettings>(encrypted, password);
+    const settings = decryptData<AppSettings>(encrypted, password);
+    
+    // Migrate old settings format
+    return migrateSettings(settings);
   } catch (error) {
     console.warn("Remote settings load failed, using local fallback:", error);
     setOfflineMode(true);
@@ -238,12 +241,32 @@ export async function loadEncryptedSettings(
     if (!encrypted) {
       return DEFAULT_SETTINGS;
     }
-    try {
-      return decryptData<AppSettings>(encrypted, password);
-    } catch {
-      return DEFAULT_SETTINGS;
-    }
+    const settings = decryptData<AppSettings>(encrypted, password);
+    return migrateSettings(settings);
   }
+}
+
+/**
+ * Migrate old settings format to new format
+ */
+function migrateSettings(settings: any): AppSettings {
+  // Handle old format with producerNames string
+  if (settings.producerNames && !settings.producers) {
+    const names = settings.producerNames.split(',').map((n: string) => n.trim()).filter(Boolean);
+    settings.producers = names.map((name: string) => ({
+      id: Math.random().toString(36).slice(2),
+      name,
+      role: 'Producer',
+    }));
+    delete settings.producerNames;
+  }
+  
+  // Ensure new fields exist
+  if (!settings.producers) settings.producers = [];
+  if (typeof settings.brandBudget !== 'number') settings.brandBudget = 0;
+  if (typeof settings.totalSpent !== 'number') settings.totalSpent = 0;
+  
+  return settings as AppSettings;
 }
 
 /**

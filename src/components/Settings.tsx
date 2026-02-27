@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { AppSettings } from '../types';
+import type { AppSettings, Producer } from '../types';
+import { generateId } from '../utils/id';
 import './Settings.css';
 
 interface SettingsProps {
@@ -11,6 +12,8 @@ interface SettingsProps {
 
 export function Settings({ settings: initialSettings, onSave, onBack, saving = false }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
+  const [newProducerName, setNewProducerName] = useState('');
+  const [newProducerRole, setNewProducerRole] = useState('');
 
   useEffect(() => {
     setSettings(initialSettings);
@@ -18,6 +21,25 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
 
   function handleSave() {
     onSave(settings);
+  }
+
+  function addProducer() {
+    if (!newProducerName.trim() || !newProducerRole.trim()) return;
+    const producer: Producer = {
+      id: generateId(),
+      name: newProducerName.trim(),
+      role: newProducerRole.trim(),
+    };
+    setSettings((s) => ({ ...s, producers: [...s.producers, producer] }));
+    setNewProducerName('');
+    setNewProducerRole('');
+  }
+
+  function removeProducer(id: string) {
+    setSettings((s) => ({
+      ...s,
+      producers: s.producers.filter((p) => p.id !== id),
+    }));
   }
 
   return (
@@ -36,14 +58,60 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
           />
         </label>
 
+        <div className="section-field">
+          <span className="section-field__label">Producers</span>
+          <div style={{ marginTop: '8px' }}>
+            {settings.producers.length === 0 && (
+              <p style={{ color: '#888', fontSize: '14px', marginBottom: '12px' }}>No producers added yet.</p>
+            )}
+            {settings.producers.map((producer) => (
+              <div key={producer.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
+                <div style={{ flex: 1 }}>
+                  <strong>{producer.name}</strong> - {producer.role}
+                </div>
+                <button
+                  className="btn btn--danger btn--sm"
+                  onClick={() => removeProducer(producer.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+              <input
+                className="section-field__input"
+                value={newProducerName}
+                onChange={(e) => setNewProducerName(e.target.value)}
+                placeholder="Producer name"
+                style={{ flex: 1 }}
+              />
+              <input
+                className="section-field__input"
+                value={newProducerRole}
+                onChange={(e) => setNewProducerRole(e.target.value)}
+                placeholder="Role (e.g., Executive Producer)"
+                style={{ flex: 1 }}
+              />
+              <button className="btn btn--secondary" onClick={addProducer}>
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+
         <label className="section-field">
-          <span className="section-field__label">Producer Names</span>
+          <span className="section-field__label">Brand Budget (Starting Amount)</span>
           <input
             className="section-field__input"
-            value={settings.producerNames}
-            onChange={(e) => setSettings((s) => ({ ...s, producerNames: e.target.value }))}
-            placeholder="e.g. Jane Smith, John Doe"
+            type="number"
+            value={settings.brandBudget}
+            onChange={(e) => setSettings((s) => ({ ...s, brandBudget: Number(e.target.value) || 0 }))}
+            placeholder="0.00"
+            step="0.01"
           />
+          <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>
+            Total spent across all shows: ${settings.totalSpent.toFixed(2)} | Remaining: ${(settings.brandBudget - settings.totalSpent).toFixed(2)}
+          </small>
         </label>
 
         <label className="section-field">

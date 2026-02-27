@@ -64,6 +64,20 @@ export interface Expense {
   notes?: string;
 }
 
+export interface Producer {
+  id: string;
+  name: string;
+  role: string;
+}
+
+export interface ShowRecap {
+  attendance?: number;
+  merchSales?: number;
+  performerNotes?: string;
+  improvementNotes?: string;
+  profitLoss?: number;
+}
+
 export interface Show {
   id: string;
   name: string;
@@ -80,20 +94,25 @@ export interface Show {
   staff: StaffMember[];
   expenses: Expense[];
   scenes?: Scene[];
+  recap?: ShowRecap;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface AppSettings {
   brandName: string;
-  producerNames: string;
+  producers: Producer[];
   rules: string;
+  brandBudget: number;
+  totalSpent: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   brandName: "Show Producer",
-  producerNames: "",
+  producers: [],
   rules: "",
+  brandBudget: 0,
+  totalSpent: 0,
 };
 
 export const STAFF_ROLES: string[] = [

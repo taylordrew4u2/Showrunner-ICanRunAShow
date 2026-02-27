@@ -9,6 +9,7 @@ import { HostsSection } from './sections/HostsSection';
 import { DJMusicSection } from './sections/DJMusicSection';
 import { StaffSection } from './sections/StaffSection';
 import { ExpensesSection } from './sections/ExpensesSection';
+import { ShowRecapSection } from './sections/ShowRecapSection';
 import { exportShowToPDF } from '../utils/pdfExport';
 import './ShowDetail.css';
 
@@ -21,6 +22,10 @@ interface ShowDetailProps {
 
 export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps) {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  
+  // Check if the show date has passed
+  const isPastShow = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
+  
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
   }
@@ -83,9 +88,19 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       title: '8. Itemized Expenses',
       subtitle: 'Track costs and see totals automatically.',
       count: show.expenses.length,
-      content: <ExpensesSection expenses={show.expenses} onChange={(expenses) => handleUpdate({ expenses })} />,
+      content: <ExpensesSection expenses={show.expenses} settings={settings} onChange={(expenses) => handleUpdate({ expenses })} />,
     },
   ];
+
+  // Add recap section for past shows
+  if (isPastShow) {
+    sections.push({
+      key: 'recap',
+      title: '9. Post-Show Recap',
+      subtitle: 'Attendance, sales, performer notes, and lessons learned.',
+      content: <ShowRecapSection recap={show.recap} expenses={show.expenses} onChange={(recap) => handleUpdate({ recap })} />,
+    });
+  }
 
   return (
     <div className="show-detail">

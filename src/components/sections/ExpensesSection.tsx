@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import type { Expense } from '../../types';
+import type { Expense, AppSettings } from '../../types';
 import { EXPENSE_CATEGORIES } from '../../types';
 import { generateId } from '../../utils/id';
 
 interface ExpensesSectionProps {
   expenses: Expense[];
+  settings: AppSettings;
   onChange: (expenses: Expense[]) => void;
 }
 
-export function ExpensesSection({ expenses, onChange }: ExpensesSectionProps) {
+export function ExpensesSection({ expenses, settings, onChange }: ExpensesSectionProps) {
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [itemName, setItemName] = useState('');
   const [cost, setCost] = useState('');
@@ -22,6 +23,9 @@ export function ExpensesSection({ expenses, onChange }: ExpensesSectionProps) {
   const [editNotes, setEditNotes] = useState('');
 
   const total = expenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+  const brandBudget = settings.brandBudget || 0;
+  const totalSpent = settings.totalSpent || 0;
+  const remaining = brandBudget - totalSpent;
 
   function addExpense() {
     if (!itemName.trim() || !cost) return;
@@ -75,6 +79,28 @@ export function ExpensesSection({ expenses, onChange }: ExpensesSectionProps) {
 
   return (
     <div className="section-body">
+      {brandBudget > 0 && (
+        <div style={{ marginBottom: '16px', padding: '12px', background: '#f0f9ff', border: '1px solid #0ea5e9', borderRadius: '4px' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Brand Budget Tracking</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', fontSize: '14px' }}>
+            <div>
+              <div style={{ color: '#666' }}>Total Budget</div>
+              <div style={{ fontWeight: 'bold', color: '#0ea5e9' }}>${brandBudget.toFixed(2)}</div>
+            </div>
+            <div>
+              <div style={{ color: '#666' }}>Total Spent (All Shows)</div>
+              <div style={{ fontWeight: 'bold', color: '#dc2626' }}>${totalSpent.toFixed(2)}</div>
+            </div>
+            <div>
+              <div style={{ color: '#666' }}>Remaining</div>
+              <div style={{ fontWeight: 'bold', color: remaining >= 0 ? '#16a34a' : '#dc2626' }}>
+                ${remaining.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="section-add-grid">
         <select
           className="section-field__select"
