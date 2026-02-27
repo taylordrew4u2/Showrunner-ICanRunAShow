@@ -54,6 +54,20 @@ export interface Expense {
   notes?: string;
 }
 
+export interface Producer {
+  id: string;
+  name: string;
+  role: string;
+}
+
+export interface ShowRecap {
+  attendance?: number;
+  merchSales?: number;
+  performerNotes?: string;
+  improvementNotes?: string;
+  profitLoss?: number;
+}
+
 // ─── Show ─────────────────────────────────────────────────────────────────────
 
 export type ShowStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
@@ -81,6 +95,8 @@ export interface Show {
   staff: StaffMember[];
   // Section 7: Expenses
   expenses: Expense[];
+  // Post-show recap
+  recap?: ShowRecap;
   createdAt: string;
   updatedAt: string;
 }
@@ -89,14 +105,18 @@ export interface Show {
 
 export interface AppSettings {
   brandName: string;
-  producerNames: string;
+  producers: Producer[];
   rules: string;
+  brandBudget: number;
+  totalSpent: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   brandName: "Show Producer",
-  producerNames: "",
+  producers: [],
   rules: "",
+  brandBudget: 0,
+  totalSpent: 0,
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────

@@ -63,7 +63,27 @@ export async function deleteShow(id: string): Promise<void> {
 export async function loadSettings(): Promise<AppSettings> {
   try {
     const data = await AsyncStorage.getItem(SETTINGS_KEY);
-    return data ? { ...DEFAULT_SETTINGS, ...JSON.parse(data) } : DEFAULT_SETTINGS;
+    if (!data) return DEFAULT_SETTINGS;
+    
+    const settings = JSON.parse(data);
+    
+    // Migrate old format with producerNames string
+    if (settings.producerNames && !settings.producers) {
+      const names = settings.producerNames.split(',').map((n: string) => n.trim()).filter(Boolean);
+      settings.producers = names.map((name: string) => ({
+        id: generateId(),
+        name,
+        role: 'Producer',
+      }));
+      delete settings.producerNames;
+    }
+    
+    // Ensure new fields exist
+    if (!settings.producers) settings.producers = [];
+    if (typeof settings.brandBudget !== 'number') settings.brandBudget = 0;
+    if (typeof settings.totalSpent !== 'number') settings.totalSpent = 0;
+    
+    return { ...DEFAULT_SETTINGS, ...settings };
   } catch (error) {
     console.error('Error loading settings:', error);
     return DEFAULT_SETTINGS;

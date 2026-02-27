@@ -162,7 +162,24 @@ export default function App() {
   }
 
   function handleDeleteShow(id: string) {
-    setShows((prev) => prev.filter((s) => s.id !== id));
+    setShows((prev) => {
+      const updatedShows = prev.filter((s) => s.id !== id);
+      
+      // Recalculate totalSpent across remaining shows
+      const totalSpent = updatedShows.reduce((sum, show) => {
+        const showTotal = show.expenses.reduce((expSum, exp) => expSum + exp.cost, 0);
+        return sum + showTotal;
+      }, 0);
+      
+      // Update settings with new totalSpent
+      if (settings.totalSpent !== totalSpent && session) {
+        const updatedSettings = { ...settings, totalSpent };
+        setSettings(updatedSettings);
+        saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+      }
+      
+      return updatedShows;
+    });
   }
 
   function handleSelectShow(show: Show) {
@@ -171,7 +188,24 @@ export default function App() {
   }
 
   function handleUpdateShow(updated: Show) {
-    setShows((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    setShows((prev) => {
+      const updatedShows = prev.map((s) => (s.id === updated.id ? updated : s));
+      
+      // Recalculate totalSpent across all shows
+      const totalSpent = updatedShows.reduce((sum, show) => {
+        const showTotal = show.expenses.reduce((expSum, exp) => expSum + exp.cost, 0);
+        return sum + showTotal;
+      }, 0);
+      
+      // Update settings with new totalSpent
+      if (settings.totalSpent !== totalSpent && session) {
+        const updatedSettings = { ...settings, totalSpent };
+        setSettings(updatedSettings);
+        saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+      }
+      
+      return updatedShows;
+    });
     setSelectedShow(updated);
   }
 

@@ -9,12 +9,14 @@ import {
   Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { loadSettings, saveSettings } from '../utils/storage';
-import { AppSettings, DEFAULT_SETTINGS } from '../utils/types';
+import { loadSettings, saveSettings, generateId } from '../utils/storage';
+import { AppSettings, DEFAULT_SETTINGS, Producer } from '../utils/types';
 
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [saving, setSaving] = useState(false);
+  const [newProducerName, setNewProducerName] = useState('');
+  const [newProducerRole, setNewProducerRole] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -35,30 +37,96 @@ export default function SettingsScreen() {
     }
   };
 
+  const addProducer = () => {
+    if (!newProducerName.trim() || !newProducerRole.trim()) {
+      Alert.alert('Required', 'Please enter both name and role');
+      return;
+    }
+    const producer: Producer = {
+      id: generateId(),
+      name: newProducerName.trim(),
+      role: newProducerRole.trim(),
+    };
+    setSettings((s) => ({ ...s, producers: [...s.producers, producer] }));
+    setNewProducerName('');
+    setNewProducerRole('');
+  };
+
+  const removeProducer = (id: string) => {
+    Alert.alert('Remove Producer', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => setSettings((s) => ({ ...s, producers: s.producers.filter((p) => p.id !== id) })),
+      },
+    ]);
+  };
+
+  const remaining = settings.brandBudget - settings.totalSpent;
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: 'Settings' }} />
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Brand & Producers</Text>
+        <Text style={styles.sectionTitle}>Brand Information</Text>
 
         <Text style={styles.label}>Brand Name</Text>
         <TextInput
           style={styles.input}
           value={settings.brandName}
           onChangeText={(v) => setSettings((s) => ({ ...s, brandName: v }))}
-          placeholder="e.g. Pins & Needles"
+          placeholder="e.g. Show Producer"
           placeholderTextColor="#9CA3AF"
         />
 
-        <Text style={styles.label}>Producer Names</Text>
+        <Text style={styles.label}>Brand Budget</Text>
         <TextInput
           style={styles.input}
-          value={settings.producerNames}
-          onChangeText={(v) => setSettings((s) => ({ ...s, producerNames: v }))}
-          placeholder="e.g. Jane Smith, John Doe"
+          value={String(settings.brandBudget)}
+          onChangeText={(v) => setSettings((s) => ({ ...s, brandBudget: Number(v) || 0 }))}
+          placeholder="0.00"
+          keyboardType="numeric"
           placeholderTextColor="#9CA3AF"
         />
+        <Text style={styles.hint}>
+          Total spent: ${settings.totalSpent.toFixed(2)} • Remaining: ${remaining.toFixed(2)}
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Producers</Text>
+        
+        {settings.producers.map((producer) => (
+          <View key={producer.id} style={styles.producerItem}>
+            <View style={styles.producerInfo}>
+              <Text style={styles.producerName}>{producer.name}</Text>
+              <Text style={styles.producerRole}>{producer.role}</Text>
+            </View>
+            <TouchableOpacity onPress={() => removeProducer(producer.id)} style={styles.removeBtn}>
+              <Text style={styles.removeBtnText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+
+        <TextInput
+          style={styles.input}
+          value={newProducerName}
+          onChangeText={setNewProducerName}
+          placeholder="Producer name"
+          placeholderTextColor="#9CA3AF"
+        />
+        <TextInput
+          style={styles.input}
+          value={newProducerRole}
+          onChangeText={setNewProducerRole}
+          placeholder="Role (e.g., Executive Producer)"
+          placeholderTextColor="#9CA3AF"
+        />
+        <TouchableOpacity style={styles.addBtn} onPress={addProducer}>
+          <Text style={styles.addBtnText}>Add Producer</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
@@ -143,6 +211,47 @@ const styles = StyleSheet.create({
     height: 180,
     textAlignVertical: 'top',
     paddingTop: 13,
+  },
+  producerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  producerInfo: {
+    flex: 1,
+  },
+  producerName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  producerRole: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  removeBtn: {
+    padding: 8,
+  },
+  removeBtnText: {
+    fontSize: 18,
+    color: '#DC2626',
+    fontWeight: '600',
+  },
+  addBtn: {
+    backgroundColor: '#0EA5E9',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   saveBtn: {
     backgroundColor: '#6B46C1',
