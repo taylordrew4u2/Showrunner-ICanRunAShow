@@ -86,6 +86,19 @@
   margin-top: 12px;
   padding-top: 20px;
   border-top: 2px solid var(--border, #E5E5E5);
+  flex-wrap: wrap;
+}
+
+/* Mobile responsive button layout */
+@media (max-width: 520px) {
+  .show-form__actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .show-form__actions .btn {
+    width: 100%;
+  }
 }
 
 /* Mobile styles */
