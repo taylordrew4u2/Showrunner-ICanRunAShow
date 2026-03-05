@@ -182,7 +182,7 @@
 
 @media (hover: none) {
   .show-card:active {
-    transform: translateY(1px);
+    transform: scale(0.98);
   }
 
   .show-card:hover {
@@ -192,6 +192,11 @@
 
   .show-card:hover::before {
     transform: scaleX(0);
+  }
+
+  /* Reduce animation on mobile */
+  .show-card {
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
   }
 
   .show-card__delete:hover {
