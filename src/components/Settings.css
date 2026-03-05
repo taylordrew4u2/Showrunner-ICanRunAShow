@@ -118,17 +118,17 @@
 .settings__producer-name {
     font-weight: 700;
     color: var(--text, #000000);
-    text-overflow: ellipsis;
     overflow: hidden;
-    white-space: nowrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .settings__producer-role {
     color: var(--text-muted, #666666);
     font-size: 0.85rem;
-    text-overflow: ellipsis;
     overflow: hidden;
-    white-space: nowrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .settings__producer-add {

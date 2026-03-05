@@ -19,6 +19,19 @@
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 520px) {
+  .show-detail__actions {
+    gap: 10px;
+  }
+  
+  .show-detail__actions .btn {
+    flex: 1 1 auto;
+    min-width: 140px;
+  }
 }
 
 .show-detail__header {
@@ -34,6 +47,9 @@
   color: #000000;
   margin: 0;
   letter-spacing: -0.02em;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 @media (max-width: 768px) {
@@ -82,6 +98,15 @@
   color: #666666;
   font-size: 0.95rem;
   font-weight: 500;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 640px) {
+  .show-detail__meta {
+    gap: 12px;
+    font-size: 0.9rem;
+  }
 }
 
 .show-detail__notes {
@@ -397,6 +422,8 @@
   color: #000000;
   font-weight: 800;
   letter-spacing: -0.01em;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 @media (max-width: 768px) {
@@ -495,11 +522,15 @@
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
 }
 
 .section-add-grid .section-field__input,
 .section-add-grid .section-field__select {
   flex: 1 1 180px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .section-empty {
@@ -550,6 +581,8 @@
   gap: 12px;
   flex: 1;
   flex-wrap: wrap;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .section-list-item__photo {
@@ -574,6 +607,9 @@
   font-weight: 600;
   color: #000000;
   font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .section-list-item__tag,
@@ -621,6 +657,15 @@
   flex-wrap: wrap;
   gap: 10px;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.section-edit-row .section-field__input,
+.section-edit-row .section-field__select {
+  flex: 1 1 140px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .section-total {
@@ -687,6 +732,18 @@
 
   .section-list-item__body {
     width: 100%;
+    min-width: 0;
+  }
+
+  .section-list-item__name {
+    max-width: 100%;
+  }
+
+  .section-list-item__tag,
+  .section-list-item__badge,
+  .section-list-item__cost {
+    font-size: 0.75rem;
+    padding: 3px 8px;
   }
 
   .section-list-item__actions {
@@ -694,9 +751,23 @@
     justify-content: flex-end;
   }
 
+  .section-edit-row {
+    flex-direction: column;
+  }
+
+  .section-edit-row .section-field__input,
+  .section-edit-row .section-field__select {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
   .show-detail__actions {
     flex-direction: column;
     gap: 10px;
+  }
+
+  .show-detail__actions .btn {
+    width: 100%;
   }
 
   .show-detail__actions .btn {
