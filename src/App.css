@@ -213,9 +213,9 @@
   z-index: 60;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.96);
   border-top: 1px solid var(--border);
   backdrop-filter: blur(10px);
@@ -223,7 +223,7 @@
 }
 
 .bottom-nav__item {
-  min-height: 44px;
+  min-height: 52px;
   border: 0;
   border-radius: 12px;
   background: transparent;
@@ -232,10 +232,15 @@
   place-items: center;
   align-content: center;
   gap: 2px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
+  transition: transform 0.1s ease, background-color 0.15s ease;
+}
+
+.bottom-nav__item:active {
+  transform: scale(0.95);
 }
 
 .bottom-nav__icon {
