@@ -64,3 +64,20 @@
   padding-top: 20px;
   border-top: 1px solid #262626;
 }
+
+/* Mobile styles */
+@media (max-width: 640px) {
+  .show-form__title {
+    font-size: 1.4rem;
+  }
+
+  .show-form__actions {
+    flex-direction: column-reverse;
+    gap: 12px;
+  }
+
+  .show-form__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
