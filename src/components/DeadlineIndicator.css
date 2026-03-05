@@ -25,6 +25,13 @@
 }
 
 /* Status colors */
+.deadline-indicator--completed {
+    background: #dcfce7;
+    border-color: #4ade80;
+    color: #15803d;
+    font-weight: 800;
+}
+
 .deadline-indicator--ok {
     background: #f0fdf4;
     border-color: #86efac;

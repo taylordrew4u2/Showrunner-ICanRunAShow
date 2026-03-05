@@ -3,9 +3,10 @@ import './DeadlineIndicator.css';
 interface DeadlineIndicatorProps {
   deadline?: string; // ISO date string
   compact?: boolean;
+  isComplete?: boolean; // Whether the section has been filled out
 }
 
-export function DeadlineIndicator({ deadline, compact = false }: DeadlineIndicatorProps) {
+export function DeadlineIndicator({ deadline, compact = false, isComplete = false }: DeadlineIndicatorProps) {
   if (!deadline) return null;
 
   const deadlineDate = new Date(deadline);
@@ -13,11 +14,16 @@ export function DeadlineIndicator({ deadline, compact = false }: DeadlineIndicat
   const diffTime = deadlineDate.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  let status: 'passed' | 'urgent' | 'soon' | 'ok' = 'ok';
+  let status: 'completed' | 'passed' | 'urgent' | 'soon' | 'ok' = 'ok';
   let label = '';
   let icon = '📅';
 
-  if (diffDays < 0) {
+  // Check if completed (filled out before deadline)
+  if (isComplete && diffDays >= 0) {
+    status = 'completed';
+    label = 'Completed';
+    icon = '✅';
+  } else if (diffDays < 0) {
     status = 'passed';
     label = `${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'} overdue`;
     icon = '⚠️';
