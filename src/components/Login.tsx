@@ -52,7 +52,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
     <div className="login">
       <div className="login__container">
         <div className="login__header">
-          <h1 className="login__title">🎬 Showrunner</h1>
+          <h1 className="login__title">🎬</h1>
           <p className="login__subtitle">
             {mode === 'signup' ? 'Create an account to save your data' : 'Sign in to access your saved shows'}
           </p>

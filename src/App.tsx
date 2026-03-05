@@ -251,14 +251,6 @@ export default function App() {
     setSelectedShow(null);
   }
 
-  const inShowsArea = view === 'list' || view === 'detail';
-  const appTitle =
-    view === 'detail'
-      ? selectedShow?.name ?? 'Show details'
-      : view === 'settings'
-        ? 'Settings'
-        : 'Showrunner';
-
   return (
     <>
       {!session ? (
