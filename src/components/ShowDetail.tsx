@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import type { Show, Scene, AppSettings } from '../types';
+import type { Show, Scene, AppSettings, SectionKey } from '../types';
 import { SceneList } from './SceneList';
+import { DeadlineIndicator } from './DeadlineIndicator';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
 import { ArtistsSection } from './sections/ArtistsSection';
@@ -22,6 +23,7 @@ interface ShowDetailProps {
 
 export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps) {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [editingDeadline, setEditingDeadline] = useState<SectionKey | null>(null);
   
   // Check if the show date has passed
   const isPastShow = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
@@ -34,6 +36,15 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     onUpdate({ ...show, ...updates });
   }
 
+  function handleDeadlineChange(sectionKey: SectionKey, deadline: string) {
+    const updatedDeadlines = {
+      ...show.deadlines,
+      [sectionKey]: deadline || undefined,
+    };
+    onUpdate({ ...show, deadlines: updatedDeadlines });
+    setEditingDeadline(null);
+  }
+
   const sections = [
     {
       key: 'basic',
@@ -43,6 +54,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     },
     {
       key: 'performers',
+      sectionKey: 'performers' as SectionKey,
       title: '2. Performers',
       subtitle: 'Names, walk-on music, photos, and optional videos.',
       count: show.performers.length,
@@ -50,6 +62,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     },
     {
       key: 'artists',
+      sectionKey: 'artists' as SectionKey,
       title: '3. Artists',
       subtitle: 'Artist entries with music, photos, and optional video.',
       count: show.artists.length,
@@ -57,6 +70,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     },
     {
       key: 'schedule',
+      sectionKey: 'schedule' as SectionKey,
       title: '4. Exact Schedule & Timing',
       subtitle: 'Timeline of events with times and descriptions.',
       count: show.schedule.length,
@@ -64,6 +78,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     },
     {
       key: 'hosts',
+      sectionKey: 'hosts' as SectionKey,
       title: '5. Hosts',
       subtitle: 'Add hosts, notes, photos, and select the main host.',
       count: show.hosts.length,
@@ -71,6 +86,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     },
     {
       key: 'dj',
+      sectionKey: 'dj' as SectionKey,
       title: '6. DJ Music List',
       subtitle: 'Songs and notes for the DJ, exportable as text or PDF.',
       count: show.djSongs.length,
@@ -78,6 +94,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     },
     {
       key: 'staff',
+      sectionKey: 'staff' as SectionKey,
       title: '7. Staff & Crew',
       subtitle: 'Roles and assignments for production staff.',
       count: show.staff.length,
@@ -85,6 +102,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     },
     {
       key: 'expenses',
+      sectionKey: 'expenses' as SectionKey,
       title: '8. Itemized Expenses',
       subtitle: 'Track costs and see totals automatically.',
       count: show.expenses.length,
@@ -137,16 +155,75 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
             <div
               key={section.key}
               className="section-card"
-              onClick={() => setExpandedSection(section.key)}
             >
-              <div className="section-card__header">
-                <h3 className="section-card__title">{section.title}</h3>
-                {typeof section.count === 'number' && (
-                  <span className="section-card__count">{section.count}</span>
-                )}
+              <div 
+                className="section-card__clickable"
+                onClick={() => setExpandedSection(section.key)}
+              >
+                <div className="section-card__header">
+                  <h3 className="section-card__title">{section.title}</h3>
+                  {typeof section.count === 'number' && (
+                    <span className="section-card__count">{section.count}</span>
+                  )}
+                </div>
+                <p className="section-card__subtitle">{section.subtitle}</p>
+                <div className="section-card__cta">Click to open →</div>
               </div>
-              <p className="section-card__subtitle">{section.subtitle}</p>
-              <div className="section-card__cta">Click to open →</div>
+              
+              {section.sectionKey && (
+                <div className="section-card__deadline">
+                  {show.deadlines?.[section.sectionKey] ? (
+                    <div className="section-card__deadline-display">
+                      <DeadlineIndicator deadline={show.deadlines[section.sectionKey]} />
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingDeadline(section.sectionKey!);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn btn--secondary btn--sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingDeadline(section.sectionKey!);
+                      }}
+                    >
+                      + Set Deadline
+                    </button>
+                  )}
+                  
+                  {editingDeadline === section.sectionKey && (
+                    <div className="section-card__deadline-editor" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="date"
+                        className="section-field__input"
+                        defaultValue={show.deadlines?.[section.sectionKey] || ''}
+                        onChange={(e) => handleDeadlineChange(section.sectionKey!, e.target.value)}
+                        autoFocus
+                      />
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => setEditingDeadline(null)}
+                      >
+                        Cancel
+                      </button>
+                      {show.deadlines?.[section.sectionKey] && (
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => handleDeadlineChange(section.sectionKey!, '')}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -166,9 +243,14 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                     <h3 className="show-section__title">{section.title}</h3>
                     <p className="show-section__subtitle">{section.subtitle}</p>
                   </div>
-                  {typeof section.count === 'number' && (
-                    <span className="show-section__count">{section.count} items</span>
-                  )}
+                  <div className="show-section__header-right">
+                    {typeof section.count === 'number' && (
+                      <span className="show-section__count">{section.count} items</span>
+                    )}
+                    {section.sectionKey && show.deadlines?.[section.sectionKey] && (
+                      <DeadlineIndicator deadline={show.deadlines[section.sectionKey]} />
+                    )}
+                  </div>
                 </div>
                 <div className="show-section__content">{section.content}</div>
               </section>
