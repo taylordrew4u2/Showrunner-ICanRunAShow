@@ -1,12 +1,13 @@
 .show-card {
-  background: #0a0a0a;
-  border: 2px solid #1a1a1a;
-  border-radius: 16px;
-  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e4e7ec;
+  border-radius: 18px;
+  padding: 16px;
   cursor: pointer;
   position: relative;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
 }
 
 .show-card::before {
@@ -15,17 +16,17 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
-  background: #dc2626;
+  height: 3px;
+  background: #0a84ff;
   transform: scaleX(0);
-  transition: transform 0.3s;
+  transition: transform 0.2s ease;
 }
 
 .show-card:hover,
 .show-card:focus-within {
-  transform: translateY(-4px);
-  border-color: #333333;
-  box-shadow: 0 12px 40px rgba(220, 38, 38, 0.15);
+  transform: translateY(-2px);
+  border-color: #d0d5dd;
+  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.12);
 }
 
 .show-card:hover::before,
@@ -42,39 +43,56 @@
 }
 
 .show-card__title {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #101828;
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.01em;
+  padding-right: 52px;
 }
 
 .show-card__status {
-  font-size: 0.7rem;
+  font-size: 0.67rem;
   font-weight: 700;
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: 6px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   white-space: nowrap;
+  margin-right: 52px;
 }
 
-.show-card__status--upcoming    { background: #1e40af; color: #ffffff; }
-.show-card__status--in-progress { background: #dc2626; color: #ffffff; }
-.show-card__status--completed   { background: #16a34a; color: #ffffff; }
-.show-card__status--cancelled   { background: #404040; color: #999999; }
+.show-card__status--upcoming {
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.show-card__status--in-progress {
+  background: #eff4ff;
+  color: #3538cd;
+}
+
+.show-card__status--completed {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.show-card__status--cancelled {
+  background: #f2f4f7;
+  color: #667085;
+}
 
 .show-card__venue,
 .show-card__date {
   font-size: 0.9rem;
-  color: #999999;
+  color: #667085;
   margin: 6px 0;
   font-weight: 500;
 }
 
 .show-card__progress {
   margin-top: 16px;
-  background: #1a1a1a;
+  background: #eef2f6;
   border-radius: 8px;
   height: 8px;
   position: relative;
@@ -83,10 +101,9 @@
 
 .show-card__progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+  background: linear-gradient(90deg, #0a84ff 0%, #2e90fa 100%);
   border-radius: 8px;
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+  transition: width 0.35s ease;
 }
 
 .show-card__progress-label {
@@ -94,33 +111,75 @@
   right: 0;
   top: 12px;
   font-size: 0.8rem;
-  color: #999999;
+  color: #667085;
   font-weight: 600;
 }
 
 .show-card__delete {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  background: #1a1a1a;
-  border: 1px solid #333333;
+  top: 10px;
+  right: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  background: #ffffff;
+  border: 1px solid #e4e7ec;
   cursor: pointer;
-  font-size: 1.1rem;
-  opacity: 0;
-  transition: all 0.2s;
-  padding: 8px;
-  border-radius: 8px;
-  color: #666666;
-}
-
-.show-card:hover .show-card__delete,
-.show-card:focus-within .show-card__delete {
-  opacity: 1;
+  font-size: 1rem;
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  border-radius: 12px;
+  color: #667085;
+  touch-action: manipulation;
 }
 
 .show-card__delete:hover {
-  background: #dc2626;
-  border-color: #dc2626;
-  color: #ffffff;
-  transform: scale(1.1);
+  background: #fef3f2;
+  border-color: #fecdca;
+  color: #d92d20;
+}
+
+.show-card__delete:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 520px) {
+  .show-card {
+    padding: 14px;
+  }
+
+  .show-card__header {
+    padding-right: 8px;
+  }
+
+  .show-card__title {
+    font-size: 1rem;
+  }
+
+  .show-card__status {
+    font-size: 0.62rem;
+  }
+
+  .show-card__progress-label {
+    font-size: 0.74rem;
+  }
+}
+
+@media (hover: none) {
+  .show-card:active {
+    transform: translateY(1px);
+  }
+
+  .show-card:hover {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+  }
+
+  .show-card:hover::before {
+    transform: scaleX(0);
+  }
+
+  .show-card__delete:hover {
+    background: #ffffff;
+    border-color: #e4e7ec;
+    color: #667085;
+  }
 }
