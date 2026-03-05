@@ -40,6 +40,7 @@ export default function App() {
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Restore session from localStorage on mount
   useEffect(() => {
@@ -94,6 +95,21 @@ export default function App() {
 
     return () => clearTimeout(timeout);
   }, [shows, session]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.bottom-nav')) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [menuOpen]);
 
   async function handleSignIn(username: string, password: string) {
     setAuthError('');
@@ -254,41 +270,6 @@ export default function App() {
         />
       ) : (
         <div className="app">
-          <header className="app-header">
-            <div className="app-header__inner">
-              <div className="app-header__left">
-                {view === 'detail' && (
-                  <button
-                    className="app-header__icon-btn"
-                    onClick={handleBack}
-                    aria-label="Back to shows"
-                  >
-                    ←
-                  </button>
-                )}
-                <h1 className="app-header__title">{appTitle}</h1>
-              </div>
-              <div className="app-header__actions">
-                {view === 'list' && (
-                  <button
-                    className="btn btn--primary app-header__new-show"
-                    onClick={() => setShowForm(true)}
-                  >
-                    + New
-                  </button>
-                )}
-                <button
-                  className="app-header__icon-btn"
-                  onClick={handleLogout}
-                  title="Logout"
-                  aria-label="Logout"
-                >
-                  🔓
-                </button>
-              </div>
-            </div>
-          </header>
-
           <main className="app-main">
             {offlineMode && (
               <div className="offline-banner">
@@ -339,34 +320,58 @@ export default function App() {
 
           <nav className="bottom-nav" aria-label="Primary navigation">
             <button
-              className={`bottom-nav__item ${inShowsArea ? 'is-active' : ''}`}
-              onClick={handleBack}
-              aria-current={inShowsArea ? 'page' : undefined}
+              className="bottom-nav__menu-btn"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Menu"
             >
-              <span className="bottom-nav__icon" aria-hidden="true">🎬</span>
-              <span className="bottom-nav__label">Shows</span>
+              <span className="bottom-nav__icon">☰</span>
+              <span className="bottom-nav__label">Menu</span>
             </button>
-
-            <button
-              className="bottom-nav__item bottom-nav__item--action"
-              onClick={() => setShowForm(true)}
-              aria-label="Create a new show"
-            >
-              <span className="bottom-nav__icon" aria-hidden="true">➕</span>
-              <span className="bottom-nav__label">New</span>
-            </button>
-
-            <button
-              className={`bottom-nav__item ${view === 'settings' ? 'is-active' : ''}`}
-              onClick={() => {
-                setView('settings');
-                setSelectedShow(null);
-              }}
-              aria-current={view === 'settings' ? 'page' : undefined}
-            >
-              <span className="bottom-nav__icon" aria-hidden="true">⚙️</span>
-              <span className="bottom-nav__label">Settings</span>
-            </button>
+            {menuOpen && (
+              <div className="bottom-nav__dropdown">
+                <button
+                  className="bottom-nav__dropdown-item"
+                  onClick={() => {
+                    handleBack();
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span className="bottom-nav__icon">🎬</span>
+                  <span>Shows</span>
+                </button>
+                <button
+                  className="bottom-nav__dropdown-item"
+                  onClick={() => {
+                    setShowForm(true);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span className="bottom-nav__icon">➕</span>
+                  <span>New Show</span>
+                </button>
+                <button
+                  className="bottom-nav__dropdown-item"
+                  onClick={() => {
+                    setView('settings');
+                    setSelectedShow(null);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span className="bottom-nav__icon">⚙️</span>
+                  <span>Settings</span>
+                </button>
+                <button
+                  className="bottom-nav__dropdown-item"
+                  onClick={() => {
+                    handleLogout();
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span className="bottom-nav__icon">🔓</span>
+                  <span>Logout</span>
+                </button>
+              </div>
+            )}
           </nav>
 
           {showForm && (

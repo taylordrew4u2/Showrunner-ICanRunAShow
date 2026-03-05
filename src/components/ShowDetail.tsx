@@ -174,7 +174,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                 <div className="section-card__deadline">
                   {show.deadlines?.[section.sectionKey] ? (
                     <div className="section-card__deadline-display">
-                      <DeadlineIndicator deadline={show.deadlines[section.sectionKey]} />
+                      <DeadlineIndicator 
+                        deadline={show.deadlines[section.sectionKey]} 
+                        isComplete={typeof section.count === 'number' && section.count > 0}
+                      />
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={(e) => {
@@ -248,7 +251,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                       <span className="show-section__count">{section.count} items</span>
                     )}
                     {section.sectionKey && show.deadlines?.[section.sectionKey] && (
-                      <DeadlineIndicator deadline={show.deadlines[section.sectionKey]} />
+                      <DeadlineIndicator 
+                        deadline={show.deadlines[section.sectionKey]} 
+                        isComplete={typeof section.count === 'number' && section.count > 0}
+                      />
                     )}
                   </div>
                 </div>
