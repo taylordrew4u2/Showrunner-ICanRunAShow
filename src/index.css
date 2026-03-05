@@ -10,11 +10,20 @@ html {
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
-  background: #000000;
-  color: #ffffff;
+  background: #f3f5f8;
+  color: #101828;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+#root {
   min-height: 100dvh;
 }

@@ -214,6 +214,14 @@ export default function App() {
     setSelectedShow(null);
   }
 
+  const inShowsArea = view === 'list' || view === 'detail';
+  const appTitle =
+    view === 'detail'
+      ? selectedShow?.name ?? 'Show details'
+      : view === 'settings'
+        ? 'Settings'
+        : 'Showrunner';
+
   return (
     <>
       {!session ? (
@@ -225,47 +233,47 @@ export default function App() {
         />
       ) : (
         <div className="app">
-          {offlineMode && (
-            <div className="offline-banner">
-              📴 Offline mode - data saved locally on this device only
-            </div>
-          )}
           <header className="app-header">
             <div className="app-header__inner">
-              <button
-                className="app-header__logo"
-                onClick={handleBack}
-                aria-label="Go to shows list"
-              >
-                🎬 <span>Showrunner</span>
-              </button>
-              {view === 'list' && (
-                <div className="app-header__actions">
+              <div className="app-header__left">
+                {view === 'detail' && (
                   <button
-                    className="btn btn--primary"
+                    className="app-header__icon-btn"
+                    onClick={handleBack}
+                    aria-label="Back to shows"
+                  >
+                    ←
+                  </button>
+                )}
+                <h1 className="app-header__title">{appTitle}</h1>
+              </div>
+              <div className="app-header__actions">
+                {view === 'list' && (
+                  <button
+                    className="btn btn--primary app-header__new-show"
                     onClick={() => setShowForm(true)}
                   >
-                    + New Show
+                    + New
                   </button>
-                  <button
-                    className="btn btn--secondary"
-                    onClick={() => setView('settings')}
-                  >
-                    ⚙️ Settings
-                  </button>
-                  <button
-                    className="btn btn--ghost"
-                    onClick={handleLogout}
-                    title="Logout"
-                  >
-                    🔓
-                  </button>
-                </div>
-              )}
+                )}
+                <button
+                  className="app-header__icon-btn"
+                  onClick={handleLogout}
+                  title="Logout"
+                  aria-label="Logout"
+                >
+                  🔓
+                </button>
+              </div>
             </div>
           </header>
 
           <main className="app-main">
+            {offlineMode && (
+              <div className="offline-banner">
+                📴 Offline mode - data is saved locally on this device.
+              </div>
+            )}
             {view === 'list' && (
               <div className="shows-list">
                 {shows.length === 0 ? (
@@ -307,6 +315,38 @@ export default function App() {
               />
             )}
           </main>
+
+          <nav className="bottom-nav" aria-label="Primary navigation">
+            <button
+              className={`bottom-nav__item ${inShowsArea ? 'is-active' : ''}`}
+              onClick={handleBack}
+              aria-current={inShowsArea ? 'page' : undefined}
+            >
+              <span className="bottom-nav__icon" aria-hidden="true">🎬</span>
+              <span className="bottom-nav__label">Shows</span>
+            </button>
+
+            <button
+              className="bottom-nav__item bottom-nav__item--action"
+              onClick={() => setShowForm(true)}
+              aria-label="Create a new show"
+            >
+              <span className="bottom-nav__icon" aria-hidden="true">➕</span>
+              <span className="bottom-nav__label">New</span>
+            </button>
+
+            <button
+              className={`bottom-nav__item ${view === 'settings' ? 'is-active' : ''}`}
+              onClick={() => {
+                setView('settings');
+                setSelectedShow(null);
+              }}
+              aria-current={view === 'settings' ? 'page' : undefined}
+            >
+              <span className="bottom-nav__icon" aria-hidden="true">⚙️</span>
+              <span className="bottom-nav__label">Settings</span>
+            </button>
+          </nav>
 
           {showForm && (
             <Modal onClose={() => setShowForm(false)}>
