@@ -173,6 +173,26 @@
   text-align: center;
 }
 
+@media (max-width: 640px) {
+  .login__container {
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .login__header {
+    margin-bottom: 20px;
+  }
+
+  .login__form {
+    gap: 12px;
+  }
+
+  .login__footer {
+    margin-top: 16px;
+    padding-top: 14px;
+  }
+}
+
 @media (min-width: 640px) {
   .login__container {
     padding: 34px;
