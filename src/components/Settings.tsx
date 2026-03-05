@@ -60,14 +60,15 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
 
         <div className="section-field">
           <span className="section-field__label">Producers</span>
-          <div style={{ marginTop: '8px' }}>
+          <div className="settings__producer-block">
             {settings.producers.length === 0 && (
-              <p style={{ color: '#888', fontSize: '14px', marginBottom: '12px' }}>No producers added yet.</p>
+              <p className="settings__empty">No producers added yet.</p>
             )}
             {settings.producers.map((producer) => (
-              <div key={producer.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
-                <div style={{ flex: 1 }}>
-                  <strong>{producer.name}</strong> - {producer.role}
+              <div key={producer.id} className="settings__producer-row">
+                <div className="settings__producer-content">
+                  <span className="settings__producer-name">{producer.name}</span>
+                  <span className="settings__producer-role">{producer.role}</span>
                 </div>
                 <button
                   className="btn btn--danger btn--sm"
@@ -77,22 +78,20 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
                 </button>
               </div>
             ))}
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+            <div className="settings__producer-add">
               <input
-                className="section-field__input"
+                className="section-field__input settings__producer-input"
                 value={newProducerName}
                 onChange={(e) => setNewProducerName(e.target.value)}
                 placeholder="Producer name"
-                style={{ flex: 1 }}
               />
               <input
-                className="section-field__input"
+                className="section-field__input settings__producer-input"
                 value={newProducerRole}
                 onChange={(e) => setNewProducerRole(e.target.value)}
                 placeholder="Role (e.g., Executive Producer)"
-                style={{ flex: 1 }}
               />
-              <button className="btn btn--secondary" onClick={addProducer}>
+              <button className="btn btn--secondary settings__producer-add-btn" onClick={addProducer}>
                 Add
               </button>
             </div>
@@ -109,7 +108,7 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
             placeholder="0.00"
             step="0.01"
           />
-          <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>
+          <small className="settings__budget-hint">
             Total spent across all shows: ${settings.totalSpent.toFixed(2)} | Remaining: ${(settings.brandBudget - settings.totalSpent).toFixed(2)}
           </small>
         </label>
