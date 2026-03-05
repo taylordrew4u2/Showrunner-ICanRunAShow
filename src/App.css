@@ -93,7 +93,7 @@
 /* Mobile Responsive Styles */
 @media (max-width: 768px) {
   .app-header__new-show {
-    display: none;
+    display: none !important;
   }
 
   .app-main {
@@ -113,6 +113,10 @@
   .app-header__left,
   .app-header__actions {
     gap: 6px;
+  }
+
+  .offline-banner {
+    display: none;
   }
 }
 
