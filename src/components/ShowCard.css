@@ -155,11 +155,16 @@
   }
 
   .show-card__status {
-    font-size: 0.62rem;
+    font-size: 0.65rem;
+    padding: 5px 9px;
   }
 
   .show-card__progress-label {
-    font-size: 0.74rem;
+    font-size: 0.78rem;
+  }
+
+  .show-card__meta {
+    font-size: 0.865rem;
   }
 }
 
