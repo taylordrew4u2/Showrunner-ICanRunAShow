@@ -2,9 +2,13 @@ import { createClient, type Client } from "@libsql/client/web";
 
 // ─── Turso Client (Expo / React Native) ──────────────────────────────────────
 
-const TURSO_DATABASE_URL = process.env.EXPO_PUBLIC_TURSO_DATABASE_URL || "";
+const TURSO_DATABASE_URL =
+  process.env.EXPO_PUBLIC_TURSO_DATABASE_URL ||
+  "libsql://database-bistre-horizon-vercel-icfg-bcu7zzamdox9nbdpkugsrnzd.aws-us-east-1.turso.io";
 
-const TURSO_AUTH_TOKEN = process.env.EXPO_PUBLIC_TURSO_AUTH_TOKEN || "";
+const TURSO_AUTH_TOKEN =
+  process.env.EXPO_PUBLIC_TURSO_AUTH_TOKEN ||
+  "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzIwNDYyMTYsImlkIjoiMDE5Yzk2MmYtNmEwMS03ODI3LTk3Y2QtNjFmYWY3ZGE1OGYyIiwicmlkIjoiM2JhMzVkZDItMWIwOS00ZjlkLWJkN2QtNmI4NzUwMzQzOThmIn0.8kRrdjTNeV1OTBxs8qCjg_STs4OwV_gMzWfusfpHSsaFya8txL1G7i8wJZsDeLoy78d1HoUxg0NdcosvAhWrAQ";
 
 let _client: Client | null = null;
 
