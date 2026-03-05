@@ -1,0 +1,77 @@
+.deadline-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    border: 2px solid;
+    white-space: nowrap;
+}
+
+.deadline-indicator--compact {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+
+.deadline-indicator__icon {
+    font-size: 1em;
+    line-height: 1;
+}
+
+.deadline-indicator__label {
+    line-height: 1;
+}
+
+/* Status colors */
+.deadline-indicator--ok {
+    background: #f0fdf4;
+    border-color: #86efac;
+    color: #166534;
+}
+
+.deadline-indicator--soon {
+    background: #fefce8;
+    border-color: #fde047;
+    color: #854d0e;
+}
+
+.deadline-indicator--urgent {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #991b1b;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.deadline-indicator--passed {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #7f1d1d;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Mobile styles */
+@media (max-width: 640px) {
+    .deadline-indicator {
+        font-size: 0.75rem;
+        padding: 5px 10px;
+    }
+
+    .deadline-indicator--compact {
+        padding: 3px 6px;
+        font-size: 0.7rem;
+    }
+}

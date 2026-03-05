@@ -72,6 +72,25 @@ export interface ShowRecap {
 
 export type ShowStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
 
+export type SectionKey =
+  | "performers"
+  | "artists"
+  | "schedule"
+  | "hosts"
+  | "dj"
+  | "staff"
+  | "expenses";
+
+export interface SectionDeadlines {
+  performers?: string; // ISO date string
+  artists?: string;
+  schedule?: string;
+  hosts?: string;
+  dj?: string;
+  staff?: string;
+  expenses?: string;
+}
+
 export interface Show {
   id: string;
   name: string;
@@ -97,6 +116,8 @@ export interface Show {
   expenses: Expense[];
   // Post-show recap
   recap?: ShowRecap;
+  // Section deadlines
+  deadlines?: SectionDeadlines;
   createdAt: string;
   updatedAt: string;
 }

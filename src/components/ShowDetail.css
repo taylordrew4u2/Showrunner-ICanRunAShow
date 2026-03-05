@@ -200,6 +200,39 @@
   opacity: 1;
 }
 
+.section-card__clickable {
+  width: 100%;
+}
+
+.section-card__deadline {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-card__deadline-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.section-card__deadline-editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.section-card__deadline-editor .section-field__input {
+  flex: 1;
+  min-width: 160px;
+}
+
 /* Expanded Section View */
 .show-detail__expanded-section {
   display: flex;
@@ -265,11 +298,19 @@
 .show-section__header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 16px;
   border-bottom: 2px solid #f5f5f5;
   padding-bottom: 16px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.show-section__header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .show-section__title {
@@ -502,6 +543,11 @@
     font-size: 1.15rem;
   }
 
+  .show-section__header-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .section-add-row,
   .section-add-grid {
     flex-direction: column;
@@ -540,6 +586,28 @@
   }
 
   .show-detail__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .section-card {
+    padding: 18px;
+  }
+
+  .section-card__deadline-display {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-card__deadline-editor {
+    flex-direction: column;
+  }
+
+  .section-card__deadline-editor .section-field__input {
+    width: 100%;
+  }
+
+  .section-card__deadline .btn {
     width: 100%;
     justify-content: center;
   }
