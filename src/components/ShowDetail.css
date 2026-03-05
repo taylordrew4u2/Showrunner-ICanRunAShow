@@ -27,7 +27,7 @@
   .show-detail__actions {
     gap: 10px;
   }
-  
+
   .show-detail__actions .btn {
     flex: 1 1 auto;
     min-width: 140px;
