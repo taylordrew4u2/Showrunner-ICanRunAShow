@@ -24,6 +24,14 @@
     gap: 16px;
 }
 
+@media (max-width: 768px) {
+    .settings__card {
+        padding: 14px;
+        border-radius: 14px;
+        gap: 14px;
+    }
+}
+
 .settings .section-field {
     display: flex;
     flex-direction: column;
@@ -52,6 +60,17 @@
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     font-family: inherit;
+}
+
+@media (max-width: 768px) {
+
+    .settings .section-field__input,
+    .settings .section-field__textarea,
+    .settings .section-field__select {
+        padding: 9px 12px;
+        font-size: 0.95rem;
+        border-radius: 10px;
+    }
 }
 
 .settings .section-field__input:focus,

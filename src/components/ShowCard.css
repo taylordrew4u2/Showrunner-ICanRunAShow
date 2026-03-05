@@ -10,6 +10,13 @@
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
 }
 
+@media (max-width: 768px) {
+  .show-card {
+    padding: 12px;
+    border-radius: 12px;
+  }
+}
+
 .show-card::before {
   content: '';
   position: absolute;
@@ -42,6 +49,13 @@
   margin-bottom: 16px;
 }
 
+@media (max-width: 768px) {
+  .show-card__header {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+}
+
 .show-card__title {
   font-size: 1.1rem;
   font-weight: 700;
@@ -49,6 +63,13 @@
   margin: 0;
   letter-spacing: 0.01em;
   padding-right: 52px;
+}
+
+@media (max-width: 768px) {
+  .show-card__title {
+    font-size: 1rem;
+    padding-right: 40px;
+  }
 }
 
 .show-card__status {
