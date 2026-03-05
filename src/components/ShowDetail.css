@@ -31,7 +31,7 @@
 .show-detail__title {
   font-size: 2rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #000000;
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -52,39 +52,45 @@
 }
 
 .show-detail__status--upcoming {
-  background: #1e40af;
-  color: #ffffff;
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 2px solid #FEE2E2;
 }
 
 .show-detail__status--in-progress {
-  background: #dc2626;
-  color: #ffffff;
+  background: #000000;
+  color: #FFFFFF;
+  border: 2px solid #000000;
 }
 
 .show-detail__status--completed {
-  background: #16a34a;
-  color: #ffffff;
+  background: #F5F5F5;
+  color: #000000;
+  border: 2px solid #E5E5E5;
 }
 
 .show-detail__status--cancelled {
-  background: #404040;
-  color: #999999;
+  background: #FFFFFF;
+  color: #666666;
+  border: 2px solid #E5E5E5;
 }
 
 .show-detail__meta {
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
-  color: #999999;
+  color: #666666;
   font-size: 0.95rem;
   font-weight: 500;
 }
 
 .show-detail__notes {
-  background: #0a0a0a;
-  border-left: 4px solid #dc2626;
+  background: #FAFAFA;
+  border-left: 4px solid #DC2626;
   border-radius: 0 12px 12px 0;
   padding: 20px 24px;
+  border: 2px solid #E5E5E5;
+  border-left: 4px solid #DC2626;
 }
 
 @media (max-width: 768px) {
@@ -96,7 +102,7 @@
 
 .show-detail__notes h3 {
   font-size: 0.75rem;
-  color: #999999;
+  color: #666666;
   margin: 0 0 10px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -104,7 +110,7 @@
 }
 
 .show-detail__notes p {
-  color: #ffffff;
+  color: #000000;
   margin: 0;
   line-height: 1.7;
 }
@@ -499,7 +505,7 @@
 .section-empty {
   margin: 0;
   font-size: 0.95rem;
-  color: #999999;
+  color: #666666;
   font-style: italic;
   text-align: center;
   padding: 32px 20px;
@@ -594,15 +600,20 @@
 }
 
 .section-list-item__delete {
-  color: #dc2626;
+  color: #DC2626;
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
   transition: all 0.2s;
+  font-weight: 600;
+  font-size: 1.1rem;
+  border: 2px solid transparent;
 }
 
 .section-list-item__delete:hover {
-  background: #fee2e2;
+  background: #FEE2E2;
+  border-color: #DC2626;
+  transform: scale(1.1);
 }
 
 .section-edit-row {
@@ -616,13 +627,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 18px;
+  padding: 16px 20px;
   border-radius: 12px;
-  background: #fee2e2;
-  border: 2px solid #fecaca;
-  color: #dc2626;
+  background: #FEF2F2;
+  border: 2px solid #DC2626;
+  color: #DC2626;
   font-weight: 800;
-  font-size: 1rem;
+  font-size: 1.1rem;
 }
 
 .section-actions {
