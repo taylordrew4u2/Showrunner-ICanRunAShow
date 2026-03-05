@@ -132,10 +132,21 @@
   border-color: #dc2626;
 }
 
-.scene-item__status--planned   { color: #999999; }
-.scene-item__status--rehearsed { color: #f59e0b; }
-.scene-item__status--filmed    { color: #3b82f6; }
-.scene-item__status--done      { color: #16a34a; }
+.scene-item__status--planned {
+  color: #999999;
+}
+
+.scene-item__status--rehearsed {
+  color: #f59e0b;
+}
+
+.scene-item__status--filmed {
+  color: #3b82f6;
+}
+
+.scene-item__status--done {
+  color: #16a34a;
+}
 
 .scene-item__delete {
   background: none;
