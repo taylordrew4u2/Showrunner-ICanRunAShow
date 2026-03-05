@@ -26,35 +26,35 @@
 
 /* Status colors */
 .deadline-indicator--completed {
-    background: #dcfce7;
-    border-color: #4ade80;
-    color: #15803d;
+    background: #F5F5F5;
+    border-color: #666666;
+    color: #000000;
     font-weight: 800;
 }
 
 .deadline-indicator--ok {
-    background: #f0fdf4;
-    border-color: #86efac;
-    color: #166534;
+    background: #FFFFFF;
+    border-color: #E5E5E5;
+    color: #000000;
 }
 
 .deadline-indicator--soon {
-    background: #fefce8;
-    border-color: #fde047;
-    color: #854d0e;
+    background: #FEF2F2;
+    border-color: #FECACA;
+    color: #7F1D1D;
 }
 
 .deadline-indicator--urgent {
-    background: #fef2f2;
-    border-color: #fca5a5;
-    color: #991b1b;
+    background: #FEE2E2;
+    border-color: #DC2626;
+    color: #7F1D1D;
     animation: pulse 2s ease-in-out infinite;
 }
 
 .deadline-indicator--passed {
-    background: #fef2f2;
-    border-color: #dc2626;
-    color: #7f1d1d;
+    background: #DC2626;
+    border-color: #B91C1C;
+    color: #FFFFFF;
     animation: pulse 2s ease-in-out infinite;
 }
 
