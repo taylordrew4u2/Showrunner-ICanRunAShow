@@ -26,6 +26,8 @@ type Session = {
   password: string;
 };
 
+const SESSION_STORAGE_KEY = 'showrunner_session';
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
@@ -38,6 +40,20 @@ export default function App() {
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
+
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    const savedSession = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (savedSession) {
+      try {
+        const parsed = JSON.parse(savedSession) as Session;
+        setSession(parsed);
+      } catch (error) {
+        console.error('Failed to restore session:', error);
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      }
+    }
+  }, []);
 
   // Load data for signed in user
   useEffect(() => {
@@ -91,7 +107,9 @@ export default function App() {
         return;
       }
 
-      setSession({ username, password });
+      const newSession = { username, password };
+      setSession(newSession);
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
       setOfflineMode(isOfflineMode());
     } catch (error) {
       console.error('Sign in failed:', error);
@@ -107,7 +125,9 @@ export default function App() {
 
     try {
       await createAccount(username, password);
-      setSession({ username, password });
+      const newSession = { username, password };
+      setSession(newSession);
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
       setOfflineMode(isOfflineMode());
     } catch (error) {
       console.error('Sign up failed:', error);
@@ -124,6 +144,7 @@ export default function App() {
 
   function handleLogout() {
     setSession(null);
+    localStorage.removeItem(SESSION_STORAGE_KEY);
     setShows([]);
     setSettings(DEFAULT_SETTINGS);
     setView('list');
