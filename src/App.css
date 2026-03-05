@@ -1,15 +1,15 @@
 :root {
-  --bg: #f3f5f8;
-  --surface: #ffffff;
-  --surface-strong: #f7f9fc;
-  --text: #101828;
-  --text-muted: #667085;
-  --border: #e4e7ec;
-  --primary: #0a84ff;
-  --primary-pressed: #0067d6;
-  --danger: #d92d20;
-  --shadow-sm: 0 2px 8px rgba(16, 24, 40, 0.08);
-  --shadow-md: 0 8px 24px rgba(16, 24, 40, 0.12);
+  --bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --surface-strong: #F5F5F5;
+  --text: #000000;
+  --text-muted: #666666;
+  --border: #E5E5E5;
+  --primary: #DC2626;
+  --primary-pressed: #B91C1C;
+  --danger: #DC2626;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
   --app-bar-height: 56px;
   --bottom-nav-height: 68px;
 }
@@ -18,7 +18,7 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #f8fafc 0%, #eff3f8 100%);
+  background: var(--bg);
   color: var(--text);
   overflow-x: hidden;
 }
@@ -123,9 +123,9 @@
 .offline-banner {
   margin-bottom: 12px;
   border-radius: 12px;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  color: #9a3412;
+  background: #FEF2F2;
+  border: 1px solid #FEE2E2;
+  color: #991B1B;
   text-align: center;
   padding: 10px 12px;
   font-size: 0.85rem;
@@ -206,7 +206,7 @@
 .btn--primary {
   background: var(--primary);
   color: #ffffff;
-  box-shadow: 0 3px 10px rgba(10, 132, 255, 0.28);
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.3);
 }
 
 .btn--primary:active:not(:disabled) {
