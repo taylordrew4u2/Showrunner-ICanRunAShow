@@ -143,14 +143,14 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
   return (
     <div className="section-body">
       {/* Import file section */}
-      <div style={{ marginBottom: '20px', padding: '16px', background: '#0a0a0a', border: '2px solid #1a1a1a', borderRadius: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+      <div className="schedule-import">
+        <div className="schedule-import__row">
           <input
             ref={fileInputRef}
             type="file"
             accept=".txt,.csv,.json,.pdf,image/*"
             onChange={handleFileImport}
-            style={{ display: 'none' }}
+            className="schedule-import__file-input"
           />
           <button 
             className="btn btn--primary" 
@@ -159,16 +159,16 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
           >
             {importing ? '🔄 Importing...' : '📁 Import Schedule from File'}
           </button>
-          <span style={{ fontSize: '0.85rem', color: '#999' }}>
+          <span className="schedule-import__hint">
             Supports .txt, .csv, .json, .pdf, and images
           </span>
         </div>
         {importError && (
-          <div style={{ padding: '12px', background: 'rgba(220, 38, 38, 0.15)', border: '1px solid rgba(220, 38, 38, 0.3)', borderRadius: '8px', color: '#fee2e2', fontSize: '0.9rem' }}>
+          <div className="schedule-import__error">
             ⚠️ {importError}
           </div>
         )}
-        <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '8px', lineHeight: '1.5' }}>
+        <div className="schedule-import__tip">
           💡 <strong>Tip:</strong> Your file should contain schedule items with times (e.g., "7:00 PM") and descriptions. 
           The AI will automatically extract and organize them. {!import.meta.env.VITE_OPENAI_API_KEY && '(Add VITE_OPENAI_API_KEY for AI extraction)'}
         </div>
@@ -181,7 +181,6 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
           value={time}
           onChange={(e) => setTime(e.target.value)}
           placeholder="7:00 PM"
-          style={{ maxWidth: 120 }}
         />
         <input
           className="section-field__input"
@@ -202,10 +201,9 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
               {editId === item.id ? (
                 <div className="section-edit-row">
                   <input
-                    className="section-field__input"
+                    className="section-field__input section-field__input--time"
                     value={editTime}
                     onChange={(e) => setEditTime(e.target.value)}
-                    style={{ maxWidth: 120 }}
                   />
                   <input
                     className="section-field__input"

@@ -67,19 +67,19 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
         </label>
 
         <div className="section-field">
-          <strong>Financial Summary</strong>
-          <div style={{ marginTop: '8px', padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <span>Total Revenue (Merch):</span>
-              <span style={{ fontWeight: 'bold' }}>${totalRevenue.toFixed(2)}</span>
+          <strong className="recap-financial__title">Financial Summary</strong>
+          <div className="recap-financial">
+            <div className="recap-financial__row">
+              <span className="recap-financial__label">Total Revenue (Merch):</span>
+              <span className="recap-financial__value">${totalRevenue.toFixed(2)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <span>Total Expenses:</span>
-              <span style={{ fontWeight: 'bold', color: '#dc2626' }}>-${totalExpenses.toFixed(2)}</span>
+            <div className="recap-financial__row">
+              <span className="recap-financial__label">Total Expenses:</span>
+              <span className="recap-financial__value recap-financial__value--negative">-${totalExpenses.toFixed(2)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '2px solid #ddd', marginTop: '8px' }}>
-              <span style={{ fontWeight: 'bold' }}>Profit/Loss:</span>
-              <span style={{ fontWeight: 'bold', fontSize: '18px', color: profitLoss >= 0 ? '#16a34a' : '#dc2626' }}>
+            <div className="recap-financial__row recap-financial__row--total">
+              <span className="recap-financial__label recap-financial__label--strong">Profit/Loss:</span>
+              <span className={`recap-financial__value recap-financial__value--total ${profitLoss >= 0 ? 'recap-financial__value--positive' : 'recap-financial__value--negative'}`}>
                 {profitLoss >= 0 ? '+' : ''}${profitLoss.toFixed(2)}
               </span>
             </div>

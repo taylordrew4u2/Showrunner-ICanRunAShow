@@ -1,46 +1,164 @@
 .settings {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 14px;
+    width: 100%;
 }
 
 .settings__title {
-    font-size: 1.75rem;
+    font-size: clamp(1.25rem, 4.6vw, 1.6rem);
     font-weight: 800;
-    color: #ffffff;
+    color: var(--text, #101828);
     margin: 0;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
 }
 
 .settings__card {
-    background: #0a0a0a;
-    border: 2px solid #1a1a1a;
-    border-radius: 16px;
-    padding: 28px;
+    background: var(--surface, #ffffff);
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 18px;
+    box-shadow: var(--shadow-sm, 0 2px 8px rgba(16, 24, 40, 0.08));
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    transition: border-color 0.2s;
+    gap: 16px;
 }
 
-.settings__card:hover {
-    border-color: #262626;
+.settings .section-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.settings__card h3 {
-    font-size: 1.1rem;
+.settings .section-field__label {
+    font-size: 0.73rem;
     font-weight: 700;
-    color: #ffffff;
-    margin: 0 0 4px;
+    color: var(--text-muted, #667085);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
 }
 
-.settings__card p {
-    font-size: 0.875rem;
-    color: #999999;
+.settings .section-field__input,
+.settings .section-field__textarea,
+.settings .section-field__select {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--border, #e4e7ec);
+    padding: 10px 13px;
+    font-size: 0.97rem;
+    background: #ffffff;
+    color: var(--text, #101828);
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: inherit;
+}
+
+.settings .section-field__input:focus,
+.settings .section-field__textarea:focus,
+.settings .section-field__select:focus {
+    border-color: var(--primary, #0a84ff);
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.16);
+}
+
+.settings .section-field__textarea {
+    min-height: 132px;
+    resize: vertical;
+}
+
+.settings__producer-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.settings__empty {
     margin: 0;
-    line-height: 1.5;
+    color: var(--text-muted, #667085);
+    font-size: 0.9rem;
+}
+
+.settings__producer-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface-strong, #f7f9fc);
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 12px;
+}
+
+.settings__producer-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.settings__producer-name {
+    font-weight: 700;
+    color: var(--text, #101828);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.settings__producer-role {
+    color: var(--text-muted, #667085);
+    font-size: 0.85rem;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.settings__producer-add {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.settings__producer-input {
+    width: 100%;
+}
+
+.settings__producer-add-btn {
+    width: 100%;
+}
+
+.settings__budget-hint {
+    color: var(--text-muted, #667085);
+    margin-top: 2px;
+    font-size: 0.83rem;
+    line-height: 1.45;
+    display: block;
 }
 
 .settings__save {
-    align-self: flex-start;
+    width: 100%;
+}
+
+@media (min-width: 680px) {
+    .settings {
+        gap: 18px;
+    }
+
+    .settings__card {
+        padding: 20px;
+        gap: 18px;
+    }
+
+    .settings__producer-add {
+        grid-template-columns: 1fr 1fr auto;
+        align-items: center;
+    }
+
+    .settings__producer-add-btn {
+        width: auto;
+    }
+
+    .settings__save {
+        width: auto;
+        align-self: flex-start;
+    }
 }

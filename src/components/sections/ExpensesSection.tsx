@@ -80,20 +80,20 @@ export function ExpensesSection({ expenses, settings, onChange }: ExpensesSectio
   return (
     <div className="section-body">
       {brandBudget > 0 && (
-        <div style={{ marginBottom: '16px', padding: '12px', background: '#f0f9ff', border: '1px solid #0ea5e9', borderRadius: '4px' }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Brand Budget Tracking</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', fontSize: '14px' }}>
-            <div>
-              <div style={{ color: '#666' }}>Total Budget</div>
-              <div style={{ fontWeight: 'bold', color: '#0ea5e9' }}>${brandBudget.toFixed(2)}</div>
+        <div className="budget-card">
+          <div className="budget-card__title">Brand Budget Tracking</div>
+          <div className="budget-card__grid">
+            <div className="budget-card__item">
+              <div className="budget-card__label">Total Budget</div>
+              <div className="budget-card__value budget-card__value--primary">${brandBudget.toFixed(2)}</div>
             </div>
-            <div>
-              <div style={{ color: '#666' }}>Total Spent (All Shows)</div>
-              <div style={{ fontWeight: 'bold', color: '#dc2626' }}>${totalSpent.toFixed(2)}</div>
+            <div className="budget-card__item">
+              <div className="budget-card__label">Total Spent (All Shows)</div>
+              <div className="budget-card__value budget-card__value--spent">${totalSpent.toFixed(2)}</div>
             </div>
-            <div>
-              <div style={{ color: '#666' }}>Remaining</div>
-              <div style={{ fontWeight: 'bold', color: remaining >= 0 ? '#16a34a' : '#dc2626' }}>
+            <div className="budget-card__item">
+              <div className="budget-card__label">Remaining</div>
+              <div className={`budget-card__value ${remaining >= 0 ? 'budget-card__value--positive' : 'budget-card__value--negative'}`}>
                 ${remaining.toFixed(2)}
               </div>
             </div>
