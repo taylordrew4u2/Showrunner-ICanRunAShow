@@ -1,7 +1,7 @@
 .show-detail {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
 }
 
 @media (max-width: 768px) {
@@ -10,34 +10,22 @@
   }
 }
 
-.show-detail__back {
-  align-self: flex-start;
-  font-size: 0.95rem;
-}
-
-.show-detail__actions {
+.show-detail__hero {
   display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  width: 100%;
-  max-width: 100%;
+  flex-direction: column;
+  gap: 10px;
 }
 
-@media (max-width: 520px) {
-  .show-detail__actions {
-    gap: 10px;
-  }
-
-  .show-detail__actions .btn {
-    flex: 1 1 auto;
-    min-width: 140px;
-  }
+.show-detail__topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .show-detail__header {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -190,22 +178,21 @@
 }
 
 .section-card {
-  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
-  border: 2px solid #e5e5e5;
-  border-radius: 14px;
-  padding: 20px;
+  background: #ffffff;
+  border: 1.5px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   position: relative;
   overflow: hidden;
 }
 
 @media (max-width: 768px) {
   .section-card {
-    padding: 14px;
-    border-radius: 12px;
-    border-width: 1.5px;
+    padding: 12px;
+    border-radius: 10px;
   }
 }
 
@@ -241,29 +228,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-@media (max-width: 768px) {
-  .section-card__header {
-    gap: 8px;
-    margin-bottom: 10px;
-  }
+  gap: 10px;
+  margin-bottom: 0;
 }
 
 .section-card__title {
-  font-size: 1.25rem;
-  font-weight: 800;
+  font-size: 1rem;
+  font-weight: 700;
   color: #000000;
   margin: 0;
-  letter-spacing: -0.01em;
-}
-
-@media (max-width: 768px) {
-  .section-card__title {
-    font-size: 1.05rem;
-  }
 }
 
 .section-card__count {
@@ -278,23 +251,8 @@
   line-height: 1;
 }
 
-.section-card__subtitle {
-  font-size: 0.9rem;
-  color: #666666;
-  line-height: 1.6;
-  margin: 0 0 16px;
-  min-height: 2.8em;
-}
-
-@media (max-width: 768px) {
-  .section-card__subtitle {
-    font-size: 0.85rem;
-    margin: 0 0 12px;
-    min-height: 2.4em;
-  }
-}
-
 .section-card__cta {
+  display: none;
   font-size: 0.85rem;
   font-weight: 700;
   color: #dc2626;
@@ -313,12 +271,12 @@
 }
 
 .section-card__deadline {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 2px solid #f5f5f5;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .section-card__deadline-display {
