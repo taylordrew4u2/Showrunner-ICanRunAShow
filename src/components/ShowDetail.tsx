@@ -56,30 +56,30 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   const sections = [
     {
       key: 'basic',
-      title: '1. Basic Show Info',
-      subtitle: 'Show time, location, and venue name.',
+      title: '📋 Basic Info',
+      subtitle: 'Set show time, location, and venue. Upload a flyer.',
       content: <BasicInfoSection show={show} onChange={handleUpdate} />,
     },
     {
       key: 'performers',
       sectionKey: 'performers' as SectionKey,
-      title: '2. Performers',
-      subtitle: 'Names, walk-on music, photos, and optional videos.',
+      title: '🎤 Performers',
+      subtitle: 'Names, walk-on music, photos, and social media.',
       count: show.performers.length,
       content: <PerformersSection performers={show.performers} onChange={(performers) => handleUpdate({ performers })} />,
     },
     {
       key: 'artists',
       sectionKey: 'artists' as SectionKey,
-      title: '3. Artists',
-      subtitle: 'Artist entries with music, photos, and optional video.',
+      title: '🎨 Artists',
+      subtitle: 'Artist entries with name, type, music, and photos.',
       count: show.artists.length,
       content: <ArtistsSection artists={show.artists} onChange={(artists) => handleUpdate({ artists })} />,
     },
     {
       key: 'schedule',
       sectionKey: 'schedule' as SectionKey,
-      title: '4. Exact Schedule & Timing',
+      title: '📅 Schedule',
       subtitle: 'Timeline of events with times and descriptions.',
       count: show.schedule.length,
       content: <ScheduleSection schedule={show.schedule} onChange={(schedule) => handleUpdate({ schedule })} />,
@@ -87,7 +87,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     {
       key: 'hosts',
       sectionKey: 'hosts' as SectionKey,
-      title: '5. Hosts',
+      title: '🎙️ Hosts',
       subtitle: 'Add hosts, notes, photos, and select the main host.',
       count: show.hosts.length,
       content: <HostsSection hosts={show.hosts} onChange={(hosts) => handleUpdate({ hosts })} />,
@@ -95,15 +95,15 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     {
       key: 'dj',
       sectionKey: 'dj' as SectionKey,
-      title: '6. DJ Music List',
-      subtitle: 'Songs and notes for the DJ, exportable as text or PDF.',
+      title: '🎵 DJ Music',
+      subtitle: 'Songs and notes for the DJ.',
       count: show.djSongs.length,
       content: <DJMusicSection songs={show.djSongs} show={show} onChange={(djSongs) => handleUpdate({ djSongs })} />,
     },
     {
       key: 'staff',
       sectionKey: 'staff' as SectionKey,
-      title: '7. Staff & Crew',
+      title: '👥 Staff',
       subtitle: 'Roles and assignments for production staff.',
       count: show.staff.length,
       content: <StaffSection staff={show.staff} onChange={(staff) => handleUpdate({ staff })} />,
@@ -111,7 +111,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     {
       key: 'expenses',
       sectionKey: 'expenses' as SectionKey,
-      title: '8. Itemized Expenses',
+      title: '💰 Expenses',
       subtitle: 'Track costs and see totals automatically.',
       count: show.expenses.length,
       content: <ExpensesSection expenses={show.expenses} settings={settings} onChange={(expenses) => handleUpdate({ expenses })} />,
@@ -122,7 +122,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   if (isPastShow) {
     sections.push({
       key: 'recap',
-      title: '9. Post-Show Recap',
+      title: '📝 Recap',
       subtitle: 'Attendance, sales, performer notes, and lessons learned.',
       content: <ShowRecapSection recap={show.recap} expenses={show.expenses} onChange={(recap) => handleUpdate({ recap })} />,
     });
@@ -130,31 +130,27 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
 
   return (
     <div className="show-detail">
-      <button className="show-detail__back btn btn--ghost" onClick={onBack}>
-        ← Back
-      </button>
-
-      <div className="show-detail__actions">
-        <button
-          className="btn btn--primary"
-          onClick={() => exportShowToPDF(show, settings)}
-        >
-          📄 Export to PDF
-        </button>
-      </div>
-
-      <div className="show-detail__header">
-        <h2 className="show-detail__title">{show.name}</h2>
-        <span className={`show-detail__status show-detail__status--${show.status}`}>
-          {show.status.replace('-', ' ')}
-        </span>
-      </div>
-
-      <div className="show-detail__meta">
-        {show.venueName && <span>🏛️ {show.venueName}</span>}
-        {show.location && <span>🗺️ {show.location}</span>}
-        {show.date && <span>📅 {new Date(show.date).toLocaleDateString()}</span>}
-        {show.time && <span>⏰ {show.time}</span>}
+      <div className="show-detail__hero">
+        <div className="show-detail__topbar">
+          <button className="btn btn--ghost" onClick={onBack}>← Back</button>
+          <button className="btn btn--secondary btn--sm" onClick={() => exportShowToPDF(show, settings)}>
+            📄 Export PDF
+          </button>
+        </div>
+        <div className="show-detail__header">
+          <h2 className="show-detail__title">{show.name}</h2>
+          <span className={`show-detail__status show-detail__status--${show.status}`}>
+            {show.status.replace('-', ' ')}
+          </span>
+        </div>
+        {(show.venueName || show.location || show.date || show.time) && (
+          <div className="show-detail__meta">
+            {show.venueName && <span>🏛️ {show.venueName}</span>}
+            {show.location && <span>🗺️ {show.location}</span>}
+            {show.date && <span>📅 {new Date(show.date).toLocaleDateString()}</span>}
+            {show.time && <span>⏰ {show.time}</span>}
+          </div>
+        )}
       </div>
 
       {show.flyer && (
@@ -180,8 +176,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                     <span className="section-card__count">{section.count}</span>
                   )}
                 </div>
-                <p className="section-card__subtitle">{section.subtitle}</p>
-                <div className="section-card__cta">Click to open →</div>
               </div>
               
               {section.sectionKey && (
