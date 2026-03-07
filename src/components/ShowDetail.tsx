@@ -22,7 +22,7 @@ interface ShowDetailProps {
 }
 
 export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps) {
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [editingDeadline, setEditingDeadline] = useState<SectionKey | null>(null);
   
   // Check if the show date has passed
@@ -53,9 +53,20 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     onUpdate({ ...show, completions: updatedCompletions });
   }
 
+  function toggleSection(sectionKey: string) {
+    const newExpanded = new Set(expandedSections);
+    if (newExpanded.has(sectionKey)) {
+      newExpanded.delete(sectionKey);
+    } else {
+      newExpanded.add(sectionKey);
+    }
+    setExpandedSections(newExpanded);
+  }
+
   const sections = [
     {
       key: 'basic',
+      sectionKey: 'basic' as SectionKey,
       title: '📋 Basic Info',
       subtitle: 'Set show time, location, and venue. Upload a flyer.',
       content: <BasicInfoSection show={show} onChange={handleUpdate} />,
@@ -122,6 +133,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   if (isPastShow) {
     sections.push({
       key: 'recap',
+      sectionKey: 'recap' as SectionKey,
       title: '📝 Recap',
       subtitle: 'Attendance, sales, performer notes, and lessons learned.',
       content: <ShowRecapSection recap={show.recap} expenses={show.expenses} onChange={(recap) => handleUpdate({ recap })} />,
@@ -159,45 +171,63 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
         </div>
       )}
 
-      {expandedSection === null ? (
-        <div className="show-detail__sections-grid">
-          {sections.map((section) => (
+      <div className="show-detail__sections-accordion">
+        {sections.map((section) => {
+          const isExpanded = expandedSections.has(section.key);
+          const isComplete = section.sectionKey ? show.completions?.[section.sectionKey] || false : false;
+          
+          return (
             <div
               key={section.key}
-              className="section-card"
+              className={`accordion-section ${isComplete ? 'accordion-section--complete' : ''}`}
             >
               <div 
-                className="section-card__clickable"
-                onClick={() => setExpandedSection(section.key)}
+                className="accordion-section__header"
+                onClick={() => toggleSection(section.key)}
               >
-                <div className="section-card__header">
-                  <h3 className="section-card__title">{section.title}</h3>
-                  {typeof section.count === 'number' && (
-                    <span className="section-card__count">{section.count}</span>
+                <div className="accordion-section__header-left">
+                  <div className="accordion-section__title-row">
+                    <h3 className="accordion-section__title">{section.title}</h3>
+                    {typeof section.count === 'number' && (
+                      <span className="accordion-section__count">{section.count}</span>
+                    )}
+                    {isComplete && (
+                      <span className="accordion-section__complete-badge">✓ Complete</span>
+                    )}
+                  </div>
+                  <p className="accordion-section__subtitle">{section.subtitle}</p>
+                </div>
+                <div className="accordion-section__header-right">
+                  {section.sectionKey && (
+                    <label 
+                      className="accordion-section__completion-checkbox"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isComplete}
+                        onChange={() => handleCompletionToggle(section.sectionKey!)}
+                      />
+                      <span>Mark Complete</span>
+                    </label>
                   )}
+                  <button 
+                    className={`accordion-section__expand-icon ${isExpanded ? 'accordion-section__expand-icon--expanded' : ''}`}
+                    aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
+                  >
+                    ▼
+                  </button>
                 </div>
               </div>
-              
+
               {section.sectionKey && (
-                <div className="section-card__deadline">
+                <div className="accordion-section__deadline-bar" onClick={(e) => e.stopPropagation()}>
                   {show.deadlines?.[section.sectionKey] ? (
-                    <div className="section-card__deadline-display">
+                    <div className="accordion-section__deadline-display">
                       <DeadlineIndicator 
                         deadline={show.deadlines[section.sectionKey]} 
-                        isComplete={show.completions?.[section.sectionKey] || false}
+                        isComplete={isComplete}
                       />
-                      <label className="section-card__completion-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={show.completions?.[section.sectionKey] || false}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleCompletionToggle(section.sectionKey!);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <span>Complete</span>
-                      </label>
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={(e) => {
@@ -205,7 +235,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                           setEditingDeadline(section.sectionKey!);
                         }}
                       >
-                        Edit
+                        Edit Deadline
                       </button>
                     </div>
                   ) : (
@@ -221,7 +251,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                   )}
                   
                   {editingDeadline === section.sectionKey && (
-                    <div className="section-card__deadline-editor" onClick={(e) => e.stopPropagation()}>
+                    <div className="accordion-section__deadline-editor">
                       <input
                         type="date"
                         className="section-field__input"
@@ -247,53 +277,16 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                   )}
                 </div>
               )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="show-detail__expanded-section">
-          <button
-            className="btn btn--ghost show-detail__back-to-grid"
-            onClick={() => setExpandedSection(null)}
-          >
-            ← Back to Grid
-          </button>
-          {sections.map((section) => 
-            section.key === expandedSection ? (
-              <section key={section.key} className="show-section show-section--expanded">
-                <div className="show-section__header">
-                  <div>
-                    <h3 className="show-section__title">{section.title}</h3>
-                    <p className="show-section__subtitle">{section.subtitle}</p>
-                  </div>
-                  <div className="show-section__header-right">
-                    {typeof section.count === 'number' && (
-                      <span className="show-section__count">{section.count} items</span>
-                    )}
-                    {section.sectionKey && show.deadlines?.[section.sectionKey] && (
-                      <>
-                        <label className="section-card__completion-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={show.completions?.[section.sectionKey] || false}
-                            onChange={() => handleCompletionToggle(section.sectionKey!)}
-                          />
-                          <span>Complete</span>
-                        </label>
-                        <DeadlineIndicator 
-                          deadline={show.deadlines[section.sectionKey]} 
-                          isComplete={show.completions?.[section.sectionKey] || false}
-                        />
-                      </>
-                    )}
-                  </div>
+
+              {isExpanded && (
+                <div className="accordion-section__content">
+                  {section.content}
                 </div>
-                <div className="show-section__content">{section.content}</div>
-              </section>
-            ) : null
-          )}
-        </div>
-      )}
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       <div className="show-detail__scenes">
         <SceneList scenes={show.scenes ?? []} onChange={handleScenesChange} />
