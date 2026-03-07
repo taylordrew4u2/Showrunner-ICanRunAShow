@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
 import { Show, ShowStatus } from '../../utils/types';
+import { pickImage } from '../../utils/filePicker';
 
 interface Props {
   show: Show;
@@ -10,8 +11,41 @@ interface Props {
 export default function BasicInfoSection({ show, onChange }: Props) {
   const statuses: ShowStatus[] = ['upcoming', 'in-progress', 'completed', 'cancelled'];
   
+  const handleFlyerUpload = async () => {
+    const uri = await pickImage();
+    if (uri) {
+      onChange({ flyer: uri });
+    }
+  };
+
+  const removeFlyerUpload = () => {
+    Alert.alert('Remove Flyer', 'Remove the show flyer?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => onChange({ flyer: undefined }) },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
+      <Text style={styles.label}>Show Flyer</Text>
+      {show.flyer ? (
+        <View style={styles.flyerPreview}>
+          <Image source={{ uri: show.flyer }} style={styles.flyerImage} />
+          <View style={styles.flyerActions}>
+            <TouchableOpacity style={styles.changeBtn} onPress={handleFlyerUpload}>
+              <Text style={styles.changeBtnText}>Change Flyer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.removeBtn} onPress={removeFlyerUpload}>
+              <Text style={styles.removeBtnText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.uploadBtn} onPress={handleFlyerUpload}>
+          <Text style={styles.uploadBtnText}>📄 Upload Show Flyer</Text>
+        </TouchableOpacity>
+      )}
+
       <Text style={styles.label}>Show Date</Text>
       <TextInput
         style={styles.input}
@@ -93,6 +127,72 @@ const styles = StyleSheet.create({
     marginTop: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  uploadBtn: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+    minHeight: 52,
+    justifyContent: 'center',
+  },
+  uploadBtnText: {
+    color: '#6B46C1',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  flyerPreview: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  flyerImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: 8,
+    resizeMode: 'contain',
+  },
+  flyerActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  changeBtn: {
+    flex: 1,
+    backgroundColor: '#EDE9FE',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#6B46C1',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  changeBtnText: {
+    color: '#6B46C1',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  removeBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    backgroundColor: '#FEE2E2',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  removeBtnText: {
+    color: '#EF4444',
+    fontWeight: '600',
+    fontSize: 14,
   },
   input: {
     borderWidth: 1,
