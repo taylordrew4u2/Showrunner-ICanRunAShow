@@ -320,6 +320,26 @@
   min-width: 160px;
 }
 
+.section-card__completion-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #666;
+  user-select: none;
+}
+
+.section-card__completion-checkbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.section-card__completion-checkbox:hover {
+  color: #333;
+}
+
 /* Expanded Section View */
 .show-detail__expanded-section {
   display: flex;
@@ -610,6 +630,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   word-break: break-word;
+}
+
+.section-list-item__subtext {
+  font-weight: 400;
+  color: #9ca3af;
+  font-size: 0.85rem;
 }
 
 .section-list-item__tag,

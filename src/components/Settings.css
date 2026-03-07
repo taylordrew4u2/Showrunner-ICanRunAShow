@@ -8,28 +8,20 @@
 .settings__title {
     font-size: clamp(1.25rem, 4.6vw, 1.6rem);
     font-weight: 800;
-    color: var(--text, #000000);
+    color: var(--text, #101828);
     margin: 0;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
 }
 
 .settings__card {
-    background: var(--surface, #FFFFFF);
-    border: 2px solid var(--border, #E5E5E5);
-    border-radius: 16px;
-    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.06));
-    padding: 18px;
+    background: var(--surface, #ffffff);
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 18px;
+    box-shadow: var(--shadow-sm, 0 2px 8px rgba(16, 24, 40, 0.08));
+    padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-}
-
-@media (max-width: 768px) {
-    .settings__card {
-        padding: 14px;
-        border-radius: 14px;
-        gap: 14px;
-    }
 }
 
 .settings .section-field {
@@ -39,45 +31,34 @@
 }
 
 .settings .section-field__label {
-    font-size: 0.8rem;
+    font-size: 0.73rem;
     font-weight: 700;
-    color: var(--text, #000000);
+    color: var(--text-muted, #667085);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
 }
 
 .settings .section-field__input,
 .settings .section-field__textarea,
 .settings .section-field__select {
     width: 100%;
-    min-height: 48px;
+    min-height: 44px;
     border-radius: 12px;
-    border: 2px solid var(--border, #E5E5E5);
-    padding: 12px 14px;
-    font-size: 1rem;
+    border: 1px solid var(--border, #e4e7ec);
+    padding: 10px 13px;
+    font-size: 0.97rem;
     background: #ffffff;
-    color: var(--text, #000000);
+    color: var(--text, #101828);
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     font-family: inherit;
 }
 
-@media (max-width: 768px) {
-
-    .settings .section-field__input,
-    .settings .section-field__textarea,
-    .settings .section-field__select {
-        padding: 9px 12px;
-        font-size: 0.95rem;
-        border-radius: 10px;
-    }
-}
-
 .settings .section-field__input:focus,
 .settings .section-field__textarea:focus,
 .settings .section-field__select:focus {
-    border-color: var(--primary, #DC2626);
-    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+    border-color: var(--primary, #0a84ff);
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.16);
 }
 
 .settings .section-field__textarea {
@@ -93,7 +74,7 @@
 
 .settings__empty {
     margin: 0;
-    color: var(--text-muted, #666666);
+    color: var(--text-muted, #667085);
     font-size: 0.9rem;
 }
 
@@ -101,9 +82,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 14px;
-    background: var(--bg, #FAFAFA);
-    border: 2px solid var(--border, #E5E5E5);
+    padding: 10px 12px;
+    background: var(--surface-strong, #f7f9fc);
+    border: 1px solid var(--border, #e4e7ec);
     border-radius: 12px;
 }
 
@@ -117,18 +98,18 @@
 
 .settings__producer-name {
     font-weight: 700;
-    color: var(--text, #000000);
+    color: var(--text, #101828);
+    text-overflow: ellipsis;
     overflow: hidden;
-    word-break: break-word;
-    overflow-wrap: break-word;
+    white-space: nowrap;
 }
 
 .settings__producer-role {
-    color: var(--text-muted, #666666);
+    color: var(--text-muted, #667085);
     font-size: 0.85rem;
+    text-overflow: ellipsis;
     overflow: hidden;
-    word-break: break-word;
-    overflow-wrap: break-word;
+    white-space: nowrap;
 }
 
 .settings__producer-add {
@@ -146,10 +127,10 @@
 }
 
 .settings__budget-hint {
-    color: var(--text-muted, #666666);
+    color: var(--text-muted, #667085);
     margin-top: 2px;
-    font-size: 0.85rem;
-    line-height: 1.5;
+    font-size: 0.83rem;
+    line-height: 1.45;
     display: block;
 }
 

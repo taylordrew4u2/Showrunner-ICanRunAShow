@@ -45,6 +45,14 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     setEditingDeadline(null);
   }
 
+  function handleCompletionToggle(sectionKey: SectionKey) {
+    const updatedCompletions = {
+      ...show.completions,
+      [sectionKey]: !show.completions?.[sectionKey],
+    };
+    onUpdate({ ...show, completions: updatedCompletions });
+  }
+
   const sections = [
     {
       key: 'basic',
@@ -176,8 +184,20 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                     <div className="section-card__deadline-display">
                       <DeadlineIndicator 
                         deadline={show.deadlines[section.sectionKey]} 
-                        isComplete={typeof section.count === 'number' && section.count > 0}
+                        isComplete={show.completions?.[section.sectionKey] || false}
                       />
+                      <label className="section-card__completion-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={show.completions?.[section.sectionKey] || false}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleCompletionToggle(section.sectionKey!);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span>Complete</span>
+                      </label>
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={(e) => {
@@ -251,10 +271,20 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                       <span className="show-section__count">{section.count} items</span>
                     )}
                     {section.sectionKey && show.deadlines?.[section.sectionKey] && (
-                      <DeadlineIndicator 
-                        deadline={show.deadlines[section.sectionKey]} 
-                        isComplete={typeof section.count === 'number' && section.count > 0}
-                      />
+                      <>
+                        <label className="section-card__completion-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={show.completions?.[section.sectionKey] || false}
+                            onChange={() => handleCompletionToggle(section.sectionKey!)}
+                          />
+                          <span>Complete</span>
+                        </label>
+                        <DeadlineIndicator 
+                          deadline={show.deadlines[section.sectionKey]} 
+                          isComplete={show.completions?.[section.sectionKey] || false}
+                        />
+                      </>
                     )}
                   </div>
                 </div>

@@ -19,7 +19,7 @@ interface Props {
   onChange: (performers: Performer[]) => void;
 }
 
-const EMPTY: Omit<Performer, 'id'> = { name: '', walkOnMusic: undefined, photo: undefined, video: undefined };
+const EMPTY: Omit<Performer, 'id'> = { name: '', socialMedia: undefined, walkOnMusic: undefined, photo: undefined, video: undefined };
 
 export default function PerformersSection({ performers, onChange }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
@@ -34,7 +34,7 @@ export default function PerformersSection({ performers, onChange }: Props) {
 
   const openEdit = (p: Performer) => {
     setEditing(p);
-    setDraft({ name: p.name, walkOnMusic: p.walkOnMusic, photo: p.photo, video: p.video });
+    setDraft({ name: p.name, socialMedia: p.socialMedia, walkOnMusic: p.walkOnMusic, photo: p.photo, video: p.video });
     setModalVisible(true);
   };
 
@@ -96,6 +96,9 @@ export default function PerformersSection({ performers, onChange }: Props) {
             )}
             <View style={styles.info}>
               <Text style={styles.name}>{p.name}</Text>
+              {p.socialMedia ? (
+                <Text style={styles.meta} numberOfLines={1}>📱 {p.socialMedia}</Text>
+              ) : null}
               {p.walkOnMusic ? (
                 <Text style={styles.meta} numberOfLines={1}>🎵 {fileBaseName(p.walkOnMusic)}</Text>
               ) : null}
@@ -129,6 +132,15 @@ export default function PerformersSection({ performers, onChange }: Props) {
               placeholder="Performer name"
               placeholderTextColor="#9CA3AF"
               autoFocus
+            />
+
+            <Text style={styles.fieldLabel}>Social Media</Text>
+            <TextInput
+              style={styles.input}
+              value={draft.socialMedia}
+              onChangeText={(v) => setDraft((d) => ({ ...d, socialMedia: v }))}
+              placeholder="e.g., @username"
+              placeholderTextColor="#9CA3AF"
             />
 
             <Text style={styles.fieldLabel}>Walk-On Music</Text>

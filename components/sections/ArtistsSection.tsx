@@ -19,7 +19,7 @@ interface Props {
   onChange: (artists: Artist[]) => void;
 }
 
-const EMPTY: Omit<Artist, 'id'> = { name: '', walkOnMusic: undefined, photo: undefined, video: undefined };
+const EMPTY: Omit<Artist, 'id'> = { name: '', artistType: undefined, walkOnMusic: undefined, photo: undefined, video: undefined };
 
 export default function ArtistsSection({ artists, onChange }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
@@ -34,7 +34,7 @@ export default function ArtistsSection({ artists, onChange }: Props) {
 
   const openEdit = (a: Artist) => {
     setEditing(a);
-    setDraft({ name: a.name, walkOnMusic: a.walkOnMusic, photo: a.photo, video: a.video });
+    setDraft({ name: a.name, artistType: a.artistType, walkOnMusic: a.walkOnMusic, photo: a.photo, video: a.video });
     setModalVisible(true);
   };
 
@@ -95,7 +95,10 @@ export default function ArtistsSection({ artists, onChange }: Props) {
               </View>
             )}
             <View style={styles.info}>
-              <Text style={styles.name}>{a.name}</Text>
+              <Text style={styles.name}>
+                {a.name}
+                {a.artistType ? <Text style={styles.subtext}> ({a.artistType})</Text> : null}
+              </Text>
               {a.walkOnMusic ? (
                 <Text style={styles.meta} numberOfLines={1}>🎵 {fileBaseName(a.walkOnMusic)}</Text>
               ) : null}
@@ -128,6 +131,15 @@ export default function ArtistsSection({ artists, onChange }: Props) {
               placeholder="Artist name"
               placeholderTextColor="#9CA3AF"
               autoFocus
+            />
+
+            <Text style={styles.fieldLabel}>Artist Type</Text>
+            <TextInput
+              style={styles.input}
+              value={draft.artistType}
+              onChangeText={(v) => setDraft((d) => ({ ...d, artistType: v }))}
+              placeholder="e.g., Painter, Musician, Photographer"
+              placeholderTextColor="#9CA3AF"
             />
 
             <Text style={styles.fieldLabel}>Walk-On Music</Text>
@@ -274,6 +286,11 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
     lineHeight: 16,
+  },
+  subtext: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontWeight: '400',
   },
   editBtn: {
     backgroundColor: '#EDE9FE',
