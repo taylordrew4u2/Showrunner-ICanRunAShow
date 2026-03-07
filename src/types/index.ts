@@ -81,25 +81,30 @@ export interface ShowRecap {
 }
 
 export type SectionKey =
+  | "basic"
   | "performers"
   | "artists"
   | "schedule"
   | "hosts"
   | "dj"
   | "staff"
-  | "expenses";
+  | "expenses"
+  | "recap";
 
 export interface SectionDeadlines {
-  performers?: string; // ISO date string
+  basic?: string; // ISO date string
+  performers?: string;
   artists?: string;
   schedule?: string;
   hosts?: string;
   dj?: string;
   staff?: string;
   expenses?: string;
+  recap?: string;
 }
 
 export interface SectionCompletions {
+  basic?: boolean;
   performers?: boolean;
   artists?: boolean;
   schedule?: boolean;
@@ -107,6 +112,7 @@ export interface SectionCompletions {
   dj?: boolean;
   staff?: boolean;
   expenses?: boolean;
+  recap?: boolean;
 }
 
 export interface Show {

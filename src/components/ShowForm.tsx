@@ -67,9 +67,10 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
         Time *
         <input
           className="show-form__input"
-          type="time"
+          type="text"
           value={time}
           onChange={(e) => setTime(e.target.value)}
+          placeholder="e.g. 8:00 PM"
           required
         />
       </label>
