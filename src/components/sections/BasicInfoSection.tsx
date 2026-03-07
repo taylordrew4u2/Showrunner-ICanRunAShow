@@ -46,7 +46,7 @@ export function BasicInfoSection({ show, onChange }: BasicInfoSectionProps) {
           </div>
         ) : (
           <button className="btn btn--secondary" onClick={handleFlyerUpload}>
-            📄 Upload Show Flyer
+            Upload Show Flyer
           </button>
         )}
       </label>

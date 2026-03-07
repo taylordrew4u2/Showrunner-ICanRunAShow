@@ -42,7 +42,7 @@ export default function BasicInfoSection({ show, onChange }: Props) {
         </View>
       ) : (
         <TouchableOpacity style={styles.uploadBtn} onPress={handleFlyerUpload}>
-          <Text style={styles.uploadBtnText}>📄 Upload Show Flyer</Text>
+          <Text style={styles.uploadBtnText}>Upload Show Flyer</Text>
         </TouchableOpacity>
       )}
 

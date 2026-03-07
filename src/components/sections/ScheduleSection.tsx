@@ -157,7 +157,7 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
             onClick={triggerFileInput}
             disabled={importing}
           >
-            {importing ? '🔄 Importing...' : '📁 Import Schedule from File'}
+            {importing ? 'Importing Schedule...' : 'Import Schedule from File'}
           </button>
           <span className="schedule-import__hint">
             Supports .txt, .csv, .json, .pdf, and images
@@ -165,11 +165,11 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
         </div>
         {importError && (
           <div className="schedule-import__error">
-            ⚠️ {importError}
+            Error: {importError}
           </div>
         )}
         <div className="schedule-import__tip">
-          💡 <strong>Tip:</strong> Your file should contain schedule items with times (e.g., "7:00 PM") and descriptions. 
+          <strong>Tip:</strong> Your file should contain schedule items with times (e.g., "7:00 PM") and descriptions. 
           The AI will automatically extract and organize them. {!import.meta.env.VITE_OPENAI_API_KEY && '(Add VITE_OPENAI_API_KEY for AI extraction)'}
         </div>
       </div>
