@@ -11,6 +11,7 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
   const [name, setName] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [editSocialMedia, setEditSocialMedia] = useState('');
 
   function addPerformer() {
     if (!name.trim()) return;
@@ -29,11 +30,12 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
   function startEdit(p: Performer) {
     setEditId(p.id);
     setEditName(p.name);
+    setEditSocialMedia(p.socialMedia || '');
   }
 
   function saveEdit() {
     if (!editName.trim() || !editId) return;
-    onChange(performers.map((p) => (p.id === editId ? { ...p, name: editName.trim() } : p)));
+    onChange(performers.map((p) => (p.id === editId ? { ...p, name: editName.trim(), socialMedia: editSocialMedia.trim() || undefined } : p)));
     setEditId(null);
   }
 
@@ -128,7 +130,15 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                    placeholder="Name"
                     autoFocus
+                  />
+                  <input
+                    className="section-field__input"
+                    value={editSocialMedia}
+                    onChange={(e) => setEditSocialMedia(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                    placeholder="Social media (e.g., @username)"
                   />
                   <button className="btn btn--primary btn--sm" onClick={saveEdit}>Save</button>
                   <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
@@ -137,6 +147,7 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
                 <>
                   <span className="section-list-item__order">{idx + 1}</span>
                   <span className="section-list-item__name">{p.name}</span>
+                  {p.socialMedia && <span className="section-list-item__tag">📱 {p.socialMedia}</span>}
                   {p.walkOnMusicName && <span className="section-list-item__tag">🎵 {p.walkOnMusicName}</span>}
                 </>
               )}

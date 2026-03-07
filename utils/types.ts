@@ -3,6 +3,7 @@
 export interface Performer {
   id: string;
   name: string;
+  socialMedia?: string;
   walkOnMusic?: string; // file URI
   walkOnMusicName?: string;
   photo?: string; // file URI
@@ -12,6 +13,7 @@ export interface Performer {
 export interface Artist {
   id: string;
   name: string;
+  artistType?: string;
   photo?: string;
   walkOnMusic?: string;
   walkOnMusicName?: string;
@@ -91,6 +93,16 @@ export interface SectionDeadlines {
   expenses?: string;
 }
 
+export interface SectionCompletions {
+  performers?: boolean;
+  artists?: boolean;
+  schedule?: boolean;
+  hosts?: boolean;
+  dj?: boolean;
+  staff?: boolean;
+  expenses?: boolean;
+}
+
 export interface Show {
   id: string;
   name: string;
@@ -118,6 +130,8 @@ export interface Show {
   recap?: ShowRecap;
   // Section deadlines
   deadlines?: SectionDeadlines;
+  // Section completions
+  completions?: SectionCompletions;
   createdAt: string;
   updatedAt: string;
 }

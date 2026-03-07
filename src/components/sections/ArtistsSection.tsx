@@ -11,6 +11,7 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
   const [name, setName] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [editArtistType, setEditArtistType] = useState('');
 
   function addArtist() {
     if (!name.trim()) return;
@@ -29,11 +30,12 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
   function startEdit(a: Artist) {
     setEditId(a.id);
     setEditName(a.name);
+    setEditArtistType(a.artistType || '');
   }
 
   function saveEdit() {
     if (!editName.trim() || !editId) return;
-    onChange(artists.map((a) => (a.id === editId ? { ...a, name: editName.trim() } : a)));
+    onChange(artists.map((a) => (a.id === editId ? { ...a, name: editName.trim(), artistType: editArtistType.trim() || undefined } : a)));
     setEditId(null);
   }
 
@@ -128,7 +130,15 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                    placeholder="Name"
                     autoFocus
+                  />
+                  <input
+                    className="section-field__input"
+                    value={editArtistType}
+                    onChange={(e) => setEditArtistType(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                    placeholder="Artist type (e.g., Painter, Musician, Photographer)"
                   />
                   <button className="btn btn--primary btn--sm" onClick={saveEdit}>Save</button>
                   <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
@@ -136,7 +146,10 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
               ) : (
                 <>
                   <span className="section-list-item__order">{idx + 1}</span>
-                  <span className="section-list-item__name">{a.name}</span>
+                  <span className="section-list-item__name">
+                    {a.name}
+                    {a.artistType && <span className="section-list-item__subtext"> ({a.artistType})</span>}
+                  </span>
                   {a.walkOnMusicName && <span className="section-list-item__tag">🎵 {a.walkOnMusicName}</span>}
                 </>
               )}
