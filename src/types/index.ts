@@ -135,6 +135,9 @@ export interface Show {
   recap?: ShowRecap;
   deadlines?: SectionDeadlines;
   completions?: SectionCompletions;
+  videoPerson?: string; // Name of video person
+  videoPayment?: number; // Amount to pay video person
+  selectedHostId?: string; // ID of the selected host
   createdAt: string;
   updatedAt: string;
 }

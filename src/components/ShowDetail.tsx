@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { Show, Scene, AppSettings, SectionKey } from '../types';
+import { useState, useEffect } from 'react';
+import type { Show, Scene, AppSettings, SectionKey, Expense } from '../types';
 import { SceneList } from './SceneList';
 import { DeadlineIndicator } from './DeadlineIndicator';
 import { BasicInfoSection } from './sections/BasicInfoSection';
@@ -12,6 +12,7 @@ import { StaffSection } from './sections/StaffSection';
 import { ExpensesSection } from './sections/ExpensesSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
 import { exportShowToPDF } from '../utils/pdfExport';
+import { generateId } from '../utils/id';
 import './ShowDetail.css';
 
 interface ShowDetailProps {
@@ -24,6 +25,10 @@ interface ShowDetailProps {
 export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [editingDeadline, setEditingDeadline] = useState<SectionKey | null>(null);
+  const [editingVideoHost, setEditingVideoHost] = useState(false);
+  const [tempVideoPerson, setTempVideoPerson] = useState(show.videoPerson || '');
+  const [tempVideoPayment, setTempVideoPayment] = useState(show.videoPayment?.toString() || '');
+  const [tempSelectedHostId, setTempSelectedHostId] = useState(show.selectedHostId || '');
   
   // Check if the show date has passed
   const isPastShow = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
@@ -62,6 +67,58 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     }
     setExpandedSections(newExpanded);
   }
+
+  function handleLockVideoHost() {
+    const videoPaymentNum = tempVideoPayment ? parseFloat(tempVideoPayment) : undefined;
+    
+    // Auto-create or update video expense
+    if (tempVideoPerson && videoPaymentNum && videoPaymentNum > 0) {
+      const videoExpenseId = 'video-expense-auto';
+      const existingExpenseIndex = show.expenses.findIndex(e => e.id === videoExpenseId);
+      
+      const videoExpense: Expense = {
+        id: videoExpenseId,
+        category: 'Video',
+        itemName: `Video by ${tempVideoPerson}`,
+        cost: videoPaymentNum,
+        date: show.date || new Date().toISOString().split('T')[0],
+        notes: 'Auto-generated from video person assignment',
+      };
+
+      const updatedExpenses = existingExpenseIndex >= 0
+        ? show.expenses.map((e, i) => i === existingExpenseIndex ? videoExpense : e)
+        : [...show.expenses, videoExpense];
+
+      onUpdate({
+        videoPerson: tempVideoPerson || undefined,
+        videoPayment: videoPaymentNum,
+        selectedHostId: tempSelectedHostId || undefined,
+        expenses: updatedExpenses,
+      });
+    } else {
+      // Remove auto-expense if payment is cleared
+      const filteredExpenses = show.expenses.filter(e => e.id !== 'video-expense-auto');
+      
+      onUpdate({
+        videoPerson: tempVideoPerson || undefined,
+        videoPayment: videoPaymentNum,
+        selectedHostId: tempSelectedHostId || undefined,
+        expenses: filteredExpenses,
+      });
+    }
+    
+    setEditingVideoHost(false);
+  }
+
+  function handleEditVideoHost() {
+    setTempVideoPerson(show.videoPerson || '');
+    setTempVideoPayment(show.videoPayment?.toString() || '');
+    setTempSelectedHostId(show.selectedHostId || '');
+    setEditingVideoHost(true);
+  }
+
+  const selectedHost = show.hosts.find(h => h.id === show.selectedHostId);
+  const hasVideoHostInfo = show.videoPerson || show.selectedHostId;
 
   const sections = [
     {
@@ -170,6 +227,96 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
           <img src={show.flyer} alt="Show flyer" className="show-detail__flyer-image" />
         </div>
       )}
+
+      {/* Video & Host Assignment Section */}
+      <div className={`show-detail__video-host ${hasVideoHostInfo && !editingVideoHost ? 'show-detail__video-host--locked' : ''}`}>
+        {!editingVideoHost && hasVideoHostInfo ? (
+          // Locked/compact view
+          <div className="video-host-locked">
+            {show.videoPerson && (
+              <div className="video-host-locked__item">
+                <span className="video-host-locked__label">📹 Video:</span>
+                <span className="video-host-locked__value">{show.videoPerson}</span>
+                {show.videoPayment && (
+                  <span className="video-host-locked__payment">${show.videoPayment.toFixed(2)}</span>
+                )}
+              </div>
+            )}
+            {selectedHost && (
+              <div className="video-host-locked__item">
+                <span className="video-host-locked__label">🎙️ Host:</span>
+                <span className="video-host-locked__value">{selectedHost.name}</span>
+              </div>
+            )}
+            <button 
+              className="btn btn--ghost btn--sm"
+              onClick={handleEditVideoHost}
+            >
+              Edit
+            </button>
+          </div>
+        ) : (
+          // Edit view
+          <div className="video-host-editor">
+            <h3 className="video-host-editor__title">Video & Host Assignment</h3>
+            <div className="video-host-editor__fields">
+              <div className="video-host-editor__field">
+                <label className="section-field__label">📹 Video Person</label>
+                <input
+                  type="text"
+                  className="section-field__input"
+                  placeholder="Enter video person name"
+                  value={tempVideoPerson}
+                  onChange={(e) => setTempVideoPerson(e.target.value)}
+                />
+              </div>
+              <div className="video-host-editor__field video-host-editor__field--narrow">
+                <label className="section-field__label">💰 Video Payment ($)</label>
+                <input
+                  type="number"
+                  className="section-field__input"
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                  value={tempVideoPayment}
+                  onChange={(e) => setTempVideoPayment(e.target.value)}
+                />
+              </div>
+              <div className="video-host-editor__field">
+                <label className="section-field__label">🎙️ Select Host</label>
+                <select
+                  className="section-field__select"
+                  value={tempSelectedHostId}
+                  onChange={(e) => setTempSelectedHostId(e.target.value)}
+                >
+                  <option value="">-- Select a host --</option>
+                  {show.hosts.map((host) => (
+                    <option key={host.id} value={host.id}>
+                      {host.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="video-host-editor__actions">
+              <button 
+                className="btn btn--primary"
+                onClick={handleLockVideoHost}
+              >
+                Lock In
+              </button>
+              {hasVideoHostInfo && (
+                <button 
+                  className="btn btn--ghost"
+                  onClick={() => setEditingVideoHost(false)}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="show-detail__sections-accordion">
         {sections.map((section) => {
