@@ -118,6 +118,139 @@
   }
 }
 
+/* Video & Host Assignment Section */
+.show-detail__video-host {
+  background: #ffffff;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.show-detail__video-host--locked {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #fef3c7 0%, #dbeafe 100%);
+  border-color: #fbbf24;
+}
+
+@media (max-width: 768px) {
+  .show-detail__video-host {
+    padding: 16px;
+  }
+
+  .show-detail__video-host--locked {
+    padding: 10px 16px;
+  }
+}
+
+.video-host-locked {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .video-host-locked {
+    gap: 12px;
+  }
+}
+
+.video-host-locked__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .video-host-locked__item {
+    font-size: 0.875rem;
+  }
+}
+
+.video-host-locked__label {
+  font-weight: 600;
+  color: #666;
+}
+
+.video-host-locked__value {
+  font-weight: 700;
+  color: #000;
+}
+
+.video-host-locked__payment {
+  background: #dcfce7;
+  color: #16a34a;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border: 1px solid #bbf7d0;
+}
+
+.video-host-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.video-host-editor__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #000;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 768px) {
+  .video-host-editor__title {
+    font-size: 1.05rem;
+  }
+}
+
+.video-host-editor__fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .video-host-editor__fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .video-host-editor__fields {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.video-host-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.video-host-editor__field--narrow {
+  grid-column: span 1;
+}
+
+@media (max-width: 1024px) {
+  .video-host-editor__field--narrow {
+    grid-column: span 1;
+  }
+}
+
+.video-host-editor__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .show-detail__notes {
   background: #FAFAFA;
   border-left: 4px solid #DC2626;
