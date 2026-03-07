@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { loadShow, saveShow, loadSettings } from '../../utils/storage';
@@ -187,6 +188,13 @@ export default function ShowDetailScreen() {
           />
         </View>
 
+        {/* Show Flyer */}
+        {show.flyer && (
+          <View style={styles.flyerCard}>
+            <Image source={{ uri: show.flyer }} style={styles.flyerImage} />
+          </View>
+        )}
+
         {/* Sections */}
         {ALL_SECTIONS.map((key) => (
           <View key={key} style={styles.sectionWrapper}>
@@ -345,6 +353,23 @@ const styles = StyleSheet.create({
     padding: 0,
     fontSize: 22,
     lineHeight: 28,
+  },
+  flyerCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  flyerImage: {
+    width: '100%',
+    height: 320,
+    borderRadius: 12,
+    resizeMode: 'contain',
   },
   sectionWrapper: {
     marginBottom: 12,

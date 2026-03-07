@@ -157,6 +157,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
         {show.time && <span>⏰ {show.time}</span>}
       </div>
 
+      {show.flyer && (
+        <div className="show-detail__flyer">
+          <img src={show.flyer} alt="Show flyer" className="show-detail__flyer-image" />
+        </div>
+      )}
+
       {expandedSection === null ? (
         <div className="show-detail__sections-grid">
           {sections.map((section) => (
