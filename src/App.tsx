@@ -249,6 +249,11 @@ export default function App() {
     setSelectedShow(null);
   }
 
+  const upcomingCount = shows.filter((show) => show.status === 'upcoming').length;
+  const inProgressCount = shows.filter((show) => show.status === 'in-progress').length;
+  const completedCount = shows.filter((show) => show.status === 'completed').length;
+  const totalSceneCount = shows.reduce((sum, show) => sum + (show.scenes?.length ?? 0), 0);
+
   return (
     <>
       {!session ? (
@@ -263,6 +268,31 @@ export default function App() {
           <main className="app-main">
             {view === 'list' && (
               <div className="shows-list">
+                <section className="bento-strip" aria-label="Show summary">
+                  <article className="bento-tile bento-tile--hero">
+                    <p className="bento-tile__label">Showrunner</p>
+                    <h1 className="bento-tile__value">{shows.length}</h1>
+                    <p className="bento-tile__meta">Total shows in your workspace</p>
+                  </article>
+                  <article className="bento-tile">
+                    <p className="bento-tile__label">Upcoming</p>
+                    <p className="bento-tile__value">{upcomingCount}</p>
+                  </article>
+                  <article className="bento-tile">
+                    <p className="bento-tile__label">In progress</p>
+                    <p className="bento-tile__value">{inProgressCount}</p>
+                  </article>
+                  <article className="bento-tile">
+                    <p className="bento-tile__label">Completed</p>
+                    <p className="bento-tile__value">{completedCount}</p>
+                  </article>
+                  <article className="bento-tile bento-tile--wide">
+                    <p className="bento-tile__label">Total scenes</p>
+                    <p className="bento-tile__value">{totalSceneCount}</p>
+                    <p className="bento-tile__meta">Across all shows</p>
+                  </article>
+                </section>
+
                 {shows.length === 0 ? (
                   <div className="empty-state">
                     <div className="empty-state__icon">🎬</div>
