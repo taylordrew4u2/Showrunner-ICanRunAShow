@@ -129,75 +129,79 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
 
       <ul className="section-list">
         {performers.map((p, idx) => (
-          <li key={p.id} className="section-list-item">
+          <li key={p.id} className="section-list-item section-list-item--stacked">
             {p.photo && <img src={p.photo} alt="" className="section-list-item__photo" />}
-            <div className="section-list-item__body">
-              {editId === p.id ? (
-                <div className="section-edit-row">
-                  <input
-                    className="section-field__input"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
-                    placeholder="Name"
-                    autoFocus
-                  />
-                  <input
-                    className="section-field__input"
-                    value={editSocialMedia}
-                    onChange={(e) => setEditSocialMedia(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
-                    placeholder="Social media (e.g., @username)"
-                  />
-                  <button className="btn btn--primary btn--sm" onClick={saveEdit}>Save</button>
-                  <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
+            <div className="section-list-item__content">
+              <div className="section-list-item__body">
+                {editId === p.id ? (
+                  <div className="section-edit-row">
+                    <input
+                      className="section-field__input"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                      placeholder="Name"
+                      autoFocus
+                    />
+                    <input
+                      className="section-field__input"
+                      value={editSocialMedia}
+                      onChange={(e) => setEditSocialMedia(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                      placeholder="Social media (e.g., @username)"
+                    />
+                    <button className="btn btn--primary btn--sm" onClick={saveEdit}>Save</button>
+                    <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="section-list-item__order">{idx + 1}</span>
+                    <span className="section-list-item__name">{p.name}</span>
+                    {p.socialMedia && <span className="section-list-item__tag">📱 {p.socialMedia}</span>}
+                    {p.walkOnMusicName && (
+                      <span className="section-list-item__tag">
+                        🎵 {p.walkOnMusicName}{p.walkOnMusicTimestamp ? ` @ ${p.walkOnMusicTimestamp}` : ''}
+                      </span>
+                    )}
+                    {p.credits && <span className="section-list-item__tag">📝 {p.credits}</span>}
+                  </>
+                )}
+              </div>
+              {editId !== p.id && (
+                <div className="section-list-item__actions">
+                  <div className="section-list-item__music-inputs">
+                    <input
+                      className="section-field__input section-field__input--compact"
+                      value={p.walkOnMusicName || ''}
+                      onChange={(e) => onChange(performers.map((pp) => pp.id === p.id ? { ...pp, walkOnMusicName: e.target.value || undefined } : pp))}
+                      placeholder="Song name"
+                    />
+                    <input
+                      className="section-field__input section-field__input--compact"
+                      value={p.walkOnMusicTimestamp || ''}
+                      onChange={(e) => onChange(performers.map((pp) => pp.id === p.id ? { ...pp, walkOnMusicTimestamp: e.target.value || undefined } : pp))}
+                      placeholder="Timestamp (e.g. 1:30)"
+                    />
+                    <input
+                      className="section-field__input section-field__input--compact"
+                      value={p.credits || ''}
+                      onChange={(e) => onChange(performers.map((pp) => pp.id === p.id ? { ...pp, credits: e.target.value || undefined } : pp))}
+                      placeholder="Credits / intro notes"
+                      style={{ minWidth: 140 }}
+                    />
+                  </div>
+                  <div className="section-list-item__buttons">
+                    <button className="btn btn--ghost btn--sm" onClick={() => handlePhoto(p.id)} title="Upload photo">📷</button>
+                    <button className="btn btn--ghost btn--sm" onClick={() => handleMusic(p.id)} title="Upload walk-on music">🎵</button>
+                    <button className="btn btn--ghost btn--sm" onClick={() => handleVideo(p.id)} title="Upload video">🎬</button>
+                    <button className="btn btn--ghost btn--sm" onClick={() => startEdit(p)} title="Edit">✏️</button>
+                    <button className="btn btn--ghost btn--sm" onClick={() => moveUp(idx)} title="Move up" disabled={idx === 0}>↑</button>
+                    <button className="btn btn--ghost btn--sm" onClick={() => moveDown(idx)} title="Move down" disabled={idx >= performers.length - 1}>↓</button>
+                    <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deletePerformer(p.id)} title="Delete">✕</button>
+                  </div>
                 </div>
-              ) : (
-                <>
-                  <span className="section-list-item__order">{idx + 1}</span>
-                  <span className="section-list-item__name">{p.name}</span>
-                  {p.socialMedia && <span className="section-list-item__tag">📱 {p.socialMedia}</span>}
-                  {p.walkOnMusicName && (
-                    <span className="section-list-item__tag">
-                      🎵 {p.walkOnMusicName}{p.walkOnMusicTimestamp ? ` @ ${p.walkOnMusicTimestamp}` : ''}
-                    </span>
-                  )}
-                  {p.credits && <span className="section-list-item__tag">📝 {p.credits}</span>}
-                </>
               )}
             </div>
-            {editId !== p.id && (
-              <div className="section-list-item__actions">
-                <div className="section-list-item__music-inputs">
-                  <input
-                    className="section-field__input section-field__input--compact"
-                    value={p.walkOnMusicName || ''}
-                    onChange={(e) => onChange(performers.map((pp) => pp.id === p.id ? { ...pp, walkOnMusicName: e.target.value || undefined } : pp))}
-                    placeholder="Song name"
-                  />
-                  <input
-                    className="section-field__input section-field__input--compact"
-                    value={p.walkOnMusicTimestamp || ''}
-                    onChange={(e) => onChange(performers.map((pp) => pp.id === p.id ? { ...pp, walkOnMusicTimestamp: e.target.value || undefined } : pp))}
-                    placeholder="Timestamp (e.g. 1:30)"
-                  />
-                </div>
-                <input
-                  className="section-field__input section-field__input--compact"
-                  value={p.credits || ''}
-                  onChange={(e) => onChange(performers.map((pp) => pp.id === p.id ? { ...pp, credits: e.target.value || undefined } : pp))}
-                  placeholder="Credits / intro notes"
-                  style={{ minWidth: 160 }}
-                />
-                <button className="btn btn--ghost btn--sm" onClick={() => handlePhoto(p.id)} title="Upload photo">📷</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => handleMusic(p.id)} title="Upload walk-on music">🎵</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => handleVideo(p.id)} title="Upload video">🎬</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(p)} title="Edit">✏️</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => moveUp(idx)} title="Move up" disabled={idx === 0}>↑</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => moveDown(idx)} title="Move down" disabled={idx >= performers.length - 1}>↓</button>
-                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deletePerformer(p.id)} title="Delete">✕</button>
-              </div>
-            )}
           </li>
         ))}
       </ul>

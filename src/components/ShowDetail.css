@@ -1065,8 +1065,27 @@
 }
 
 .section-list-item__actions {
-  display: inline-flex;
+  display: flex;
   gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.section-list-item__content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.section-list-item--stacked {
+  align-items: flex-start;
+}
+
+.section-list-item__buttons {
+  display: inline-flex;
+  gap: 4px;
   align-items: center;
   flex-wrap: wrap;
 }
