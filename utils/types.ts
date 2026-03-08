@@ -140,6 +140,8 @@ export interface Show {
   deadlines?: SectionDeadlines;
   // Section completions
   completions?: SectionCompletions;
+  // Hidden sections
+  hiddenSections?: SectionKey[];
   // Video and host assignment
   videoPerson?: string; // Name of video person
   videoPayment?: number; // Amount to pay video person
