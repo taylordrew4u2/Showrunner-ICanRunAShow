@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 
 interface SectionHeaderProps {
   title: string;
@@ -15,7 +15,7 @@ export default function SectionHeader({
   count,
 }: SectionHeaderProps) {
   return (
-    <TouchableOpacity style={styles.header} onPress={onToggle} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.header} onPress={onToggle} activeOpacity={0.7}>
       <View style={styles.left}>
         <Text style={styles.title}>{title}</Text>
         {count !== undefined && (
@@ -34,12 +34,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#6B46C1',
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-    borderRadius: 12,
+    backgroundColor: Platform.OS === 'ios' ? '#FFFFFF' : '#6B46C1',
+    paddingHorizontal: Platform.OS === 'ios' ? 16 : 18,
+    paddingVertical: Platform.OS === 'ios' ? 16 : 15,
+    borderRadius: Platform.OS === 'ios' ? 12 : 12,
     marginBottom: 8,
-    minHeight: 52,
+    minHeight: Platform.OS === 'ios' ? 56 : 52,
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
+      borderWidth: 0,
+    } : {}),
   },
   left: {
     flexDirection: 'row',
@@ -47,28 +54,29 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   title: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    color: Platform.OS === 'ios' ? '#000000' : '#fff',
+    fontSize: Platform.OS === 'ios' ? 17 : 15,
+    fontWeight: Platform.OS === 'ios' ? '600' : '700',
+    letterSpacing: Platform.OS === 'ios' ? -0.4 : 0.3,
   },
   badge: {
-    backgroundColor: 'rgba(255,255,255,0.35)',
-    borderRadius: 12,
+    backgroundColor: Platform.OS === 'ios' ? '#007AFF' : 'rgba(255,255,255,0.35)',
+    borderRadius: Platform.OS === 'ios' ? 12 : 12,
     paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingVertical: Platform.OS === 'ios' ? 4 : 4,
     minWidth: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },
   badgeText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: Platform.OS === 'ios' ? 13 : 12,
+    fontWeight: Platform.OS === 'ios' ? '600' : '700',
   },
   arrow: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 14,
+    color: Platform.OS === 'ios' ? '#007AFF' : 'rgba(255,255,255,0.85)',
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
     padding: 6,
+    fontWeight: Platform.OS === 'ios' ? '600' : 'normal',
   },
 });
