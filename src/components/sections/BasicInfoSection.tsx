@@ -77,6 +77,26 @@ export function BasicInfoSection({ show, onChange }: BasicInfoSectionProps) {
           placeholder="Venue name"
         />
       </label>
+      <label className="section-field">
+        <span className="section-field__label">Ticket Link</span>
+        <input
+          className="section-field__input"
+          value={show.ticketLink || ''}
+          onChange={(e) => onChange({ ticketLink: e.target.value })}
+          placeholder="https://..."
+          type="url"
+        />
+        {show.ticketLink && (
+          <a
+            href={show.ticketLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="section-field__link"
+          >
+            🔗 Open ticket page
+          </a>
+        )}
+      </label>
     </div>
   );
 }
