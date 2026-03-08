@@ -9,15 +9,17 @@ interface PerformersSectionProps {
 
 export function PerformersSection({ performers, onChange }: PerformersSectionProps) {
   const [name, setName] = useState('');
+  const [instagram, setInstagram] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editSocialMedia, setEditSocialMedia] = useState('');
 
   function addPerformer() {
     if (!name.trim()) return;
-    const p: Performer = { id: generateId(), name: name.trim() };
+    const p: Performer = { id: generateId(), name: name.trim(), socialMedia: instagram.trim() || undefined };
     onChange([...performers, p]);
     setName('');
+    setInstagram('');
   }
 
   function deletePerformer(id: string) {
@@ -112,6 +114,13 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
           placeholder="Performer name"
+        />
+        <input
+          className="section-field__input"
+          value={instagram}
+          onChange={(e) => setInstagram(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
+          placeholder="@instagram"
         />
         <button className="btn btn--primary btn--sm" onClick={addPerformer}>Add</button>
       </div>
