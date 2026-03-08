@@ -368,14 +368,14 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       </div>
 
       <div className="show-detail__sections-accordion">
-        {sections.map((section) => {
+        {sections.filter((section) => !show.completions?.[section.sectionKey]).map((section) => {
           const isExpanded = expandedSections.has(section.key);
-          const isComplete = section.sectionKey ? show.completions?.[section.sectionKey] || false : false;
+          const isComplete = false;
           
           return (
             <div
               key={section.key}
-              className={`accordion-section ${isComplete ? 'accordion-section--complete' : ''}`}
+              className="accordion-section"
             >
               <div 
                 className="accordion-section__header"
@@ -386,9 +386,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                     <h3 className="accordion-section__title">{section.title}</h3>
                     {typeof section.count === 'number' && (
                       <span className="accordion-section__count">{section.count}</span>
-                    )}
-                    {isComplete && (
-                      <span className="accordion-section__complete-badge">✓ Complete</span>
                     )}
                   </div>
                   <p className="accordion-section__subtitle">{section.subtitle}</p>
@@ -483,6 +480,25 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
           );
         })}
       </div>
+
+      {sections.some((section) => show.completions?.[section.sectionKey]) && (
+        <div className="completed-sections">
+          <p className="completed-sections__label">Completed</p>
+          <div className="completed-sections__bubbles">
+            {sections.filter((section) => show.completions?.[section.sectionKey]).map((section) => (
+              <button
+                key={section.key}
+                className="completed-bubble"
+                onClick={() => handleCompletionToggle(section.sectionKey!)}
+                title={`Mark "${section.title}" incomplete`}
+              >
+                <span className="completed-bubble__icon">✓</span>
+                <span className="completed-bubble__title">{section.title}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="show-detail__scenes">
         <SceneList scenes={show.scenes ?? []} onChange={handleScenesChange} />
