@@ -124,6 +124,7 @@ export interface Show {
   venueName: string;
   status: ShowStatus;
   flyer?: string; // base64 image data
+  ticketLink?: string;
   performers: Performer[];
   artists: Artist[];
   schedule: ScheduleItem[];

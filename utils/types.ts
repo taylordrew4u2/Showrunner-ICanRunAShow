@@ -119,6 +119,7 @@ export interface Show {
   venueName: string;
   status: ShowStatus;
   flyer?: string; // base64 image data
+  ticketLink?: string;
   // Section 2: Performers
   performers: Performer[];
   // Section 3: Artists
