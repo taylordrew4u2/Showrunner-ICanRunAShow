@@ -1,13 +1,13 @@
 .show-card {
-    background: #ffffff;
-    border: 2px solid #000000;
-    border-radius: var(--radius-lg, 16px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
     padding: 18px;
     cursor: pointer;
     position: relative;
-    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+    transition: all var(--transition);
     overflow: hidden;
-    box-shadow: none;
+    box-shadow: var(--shadow-sm);
     min-height: 168px;
     display: grid;
     align-content: start;
@@ -32,17 +32,17 @@
     position: absolute;
     inset: 0 auto 0 0;
     width: 3px;
-    background: #ff3333;
+    background: var(--primary);
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--transition);
 }
 
 .show-card:hover,
 .show-card:focus-within {
     transform: translateY(-2px);
-    border-color: #ff3333;
-    background: #f5f5f5;
-    box-shadow: none;
+    border-color: var(--primary-light);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
 }
 
 .show-card:hover::before,
@@ -69,7 +69,7 @@
 .show-card__title {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #000000;
+    color: var(--text);
     margin: 0;
     letter-spacing: -0.015em;
     padding-right: 52px;
@@ -89,33 +89,33 @@
 }
 
 .show-card__status--upcoming {
-    background: #ffffff;
-    color: #ff3333;
-    border: 2px solid #ff3333;
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--danger);
+    border: none;
 }
 
 .show-card__status--in-progress {
-    background: #000000;
-    color: #ffffff;
-    border: 2px solid #000000;
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--primary);
+    border: none;
 }
 
 .show-card__status--completed {
-    background: #f5f5f5;
-    color: #000000;
-    border: 2px solid #000000;
+    background: rgba(107, 114, 128, 0.08);
+    color: var(--text-secondary);
+    border: none;
 }
 
 .show-card__status--cancelled {
-    background: #ffffff;
-    color: #666666;
-    border: 2px solid #dddddd;
+    background: rgba(107, 114, 128, 0.04);
+    color: var(--text-tertiary);
+    border: none;
 }
 
 .show-card__venue,
 .show-card__date {
     font-size: 0.84rem;
-    color: #666666;
+    color: var(--text-secondary);
     margin: 5px 0;
     font-weight: 500;
     word-break: break-word;
@@ -124,8 +124,8 @@
 
 .show-card__progress {
     margin-top: 14px;
-    background: #f5f5f5;
-    border-radius: 4px;
+    background: var(--surface-secondary);
+    border-radius: var(--radius-sm);
     height: 6px;
     position: relative;
     overflow: visible;
@@ -133,8 +133,8 @@
 
 .show-card__progress-bar {
     height: 100%;
-    background: #ff3333;
-    border-radius: 4px;
+    background: var(--primary);
+    border-radius: var(--radius-sm);
     transition: width 0.4s ease;
 }
 
@@ -143,7 +143,7 @@
     right: 0;
     top: 11px;
     font-size: 0.76rem;
-    color: #666666;
+    color: var(--text-secondary);
     font-weight: 600;
 }
 
@@ -153,20 +153,22 @@
     right: 12px;
     min-width: 40px;
     min-height: 40px;
-    background: #ffffff;
-    border: 2px solid #dddddd;
+    background: var(--surface);
+    border: 1px solid var(--border);
     cursor: pointer;
     font-size: 1rem;
-    transition: all 0.2s ease;
-    border-radius: 6px;
-    color: #666666;
+    transition: all var(--transition);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
     touch-action: manipulation;
+    box-shadow: var(--shadow-xs);
 }
 
 .show-card__delete:hover {
-    background: #ff3333;
-    border-color: #ff3333;
+    background: var(--danger);
+    border-color: var(--danger);
     color: #ffffff;
+    box-shadow: var(--shadow-sm);
 }
 
 .show-card__delete:active {
@@ -209,12 +211,12 @@
 
     .show-card:hover {
         transform: none;
-        box-shadow: var(--shadow-sm, 0 3px 10px rgba(31, 37, 34, 0.05));
+        box-shadow: var(--shadow-sm);
     }
 
     .show-card__delete:hover {
-        background: color-mix(in srgb, var(--surface) 92%, #ffffff);
-        border-color: var(--border, #d8d8cf);
-        color: var(--text-muted, #5f6a66);
+        background: var(--surface);
+        border-color: var(--border);
+        color: var(--text-secondary);
     }
 }
