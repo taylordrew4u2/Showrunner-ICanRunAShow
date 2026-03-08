@@ -41,6 +41,10 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
     setEditId(null);
   }
 
+  function toggleLock(id: string) {
+    onChange(performers.map((p) => p.id === id ? { ...p, lockedIn: !p.lockedIn } : p));
+  }
+
   function moveUp(idx: number) {
     if (idx === 0) return;
     const arr = [...performers];
@@ -129,7 +133,7 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
 
       <ul className="section-list">
         {performers.map((p, idx) => (
-          <li key={p.id} className="section-list-item section-list-item--stacked">
+          <li key={p.id} className={`section-list-item section-list-item--stacked ${p.lockedIn ? 'section-list-item--locked' : ''}`}>
             {p.photo && <img src={p.photo} alt="" className="section-list-item__photo" />}
             <div className="section-list-item__content">
               <div className="section-list-item__body">
@@ -156,6 +160,7 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
                 ) : (
                   <>
                     <span className="section-list-item__order">{idx + 1}</span>
+                    {p.lockedIn && <span className="section-list-item__lock-badge">🔒</span>}
                     <span className="section-list-item__name">{p.name}</span>
                     {p.socialMedia && <span className="section-list-item__tag">📱 {p.socialMedia}</span>}
                     {p.walkOnMusicName && (
@@ -167,7 +172,7 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
                   </>
                 )}
               </div>
-              {editId !== p.id && (
+              {editId !== p.id && !p.lockedIn && (
                 <div className="section-list-item__actions">
                   <div className="section-list-item__music-inputs">
                     <input
@@ -191,6 +196,7 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
                     />
                   </div>
                   <div className="section-list-item__buttons">
+                    <button className="btn btn--primary btn--sm" onClick={() => toggleLock(p.id)} title="Lock in performer">Lock In</button>
                     <button className="btn btn--ghost btn--sm" onClick={() => handlePhoto(p.id)} title="Upload photo">📷</button>
                     <button className="btn btn--ghost btn--sm" onClick={() => handleMusic(p.id)} title="Upload walk-on music">🎵</button>
                     <button className="btn btn--ghost btn--sm" onClick={() => handleVideo(p.id)} title="Upload video">🎬</button>
@@ -199,6 +205,11 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
                     <button className="btn btn--ghost btn--sm" onClick={() => moveDown(idx)} title="Move down" disabled={idx >= performers.length - 1}>↓</button>
                     <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deletePerformer(p.id)} title="Delete">✕</button>
                   </div>
+                </div>
+              )}
+              {editId !== p.id && p.lockedIn && (
+                <div className="section-list-item__buttons">
+                  <button className="btn btn--ghost btn--sm" onClick={() => toggleLock(p.id)} title="Unlock performer">Unlock</button>
                 </div>
               )}
             </div>
