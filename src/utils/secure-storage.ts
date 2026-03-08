@@ -109,20 +109,20 @@ export async function saveEncryptedShows(
 
   await ensureSchema();
   const db = getClient();
-  // Delete old shows for this user
-  await db.execute(`DELETE FROM user_shows WHERE user_id = ?`, [userId]);
 
-  // Insert encrypted shows
+  const statements: Array<{ sql: string; args: string[] }> = [
+    { sql: `DELETE FROM user_shows WHERE user_id = ?`, args: [userId] },
+  ];
+
   for (const show of shows) {
     const encrypted = encryptData(show, password);
-    await db.execute(
-      `
-        INSERT INTO user_shows (id, user_id, encrypted_data)
-        VALUES (?, ?, ?)
-      `,
-      [show.id, userId, encrypted],
-    );
+    statements.push({
+      sql: `INSERT INTO user_shows (id, user_id, encrypted_data) VALUES (?, ?, ?)`,
+      args: [show.id, userId, encrypted],
+    });
   }
+
+  await db.batch(statements, "write");
 }
 
 /**
