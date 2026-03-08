@@ -178,7 +178,8 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     setEditingVideoHost(true);
   }
 
-  const selectedHost = show.hosts.find(h => h.id === show.selectedHostId);
+  const hostNames: Record<string, string> = { justin: 'Justin', taylor: 'Taylor' };
+  const selectedHostName = show.selectedHostId ? hostNames[show.selectedHostId] || show.selectedHostId : undefined;
   const hasVideoHostInfo = show.videoPerson || show.selectedHostId;
 
   const sections = [
@@ -303,10 +304,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                 )}
               </div>
             )}
-            {selectedHost && (
+            {selectedHostName && (
               <div className="video-host-locked__item">
                 <span className="video-host-locked__label">🎙️ Host:</span>
-                <span className="video-host-locked__value">{selectedHost.name}</span>
+                <span className="video-host-locked__value">{selectedHostName}</span>
               </div>
             )}
             <button 
@@ -351,11 +352,8 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                   onChange={(e) => setTempSelectedHostId(e.target.value)}
                 >
                   <option value="">-- Select a host --</option>
-                  {show.hosts.map((host) => (
-                    <option key={host.id} value={host.id}>
-                      {host.name}
-                    </option>
-                  ))}
+                  <option value="justin">Justin</option>
+                  <option value="taylor">Taylor</option>
                 </select>
               </div>
             </div>
