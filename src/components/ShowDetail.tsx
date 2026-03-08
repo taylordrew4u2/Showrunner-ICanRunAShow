@@ -10,7 +10,6 @@ import { ScheduleSection } from './sections/ScheduleSection';
 import { HostsSection } from './sections/HostsSection';
 import { DJMusicSection } from './sections/DJMusicSection';
 import { StaffSection } from './sections/StaffSection';
-import { ExpensesSection } from './sections/ExpensesSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
 import { exportShowToPDF } from '../utils/pdfExport';
 import './ShowDetail.css';
@@ -237,14 +236,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       subtitle: 'Roles and assignments for production staff.',
       count: show.staff.length,
       content: <StaffSection staff={show.staff} onChange={(staff) => handleUpdate({ staff })} />,
-    },
-    {
-      key: 'expenses',
-      sectionKey: 'expenses' as SectionKey,
-      title: '💰 Expenses',
-      subtitle: 'Track costs and see totals automatically.',
-      count: show.expenses.length,
-      content: <ExpensesSection expenses={show.expenses} settings={settings} onChange={(expenses) => handleUpdate({ expenses })} />,
     },
   ];
 
