@@ -105,6 +105,18 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     onUpdate({ ...show, completions: updatedCompletions });
   }
 
+  function handleHideSection(sectionKey: SectionKey) {
+    const hidden = show.hiddenSections || [];
+    if (!hidden.includes(sectionKey)) {
+      onUpdate({ ...show, hiddenSections: [...hidden, sectionKey] });
+    }
+  }
+
+  function handleRestoreSection(sectionKey: SectionKey) {
+    const hidden = (show.hiddenSections || []).filter(k => k !== sectionKey);
+    onUpdate({ ...show, hiddenSections: hidden });
+  }
+
   function toggleSection(sectionKey: string) {
     const newExpanded = new Set(expandedSections);
     if (newExpanded.has(sectionKey)) {
@@ -368,7 +380,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       </div>
 
       <div className="show-detail__sections-accordion">
-        {sections.filter((section) => !show.completions?.[section.sectionKey]).map((section) => {
+        {sections.filter((section) => !show.completions?.[section.sectionKey] && !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
           const isExpanded = expandedSections.has(section.key);
           const isComplete = false;
           
@@ -391,6 +403,18 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                   <p className="accordion-section__subtitle">{section.subtitle}</p>
                 </div>
                 <div className="accordion-section__header-right">
+                  {section.sectionKey && section.sectionKey !== 'basic' && (
+                    <button
+                      className="accordion-section__remove-btn"
+                      title={`Remove ${section.title}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleHideSection(section.sectionKey!);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
                   {section.sectionKey && (
                     <label 
                       className="accordion-section__completion-checkbox"
@@ -494,6 +518,25 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
               >
                 <span className="completed-bubble__icon">✓</span>
                 <span className="completed-bubble__title">{section.title}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sections.some((section) => (show.hiddenSections || []).includes(section.sectionKey)) && (
+        <div className="hidden-sections">
+          <p className="hidden-sections__label">Hidden</p>
+          <div className="hidden-sections__bubbles">
+            {sections.filter((section) => (show.hiddenSections || []).includes(section.sectionKey)).map((section) => (
+              <button
+                key={section.key}
+                className="hidden-bubble"
+                onClick={() => handleRestoreSection(section.sectionKey!)}
+                title={`Restore "${section.title}"`}
+              >
+                <span className="hidden-bubble__icon">+</span>
+                <span className="hidden-bubble__title">{section.title}</span>
               </button>
             ))}
           </div>

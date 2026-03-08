@@ -1305,3 +1305,78 @@
 .completed-bubble__title {
   white-space: nowrap;
 }
+
+/* ─── Remove Section Button ───────────────────────────────────────────────── */
+
+.accordion-section__remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.accordion-section__remove-btn:hover {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+/* ─── Hidden Sections Bubbles ─────────────────────────────────────────────── */
+
+.hidden-sections {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.hidden-sections__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+
+.hidden-sections__bubbles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hidden-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.hidden-bubble:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.hidden-bubble__icon {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.hidden-bubble__title {
+  white-space: nowrap;
+}
