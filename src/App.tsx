@@ -269,24 +269,24 @@ export default function App() {
             {view === 'list' && (
               <div className="shows-list">
                 <section className="bento-strip" aria-label="Show summary">
-                  <article className="bento-tile bento-tile--hero">
+                  <article className="bento-tile bento-tile--hero bento-tile--featured">
                     <p className="bento-tile__label">Showrunner</p>
                     <h1 className="bento-tile__value">{shows.length}</h1>
                     <p className="bento-tile__meta">Total shows in your workspace</p>
                   </article>
-                  <article className="bento-tile">
+                  <article className="bento-tile bento-tile--upcoming">
                     <p className="bento-tile__label">Upcoming</p>
                     <p className="bento-tile__value">{upcomingCount}</p>
                   </article>
-                  <article className="bento-tile">
+                  <article className="bento-tile bento-tile--active">
                     <p className="bento-tile__label">In progress</p>
                     <p className="bento-tile__value">{inProgressCount}</p>
                   </article>
-                  <article className="bento-tile">
+                  <article className="bento-tile bento-tile--complete">
                     <p className="bento-tile__label">Completed</p>
                     <p className="bento-tile__value">{completedCount}</p>
                   </article>
-                  <article className="bento-tile bento-tile--wide">
+                  <article className="bento-tile bento-tile--wide bento-tile--scenes">
                     <p className="bento-tile__label">Total scenes</p>
                     <p className="bento-tile__value">{totalSceneCount}</p>
                     <p className="bento-tile__meta">Across all shows</p>
