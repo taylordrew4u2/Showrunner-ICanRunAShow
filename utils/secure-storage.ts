@@ -1,4 +1,5 @@
 import type { Show, AppSettings } from "../utils/types";
+import { DEFAULT_SETTINGS } from "../utils/types";
 import {
   encryptData,
   decryptData,
@@ -109,22 +110,14 @@ export async function loadEncryptedSettings(
     );
 
     if (result.rows.length === 0) {
-      return {
-        brandName: "Show Producer",
-        producerNames: "",
-        rules: "",
-      };
+      return { ...DEFAULT_SETTINGS };
     }
 
     const encrypted = result.rows[0][0] as string;
     return decryptData<AppSettings>(encrypted, password);
   } catch (error) {
     console.error("Failed to load encrypted settings:", error);
-    return {
-      brandName: "Show Producer",
-      producerNames: "",
-      rules: "",
-    };
+    return { ...DEFAULT_SETTINGS };
   }
 }
 

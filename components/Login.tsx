@@ -7,7 +7,7 @@ interface LoginProps {
 }
 
 export function Login({ onLogin, loading = false }: LoginProps) {
-  const [password, setPassword] = useState('omg123');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   function handleSubmit() {
