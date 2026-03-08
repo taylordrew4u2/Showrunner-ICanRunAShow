@@ -116,8 +116,8 @@ export default function HomeScreen() {
         <View style={styles.headerTop}>
           <View style={styles.headerText}>
             <Text style={styles.brandName}>{settings.brandName}</Text>
-            {settings.producerNames ? (
-              <Text style={styles.producers}>Producers: {settings.producerNames}</Text>
+            {settings.producers.length > 0 ? (
+              <Text style={styles.producers}>Producers: {settings.producers.map((p) => `${p.name} (${p.role})`).join(', ')}</Text>
             ) : null}
             {settings.rules ? (
               <Text style={styles.rules} numberOfLines={3}>

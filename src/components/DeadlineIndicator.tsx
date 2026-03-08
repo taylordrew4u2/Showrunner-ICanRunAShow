@@ -49,7 +49,6 @@ export function DeadlineIndicator({ deadline, compact = false, isComplete = fals
     return (
       <span className={`deadline-indicator deadline-indicator--compact deadline-indicator--${status}`}>
         <span className="deadline-indicator__icon">{icon}</span>
-        {!compact && <span className="deadline-indicator__label">{label}</span>}
       </span>
     );
   }
