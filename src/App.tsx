@@ -40,7 +40,6 @@ export default function App() {
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   // Restore session from sessionStorage on mount
   useEffect(() => {
@@ -95,21 +94,6 @@ export default function App() {
 
     return () => clearTimeout(timeout);
   }, [shows, session]);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.bottom-nav')) {
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [menuOpen]);
 
   async function handleSignIn(username: string, password: string) {
     setAuthError('');
@@ -249,6 +233,22 @@ export default function App() {
     setSelectedShow(null);
   }
 
+  function handleOpenExpenses() {
+    setView('expenses');
+    setSelectedShow(null);
+  }
+
+  function handleOpenSettings() {
+    setView('settings');
+    setSelectedShow(null);
+  }
+
+  function handleOpenNewShow() {
+    setShowForm(true);
+    setView('list');
+    setSelectedShow(null);
+  }
+
   const upcomingCount = shows.filter((show) => show.status === 'upcoming').length;
   const inProgressCount = shows.filter((show) => show.status === 'in-progress').length;
   const completedCount = shows.filter((show) => show.status === 'completed').length;
@@ -343,70 +343,48 @@ export default function App() {
           </main>
 
           <nav className="bottom-nav" aria-label="Primary navigation">
-            <button
-              className="bottom-nav__menu-btn"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Menu"
-            >
-              <span className="bottom-nav__icon">☰</span>
-              <span className="bottom-nav__label">Menu</span>
-            </button>
-            {menuOpen && (
-              <div className="bottom-nav__dropdown">
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    handleBack();
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span className="bottom-nav__icon">🎬</span>
-                  <span>Shows</span>
-                </button>
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    setShowForm(true);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span className="bottom-nav__icon">➕</span>
-                  <span>New Show</span>
-                </button>
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    setView('expenses');
-                    setSelectedShow(null);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span className="bottom-nav__icon">💰</span>
-                  <span>Expenses</span>
-                </button>
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    setView('settings');
-                    setSelectedShow(null);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span className="bottom-nav__icon">⚙️</span>
-                  <span>Settings</span>
-                </button>
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    handleLogout();
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span className="bottom-nav__icon">🔓</span>
-                  <span>Logout</span>
-                </button>
-              </div>
-            )}
+            <div className="bottom-nav__rail" role="toolbar" aria-label="Quick actions">
+              <button
+                className={`bottom-nav__item ${view === 'list' && !showForm ? 'bottom-nav__item--active' : ''}`}
+                onClick={handleBack}
+                aria-label="Shows"
+              >
+                <span className="bottom-nav__icon">🎬</span>
+                <span className="bottom-nav__label">Shows</span>
+              </button>
+              <button
+                className={`bottom-nav__item bottom-nav__item--primary ${showForm ? 'bottom-nav__item--active' : ''}`}
+                onClick={handleOpenNewShow}
+                aria-label="New show"
+              >
+                <span className="bottom-nav__icon">＋</span>
+                <span className="bottom-nav__label">New</span>
+              </button>
+              <button
+                className={`bottom-nav__item ${view === 'expenses' ? 'bottom-nav__item--active' : ''}`}
+                onClick={handleOpenExpenses}
+                aria-label="Expenses"
+              >
+                <span className="bottom-nav__icon">💰</span>
+                <span className="bottom-nav__label">Expenses</span>
+              </button>
+              <button
+                className={`bottom-nav__item ${view === 'settings' ? 'bottom-nav__item--active' : ''}`}
+                onClick={handleOpenSettings}
+                aria-label="Settings"
+              >
+                <span className="bottom-nav__icon">⚙️</span>
+                <span className="bottom-nav__label">Settings</span>
+              </button>
+              <button
+                className="bottom-nav__item"
+                onClick={handleLogout}
+                aria-label="Logout"
+              >
+                <span className="bottom-nav__icon">🔓</span>
+                <span className="bottom-nav__label">Logout</span>
+              </button>
+            </div>
           </nav>
 
           {showForm && (
