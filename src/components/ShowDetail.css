@@ -1102,6 +1102,15 @@
   padding: 4px 8px;
 }
 
+.section-list-item--locked {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.section-list-item__lock-badge {
+  font-size: 0.8rem;
+}
+
 .section-list-item__delete {
   color: #DC2626;
   cursor: pointer;
