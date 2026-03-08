@@ -17,6 +17,7 @@ export interface Performer {
   walkOnMusic?: string; // file URI
   walkOnMusicName?: string;
   walkOnMusicTimestamp?: string;
+  credits?: string;
   photo?: string; // file URI
   video?: string; // file URI
 }

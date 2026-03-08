@@ -162,6 +162,7 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
                       🎵 {p.walkOnMusicName}{p.walkOnMusicTimestamp ? ` @ ${p.walkOnMusicTimestamp}` : ''}
                     </span>
                   )}
+                  {p.credits && <span className="section-list-item__tag">📝 {p.credits}</span>}
                 </>
               )}
             </div>
@@ -181,6 +182,13 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
                     placeholder="Timestamp (e.g. 1:30)"
                   />
                 </div>
+                <input
+                  className="section-field__input section-field__input--compact"
+                  value={p.credits || ''}
+                  onChange={(e) => onChange(performers.map((pp) => pp.id === p.id ? { ...pp, credits: e.target.value || undefined } : pp))}
+                  placeholder="Credits / intro notes"
+                  style={{ minWidth: 160 }}
+                />
                 <button className="btn btn--ghost btn--sm" onClick={() => handlePhoto(p.id)} title="Upload photo">📷</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => handleMusic(p.id)} title="Upload walk-on music">🎵</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => handleVideo(p.id)} title="Upload video">🎬</button>
