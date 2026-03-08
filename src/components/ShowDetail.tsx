@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Show, Scene, AppSettings, SectionKey, Expense } from '../types';
+import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
 import { DeadlineIndicator } from './DeadlineIndicator';
 import { BasicInfoSection } from './sections/BasicInfoSection';
@@ -37,7 +38,54 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   }
 
   function handleUpdate(updates: Partial<Show>) {
-    onUpdate({ ...show, ...updates });
+    const merged = { ...show, ...updates };
+
+    // Auto-add walk-on music to DJ list when performers/artists get new songs
+    if (updates.performers || updates.artists) {
+      const previousPerformers = show.performers;
+      const previousArtists = show.artists;
+      const newPerformers = merged.performers;
+      const newArtists = merged.artists;
+      const newDJSongs = [...merged.djSongs];
+
+      for (const p of newPerformers) {
+        const prev = previousPerformers.find((pp) => pp.id === p.id);
+        if (p.walkOnMusicName && p.walkOnMusicName !== prev?.walkOnMusicName) {
+          const alreadyExists = newDJSongs.some(
+            (s) => s.notes === `Walk-on: ${p.name}`,
+          );
+          if (!alreadyExists) {
+            newDJSongs.push({
+              id: generateId(),
+              title: p.walkOnMusicName.replace(/\.[^.]+$/, ''),
+              artist: p.name,
+              notes: `Walk-on: ${p.name}`,
+            });
+          }
+        }
+      }
+
+      for (const a of newArtists) {
+        const prev = previousArtists.find((pa) => pa.id === a.id);
+        if (a.walkOnMusicName && a.walkOnMusicName !== prev?.walkOnMusicName) {
+          const alreadyExists = newDJSongs.some(
+            (s) => s.notes === `Walk-on: ${a.name}`,
+          );
+          if (!alreadyExists) {
+            newDJSongs.push({
+              id: generateId(),
+              title: a.walkOnMusicName.replace(/\.[^.]+$/, ''),
+              artist: a.name,
+              notes: `Walk-on: ${a.name}`,
+            });
+          }
+        }
+      }
+
+      merged.djSongs = newDJSongs;
+    }
+
+    onUpdate(merged);
   }
 
   function handleDeadlineChange(sectionKey: SectionKey, deadline: string) {
