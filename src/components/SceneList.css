@@ -1,7 +1,7 @@
 .scene-list__heading {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #000000;
+  color: var(--text, #1a1a2e);
   margin: 0 0 16px;
   letter-spacing: -0.01em;
 }
@@ -38,25 +38,25 @@
 
 .scene-list__input {
   flex: 1;
-  background: #fafafa;
-  border: 2px solid #e5e5e5;
-  border-radius: 10px;
-  padding: 12px 16px;
-  color: #000000;
+  background: #ffffff;
+  border: 1px solid var(--border, #e2e4ed);
+  border-radius: var(--radius-sm, 8px);
+  padding: 10px 14px;
+  color: var(--text, #1a1a2e);
   font-size: 0.95rem;
   font-family: inherit;
   outline: none;
-  transition: all 0.2s;
+  transition: all var(--transition, 0.2s);
 }
 
 .scene-list__input:focus {
-  border-color: #dc2626;
+  border-color: var(--accent, #6366f1);
   background: #ffffff;
-  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
 .scene-list__empty {
-  color: #999999;
+  color: var(--text-muted, #6b7194);
   font-size: 0.95rem;
   text-align: center;
   padding: 24px 0;
@@ -76,24 +76,24 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #fafafa;
-  border: 2px solid #f5f5f5;
-  border-radius: 10px;
+  background: var(--surface-strong, #f1f3f9);
+  border: 1px solid var(--border, #e2e4ed);
+  border-radius: var(--radius-sm, 8px);
   padding: 12px 14px;
-  transition: all 0.2s;
+  transition: all var(--transition, 0.2s);
   max-width: 100%;
   box-sizing: border-box;
 }
 
 .scene-item:hover {
-  border-color: #e5e5e5;
+  border-color: var(--accent, #6366f1);
   background: #ffffff;
 }
 
 .scene-item__order {
   width: 28px;
   height: 28px;
-  background: #dc2626;
+  background: var(--accent, #6366f1);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -106,7 +106,7 @@
 
 .scene-item__title {
   flex: 1;
-  color: #000000;
+  color: var(--text, #1a1a2e);
   font-size: 0.95rem;
   font-weight: 500;
   overflow: hidden;
@@ -117,23 +117,23 @@
 
 .scene-item__status {
   background: transparent;
-  border: 2px solid #e5e5e5;
-  border-radius: 8px;
+  border: 1.5px solid var(--border, #e2e4ed);
+  border-radius: 20px;
   padding: 4px 10px;
   font-size: 0.8rem;
   font-family: inherit;
   cursor: pointer;
   outline: none;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: all var(--transition, 0.2s);
 }
 
 .scene-item__status:hover {
-  border-color: #dc2626;
+  border-color: var(--accent, #6366f1);
 }
 
 .scene-item__status--planned {
-  color: #999999;
+  color: var(--text-muted, #6b7194);
 }
 
 .scene-item__status--rehearsed {
@@ -151,16 +151,16 @@
 .scene-item__delete {
   background: none;
   border: none;
-  color: #999999;
+  color: var(--text-muted, #6b7194);
   cursor: pointer;
   font-size: 0.9rem;
   padding: 6px;
   border-radius: 6px;
   flex-shrink: 0;
-  transition: all 0.2s;
+  transition: all var(--transition, 0.2s);
 }
 
 .scene-item__delete:hover {
-  color: #dc2626;
-  background: #fee2e2;
+  color: var(--primary, #e53e3e);
+  background: #fff5f5;
 }

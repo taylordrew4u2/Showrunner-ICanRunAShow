@@ -3,10 +3,10 @@
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
-    border-radius: 8px;
+    border-radius: 20px;
     font-size: 0.8rem;
     font-weight: 700;
-    border: 2px solid;
+    border: 1.5px solid;
     white-space: nowrap;
 }
 
@@ -26,16 +26,16 @@
 
 /* Status colors */
 .deadline-indicator--completed {
-    background: #F5F5F5;
-    border-color: #666666;
-    color: #000000;
+    background: var(--surface-strong, #f1f3f9);
+    border-color: var(--border, #e2e4ed);
+    color: var(--text, #1a1a2e);
     font-weight: 800;
 }
 
 .deadline-indicator--ok {
     background: #FFFFFF;
-    border-color: #E5E5E5;
-    color: #000000;
+    border-color: var(--border, #e2e4ed);
+    color: var(--text, #1a1a2e);
 }
 
 .deadline-indicator--soon {
@@ -46,14 +46,14 @@
 
 .deadline-indicator--urgent {
     background: #FEE2E2;
-    border-color: #DC2626;
+    border-color: var(--primary, #e53e3e);
     color: #7F1D1D;
     animation: pulse 2s ease-in-out infinite;
 }
 
 .deadline-indicator--passed {
-    background: #DC2626;
-    border-color: #B91C1C;
+    background: var(--primary, #e53e3e);
+    border-color: #c53030;
     color: #FFFFFF;
     animation: pulse 2s ease-in-out infinite;
 }
