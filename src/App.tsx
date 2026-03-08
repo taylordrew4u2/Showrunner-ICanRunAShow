@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Show, AppSettings } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
@@ -34,6 +34,7 @@ export default function App() {
   const [authError, setAuthError] = useState('');
 
   const [shows, setShows] = useState<Show[]>([]);
+  const dataLoaded = useRef(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
@@ -70,6 +71,7 @@ export default function App() {
         setShows(loadedShows);
         setSettings(loadedSettings);
         setOfflineMode(isOfflineMode());
+        dataLoaded.current = true;
       } catch (error) {
         console.error('Failed to load shows:', error);
         setShows([]);
@@ -82,7 +84,7 @@ export default function App() {
 
   // Save shows when changed
   useEffect(() => {
-    if (!session || shows.length === 0) return;
+    if (!session || !dataLoaded.current) return;
     const currentSession = session;
 
     const timeout = setTimeout(async () => {
@@ -161,6 +163,7 @@ export default function App() {
   function handleLogout() {
     setSession(null);
     localStorage.removeItem(SESSION_STORAGE_KEY);
+    dataLoaded.current = false;
     setShows([]);
     setSettings(DEFAULT_SETTINGS);
     setView('list');
