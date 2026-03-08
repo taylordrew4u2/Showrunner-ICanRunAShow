@@ -6,6 +6,7 @@ export interface Performer {
   socialMedia?: string;
   walkOnMusic?: string; // file URI
   walkOnMusicName?: string;
+  walkOnMusicTimestamp?: string;
   photo?: string; // file URI
   video?: string; // file URI
 }

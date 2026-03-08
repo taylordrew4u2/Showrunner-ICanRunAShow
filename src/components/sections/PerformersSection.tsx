@@ -157,12 +157,30 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
                   <span className="section-list-item__order">{idx + 1}</span>
                   <span className="section-list-item__name">{p.name}</span>
                   {p.socialMedia && <span className="section-list-item__tag">📱 {p.socialMedia}</span>}
-                  {p.walkOnMusicName && <span className="section-list-item__tag">🎵 {p.walkOnMusicName}</span>}
+                  {p.walkOnMusicName && (
+                    <span className="section-list-item__tag">
+                      🎵 {p.walkOnMusicName}{p.walkOnMusicTimestamp ? ` @ ${p.walkOnMusicTimestamp}` : ''}
+                    </span>
+                  )}
                 </>
               )}
             </div>
             {editId !== p.id && (
               <div className="section-list-item__actions">
+                <div className="section-list-item__music-inputs">
+                  <input
+                    className="section-field__input section-field__input--compact"
+                    value={p.walkOnMusicName || ''}
+                    onChange={(e) => onChange(performers.map((pp) => pp.id === p.id ? { ...pp, walkOnMusicName: e.target.value || undefined } : pp))}
+                    placeholder="Song name"
+                  />
+                  <input
+                    className="section-field__input section-field__input--compact"
+                    value={p.walkOnMusicTimestamp || ''}
+                    onChange={(e) => onChange(performers.map((pp) => pp.id === p.id ? { ...pp, walkOnMusicTimestamp: e.target.value || undefined } : pp))}
+                    placeholder="Timestamp (e.g. 1:30)"
+                  />
+                </div>
                 <button className="btn btn--ghost btn--sm" onClick={() => handlePhoto(p.id)} title="Upload photo">📷</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => handleMusic(p.id)} title="Upload walk-on music">🎵</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => handleVideo(p.id)} title="Upload video">🎬</button>
