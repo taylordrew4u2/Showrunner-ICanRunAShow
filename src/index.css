@@ -19,10 +19,8 @@ html {
 
 body {
   margin: 0;
-  background: #f4f3ef;
-  color: #1f2522;
-  min-height: 100dvh;
-  width: 100%;
+  background: #ffffff;
+  color: #000000;
   max-width: 100%;
   overflow-x: hidden;
 }
