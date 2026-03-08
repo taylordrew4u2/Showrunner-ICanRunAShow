@@ -9,7 +9,6 @@ import {
   saveEncryptedSettings,
   createAccount,
   authenticateUser,
-  isOfflineMode,
 } from './utils/secure-storage';
 import { Login } from './components/Login';
 import { Settings } from './components/Settings';
@@ -37,22 +36,21 @@ export default function App() {
   const dataLoaded = useRef(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
-  const [offlineMode, setOfflineMode] = useState(false);
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Restore session from localStorage on mount
+  // Restore session from sessionStorage on mount
   useEffect(() => {
-    const savedSession = localStorage.getItem(SESSION_STORAGE_KEY);
+    const savedSession = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession) as Session;
         setSession(parsed);
       } catch (error) {
         console.error('Failed to restore session:', error);
-        localStorage.removeItem(SESSION_STORAGE_KEY);
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
       }
     }
   }, []);
@@ -70,7 +68,6 @@ export default function App() {
         ]);
         setShows(loadedShows);
         setSettings(loadedSettings);
-        setOfflineMode(isOfflineMode());
         dataLoaded.current = true;
       } catch (error) {
         console.error('Failed to load shows:', error);
@@ -127,8 +124,7 @@ export default function App() {
 
       const newSession = { username, password };
       setSession(newSession);
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
-      setOfflineMode(isOfflineMode());
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
     } catch (error) {
       console.error('Sign in failed:', error);
       setAuthError('Failed to sign in. Please try again.');
@@ -145,8 +141,7 @@ export default function App() {
       await createAccount(username, password);
       const newSession = { username, password };
       setSession(newSession);
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
-      setOfflineMode(isOfflineMode());
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
     } catch (error) {
       console.error('Sign up failed:', error);
       const message = error instanceof Error ? error.message : '';
@@ -162,7 +157,7 @@ export default function App() {
 
   function handleLogout() {
     setSession(null);
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
     dataLoaded.current = false;
     setShows([]);
     setSettings(DEFAULT_SETTINGS);
@@ -170,7 +165,6 @@ export default function App() {
     setSelectedShow(null);
     setShowForm(false);
     setAuthError('');
-    setOfflineMode(false);
   }
 
   async function handleSaveSettings(updatedSettings: AppSettings) {
@@ -266,11 +260,6 @@ export default function App() {
       ) : (
         <div className="app">
           <main className="app-main">
-            {offlineMode && (
-              <div className="offline-banner">
-                📴 Offline mode - data is saved locally on this device.
-              </div>
-            )}
             {view === 'list' && (
               <div className="shows-list">
                 {shows.length === 0 ? (

@@ -24,7 +24,7 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
     setImprovementNotes(recap?.improvementNotes || '');
   }, [recap]);
 
-  function handleSave() {
+  useEffect(() => {
     const updated: ShowRecap = {
       attendance: Number(attendance) || undefined,
       merchSales: Number(merchSales) || undefined,
@@ -33,7 +33,7 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
       profitLoss,
     };
     onChange(updated);
-  }
+  }, [attendance, merchSales, performerNotes, improvementNotes, profitLoss]);
 
   return (
     <div className="section-body">
@@ -107,10 +107,6 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
             rows={4}
           />
         </label>
-
-        <button className="btn btn--primary" onClick={handleSave}>
-          Save Recap
-        </button>
       </div>
     </div>
   );
