@@ -15,10 +15,11 @@ import { Settings } from './components/Settings';
 import { ShowCard } from './components/ShowCard';
 import { ShowForm } from './components/ShowForm';
 import { ShowDetail } from './components/ShowDetail';
+import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
 import './App.css';
 
-type View = 'list' | 'detail' | 'settings';
+type View = 'list' | 'detail' | 'settings' | 'expenses';
 
 type Session = {
   username: string;
@@ -292,6 +293,15 @@ export default function App() {
               />
             )}
 
+            {view === 'expenses' && (
+              <Expenses
+                shows={shows}
+                settings={settings}
+                onBack={handleBack}
+                onUpdateShow={handleUpdateShow}
+              />
+            )}
+
             {view === 'settings' && (
               <Settings
                 settings={settings}
@@ -332,6 +342,17 @@ export default function App() {
                 >
                   <span className="bottom-nav__icon">➕</span>
                   <span>New Show</span>
+                </button>
+                <button
+                  className="bottom-nav__dropdown-item"
+                  onClick={() => {
+                    setView('expenses');
+                    setSelectedShow(null);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span className="bottom-nav__icon">💰</span>
+                  <span>Expenses</span>
                 </button>
                 <button
                   className="bottom-nav__dropdown-item"
