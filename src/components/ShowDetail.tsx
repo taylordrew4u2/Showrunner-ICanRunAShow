@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Show, Scene, AppSettings, SectionKey, Expense } from '../types';
 import { SceneList } from './SceneList';
 import { DeadlineIndicator } from './DeadlineIndicator';
@@ -12,7 +12,6 @@ import { StaffSection } from './sections/StaffSection';
 import { ExpensesSection } from './sections/ExpensesSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
 import { exportShowToPDF } from '../utils/pdfExport';
-import { generateId } from '../utils/id';
 import './ShowDetail.css';
 
 interface ShowDetailProps {
@@ -90,6 +89,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
         : [...show.expenses, videoExpense];
 
       onUpdate({
+        ...show,
         videoPerson: tempVideoPerson || undefined,
         videoPayment: videoPaymentNum,
         selectedHostId: tempSelectedHostId || undefined,
@@ -100,6 +100,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       const filteredExpenses = show.expenses.filter(e => e.id !== 'video-expense-auto');
       
       onUpdate({
+        ...show,
         videoPerson: tempVideoPerson || undefined,
         videoPayment: videoPaymentNum,
         selectedHostId: tempSelectedHostId || undefined,
