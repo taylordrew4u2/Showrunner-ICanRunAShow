@@ -31,6 +31,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   const [tempVideoPerson, setTempVideoPerson] = useState(show.videoPerson || '');
   const [tempVideoPayment, setTempVideoPayment] = useState(show.videoPayment?.toString() || '');
   const [tempSelectedHostId, setTempSelectedHostId] = useState(show.selectedHostId || '');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   
   // Check if the show date has passed
   const isPastShow = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
@@ -40,6 +41,9 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   }
 
   function handleUpdate(updates: Partial<Show>) {
+    // Show saving indicator
+    setSaveStatus('saving');
+    
     // Ensure files array is never lost during updates
     const merged = { 
       ...show, 
@@ -93,6 +97,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     }
 
     onUpdate(merged);
+    
+    // Show saved indicator, then fade out
+    setTimeout(() => {
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }, 300);
   }
 
   function handleDeadlineChange(sectionKey: SectionKey, deadline: string) {
@@ -283,6 +293,18 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       <div className="show-detail__hero">
         <div className="show-detail__topbar">
           <button className="btn btn--ghost" onClick={onBack}>← Back</button>
+          <div className="show-detail__save-indicator-container">
+            {saveStatus === 'saving' && (
+              <span className="show-detail__save-indicator show-detail__save-indicator--saving">
+                Saving...
+              </span>
+            )}
+            {saveStatus === 'saved' && (
+              <span className="show-detail__save-indicator show-detail__save-indicator--saved">
+                ✓ Saved
+              </span>
+            )}
+          </div>
           <button className="btn btn--secondary btn--sm" onClick={() => exportShowToPDF(show, settings)}>
             📄 Export PDF
           </button>
