@@ -64,6 +64,7 @@ export default function ShowDetailScreen() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [exporting, setExporting] = useState(false);
   const [expanded, setExpanded] = useState<Record<SectionKey, boolean>>({
     basicInfo: true,
@@ -89,6 +90,9 @@ export default function ShowDetailScreen() {
   }, [id]);
 
   const updateShow = useCallback((updates: Partial<Show>) => {
+    // Show saving indicator
+    setSaveStatus('saving');
+    
     setShow((prev) => {
       if (!prev) return prev;
       // Ensure files array is never lost during updates
@@ -100,7 +104,11 @@ export default function ShowDetailScreen() {
       // Debounced save
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
-        saveShow(next).catch(console.error);
+        saveShow(next).catch(console.error).finally(() => {
+          // Show saved indicator, then fade out
+          setSaveStatus('saved');
+          setTimeout(() => setSaveStatus('idle'), 2000);
+        });
       }, 600);
       return next;
     });
@@ -181,6 +189,23 @@ export default function ShowDetailScreen() {
       />
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* Save Status Indicator */}
+        {saveStatus !== 'idle' && (
+          <View style={styles.saveIndicator}>
+            <View style={[
+              styles.saveIndicatorBadge,
+              saveStatus === 'saving' ? styles.saveIndicatorSaving : styles.saveIndicatorSaved
+            ]}>
+              <Text style={[
+                styles.saveIndicatorText,
+                { color: saveStatus === 'saving' ? '#f59e0b' : '#10b981' }
+              ]}>
+                {saveStatus === 'saving' ? 'Saving...' : '✓ Saved'}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Show Name Editor */}
         <View style={styles.nameCard}>
           <Text style={styles.nameLabel}>SHOW NAME</Text>
@@ -404,5 +429,28 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  saveIndicator: {
+    alignItems: 'center',
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  saveIndicatorBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  saveIndicatorSaving: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fef3c7',
+  },
+  saveIndicatorSaved: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#d1fae5',
+  },
+  saveIndicatorText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

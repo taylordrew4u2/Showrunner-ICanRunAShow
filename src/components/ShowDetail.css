@@ -20,6 +20,62 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+}
+
+/* Save Indicator */
+.show-detail__save-indicator-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 24px;
+}
+
+.show-detail__save-indicator {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+}
+
+.show-detail__save-indicator--saving {
+  color: #f59e0b;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.show-detail__save-indicator--saved {
+  color: #10b981;
+  background: #f0fdf4;
+  border: 1px solid #d1fae5;
+  animation: fadeInOut 2s ease forwards;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 
 .show-detail__header {
@@ -294,12 +350,26 @@
   }
 }
 
-/* Accordion Layout for Sections */
+/* Accordion Layout for Sections - Adaptive Grid */
 .show-detail__sections-accordion {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 16px;
   margin: 16px 0;
+}
+
+@media (max-width: 1200px) {
+  .show-detail__sections-accordion {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 14px;
+  }
+}
+
+@media (max-width: 900px) {
+  .show-detail__sections-accordion {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -316,6 +386,10 @@
   overflow: hidden;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.04));
+  display: flex;
+  flex-direction: column;
+  min-height: 80px;
+  height: 100%;
 }
 
 .accordion-section:hover {
