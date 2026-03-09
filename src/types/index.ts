@@ -31,6 +31,17 @@ export interface Artist {
   walkOnMusic?: string;
   walkOnMusicName?: string;
   video?: string;
+  file?: string; // generic file URI
+  fileName?: string;
+}
+
+export interface ShowFile {
+  id: string;
+  name: string;
+  fileData: string; // base64 data
+  fileType: string; // mime type
+  uploadedAt: string;
+  notes?: string;
 }
 
 export interface ScheduleItem {
@@ -92,6 +103,7 @@ export type SectionKey =
   | "dj"
   | "staff"
   | "expenses"
+  | "files"
   | "recap";
 
 export interface SectionDeadlines {
@@ -103,6 +115,7 @@ export interface SectionDeadlines {
   dj?: string;
   staff?: string;
   expenses?: string;
+  files?: string;
   recap?: string;
 }
 
@@ -115,6 +128,7 @@ export interface SectionCompletions {
   dj?: boolean;
   staff?: boolean;
   expenses?: boolean;
+  files?: boolean;
   recap?: boolean;
 }
 
@@ -135,6 +149,7 @@ export interface Show {
   djSongs: DJSong[];
   staff: StaffMember[];
   expenses: Expense[];
+  files: ShowFile[];
   scenes?: Scene[];
   recap?: ShowRecap;
   deadlines?: SectionDeadlines;

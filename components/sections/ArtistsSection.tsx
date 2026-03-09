@@ -12,14 +12,23 @@ import {
 } from 'react-native';
 import { Artist } from '../../utils/types';
 import { generateId } from '../../utils/storage';
-import { pickImage, pickAudioFile, pickVideo, fileBaseName } from '../../utils/filePicker';
+import { pickImage, pickAudioFile, pickVideo, pickFile, fileBaseName } from '../../utils/filePicker';
 
 interface Props {
   artists: Artist[];
   onChange: (artists: Artist[]) => void;
 }
 
-const EMPTY: Omit<Artist, 'id'> = { name: '', artistType: undefined, walkOnMusic: undefined, photo: undefined, video: undefined };
+const EMPTY: Omit<Artist, 'id'> = { 
+  name: '', 
+  artistType: undefined, 
+  walkOnMusic: undefined,
+  walkOnMusicName: undefined,
+  photo: undefined, 
+  video: undefined,
+  file: undefined,
+  fileName: undefined,
+};
 
 export default function ArtistsSection({ artists, onChange }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
@@ -34,7 +43,16 @@ export default function ArtistsSection({ artists, onChange }: Props) {
 
   const openEdit = (a: Artist) => {
     setEditing(a);
-    setDraft({ name: a.name, artistType: a.artistType, walkOnMusic: a.walkOnMusic, photo: a.photo, video: a.video });
+    setDraft({ 
+      name: a.name, 
+      artistType: a.artistType, 
+      walkOnMusic: a.walkOnMusic,
+      walkOnMusicName: a.walkOnMusicName,
+      photo: a.photo, 
+      video: a.video,
+      file: a.file,
+      fileName: a.fileName,
+    });
     setModalVisible(true);
   };
 
@@ -44,7 +62,19 @@ export default function ArtistsSection({ artists, onChange }: Props) {
       return;
     }
     if (editing) {
-      onChange(artists.map((a) => (a.id === editing.id ? { ...editing, ...draft } : a)));
+      // Explicitly preserve all existing fields
+      const updatedArtist = {
+        ...editing,
+        ...draft,
+        // Ensure file fields are never lost
+        file: draft.file || editing.file,
+        fileName: draft.fileName || editing.fileName,
+        photo: draft.photo || editing.photo,
+        video: draft.video || editing.video,
+        walkOnMusic: draft.walkOnMusic || editing.walkOnMusic,
+        walkOnMusicName: draft.walkOnMusicName || editing.walkOnMusicName,
+      };
+      onChange(artists.map((a) => (a.id === editing.id ? updatedArtist : a)));
     } else {
       onChange([...artists, { id: generateId(), ...draft }]);
     }
@@ -52,10 +82,29 @@ export default function ArtistsSection({ artists, onChange }: Props) {
   };
 
   const remove = (id: string) => {
-    Alert.alert('Remove Artist', 'Remove this artist?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => onChange(artists.filter((a) => a.id !== id)) },
-    ]);
+    const artist = artists.find((a) => a.id === id);
+    // Double confirmation to prevent accidental deletion
+    Alert.alert(
+      'Remove Artist', 
+      `Remove ${artist?.name}? This will delete all associated files and data.`, 
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Remove', 
+          style: 'destructive', 
+          onPress: () => {
+            Alert.alert(
+              'Final Confirmation',
+              `This will permanently delete ${artist?.name} and cannot be undone. Continue?`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => onChange(artists.filter((a) => a.id !== id)) },
+              ]
+            );
+          }
+        },
+      ]
+    );
   };
 
   const moveUp = (index: number) => {
@@ -103,6 +152,7 @@ export default function ArtistsSection({ artists, onChange }: Props) {
                 <Text style={styles.meta} numberOfLines={1}>🎵 {fileBaseName(a.walkOnMusic)}</Text>
               ) : null}
               {a.video ? <Text style={styles.meta}>🎬 Video attached</Text> : null}
+              {a.fileName ? <Text style={styles.meta} numberOfLines={1}>📎 {a.fileName}</Text> : null}
             </View>
             <TouchableOpacity onPress={() => openEdit(a)} style={styles.editBtn}>
               <Text style={styles.editBtnText}>Edit</Text>
@@ -195,6 +245,24 @@ export default function ArtistsSection({ artists, onChange }: Props) {
             {draft.video ? (
               <TouchableOpacity onPress={() => setDraft((d) => ({ ...d, video: undefined }))}>
                 <Text style={styles.clearLink}>Clear video</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <Text style={styles.fieldLabel}>File (optional)</Text>
+            <TouchableOpacity
+              style={styles.fileBtn}
+              onPress={async () => {
+                const res = await pickFile();
+                if (res) setDraft((d) => ({ ...d, file: res.uri, fileName: res.name }));
+              }}
+            >
+              <Text style={styles.fileBtnText}>
+                {draft.fileName ? `📎 ${draft.fileName}` : '📎 Pick File'}
+              </Text>
+            </TouchableOpacity>
+            {draft.file ? (
+              <TouchableOpacity onPress={() => setDraft((d) => ({ ...d, file: undefined, fileName: undefined }))}>
+                <Text style={styles.clearLink}>Clear file</Text>
               </TouchableOpacity>
             ) : null}
 

@@ -4,7 +4,7 @@ import './ShowForm.css';
 
 interface ShowFormProps {
   initial?: Partial<Show>;
-  onSave: (show: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes'>) => void;
+  onSave: (show: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes' | 'files'>) => void;
   onCancel: () => void;
 }
 
@@ -33,6 +33,7 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
       djSongs: initial?.djSongs ?? [],
       staff: initial?.staff ?? [],
       expenses: initial?.expenses ?? [],
+      files: initial?.files ?? [],
     });
   }
 

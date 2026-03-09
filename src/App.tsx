@@ -67,7 +67,12 @@ export default function App() {
           loadEncryptedShows(currentSession.username, currentSession.password),
           loadEncryptedSettings(currentSession.username, currentSession.password),
         ]);
-        setShows(loadedShows);
+        // Ensure backward compatibility: add files array if missing
+        const migratedShows = loadedShows.map((show) => ({
+          ...show,
+          files: show.files || [],
+        }));
+        setShows(migratedShows);
         setSettings(loadedSettings);
         dataLoaded.current = true;
       } catch (error) {
@@ -184,13 +189,14 @@ export default function App() {
     }
   }
 
-  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes'>) {
+  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes' | 'files'>) {
     const newShow: Show = {
       ...data,
       id: generateId(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scenes: [],
+      files: [],
     };
     setShows((prev) => [newShow, ...prev]);
     setShowForm(false);
@@ -224,7 +230,26 @@ export default function App() {
 
   function handleUpdateShow(updated: Show) {
     setShows((prev) => {
-      const updatedShows = prev.map((s) => (s.id === updated.id ? updated : s));
+      // Ensure files array always exists and is never lost
+      const safeUpdated = {
+        ...updated,
+        files: updated.files || [],
+        // Ensure all artists have their file fields preserved
+        artists: (updated.artists || []).map(a => ({
+          ...a,
+          file: a.file,
+          fileName: a.fileName
+        })),
+        // Ensure all performers have their file fields preserved
+        performers: (updated.performers || []).map(p => ({
+          ...p,
+          walkOnMusic: p.walkOnMusic,
+          walkOnMusicName: p.walkOnMusicName,
+          photo: p.photo,
+          video: p.video
+        }))
+      };
+      const updatedShows = prev.map((s) => (s.id === safeUpdated.id ? safeUpdated : s));
       
       // Recalculate totalSpent across all shows
       const totalSpent = updatedShows.reduce((sum, show) => {
@@ -241,7 +266,11 @@ export default function App() {
       
       return updatedShows;
     });
-    setSelectedShow(updated);
+    // Update selectedShow with the safe version that preserves files
+    setSelectedShow({
+      ...updated,
+      files: updated.files || []
+    });
   }
 
   function handleBack() {
