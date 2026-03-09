@@ -15,7 +15,12 @@ export function generateId(): string {
 export async function loadShows(): Promise<Show[]> {
   try {
     const data = await AsyncStorage.getItem(SHOWS_KEY);
-    return data ? JSON.parse(data) : [];
+    const shows = data ? JSON.parse(data) : [];
+    // Ensure backward compatibility: add files array if missing
+    return shows.map((show: Show) => ({
+      ...show,
+      files: show.files || [],
+    }));
   } catch (error) {
     console.error("Error loading shows:", error);
     return [];
@@ -44,11 +49,16 @@ export async function loadShow(id: string): Promise<Show | null> {
 export async function saveShow(show: Show): Promise<void> {
   const shows = await loadShows();
   const index = shows.findIndex((s) => s.id === show.id);
-  const updated = { ...show, updatedAt: new Date().toISOString() };
+  // Ensure files array always exists
+  const safeShow = {
+    ...show,
+    files: show.files || [],
+    updatedAt: new Date().toISOString(),
+  };
   if (index >= 0) {
-    shows[index] = updated;
+    shows[index] = safeShow;
   } else {
-    shows.push(updated);
+    shows.push(safeShow);
   }
   await saveShows(shows);
 }

@@ -50,6 +50,17 @@ export async function pickAudioFile(): Promise<{ uri: string; name: string } | n
   return null;
 }
 
+export async function pickFile(): Promise<{ uri: string; name: string } | null> {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: '*/*',
+    copyToCacheDirectory: true,
+  });
+  if (!result.canceled && result.assets[0]) {
+    return { uri: result.assets[0].uri, name: result.assets[0].name };
+  }
+  return null;
+}
+
 export function fileBaseName(uri: string | undefined): string {
   if (!uri) return '';
   const parts = uri.split('/');

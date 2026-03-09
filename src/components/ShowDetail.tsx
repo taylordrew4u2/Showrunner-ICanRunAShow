@@ -11,6 +11,7 @@ import { HostsSection } from './sections/HostsSection';
 import { DJMusicSection } from './sections/DJMusicSection';
 import { StaffSection } from './sections/StaffSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
+import { FilesSection } from './sections/FilesSection';
 import { exportShowToPDF } from '../utils/pdfExport';
 import './ShowDetail.css';
 
@@ -25,6 +26,8 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [editingDeadline, setEditingDeadline] = useState<SectionKey | null>(null);
   const [editingVideoHost, setEditingVideoHost] = useState(false);
+  const [editingShowName, setEditingShowName] = useState(false);
+  const [tempShowName, setTempShowName] = useState(show.name);
   const [tempVideoPerson, setTempVideoPerson] = useState(show.videoPerson || '');
   const [tempVideoPayment, setTempVideoPayment] = useState(show.videoPayment?.toString() || '');
   const [tempSelectedHostId, setTempSelectedHostId] = useState(show.selectedHostId || '');
@@ -37,7 +40,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   }
 
   function handleUpdate(updates: Partial<Show>) {
-    const merged = { ...show, ...updates };
+    // Ensure files array is never lost during updates
+    const merged = { 
+      ...show, 
+      ...updates,
+      files: updates.files !== undefined ? updates.files : (show.files || [])
+    };
 
     // Auto-add walk-on music to DJ list when performers/artists get new songs
     if (updates.performers || updates.artists) {
@@ -177,6 +185,18 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     setEditingVideoHost(true);
   }
 
+  function handleSaveShowName() {
+    if (tempShowName.trim()) {
+      onUpdate({ ...show, name: tempShowName.trim() });
+      setEditingShowName(false);
+    }
+  }
+
+  function handleEditShowName() {
+    setTempShowName(show.name);
+    setEditingShowName(true);
+  }
+
   const hostNames: Record<string, string> = { justin: 'Justin', taylor: 'Taylor' };
   const selectedHostName = show.selectedHostId ? hostNames[show.selectedHostId] || show.selectedHostId : undefined;
   const hasVideoHostInfo = show.videoPerson || show.selectedHostId;
@@ -237,6 +257,14 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       count: show.staff.length,
       content: <StaffSection staff={show.staff} onChange={(staff) => handleUpdate({ staff })} />,
     },
+    {
+      key: 'files',
+      sectionKey: 'files' as SectionKey,
+      title: '📎 Files',
+      subtitle: 'Upload and manage any files needed for the show.',
+      count: show.files?.length || 0,
+      content: <FilesSection files={show.files || []} onChange={(files) => handleUpdate({ files })} />,
+    },
   ];
 
   // Add recap section for past shows
@@ -260,7 +288,39 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
           </button>
         </div>
         <div className="show-detail__header">
-          <h2 className="show-detail__title">{show.name}</h2>
+          {editingShowName ? (
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1 }}>
+              <input
+                className="section-field__input"
+                value={tempShowName}
+                onChange={(e) => setTempShowName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveShowName();
+                  if (e.key === 'Escape') setEditingShowName(false);
+                }}
+                placeholder="Show name"
+                autoFocus
+                style={{ fontSize: '1.5rem', fontWeight: '800' }}
+              />
+              <button className="btn btn--primary btn--sm" onClick={handleSaveShowName}>
+                Save
+              </button>
+              <button className="btn btn--ghost btn--sm" onClick={() => setEditingShowName(false)}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <>
+              <h2 className="show-detail__title">{show.name}</h2>
+              <button
+                className="btn btn--ghost btn--sm"
+                onClick={handleEditShowName}
+                title="Edit show name"
+              >
+                ✏️
+              </button>
+            </>
+          )}
           <span className={`show-detail__status show-detail__status--${show.status}`}>
             {show.status.replace('-', ' ')}
           </span>

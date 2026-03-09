@@ -64,6 +64,7 @@ export default function HomeScreen() {
       djSongs: [],
       staff: [],
       expenses: [],
+      files: [], // Ensure files array is always initialized
       createdAt: now,
       updatedAt: now,
     };

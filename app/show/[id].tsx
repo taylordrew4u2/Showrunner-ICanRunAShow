@@ -91,7 +91,12 @@ export default function ShowDetailScreen() {
   const updateShow = useCallback((updates: Partial<Show>) => {
     setShow((prev) => {
       if (!prev) return prev;
-      const next = { ...prev, ...updates };
+      // Ensure files array is never lost during updates
+      const next = { 
+        ...prev, 
+        ...updates,
+        files: updates.files !== undefined ? updates.files : (prev.files || [])
+      };
       // Debounced save
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {

@@ -35,7 +35,19 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
 
   function saveEdit() {
     if (!editName.trim() || !editId) return;
-    onChange(artists.map((a) => (a.id === editId ? { ...a, name: editName.trim(), artistType: editArtistType.trim() || undefined } : a)));
+    // Preserve all existing fields including file-related data
+    onChange(artists.map((a) => (a.id === editId ? { 
+      ...a, 
+      name: editName.trim(), 
+      artistType: editArtistType.trim() || undefined,
+      // Explicitly preserve file fields
+      file: a.file,
+      fileName: a.fileName,
+      photo: a.photo,
+      video: a.video,
+      walkOnMusic: a.walkOnMusic,
+      walkOnMusicName: a.walkOnMusicName
+    } : a)));
     setEditId(null);
   }
 
@@ -103,6 +115,24 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
     input.click();
   }
 
+  function handleFile(id: string) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '*/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        onChange(artists.map((a) =>
+          a.id === id ? { ...a, file: reader.result as string, fileName: file.name } : a
+        ));
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
   return (
     <div className="section-body">
       <div className="section-add-row">
@@ -151,6 +181,7 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
                     {a.artistType && <span className="section-list-item__subtext"> ({a.artistType})</span>}
                   </span>
                   {a.walkOnMusicName && <span className="section-list-item__tag">🎵 {a.walkOnMusicName}</span>}
+                  {a.fileName && <span className="section-list-item__tag">📎 {a.fileName}</span>}
                 </>
               )}
             </div>
@@ -159,6 +190,7 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
                 <button className="btn btn--ghost btn--sm" onClick={() => handlePhoto(a.id)} title="Upload photo">📷</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => handleMusic(a.id)} title="Upload walk-on music">🎵</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => handleVideo(a.id)} title="Upload video">🎬</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => handleFile(a.id)} title="Upload file">📎</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => startEdit(a)} title="Edit">✏️</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => moveUp(idx)} title="Move up" disabled={idx === 0}>↑</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => moveDown(idx)} title="Move down" disabled={idx >= artists.length - 1}>↓</button>
