@@ -88,6 +88,12 @@ export interface ShowRecap {
 
 export type ShowStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
 
+export interface TodoItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 export type SectionKey =
   | "basic"
   | "performers"
@@ -165,6 +171,7 @@ export interface Show {
   videoPerson?: string; // Name of video person
   videoPayment?: number; // Amount to pay video person
   selectedHostId?: string; // ID of the selected host
+  todos?: TodoItem[];
   createdAt: string;
   updatedAt: string;
 }

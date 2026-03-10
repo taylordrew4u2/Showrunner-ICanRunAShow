@@ -350,6 +350,20 @@
   }
 }
 
+/* Main Layout: Sections + Todo Sidebar */
+.show-detail__main-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .show-detail__main-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Accordion Layout for Sections - Adaptive Grid */
 .show-detail__sections-accordion {
   display: grid;
@@ -514,44 +528,32 @@
   }
 }
 
-.accordion-section__completion-checkbox {
-  display: flex;
+.accordion-section__lockin-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  padding: 6px 14px;
+  border: 2px solid #22c55e;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.8rem;
+  font-weight: 700;
   cursor: pointer;
-  font-size: 0.875rem;
-  color: #666;
-  user-select: none;
-  padding: 6px 10px;
-  border-radius: 6px;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
+  white-space: nowrap;
 }
 
-.accordion-section__completion-checkbox:hover {
-  color: #333;
-  background: #f5f5f5;
-}
-
-.accordion-section__completion-checkbox input[type="checkbox"] {
-  cursor: pointer;
-  width: 18px;
-  height: 18px;
-  accent-color: #22c55e;
+.accordion-section__lockin-btn:hover {
+  background: #22c55e;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
 }
 
 @media (max-width: 768px) {
-  .accordion-section__completion-checkbox {
-    font-size: 0.8rem;
-    padding: 4px 8px;
-  }
-
-  .accordion-section__completion-checkbox span {
-    display: none;
-  }
-
-  .accordion-section__completion-checkbox input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
+  .accordion-section__lockin-btn {
+    font-size: 0.75rem;
+    padding: 4px 10px;
   }
 }
 
@@ -1614,4 +1616,144 @@
 
 .hidden-bubble__title {
   white-space: nowrap;
+}
+
+/* ─── To-Do Sidebar ──────────────────────────────────────────────────────── */
+
+.show-detail__todo-sidebar {
+  position: sticky;
+  top: 20px;
+  background: #ffffff;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.todo-sidebar__title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: #111;
+}
+
+.todo-sidebar__add {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.todo-sidebar__input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.todo-sidebar__input:focus {
+  border-color: #dc2626;
+}
+
+.todo-sidebar__add-btn {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.todo-sidebar__add-btn:hover {
+  background: #b91c1c;
+}
+
+.todo-sidebar__add-btn:disabled {
+  background: #d1d5db;
+  cursor: default;
+}
+
+.todo-sidebar__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.todo-sidebar__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+
+.todo-sidebar__item:hover {
+  background: #f9fafb;
+}
+
+.todo-sidebar__item--done .todo-sidebar__text {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.todo-sidebar__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.todo-sidebar__check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #22c55e;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.todo-sidebar__text {
+  font-size: 0.85rem;
+  color: #333;
+  word-break: break-word;
+}
+
+.todo-sidebar__delete {
+  background: none;
+  border: none;
+  color: #d1d5db;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+
+.todo-sidebar__delete:hover {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+.todo-sidebar__empty {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  text-align: center;
+  margin: 8px 0 0;
 }

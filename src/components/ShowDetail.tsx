@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Show, Scene, AppSettings, SectionKey, Expense } from '../types';
+import type { Show, Scene, AppSettings, SectionKey, Expense, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
 import { DeadlineIndicator } from './DeadlineIndicator';
@@ -7,7 +7,6 @@ import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
 import { ArtistsSection } from './sections/ArtistsSection';
 import { ScheduleSection } from './sections/ScheduleSection';
-import { HostsSection } from './sections/HostsSection';
 import { DJMusicSection } from './sections/DJMusicSection';
 import { StaffSection } from './sections/StaffSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
@@ -32,6 +31,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   const [tempVideoPayment, setTempVideoPayment] = useState(show.videoPayment?.toString() || '');
   const [tempSelectedHostId, setTempSelectedHostId] = useState(show.selectedHostId || '');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [newTodoText, setNewTodoText] = useState('');
   
   // Check if the show date has passed
   const isPastShow = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
@@ -207,6 +207,29 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     setEditingShowName(true);
   }
 
+  function handleAddTodo() {
+    if (!newTodoText.trim()) return;
+    const todo: TodoItem = {
+      id: generateId(),
+      text: newTodoText.trim(),
+      completed: false,
+    };
+    onUpdate({ ...show, todos: [...(show.todos || []), todo] });
+    setNewTodoText('');
+  }
+
+  function handleToggleTodo(todoId: string) {
+    const todos = (show.todos || []).map((t) =>
+      t.id === todoId ? { ...t, completed: !t.completed } : t
+    );
+    onUpdate({ ...show, todos });
+  }
+
+  function handleDeleteTodo(todoId: string) {
+    const todos = (show.todos || []).filter((t) => t.id !== todoId);
+    onUpdate({ ...show, todos });
+  }
+
   const hostNames: Record<string, string> = { justin: 'Justin', taylor: 'Taylor' };
   const selectedHostName = show.selectedHostId ? hostNames[show.selectedHostId] || show.selectedHostId : undefined;
   const hasVideoHostInfo = show.videoPerson || show.selectedHostId;
@@ -242,14 +265,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       subtitle: 'Timeline of events with times and descriptions.',
       count: show.schedule.length,
       content: <ScheduleSection schedule={show.schedule} onChange={(schedule) => handleUpdate({ schedule })} />,
-    },
-    {
-      key: 'hosts',
-      sectionKey: 'hosts' as SectionKey,
-      title: '🎙️ Hosts',
-      subtitle: 'Add hosts, notes, photos, and select the main host.',
-      count: show.hosts.length,
-      content: <HostsSection hosts={show.hosts} onChange={(hosts) => handleUpdate({ hosts })} />,
     },
     {
       key: 'dj',
@@ -450,7 +465,8 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
         )}
       </div>
 
-      <div className="show-detail__sections-accordion">
+      <div className="show-detail__main-layout">
+        <div className="show-detail__sections-accordion">
         {sections.filter((section) => !show.completions?.[section.sectionKey] && !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
           const isExpanded = expandedSections.has(section.key);
           const isComplete = false;
@@ -487,17 +503,16 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
                     </button>
                   )}
                   {section.sectionKey && (
-                    <label 
-                      className="accordion-section__completion-checkbox"
-                      onClick={(e) => e.stopPropagation()}
+                    <button
+                      className="accordion-section__lockin-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCompletionToggle(section.sectionKey!);
+                      }}
+                      title="Lock In"
                     >
-                      <input
-                        type="checkbox"
-                        checked={isComplete}
-                        onChange={() => handleCompletionToggle(section.sectionKey!)}
-                      />
-                      <span>Mark Complete</span>
-                    </label>
+                      🔒 Lock In
+                    </button>
                   )}
                   <button 
                     className={`accordion-section__expand-icon ${isExpanded ? 'accordion-section__expand-icon--expanded' : ''}`}
@@ -574,20 +589,62 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
             </div>
           );
         })}
+        </div>
+
+        <div className="show-detail__todo-sidebar">
+          <h3 className="todo-sidebar__title">✅ To-Do List</h3>
+          <div className="todo-sidebar__add">
+            <input
+              type="text"
+              className="todo-sidebar__input"
+              placeholder="Add a task..."
+              value={newTodoText}
+              onChange={(e) => setNewTodoText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddTodo(); }}
+            />
+            <button className="todo-sidebar__add-btn" onClick={handleAddTodo} disabled={!newTodoText.trim()}>
+              +
+            </button>
+          </div>
+          <ul className="todo-sidebar__list">
+            {(show.todos || []).map((todo) => (
+              <li key={todo.id} className={`todo-sidebar__item ${todo.completed ? 'todo-sidebar__item--done' : ''}`}>
+                <label className="todo-sidebar__check">
+                  <input
+                    type="checkbox"
+                    checked={todo.completed}
+                    onChange={() => handleToggleTodo(todo.id)}
+                  />
+                  <span className="todo-sidebar__text">{todo.text}</span>
+                </label>
+                <button
+                  className="todo-sidebar__delete"
+                  onClick={() => handleDeleteTodo(todo.id)}
+                  title="Remove"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+          {(show.todos || []).length === 0 && (
+            <p className="todo-sidebar__empty">No tasks yet. Add one above!</p>
+          )}
+        </div>
       </div>
 
       {sections.some((section) => show.completions?.[section.sectionKey]) && (
         <div className="completed-sections">
-          <p className="completed-sections__label">Completed</p>
+          <p className="completed-sections__label">Locked In</p>
           <div className="completed-sections__bubbles">
             {sections.filter((section) => show.completions?.[section.sectionKey]).map((section) => (
               <button
                 key={section.key}
                 className="completed-bubble"
                 onClick={() => handleCompletionToggle(section.sectionKey!)}
-                title={`Mark "${section.title}" incomplete`}
+                title={`Unlock "${section.title}"`}
               >
-                <span className="completed-bubble__icon">✓</span>
+                <span className="completed-bubble__icon">🔒</span>
                 <span className="completed-bubble__title">{section.title}</span>
               </button>
             ))}
