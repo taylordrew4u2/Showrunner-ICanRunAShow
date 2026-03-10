@@ -367,14 +367,14 @@
 /* Accordion Layout for Sections - Adaptive Grid */
 .show-detail__sections-accordion {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(450px, 100%), 1fr));
   gap: 16px;
   margin: 16px 0;
 }
 
 @media (max-width: 1200px) {
   .show-detail__sections-accordion {
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(400px, 100%), 1fr));
     gap: 14px;
   }
 }
@@ -563,7 +563,9 @@
   font-size: 0.875rem;
   color: #666666;
   cursor: pointer;
-  padding: 8px;
+  padding: 12px;
+  min-width: 44px;
+  min-height: 44px;
   transition: transform 0.2s ease;
   display: flex;
   align-items: center;
@@ -1098,6 +1100,121 @@
   border: 2px solid #e5e5e5;
 }
 
+/* ─── Bento Media Grid (shared across all sections) ───────────────────────── */
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.media-grid__tile {
+  position: relative;
+  background: #f9fafb;
+  border: 1.5px solid #e5e5e5;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.media-grid__tile:hover {
+  border-color: #dc2626;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.1);
+}
+
+.media-grid__tile--wide {
+  grid-column: span 2;
+}
+
+.media-grid__preview {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+  background: #f0f0f0;
+}
+
+.media-grid__preview--video {
+  aspect-ratio: 16 / 9;
+}
+
+.media-grid__audio {
+  width: 100%;
+  padding: 8px;
+}
+
+.media-grid__audio audio {
+  width: 100%;
+  height: 32px;
+}
+
+.media-grid__file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  font-size: 2.2rem;
+  background: #f5f5f5;
+  color: #888;
+}
+
+.media-grid__label {
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-top: 1px solid #eee;
+  background: #fff;
+}
+
+.media-grid__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+@media (hover: hover) {
+  .media-grid__tile:hover .media-grid__remove {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .media-grid__remove {
+    opacity: 1;
+  }
+}
+
+.media-grid__remove:hover {
+  background: #dc2626;
+}
+
+@media (max-width: 768px) {
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+  }
+}
+
 .section-list-item__order,
 .section-list-item__time {
   font-size: 0.875rem;
@@ -1214,6 +1331,7 @@
 .schedule-mode-toggle__btn {
   flex: 1;
   padding: 10px 16px;
+  min-height: 44px;
   border: none;
   background: transparent;
   font-size: 0.9rem;
@@ -1521,7 +1639,11 @@
   }
 
   .show-detail__title {
-    font-size: 1.65rem;
+    font-size: 1.35rem;
+  }
+
+  .section-field__input--time {
+    max-width: 100%;
   }
 }
 
@@ -1582,8 +1704,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -1691,8 +1813,8 @@
 }
 
 .todo-sidebar__add-btn {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border: none;
   border-radius: 8px;
   background: #dc2626;
@@ -1754,8 +1876,8 @@
 }
 
 .todo-sidebar__check input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   accent-color: #22c55e;
   cursor: pointer;
   flex-shrink: 0;
@@ -1773,7 +1895,12 @@
   color: #d1d5db;
   font-size: 0.75rem;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 8px;
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 4px;
   transition: color 0.12s, background 0.12s;
   flex-shrink: 0;

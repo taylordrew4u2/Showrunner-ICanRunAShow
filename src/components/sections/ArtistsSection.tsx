@@ -197,6 +197,46 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
                 <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteArtist(a.id)} title="Delete">✕</button>
               </div>
             )}
+
+            {/* Bento media grid for imported items */}
+            {(a.photo || a.walkOnMusic || a.video || a.file) && (
+              <div className="media-grid">
+                {a.photo && (
+                  <div className="media-grid__tile">
+                    <img src={a.photo} alt={a.name} className="media-grid__preview" />
+                    <span className="media-grid__label">📷 Photo</span>
+                    <button className="media-grid__remove" onClick={() => onChange(artists.map(aa => aa.id === a.id ? { ...aa, photo: undefined } : aa))} title="Remove photo">✕</button>
+                  </div>
+                )}
+                {a.walkOnMusic && (
+                  <div className="media-grid__tile media-grid__tile--wide">
+                    <div className="media-grid__audio">
+                      <audio controls preload="none"><source src={a.walkOnMusic} /></audio>
+                    </div>
+                    <span className="media-grid__label">🎵 {a.walkOnMusicName || 'Walk-on Music'}</span>
+                    <button className="media-grid__remove" onClick={() => onChange(artists.map(aa => aa.id === a.id ? { ...aa, walkOnMusic: undefined, walkOnMusicName: undefined } : aa))} title="Remove music">✕</button>
+                  </div>
+                )}
+                {a.video && (
+                  <div className="media-grid__tile media-grid__tile--wide">
+                    <video src={a.video} controls preload="none" className="media-grid__preview media-grid__preview--video" />
+                    <span className="media-grid__label">🎬 Video</span>
+                    <button className="media-grid__remove" onClick={() => onChange(artists.map(aa => aa.id === a.id ? { ...aa, video: undefined } : aa))} title="Remove video">✕</button>
+                  </div>
+                )}
+                {a.file && (
+                  <div className="media-grid__tile">
+                    {a.file.startsWith('data:image') ? (
+                      <img src={a.file} alt={a.fileName || 'File'} className="media-grid__preview" />
+                    ) : (
+                      <div className="media-grid__file-icon">📄</div>
+                    )}
+                    <span className="media-grid__label">📎 {a.fileName || 'File'}</span>
+                    <button className="media-grid__remove" onClick={() => onChange(artists.map(aa => aa.id === a.id ? { ...aa, file: undefined, fileName: undefined } : aa))} title="Remove file">✕</button>
+                  </div>
+                )}
+              </div>
+            )}
           </li>
         ))}
       </ul>
