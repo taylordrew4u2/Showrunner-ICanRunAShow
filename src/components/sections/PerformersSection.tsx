@@ -212,6 +212,41 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
                   <button className="btn btn--ghost btn--sm" onClick={() => toggleLock(p.id)} title="Unlock performer">Unlock</button>
                 </div>
               )}
+
+              {/* Bento media grid for imported items */}
+              {(p.photo || p.walkOnMusic || p.video) && (
+                <div className="media-grid">
+                  {p.photo && (
+                    <div className="media-grid__tile">
+                      <img src={p.photo} alt={p.name} className="media-grid__preview" />
+                      <span className="media-grid__label">📷 Photo</span>
+                      {!p.lockedIn && (
+                        <button className="media-grid__remove" onClick={() => onChange(performers.map(pp => pp.id === p.id ? { ...pp, photo: undefined } : pp))} title="Remove photo">✕</button>
+                      )}
+                    </div>
+                  )}
+                  {p.walkOnMusic && (
+                    <div className="media-grid__tile media-grid__tile--wide">
+                      <div className="media-grid__audio">
+                        <audio controls preload="none"><source src={p.walkOnMusic} /></audio>
+                      </div>
+                      <span className="media-grid__label">🎵 {p.walkOnMusicName || 'Walk-on Music'}</span>
+                      {!p.lockedIn && (
+                        <button className="media-grid__remove" onClick={() => onChange(performers.map(pp => pp.id === p.id ? { ...pp, walkOnMusic: undefined, walkOnMusicName: undefined } : pp))} title="Remove music">✕</button>
+                      )}
+                    </div>
+                  )}
+                  {p.video && (
+                    <div className="media-grid__tile media-grid__tile--wide">
+                      <video src={p.video} controls preload="none" className="media-grid__preview media-grid__preview--video" />
+                      <span className="media-grid__label">🎬 Video</span>
+                      {!p.lockedIn && (
+                        <button className="media-grid__remove" onClick={() => onChange(performers.map(pp => pp.id === p.id ? { ...pp, video: undefined } : pp))} title="Remove video">✕</button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </li>
         ))}

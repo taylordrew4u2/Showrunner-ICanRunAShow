@@ -11,6 +11,7 @@
     align-items: center;
     gap: 16px;
     margin-bottom: 24px;
+    flex-wrap: wrap;
 }
 
 .expenses-page__title {
@@ -24,6 +25,7 @@
     align-items: center;
     gap: 12px;
     margin-bottom: 20px;
+    flex-wrap: wrap;
 }
 
 .expenses-page__filter-label {
@@ -57,4 +59,23 @@
     padding: 2px 8px;
     border-radius: 4px;
     white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .expenses-page {
+        padding: 16px 12px calc(var(--bottom-nav-height, 72px) + env(safe-area-inset-bottom) + 16px);
+    }
+
+    .expenses-page__title {
+        font-size: 1.25rem;
+    }
+
+    .expenses-page__topbar {
+        gap: 12px;
+    }
+
+    .expenses-page__add {
+        padding: 12px;
+        border-radius: 10px;
+    }
 }

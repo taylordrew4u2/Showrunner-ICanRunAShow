@@ -120,6 +120,17 @@ export function HostsSection({ hosts, onChange }: HostsSectionProps) {
                 <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteHost(h.id)}>✕</button>
               </div>
             )}
+
+            {/* Bento media grid for imported photo */}
+            {h.photo && (
+              <div className="media-grid">
+                <div className="media-grid__tile">
+                  <img src={h.photo} alt={h.name} className="media-grid__preview" />
+                  <span className="media-grid__label">📷 Photo</span>
+                  <button className="media-grid__remove" onClick={() => onChange(hosts.map(hh => hh.id === h.id ? { ...hh, photo: undefined } : hh))} title="Remove photo">✕</button>
+                </div>
+              </div>
+            )}
           </li>
         ))}
       </ul>

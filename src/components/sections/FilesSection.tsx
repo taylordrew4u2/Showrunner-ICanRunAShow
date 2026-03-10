@@ -61,9 +61,6 @@ export function FilesSection({ files, onChange }: FilesSectionProps) {
     link.click();
   }
 
-  function updateNotes(id: string, newNotes: string) {
-    onChange(files.map((f) => (f.id === id ? { ...f, notes: newNotes || undefined } : f)));
-  }
 
   return (
     <div className="section-body">
@@ -81,42 +78,28 @@ export function FilesSection({ files, onChange }: FilesSectionProps) {
 
       {files.length === 0 && <p className="section-empty">No files uploaded yet.</p>}
 
-      <ul className="section-list">
+      <div className="media-grid">
         {files.map((file) => (
-          <li key={file.id} className="section-list-item">
-            <div className="section-list-item__body">
-              <span className="section-list-item__name">📄 {file.name}</span>
-              <span className="section-list-item__tag">
-                {new Date(file.uploadedAt).toLocaleDateString()}
-              </span>
-              {file.notes && <span className="section-list-item__tag">📝 {file.notes}</span>}
-            </div>
-            <div className="section-list-item__actions">
-              <input
-                className="section-field__input section-field__input--compact"
-                value={file.notes || ''}
-                onChange={(e) => updateNotes(file.id, e.target.value)}
-                placeholder="Add notes"
-                style={{ minWidth: 160 }}
-              />
-              <button
-                className="btn btn--secondary btn--sm"
-                onClick={() => downloadFile(file)}
-                title="Download file"
-              >
-                ⬇️
-              </button>
-              <button
-                className="btn btn--ghost btn--sm section-list-item__delete"
-                onClick={() => deleteFile(file.id)}
-                title="Delete"
-              >
-                ✕
-              </button>
-            </div>
-          </li>
+          <div key={file.id} className={`media-grid__tile ${file.fileType.startsWith('audio') ? 'media-grid__tile--wide' : ''}`}>
+            {file.fileType.startsWith('image') ? (
+              <img src={file.fileData} alt={file.name} className="media-grid__preview" />
+            ) : file.fileType.startsWith('video') ? (
+              <video src={file.fileData} controls preload="none" className="media-grid__preview media-grid__preview--video" />
+            ) : file.fileType.startsWith('audio') ? (
+              <div className="media-grid__audio">
+                <audio controls preload="none"><source src={file.fileData} type={file.fileType} /></audio>
+              </div>
+            ) : (
+              <div className="media-grid__file-icon" onClick={() => downloadFile(file)} style={{ cursor: 'pointer' }}>📄</div>
+            )}
+            <span className="media-grid__label" title={file.name}>
+              {file.name}
+              {file.notes ? ` · ${file.notes}` : ''}
+            </span>
+            <button className="media-grid__remove" onClick={() => deleteFile(file.id)} title="Delete file">✕</button>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
