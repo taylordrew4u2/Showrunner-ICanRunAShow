@@ -155,6 +155,7 @@ export async function loadEncryptedSettings(
 /**
  * Migrate old settings format to new format
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function migrateSettings(settings: any): AppSettings {
   // Handle old format with producerNames string
   if (settings.producerNames && !settings.producers) {

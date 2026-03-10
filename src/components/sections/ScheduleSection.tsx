@@ -122,7 +122,7 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
             } else {
               setImportError('No schedule data found. Make sure each line has a time (e.g., "7:00 PM") followed by a description.');
             }
-          } catch (err) {
+          } catch {
             setImportError('Failed to read file');
           }
         }
