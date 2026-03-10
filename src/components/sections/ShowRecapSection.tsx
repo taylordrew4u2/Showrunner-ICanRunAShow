@@ -17,23 +17,31 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
   const totalRevenue = Number(merchSales) || 0;
   const profitLoss = totalRevenue - totalExpenses;
 
+  // Sync local state when recap prop changes from outside
+  const recapKey = JSON.stringify(recap);
   useEffect(() => {
     setAttendance(recap?.attendance?.toString() || '');
     setMerchSales(recap?.merchSales?.toString() || '');
     setPerformerNotes(recap?.performerNotes || '');
     setImprovementNotes(recap?.improvementNotes || '');
-  }, [recap]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recapKey]);
 
-  useEffect(() => {
+  function commitChanges(overrides: Partial<{ attendance: string; merchSales: string; performerNotes: string; improvementNotes: string }>) {
+    const a = overrides.attendance ?? attendance;
+    const m = overrides.merchSales ?? merchSales;
+    const pn = overrides.performerNotes ?? performerNotes;
+    const in_ = overrides.improvementNotes ?? improvementNotes;
+    const rev = Number(m) || 0;
     const updated: ShowRecap = {
-      attendance: Number(attendance) || undefined,
-      merchSales: Number(merchSales) || undefined,
-      performerNotes: performerNotes.trim() || undefined,
-      improvementNotes: improvementNotes.trim() || undefined,
-      profitLoss,
+      attendance: Number(a) || undefined,
+      merchSales: Number(m) || undefined,
+      performerNotes: pn.trim() || undefined,
+      improvementNotes: in_.trim() || undefined,
+      profitLoss: rev - totalExpenses,
     };
     onChange(updated);
-  }, [attendance, merchSales, performerNotes, improvementNotes, profitLoss]);
+  }
 
   return (
     <div className="section-body">
@@ -49,7 +57,7 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
             className="section-field__input"
             type="number"
             value={attendance}
-            onChange={(e) => setAttendance(e.target.value)}
+            onChange={(e) => { setAttendance(e.target.value); commitChanges({ attendance: e.target.value }); }}
             placeholder="Number of attendees"
           />
         </label>
@@ -60,7 +68,7 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
             className="section-field__input"
             type="number"
             value={merchSales}
-            onChange={(e) => setMerchSales(e.target.value)}
+            onChange={(e) => { setMerchSales(e.target.value); commitChanges({ merchSales: e.target.value }); }}
             placeholder="0.00"
             step="0.01"
           />
@@ -91,7 +99,7 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
           <textarea
             className="section-field__textarea"
             value={performerNotes}
-            onChange={(e) => setPerformerNotes(e.target.value)}
+            onChange={(e) => { setPerformerNotes(e.target.value); commitChanges({ performerNotes: e.target.value }); }}
             placeholder="Notes about performer quality, audience response, technical issues, etc."
             rows={4}
           />
@@ -102,7 +110,7 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
           <textarea
             className="section-field__textarea"
             value={improvementNotes}
-            onChange={(e) => setImprovementNotes(e.target.value)}
+            onChange={(e) => { setImprovementNotes(e.target.value); commitChanges({ improvementNotes: e.target.value }); }}
             placeholder="What should we do better next time? Lessons learned, process improvements, etc."
             rows={4}
           />

@@ -33,7 +33,6 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
       djSongs: initial?.djSongs ?? [],
       staff: initial?.staff ?? [],
       expenses: initial?.expenses ?? [],
-      files: initial?.files ?? [],
     });
   }
 

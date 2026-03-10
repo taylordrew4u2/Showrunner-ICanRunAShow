@@ -42,9 +42,12 @@ export default function ScheduleSection({ schedule, onChange }: Props) {
         id: generateId(),
       }));
       onChange(exampleItems);
+    }
+    if (!hasInitialized) {
       setHasInitialized(true);
     }
-  }, [schedule.length, hasInitialized, onChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasInitialized]);
 
   const openAdd = () => {
     setEditing(null);
