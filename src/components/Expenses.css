@@ -17,7 +17,6 @@
     font-size: 1.5rem;
     font-weight: 700;
     margin: 0;
-    color: var(--text, #1a1a2e);
 }
 
 .expenses-page__filter {
@@ -30,32 +29,32 @@
 .expenses-page__filter-label {
     font-weight: 600;
     font-size: 0.9rem;
-    color: var(--text-muted, #6b7194);
+    color: #374151;
     white-space: nowrap;
 }
 
 .expenses-page__add {
     margin-bottom: 24px;
     padding: 16px;
-    background: var(--surface-strong, #f1f3f9);
-    border-radius: var(--radius-md, 12px);
-    border: 1px solid var(--border, #e2e4ed);
+    background: #f9fafb;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
 }
 
 .expenses-page__add-title {
     font-size: 0.95rem;
     font-weight: 600;
     margin: 0 0 12px;
-    color: var(--text-muted, #6b7194);
+    color: #374151;
 }
 
 .section-list-item__show-tag {
     display: inline-block;
-    background: var(--accent-light, #eef2ff);
-    color: var(--accent, #6366f1);
+    background: #eff6ff;
+    color: #2563eb;
     font-size: 0.7rem;
     font-weight: 600;
     padding: 2px 8px;
-    border-radius: 20px;
+    border-radius: 4px;
     white-space: nowrap;
 }
