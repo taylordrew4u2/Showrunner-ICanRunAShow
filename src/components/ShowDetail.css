@@ -1199,6 +1199,145 @@
   max-width: 100%;
 }
 
+/* Schedule mode toggle */
+.schedule-mode-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #e5e5e5;
+  background: #f5f5f5;
+}
+
+.schedule-mode-toggle__btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.schedule-mode-toggle__btn:hover {
+  background: #eee;
+}
+
+.schedule-mode-toggle__btn--active {
+  background: #fff;
+  color: #dc2626;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Schedule upload / drop zone */
+.schedule-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.schedule-upload__file-input {
+  display: none;
+}
+
+.schedule-upload__dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 20px;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.schedule-upload__dropzone:hover {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+.schedule-upload__dropzone--active {
+  border-color: #dc2626;
+  background: #fef2f2;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
+}
+
+.schedule-upload__icon {
+  font-size: 2rem;
+}
+
+.schedule-upload__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.schedule-upload__formats {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.schedule-upload__loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.schedule-upload__spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid #fecaca;
+  border-top-color: #dc2626;
+  border-radius: 50%;
+  animation: schedule-spin 0.8s linear infinite;
+}
+
+@keyframes schedule-spin {
+  to { transform: rotate(360deg); }
+}
+
+.schedule-upload__error {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.schedule-upload__success {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.schedule-upload__tip {
+  font-size: 0.82rem;
+  color: #888;
+  line-height: 1.6;
+}
+
+.schedule-upload__tip code {
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+}
+
 .section-total {
   display: flex;
   align-items: center;

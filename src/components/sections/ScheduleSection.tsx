@@ -8,6 +8,8 @@ interface ScheduleSectionProps {
   onChange: (schedule: ScheduleItem[]) => void;
 }
 
+type ScheduleMode = 'create' | 'upload';
+
 const EXAMPLE_SCHEDULE: Omit<ScheduleItem, 'id'>[] = [
   { time: '6:00 PM', description: 'Doors Open' },
   { time: '6:30 PM', description: 'Sound Check' },
@@ -19,6 +21,7 @@ const EXAMPLE_SCHEDULE: Omit<ScheduleItem, 'id'>[] = [
 ];
 
 export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
+  const [mode, setMode] = useState<ScheduleMode>('create');
   const [time, setTime] = useState('');
   const [desc, setDesc] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
@@ -26,7 +29,10 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
   const [editDesc, setEditDesc] = useState('');
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [dragFileName, setDragFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
 
   // Auto-populate with example schedule when empty
@@ -84,113 +90,167 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
     onChange(arr);
   }
 
-  async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  async function processFile(file: File) {
     setImporting(true);
     setImportError(null);
+    setImportSuccess(null);
+    setDragFileName(file.name);
 
     try {
-      const items = await importScheduleFromFile(file);
-      
-      // Add imported items to existing schedule
+      let items: ScheduleItem[];
+
+      // Try AI extraction first if API key is available
+      if (import.meta.env.VITE_OPENAI_API_KEY) {
+        items = await importScheduleFromFile(file);
+      } else {
+        // Use manual parsing directly
+        const text = await file.text();
+        items = parseScheduleManually(text);
+      }
+
+      if (items.length === 0) {
+        setImportError('No schedule items found. Make sure each line has a time (e.g., "7:00 PM") followed by a description.');
+        return;
+      }
+
       onChange([...schedule, ...items]);
-      
-      // Show success message
-      alert(`Successfully imported ${items.length} schedule items!`);
-      
+      setImportSuccess(`Imported ${items.length} schedule item${items.length !== 1 ? 's' : ''} from ${file.name}`);
     } catch (error) {
       console.error('Import error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setImportError(errorMessage);
-      
-      // If AI fails, offer manual parsing option
-      if (errorMessage.includes('API key') || errorMessage.includes('OpenAI')) {
-        const useManual = confirm(
-          'AI extraction is not available. Would you like to try basic text parsing instead?\n\n' +
-          'This will look for time patterns like "7:00 PM" in your file.'
-        );
-        
-        if (useManual) {
-          try {
-            const text = await file.text();
-            const items = parseScheduleManually(text);
-            if (items.length > 0) {
-              onChange([...schedule, ...items]);
-              alert(`Successfully imported ${items.length} schedule items using basic parsing!`);
-            } else {
-              setImportError('No schedule data found. Make sure each line has a time (e.g., "7:00 PM") followed by a description.');
-            }
-          } catch {
-            setImportError('Failed to read file');
+
+      // Auto-fallback to manual parsing if AI fails
+      if (errorMessage.includes('API key') || errorMessage.includes('OpenAI') || errorMessage.includes('Failed to extract')) {
+        try {
+          const text = await file.text();
+          const items = parseScheduleManually(text);
+          if (items.length > 0) {
+            onChange([...schedule, ...items]);
+            setImportSuccess(`Imported ${items.length} schedule item${items.length !== 1 ? 's' : ''} from ${file.name}`);
+            return;
           }
-        }
+        } catch { /* fall through to error */ }
       }
+      setImportError('Could not parse schedule items. Ensure each line has a time (e.g., "7:00 PM - Doors Open").');
     } finally {
       setImporting(false);
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   }
 
-  function triggerFileInput() {
-    fileInputRef.current?.click();
+  function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (file) processFile(file);
+  }
+
+  function handleDrop(event: React.DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    dropZoneRef.current?.classList.remove('schedule-upload__dropzone--active');
+    const file = event.dataTransfer.files[0];
+    if (file) processFile(file);
+  }
+
+  function handleDragOver(event: React.DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    dropZoneRef.current?.classList.add('schedule-upload__dropzone--active');
+  }
+
+  function handleDragLeave(event: React.DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    dropZoneRef.current?.classList.remove('schedule-upload__dropzone--active');
   }
 
   return (
     <div className="section-body">
-      {/* Import file section */}
-      <div className="schedule-import">
-        <div className="schedule-import__row">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".txt,.csv,.json,.pdf,image/*"
-            onChange={handleFileImport}
-            className="schedule-import__file-input"
-          />
-          <button 
-            className="btn btn--primary" 
-            onClick={triggerFileInput}
-            disabled={importing}
-          >
-            {importing ? 'Importing Schedule...' : 'Import Schedule from File'}
-          </button>
-          <span className="schedule-import__hint">
-            Supports .txt, .csv, .json, .pdf, and images
-          </span>
-        </div>
-        {importError && (
-          <div className="schedule-import__error">
-            Error: {importError}
-          </div>
-        )}
-        <div className="schedule-import__tip">
-          <strong>Tip:</strong> Your file should contain schedule items with times (e.g., "7:00 PM") and descriptions. 
-          The AI will automatically extract and organize them. {!import.meta.env.VITE_OPENAI_API_KEY && '(Add VITE_OPENAI_API_KEY for AI extraction)'}
-        </div>
+      {/* Mode toggle */}
+      <div className="schedule-mode-toggle">
+        <button
+          className={`schedule-mode-toggle__btn ${mode === 'create' ? 'schedule-mode-toggle__btn--active' : ''}`}
+          onClick={() => { setMode('create'); setImportError(null); setImportSuccess(null); }}
+        >
+          ✏️ Create Schedule
+        </button>
+        <button
+          className={`schedule-mode-toggle__btn ${mode === 'upload' ? 'schedule-mode-toggle__btn--active' : ''}`}
+          onClick={() => { setMode('upload'); setImportError(null); setImportSuccess(null); }}
+        >
+          📄 Upload File
+        </button>
       </div>
 
-      {/* Manual add section */}
-      <div className="section-add-row">
-        <input
-          className="section-field__input section-field__input--time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          placeholder="7:00 PM"
-        />
-        <input
-          className="section-field__input"
-          value={desc}
-          onChange={(e) => setDesc(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addItem())}
-          placeholder="Event description"
-        />
-        <button className="btn btn--primary btn--sm" onClick={addItem}>Add</button>
-      </div>
+      {/* Upload file mode */}
+      {mode === 'upload' && (
+        <div className="schedule-upload">
+          <div
+            ref={dropZoneRef}
+            className="schedule-upload__dropzone"
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.csv,.json,.pdf"
+              onChange={handleFileImport}
+              className="schedule-upload__file-input"
+            />
+            {importing ? (
+              <div className="schedule-upload__loading">
+                <span className="schedule-upload__spinner" />
+                <span>Importing from {dragFileName}...</span>
+              </div>
+            ) : (
+              <>
+                <span className="schedule-upload__icon">📁</span>
+                <span className="schedule-upload__label">
+                  Drag & drop a file here, or click to browse
+                </span>
+                <span className="schedule-upload__formats">
+                  Supports .txt, .csv, .json, .pdf
+                </span>
+              </>
+            )}
+          </div>
+          {importError && (
+            <div className="schedule-upload__error">{importError}</div>
+          )}
+          {importSuccess && (
+            <div className="schedule-upload__success">{importSuccess}</div>
+          )}
+          <div className="schedule-upload__tip">
+            <strong>Format tip:</strong> Each line should have a time followed by a description, e.g.<br />
+            <code>7:00 PM - Doors Open</code><br />
+            <code>7:30 PM - Sound Check</code>
+          </div>
+        </div>
+      )}
+
+      {/* Create schedule mode */}
+      {mode === 'create' && (
+        <div className="section-add-row">
+          <input
+            className="section-field__input section-field__input--time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            placeholder="7:00 PM"
+          />
+          <input
+            className="section-field__input"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addItem())}
+            placeholder="Event description"
+          />
+          <button className="btn btn--primary btn--sm" onClick={addItem}>Add</button>
+        </div>
+      )}
 
       {schedule.length === 0 && <p className="section-empty">No schedule items yet.</p>}
 
