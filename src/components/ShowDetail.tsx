@@ -264,7 +264,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       title: '📅 Schedule',
       subtitle: 'Timeline of events with times and descriptions.',
       count: show.schedule.length,
-      content: <ScheduleSection schedule={show.schedule} onChange={(schedule) => handleUpdate({ schedule })} />,
+      content: <ScheduleSection
+        schedule={show.schedule}
+        scheduleImage={show.scheduleImage}
+        onChange={(schedule) => handleUpdate({ schedule })}
+        onImageChange={(scheduleImage) => handleUpdate({ scheduleImage })}
+      />,
     },
     {
       key: 'dj',

@@ -149,6 +149,7 @@ export interface Show {
   artists: Artist[];
   // Section 4: Schedule & Timing
   schedule: ScheduleItem[];
+  scheduleImage?: string; // base64 fallback image when AI can't extract
   // Section 4: Hosts
   hosts: Host[];
   // Section 5: DJ Music List

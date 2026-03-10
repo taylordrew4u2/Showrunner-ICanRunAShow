@@ -5,7 +5,9 @@ import { importScheduleFromFile, parseScheduleManually } from '../../utils/aiExt
 
 interface ScheduleSectionProps {
   schedule: ScheduleItem[];
+  scheduleImage?: string;
   onChange: (schedule: ScheduleItem[]) => void;
+  onImageChange: (image: string | undefined) => void;
 }
 
 type ScheduleMode = 'create' | 'upload';
@@ -20,7 +22,7 @@ const EXAMPLE_SCHEDULE: Omit<ScheduleItem, 'id'>[] = [
   { time: '11:00 PM', description: 'Doors Close' },
 ];
 
-export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
+export function ScheduleSection({ schedule, scheduleImage, onChange, onImageChange }: ScheduleSectionProps) {
   const [mode, setMode] = useState<ScheduleMode>('create');
   const [time, setTime] = useState('');
   const [desc, setDesc] = useState('');
@@ -90,6 +92,15 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
     onChange(arr);
   }
 
+  async function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function processFile(file: File) {
     setImporting(true);
     setImportError(null);
@@ -109,7 +120,11 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
       }
 
       if (items.length === 0) {
-        setImportError('No schedule items found. Make sure each line has a time (e.g., "7:00 PM") followed by a description.');
+        // Fallback: store the file as an image
+        const base64 = await fileToBase64(file);
+        onChange([]);
+        onImageChange(base64);
+        setImportSuccess(`Could not extract schedule items — saved "${file.name}" as the schedule image instead.`);
         return;
       }
 
@@ -129,9 +144,18 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
             setImportSuccess(`Imported ${items.length} schedule item${items.length !== 1 ? 's' : ''} from ${file.name}`);
             return;
           }
-        } catch { /* fall through to error */ }
+        } catch { /* fall through to image fallback */ }
       }
-      setImportError('Could not parse schedule items. Ensure each line has a time (e.g., "7:00 PM - Doors Open").');
+
+      // Final fallback: store the file as an image
+      try {
+        const base64 = await fileToBase64(file);
+        onChange([]);
+        onImageChange(base64);
+        setImportSuccess(`Could not extract schedule items — saved "${file.name}" as the schedule image instead.`);
+      } catch {
+        setImportError('Could not parse or save the file. Try a different format.');
+      }
     } finally {
       setImporting(false);
       if (fileInputRef.current) {
@@ -197,7 +221,7 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".txt,.csv,.json,.pdf"
+              accept=".txt,.csv,.json,.pdf,image/*"
               onChange={handleFileImport}
               className="schedule-upload__file-input"
             />
@@ -208,12 +232,12 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
               </div>
             ) : (
               <>
-                <span className="schedule-upload__icon">📁</span>
+                <span className="schedule-upload__icon">🤖</span>
                 <span className="schedule-upload__label">
                   Drag & drop a file here, or click to browse
                 </span>
                 <span className="schedule-upload__formats">
-                  Supports .txt, .csv, .json, .pdf
+                  AI scans .txt, .csv, .json, .pdf, and images
                 </span>
               </>
             )}
@@ -225,9 +249,8 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
             <div className="schedule-upload__success">{importSuccess}</div>
           )}
           <div className="schedule-upload__tip">
-            <strong>Format tip:</strong> Each line should have a time followed by a description, e.g.<br />
-            <code>7:00 PM - Doors Open</code><br />
-            <code>7:30 PM - Sound Check</code>
+            <strong>🤖 AI-powered:</strong> Upload any file or photo of a schedule — AI will extract the times and events automatically.<br />
+            Text files work best with lines like: <code>7:00 PM - Doors Open</code>
           </div>
         </div>
       )}
@@ -252,8 +275,27 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
         </div>
       )}
 
-      {schedule.length === 0 && <p className="section-empty">No schedule items yet.</p>}
+      {/* Schedule image fallback display */}
+      {scheduleImage && (
+        <div className="schedule-image-fallback">
+          <div className="schedule-image-fallback__header">
+            <span className="schedule-image-fallback__badge">📷 Uploaded Schedule</span>
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={() => onImageChange(undefined)}
+              title="Remove image and switch to manual schedule"
+            >
+              ✕ Remove
+            </button>
+          </div>
+          <img src={scheduleImage} alt="Schedule" className="schedule-image-fallback__img" />
+        </div>
+      )}
 
+      {/* Only show schedule items list if no image fallback */}
+      {!scheduleImage && schedule.length === 0 && <p className="section-empty">No schedule items yet.</p>}
+
+      {!scheduleImage && (
       <ul className="section-list">
         {schedule.map((item, idx) => (
           <li key={item.id} className="section-list-item">
@@ -293,6 +335,7 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
           </li>
         ))}
       </ul>
+      )}
     </div>
   );
 }

@@ -151,6 +151,7 @@ export interface Show {
   performers: Performer[];
   artists: Artist[];
   schedule: ScheduleItem[];
+  scheduleImage?: string; // base64 fallback image when AI can't extract
   hosts: Host[];
   djSongs: DJSong[];
   staff: StaffMember[];
