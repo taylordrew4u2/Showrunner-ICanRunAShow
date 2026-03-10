@@ -50,10 +50,3 @@ export function decryptData<T>(encrypted: string, password: string): T {
 export function hashPassword(password: string): string {
   return CryptoJS.SHA256(password + PASSWORD_SALT).toString();
 }
-
-/**
- * Verify a password matches a stored hash
- */
-export function verifyPassword(password: string, hash: string): boolean {
-  return hashPassword(password) === hash;
-}
