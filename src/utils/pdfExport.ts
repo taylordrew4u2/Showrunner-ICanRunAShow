@@ -85,7 +85,11 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   }
 
   ${
-    show.schedule.length > 0
+    show.scheduleImage
+      ? `
+  <h2>Schedule &amp; Timing</h2>
+  <img src="${show.scheduleImage}" style="max-width: 100%; height: auto; margin-bottom: 10px;" alt="Schedule" />`
+      : show.schedule.length > 0
       ? `
   <h2>Schedule &amp; Timing</h2>
   <table>

@@ -12,16 +12,6 @@ interface ScheduleSectionProps {
 
 type ScheduleMode = 'create' | 'upload';
 
-const EXAMPLE_SCHEDULE: Omit<ScheduleItem, 'id'>[] = [
-  { time: '6:00 PM', description: 'Doors Open' },
-  { time: '6:30 PM', description: 'Sound Check' },
-  { time: '7:00 PM', description: 'Opening Act' },
-  { time: '8:00 PM', description: 'Main Performance' },
-  { time: '9:30 PM', description: 'Intermission' },
-  { time: '10:00 PM', description: 'Closing Act' },
-  { time: '11:00 PM', description: 'Doors Close' },
-];
-
 export function ScheduleSection({ schedule, scheduleImage, onChange, onImageChange }: ScheduleSectionProps) {
   const [mode, setMode] = useState<ScheduleMode>('create');
   const [time, setTime] = useState('');
@@ -35,19 +25,6 @@ export function ScheduleSection({ schedule, scheduleImage, onChange, onImageChan
   const [dragFileName, setDragFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
-  const [hasInitialized, setHasInitialized] = useState(false);
-
-  // Auto-populate with example schedule when empty
-  useEffect(() => {
-    if (!hasInitialized && schedule.length === 0) {
-      const exampleItems = EXAMPLE_SCHEDULE.map((item) => ({
-        ...item,
-        id: generateId(),
-      }));
-      onChange(exampleItems);
-      setHasInitialized(true);
-    }
-  }, [schedule.length, hasInitialized, onChange]);
 
   function addItem() {
     if (!desc.trim()) return;
