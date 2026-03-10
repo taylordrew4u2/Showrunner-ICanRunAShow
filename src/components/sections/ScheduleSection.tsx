@@ -179,11 +179,11 @@ export function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
           className={`schedule-mode-toggle__btn ${mode === 'upload' ? 'schedule-mode-toggle__btn--active' : ''}`}
           onClick={() => { setMode('upload'); setImportError(null); setImportSuccess(null); }}
         >
-          📄 Upload File
+          � Import from File
         </button>
       </div>
 
-      {/* Upload file mode */}
+      {/* Import file mode */}
       {mode === 'upload' && (
         <div className="schedule-upload">
           <div
