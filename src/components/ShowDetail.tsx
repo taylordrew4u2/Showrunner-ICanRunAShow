@@ -41,9 +41,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   }
 
   function handleUpdate(updates: Partial<Show>) {
-    // Show saving indicator
-    setSaveStatus('saving');
-    
     // Ensure files array is never lost during updates
     const merged = { 
       ...show, 
@@ -97,11 +94,14 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
     }
 
     onUpdate(merged);
-    
-    // Show saved indicator, then fade out
+    triggerSaveIndicator();
+  }
+
+  function triggerSaveIndicator() {
+    setSaveStatus('saving');
     setTimeout(() => {
       setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
+      setTimeout(() => setSaveStatus('idle'), 2500);
     }, 300);
   }
 
@@ -111,6 +111,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       [sectionKey]: deadline || undefined,
     };
     onUpdate({ ...show, deadlines: updatedDeadlines });
+    triggerSaveIndicator();
     setEditingDeadline(null);
   }
 
@@ -120,18 +121,21 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       [sectionKey]: !show.completions?.[sectionKey],
     };
     onUpdate({ ...show, completions: updatedCompletions });
+    triggerSaveIndicator();
   }
 
   function handleHideSection(sectionKey: SectionKey) {
     const hidden = show.hiddenSections || [];
     if (!hidden.includes(sectionKey)) {
       onUpdate({ ...show, hiddenSections: [...hidden, sectionKey] });
+      triggerSaveIndicator();
     }
   }
 
   function handleRestoreSection(sectionKey: SectionKey) {
     const hidden = (show.hiddenSections || []).filter(k => k !== sectionKey);
     onUpdate({ ...show, hiddenSections: hidden });
+    triggerSaveIndicator();
   }
 
   function toggleSection(sectionKey: string) {
@@ -185,6 +189,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       });
     }
     
+    triggerSaveIndicator();
     setEditingVideoHost(false);
   }
 
@@ -198,6 +203,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   function handleSaveShowName() {
     if (tempShowName.trim()) {
       onUpdate({ ...show, name: tempShowName.trim() });
+      triggerSaveIndicator();
       setEditingShowName(false);
     }
   }
@@ -215,6 +221,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       completed: false,
     };
     onUpdate({ ...show, todos: [...(show.todos || []), todo] });
+    triggerSaveIndicator();
     setNewTodoText('');
   }
 
@@ -223,18 +230,16 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       t.id === todoId ? { ...t, completed: !t.completed } : t
     );
     onUpdate({ ...show, todos });
+    triggerSaveIndicator();
   }
 
   function handleDeleteTodo(todoId: string) {
-    const todos = (show.todos || []).filter((t) => t.id !== todoId);
-      function handleDeleteTodo(todoId: string) {
-        const todo = (show.todos || []).find((t) => t.id === todoId);
-        if (window.confirm(`Delete to-do "${todo?.text}"? This cannot be undone.`)) {
-          const todos = (show.todos || []).filter((t) => t.id !== todoId);
-          onUpdate({ ...show, todos });
-        }
-      }
-    onUpdate({ ...show, todos });
+    const todo = (show.todos || []).find((t) => t.id === todoId);
+    if (window.confirm(`Delete to-do "${todo?.text}"? This cannot be undone.`)) {
+      const todos = (show.todos || []).filter((t) => t.id !== todoId);
+      onUpdate({ ...show, todos });
+      triggerSaveIndicator();
+    }
   }
 
   const hostNames: Record<string, string> = { justin: 'Justin', taylor: 'Taylor' };
