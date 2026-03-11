@@ -170,12 +170,20 @@ export interface Show {
   updatedAt: string;
 }
 
+export interface DeletedItem {
+  id: string;
+  type: 'show';
+  data: Show;
+  deletedAt: string;
+}
+
 export interface AppSettings {
   brandName: string;
   producers: Producer[];
   rules: string;
   brandBudget: number;
   totalSpent: number;
+  trash: DeletedItem[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -184,6 +192,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   rules: "",
   brandBudget: 0,
   totalSpent: 0,
+  trash: [],
 };
 
 export const STAFF_ROLES: string[] = [

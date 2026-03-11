@@ -204,6 +204,9 @@ export default function App() {
 
   function handleDeleteShow(id: string) {
     setShows((prev) => {
+      const showToDelete = prev.find((s) => s.id === id);
+      if (!showToDelete) return prev;
+      
       const updatedShows = prev.filter((s) => s.id !== id);
       
       // Recalculate totalSpent across remaining shows
@@ -212,10 +215,22 @@ export default function App() {
         return sum + showTotal;
       }, 0);
       
-      // Update settings with new totalSpent
-      if (settings.totalSpent !== totalSpent && session) {
-        const updatedSettings = { ...settings, totalSpent };
-        setSettings(updatedSettings);
+      // Move to trash instead of permanent deletion
+      const deletedItem = {
+        id: generateId(),
+        type: 'show' as const,
+        data: showToDelete,
+        deletedAt: new Date().toISOString(),
+      };
+      
+      const updatedSettings = { 
+        ...settings, 
+        totalSpent,
+        trash: [deletedItem, ...settings.trash],
+      };
+      setSettings(updatedSettings);
+      
+      if (session) {
         saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
       }
       
@@ -223,9 +238,35 @@ export default function App() {
     });
   }
 
-  function handleSelectShow(show: Show) {
-    setSelectedShow(show);
-    setView('detail');
+  function handleRecoverShow(trashItemId: string) {
+    const trashItem = settings.trash.find((item) => item.id === trashItemId);
+    if (!trashItem || trashItem.type !== 'show') return;
+
+    // Add show back to list
+    setShows((prev) => [trashItem.data, ...prev]);
+
+    // Remove from trash
+    const updatedSettings = {
+      ...settings,
+      trash: settings.trash.filter((item) => item.id !== trashItemId),
+    };
+    setSettings(updatedSettings);
+
+    if (session) {
+      saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+    }
+  }
+
+  function handlePermanentlyDeleteShow(trashItemId: string) {
+    const updatedSettings = {
+      ...settings,
+      trash: settings.trash.filter((item) => item.id !== trashItemId),
+    };
+    setSettings(updatedSettings);
+
+    if (session) {
+      saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+    }
   }
 
   function handleUpdateShow(updated: Show) {
@@ -367,6 +408,8 @@ export default function App() {
                 onSave={handleSaveSettings}
                 onBack={handleBack}
                 saving={settingsSaving}
+                onRecoverShow={handleRecoverShow}
+                onPermanentlyDelete={handlePermanentlyDeleteShow}
               />
             )}
           </main>

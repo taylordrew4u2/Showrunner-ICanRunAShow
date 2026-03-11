@@ -227,6 +227,13 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
 
   function handleDeleteTodo(todoId: string) {
     const todos = (show.todos || []).filter((t) => t.id !== todoId);
+      function handleDeleteTodo(todoId: string) {
+        const todo = (show.todos || []).find((t) => t.id === todoId);
+        if (window.confirm(`Delete to-do "${todo?.text}"? This cannot be undone.`)) {
+          const todos = (show.todos || []).filter((t) => t.id !== todoId);
+          onUpdate({ ...show, todos });
+        }
+      }
     onUpdate({ ...show, todos });
   }
 

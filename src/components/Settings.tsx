@@ -8,9 +8,11 @@ interface SettingsProps {
   onSave: (settings: AppSettings) => void;
   onBack: () => void;
   saving?: boolean;
+  onRecoverShow?: (trashItemId: string) => void;
+  onPermanentlyDelete?: (trashItemId: string) => void;
 }
 
-export function Settings({ settings: initialSettings, onSave, onBack, saving = false }: SettingsProps) {
+export function Settings({ settings: initialSettings, onSave, onBack, saving = false, onRecoverShow, onPermanentlyDelete }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
   const [newProducerName, setNewProducerName] = useState('');
   const [newProducerRole, setNewProducerRole] = useState('');
@@ -130,4 +132,3 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
       </button>
     </div>
   );
-}
