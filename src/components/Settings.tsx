@@ -132,3 +132,4 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
       </button>
     </div>
   );
+}
