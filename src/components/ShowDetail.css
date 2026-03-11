@@ -23,59 +23,67 @@
   gap: 12px;
 }
 
-/* Save Indicator */
+/* Save Indicator – fixed toast at bottom-right */
 .show-detail__save-indicator-container {
   flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  /* container stays in topbar for layout purposes but is invisible */
   min-height: 24px;
 }
 
 .show-detail__save-indicator {
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 20px;
-  transition: all 0.3s ease;
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 10px 22px;
+  border-radius: 40px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+  z-index: 9999;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .show-detail__save-indicator--saving {
-  color: #f59e0b;
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
-  animation: pulse 1.5s ease-in-out infinite;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1.5px solid #fcd34d;
+  animation: toastSlideIn 0.25s ease forwards, pulse 1.5s 0.25s ease-in-out infinite;
 }
 
 .show-detail__save-indicator--saved {
-  color: #10b981;
-  background: #f0fdf4;
-  border: 1px solid #d1fae5;
-  animation: fadeInOut 2s ease forwards;
+  color: #065f46;
+  background: #d1fae5;
+  border: 1.5px solid #6ee7b7;
+  animation: toastSlideIn 0.2s ease forwards, toastFadeOut 0.4s 2.1s ease forwards;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes toastFadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-@keyframes fadeInOut {
-  0% {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  10% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  90% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
+  50% { opacity: 0.65; }
 }
 
 .show-detail__header {
