@@ -314,6 +314,11 @@ export default function App() {
     });
   }
 
+  function handleSelectShow(show: Show) {
+    setSelectedShow(show);
+    setView('detail');
+  }
+
   function handleBack() {
     setView('list');
     setSelectedShow(null);
