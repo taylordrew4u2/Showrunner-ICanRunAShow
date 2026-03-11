@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import type { ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { importScheduleFromFile, parseScheduleManually } from '../../utils/aiExtractor';

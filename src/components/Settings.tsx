@@ -12,7 +12,7 @@ interface SettingsProps {
   onPermanentlyDelete?: (trashItemId: string) => void;
 }
 
-export function Settings({ settings: initialSettings, onSave, onBack, saving = false, onRecoverShow, onPermanentlyDelete }: SettingsProps) {
+export function Settings({ settings: initialSettings, onSave, onBack, saving = false }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
   const [newProducerName, setNewProducerName] = useState('');
   const [newProducerRole, setNewProducerRole] = useState('');
