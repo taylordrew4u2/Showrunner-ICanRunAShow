@@ -160,5 +160,67 @@
     .settings__save {
         width: auto;
         align-self: flex-start;
+
+    .settings__trash-section {
+        margin-top: 8px;
+        border: 1px solid #fecaca;
+        background: #fef2f2;
+    }
+
+    .settings__subtitle {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text, #101828);
+        margin: 0 0 8px 0;
+    }
+
+    .settings__trash-info {
+        color: var(--text-muted, #667085);
+        font-size: 0.9rem;
+        margin: 0 0 12px 0;
+    }
+
+    .settings__trash-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .settings__trash-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: #ffffff;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        gap: 12px;
+    }
+
+    .settings__trash-content {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .settings__trash-name {
+        font-weight: 600;
+        color: var(--text, #101828);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .settings__trash-date {
+        font-size: 0.8rem;
+        color: #dc2626;
+    }
+
+    .settings__trash-actions {
+        display: flex;
+        gap: 8px;
+    }
     }
 }
