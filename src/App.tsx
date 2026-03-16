@@ -228,7 +228,7 @@ export default function App() {
       const updatedSettings = { 
         ...settings, 
         totalSpent,
-        trash: [deletedItem, ...settings.trash],
+        trash: [deletedItem, ...(settings.trash || [])],
       };
       setSettings(updatedSettings);
       
@@ -241,7 +241,7 @@ export default function App() {
   }
 
   function handleRecoverShow(trashItemId: string) {
-    const trashItem = settings.trash.find((item) => item.id === trashItemId);
+    const trashItem = (settings.trash || []).find((item) => item.id === trashItemId);
     if (!trashItem || trashItem.type !== 'show') return;
 
     // Add show back to list
@@ -250,7 +250,7 @@ export default function App() {
     // Remove from trash
     const updatedSettings = {
       ...settings,
-      trash: settings.trash.filter((item) => item.id !== trashItemId),
+      trash: (settings.trash || []).filter((item) => item.id !== trashItemId),
     };
     setSettings(updatedSettings);
 
@@ -262,7 +262,7 @@ export default function App() {
   function handlePermanentlyDeleteShow(trashItemId: string) {
     const updatedSettings = {
       ...settings,
-      trash: settings.trash.filter((item) => item.id !== trashItemId),
+      trash: (settings.trash || []).filter((item) => item.id !== trashItemId),
     };
     setSettings(updatedSettings);
 
