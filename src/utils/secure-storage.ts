@@ -110,6 +110,21 @@ export async function saveEncryptedShows(
   await ensureSchema();
   const db = getClient();
 
+  // Safety check: don't wipe existing shows if the array is empty
+  if (shows.length === 0) {
+    const existing = await db.execute(
+      `SELECT count(*) as cnt FROM user_shows WHERE user_id = ?`,
+      [userId],
+    );
+    const count = Number(existing.rows[0][0]);
+    if (count > 0) {
+      console.warn(
+        `Skipping save: refusing to delete ${count} existing show(s) with an empty array.`,
+      );
+      return;
+    }
+  }
+
   const statements: Array<{ sql: string; args: string[] }> = [
     { sql: `DELETE FROM user_shows WHERE user_id = ?`, args: [userId] },
   ];
@@ -175,6 +190,7 @@ function migrateSettings(settings: any): AppSettings {
   if (!settings.producers) settings.producers = [];
   if (typeof settings.brandBudget !== "number") settings.brandBudget = 0;
   if (typeof settings.totalSpent !== "number") settings.totalSpent = 0;
+  if (!Array.isArray(settings.trash)) settings.trash = [];
   if (!Array.isArray(settings.potentialComics)) settings.potentialComics = [];
 
   return settings as AppSettings;
