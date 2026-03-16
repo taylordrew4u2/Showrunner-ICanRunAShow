@@ -95,6 +95,7 @@ export async function loadSettings(): Promise<AppSettings> {
     if (!settings.producers) settings.producers = [];
     if (typeof settings.brandBudget !== "number") settings.brandBudget = 0;
     if (typeof settings.totalSpent !== "number") settings.totalSpent = 0;
+    if (!Array.isArray(settings.potentialComics)) settings.potentialComics = [];
 
     return { ...DEFAULT_SETTINGS, ...settings };
   } catch (error) {
