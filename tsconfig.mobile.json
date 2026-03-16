@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "strictNullChecks": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": "."
+  },
+  "include": [
+    "app",
+    "components",
+    "utils/db.ts",
+    "utils/encryption.ts",
+    "utils/filePicker.ts",
+    "utils/pdfExport.ts",
+    "utils/secure-storage.ts",
+    "utils/storage.ts",
+    "utils/types.ts",
+    "shims/native-modules.d.ts"
+  ]
+}

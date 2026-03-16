@@ -68,6 +68,7 @@ export interface Expense {
   cost: number;
   date?: string;
   notes?: string;
+  receiptPhoto?: string; // file URI (mobile) or base64 data URL (web)
 }
 
 export interface Producer {
