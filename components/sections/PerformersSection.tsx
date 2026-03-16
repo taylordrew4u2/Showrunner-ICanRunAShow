@@ -19,7 +19,17 @@ interface Props {
   onChange: (performers: Performer[]) => void;
 }
 
-const EMPTY: Omit<Performer, 'id'> = { name: '', socialMedia: undefined, walkOnMusic: undefined, photo: undefined, video: undefined };
+const EMPTY: Omit<Performer, 'id'> = {
+  name: '',
+  socialMedia: undefined,
+  walkOnMusic: undefined,
+  walkOnMusicName: undefined,
+  walkOnMusicTimestamp: undefined,
+  credits: undefined,
+  lockedIn: false,
+  photo: undefined,
+  video: undefined,
+};
 
 export default function PerformersSection({ performers, onChange }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
@@ -34,8 +44,22 @@ export default function PerformersSection({ performers, onChange }: Props) {
 
   const openEdit = (p: Performer) => {
     setEditing(p);
-    setDraft({ name: p.name, socialMedia: p.socialMedia, walkOnMusic: p.walkOnMusic, photo: p.photo, video: p.video });
+    setDraft({
+      name: p.name,
+      socialMedia: p.socialMedia,
+      walkOnMusic: p.walkOnMusic,
+      walkOnMusicName: p.walkOnMusicName,
+      walkOnMusicTimestamp: p.walkOnMusicTimestamp,
+      credits: p.credits,
+      lockedIn: p.lockedIn ?? false,
+      photo: p.photo,
+      video: p.video,
+    });
     setModalVisible(true);
+  };
+
+  const toggleLock = (p: Performer) => {
+    onChange(performers.map((x) => x.id === p.id ? { ...x, lockedIn: !x.lockedIn } : x));
   };
 
   const save = () => {
@@ -78,7 +102,7 @@ export default function PerformersSection({ performers, onChange }: Props) {
         <Text style={styles.empty}>No performers added yet.</Text>
       ) : (
         performers.map((p, i) => (
-          <View key={p.id} style={styles.row}>
+          <View key={p.id} style={[styles.row, p.lockedIn && styles.rowLocked]}>
             <View style={styles.orderBtns}>
               <TouchableOpacity onPress={() => moveUp(i)} style={styles.orderBtn} disabled={i === 0}>
                 <Text style={[styles.orderBtnText, i === 0 && styles.disabled]}>▲</Text>
@@ -95,21 +119,39 @@ export default function PerformersSection({ performers, onChange }: Props) {
               </View>
             )}
             <View style={styles.info}>
-              <Text style={styles.name}>{p.name}</Text>
+              <View style={styles.nameRow}>
+                <Text style={styles.name}>{p.name}</Text>
+                {p.lockedIn ? <Text style={styles.lockBadge}>🔒</Text> : null}
+              </View>
+              {p.credits ? (
+                <Text style={styles.meta} numberOfLines={1}>🎤 {p.credits}</Text>
+              ) : null}
               {p.socialMedia ? (
                 <Text style={styles.meta} numberOfLines={1}>📱 {p.socialMedia}</Text>
               ) : null}
-              {p.walkOnMusic ? (
+              {p.walkOnMusicName ? (
+                <Text style={styles.meta} numberOfLines={1}>🎵 {p.walkOnMusicName}{p.walkOnMusicTimestamp ? ` @ ${p.walkOnMusicTimestamp}` : ''}</Text>
+              ) : p.walkOnMusic ? (
                 <Text style={styles.meta} numberOfLines={1}>🎵 {fileBaseName(p.walkOnMusic)}</Text>
               ) : null}
               {p.video ? <Text style={styles.meta}>🎬 Video attached</Text> : null}
             </View>
-            <TouchableOpacity onPress={() => openEdit(p)} style={styles.editBtn}>
-              <Text style={styles.editBtnText}>Edit</Text>
+            <TouchableOpacity
+              onPress={() => toggleLock(p)}
+              style={[styles.lockBtn, p.lockedIn && styles.lockBtnActive]}
+            >
+              <Text style={styles.lockBtnText}>{p.lockedIn ? '🔒' : '🔓'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => remove(p.id)} style={styles.deleteBtn}>
-              <Text style={styles.deleteBtnText}>✕</Text>
-            </TouchableOpacity>
+            {!p.lockedIn && (
+              <TouchableOpacity onPress={() => openEdit(p)} style={styles.editBtn}>
+                <Text style={styles.editBtnText}>Edit</Text>
+              </TouchableOpacity>
+            )}
+            {!p.lockedIn && (
+              <TouchableOpacity onPress={() => remove(p.id)} style={styles.deleteBtn}>
+                <Text style={styles.deleteBtnText}>✕</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ))
       )}
@@ -140,6 +182,33 @@ export default function PerformersSection({ performers, onChange }: Props) {
               value={draft.socialMedia}
               onChangeText={(v) => setDraft((d) => ({ ...d, socialMedia: v }))}
               placeholder="e.g., @username"
+              placeholderTextColor="#9CA3AF"
+            />
+
+            <Text style={styles.fieldLabel}>Introduction / Credits</Text>
+            <TextInput
+              style={styles.input}
+              value={draft.credits ?? ''}
+              onChangeText={(v) => setDraft((d) => ({ ...d, credits: v || undefined }))}
+              placeholder="How to introduce this performer"
+              placeholderTextColor="#9CA3AF"
+            />
+
+            <Text style={styles.fieldLabel}>Walk-On Song Name</Text>
+            <TextInput
+              style={styles.input}
+              value={draft.walkOnMusicName ?? ''}
+              onChangeText={(v) => setDraft((d) => ({ ...d, walkOnMusicName: v || undefined }))}
+              placeholder="Song title"
+              placeholderTextColor="#9CA3AF"
+            />
+
+            <Text style={styles.fieldLabel}>Walk-On Timestamp</Text>
+            <TextInput
+              style={styles.input}
+              value={draft.walkOnMusicTimestamp ?? ''}
+              onChangeText={(v) => setDraft((d) => ({ ...d, walkOnMusicTimestamp: v || undefined }))}
+              placeholder="e.g., 1:30"
               placeholderTextColor="#9CA3AF"
             />
 
@@ -199,6 +268,16 @@ export default function PerformersSection({ performers, onChange }: Props) {
               </TouchableOpacity>
             ) : null}
 
+              {/* Lock In toggle inside modal */}
+            <TouchableOpacity
+              style={[styles.lockToggleBtn, draft.lockedIn && styles.lockToggleBtnActive]}
+              onPress={() => setDraft((d) => ({ ...d, lockedIn: !d.lockedIn }))}
+            >
+              <Text style={[styles.lockToggleBtnText, draft.lockedIn && styles.lockToggleBtnTextActive]}>
+                {draft.lockedIn ? '🔒 Locked In' : '🔓 Lock In Performer'}
+              </Text>
+            </TouchableOpacity>
+
             <View style={styles.modalBtns}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -215,11 +294,57 @@ export default function PerformersSection({ performers, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    backgroundColor: '#fff', 
-    borderRadius: 14, 
-    padding: 16, 
-    marginBottom: 10 
+  container: {
+    gap: 0,
+  },
+  rowLocked: {
+    backgroundColor: '#F0FDF4',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  lockBadge: {
+    fontSize: 13,
+  },
+  lockBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  lockBtnActive: {
+    backgroundColor: '#DCFCE7',
+  },
+  lockBtnText: {
+    fontSize: 18,
+  },
+  lockToggleBtn: {
+    marginTop: 20,
+    paddingVertical: 13,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  lockToggleBtnActive: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#86EFAC',
+  },
+  lockToggleBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  lockToggleBtnTextActive: {
+    color: '#16A34A',
   },
   empty: { 
     color: '#9CA3AF', 

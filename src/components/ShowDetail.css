@@ -1925,3 +1925,89 @@
   text-align: center;
   margin: 8px 0 0;
 }
+
+/* ─── Budget Card ─────────────────────────────────────────────────────────── */
+.budget-card {
+  background: #f0fdf4;
+  border: 2px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.budget-card__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #166534;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+.budget-card__grid {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.budget-card__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 100px;
+}
+.budget-card__label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+.budget-card__value {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+.budget-card__value--primary { color: #6b46c1; }
+.budget-card__value--spent   { color: #ef4444; }
+.budget-card__value--positive { color: #16a34a; }
+.budget-card__value--negative { color: #ef4444; }
+
+/* ─── Receipt Photo (Expenses) ────────────────────────────────────────────── */
+.receipt-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1.5px solid #d1d5db;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  vertical-align: middle;
+}
+.receipt-thumb:hover {
+  border-color: #6b46c1;
+  box-shadow: 0 2px 8px rgba(107, 70, 193, 0.25);
+}
+.receipt-thumb-btn {
+  display: inline-flex;
+  align-items: center;
+}
+.receipt-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.88);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: fadeIn 0.2s ease;
+}
+.receipt-lightbox__img {
+  max-width: 90vw;
+  max-height: 85vh;
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+.receipt-lightbox__hint {
+  margin-top: 16px;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.875rem;
+}

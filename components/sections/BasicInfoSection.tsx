@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert, Linking } from 'react-native';
 import { Show, ShowStatus } from '../../utils/types';
 import { pickImage } from '../../utils/filePicker';
 
@@ -84,6 +84,22 @@ export default function BasicInfoSection({ show, onChange }: Props) {
         numberOfLines={3}
         textAlignVertical="top"
       />
+
+      <Text style={styles.label}>Ticket Link (optional)</Text>
+      <TextInput
+        style={styles.input}
+        value={show.ticketLink ?? ''}
+        onChangeText={(v) => onChange({ ticketLink: v || undefined })}
+        placeholder="https://..."
+        placeholderTextColor="#9CA3AF"
+        autoCapitalize="none"
+        keyboardType="url"
+      />
+      {show.ticketLink ? (
+        <TouchableOpacity onPress={() => Linking.openURL(show.ticketLink!)}>
+          <Text style={styles.linkText}>🔗 Open ticket link</Text>
+        </TouchableOpacity>
+      ) : null}
 
       <Text style={styles.label}>Status</Text>
       <View style={styles.statusGrid}>
@@ -241,5 +257,12 @@ const styles = StyleSheet.create({
   },
   statusBtnTextActive: {
     color: '#6B46C1',
+  },
+  linkText: {
+    color: '#6B46C1',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 6,
+    textDecorationLine: 'underline',
   },
 });

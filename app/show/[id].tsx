@@ -23,6 +23,8 @@ import HostsSection from '../../components/sections/HostsSection';
 import DJMusicSection from '../../components/sections/DJMusicSection';
 import StaffSection from '../../components/sections/StaffSection';
 import ExpensesSection from '../../components/sections/ExpensesSection';
+import FilesSection from '../../components/sections/FilesSection';
+import ShowRecapSection from '../../components/sections/ShowRecapSection';
 
 type SectionKey =
   | 'basicInfo'
@@ -32,7 +34,9 @@ type SectionKey =
   | 'hosts'
   | 'djMusic'
   | 'staff'
-  | 'expenses';
+  | 'expenses'
+  | 'files'
+  | 'recap';
 
 const ALL_SECTIONS: SectionKey[] = [
   'basicInfo',
@@ -43,6 +47,8 @@ const ALL_SECTIONS: SectionKey[] = [
   'djMusic',
   'staff',
   'expenses',
+  'files',
+  'recap',
 ];
 
 const SECTION_LABELS: Record<SectionKey, string> = {
@@ -54,6 +60,8 @@ const SECTION_LABELS: Record<SectionKey, string> = {
   djMusic: '6. DJ Music List',
   staff: '7. Staff & Crew',
   expenses: '8. Itemized Expenses',
+  files: '9. Show Files',
+  recap: '10. Post-Show Recap',
 };
 
 export default function ShowDetailScreen() {
@@ -75,6 +83,8 @@ export default function ShowDetailScreen() {
     djMusic: false,
     staff: false,
     expenses: false,
+    files: false,
+    recap: false,
   });
 
   // Debounced auto-save
@@ -152,6 +162,7 @@ export default function ShowDetailScreen() {
       case 'djMusic': return show.djSongs.length;
       case 'staff': return show.staff.length;
       case 'expenses': return show.expenses.length;
+      case 'files': return show.files?.length ?? 0;
       default: return undefined;
     }
   };
@@ -234,7 +245,7 @@ export default function ShowDetailScreen() {
               onToggle={() => toggleSection(key)}
               count={sectionCount(key)}
             />
-            {expanded[key] && renderSection(key, show, updateShow)}
+            {expanded[key] && renderSection(key, show, updateShow, settings)}
           </View>
         ))}
 
@@ -258,7 +269,8 @@ export default function ShowDetailScreen() {
 function renderSection(
   key: SectionKey,
   show: Show,
-  updateShow: (updates: Partial<Show>) => void
+  updateShow: (updates: Partial<Show>) => void,
+  settings: AppSettings
 ): React.ReactNode {
   switch (key) {
     case 'basicInfo':
@@ -310,7 +322,23 @@ function renderSection(
       return (
         <ExpensesSection
           expenses={show.expenses}
+          settings={settings}
           onChange={(expenses) => updateShow({ expenses })}
+        />
+      );
+    case 'files':
+      return (
+        <FilesSection
+          files={show.files ?? []}
+          onChange={(files) => updateShow({ files })}
+        />
+      );
+    case 'recap':
+      return (
+        <ShowRecapSection
+          recap={show.recap}
+          expenses={show.expenses}
+          onChange={(recap) => updateShow({ recap })}
         />
       );
     default:
