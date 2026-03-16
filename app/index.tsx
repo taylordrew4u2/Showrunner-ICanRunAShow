@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useFocusEffect, useRouter, Stack } from 'expo-router';
-import { loadShows, saveShow, deleteShow, loadSettings, generateId } from '../utils/storage';
+import { loadShows, saveShow, deleteShow, loadSettings, saveSettings, generateId } from '../utils/storage';
 import { Show, AppSettings, DEFAULT_SETTINGS, ShowStatus } from '../utils/types';
 import ShowCard from '../components/ShowCard';
 
@@ -24,6 +24,7 @@ export default function HomeScreen() {
   const [newShowStatus, setNewShowStatus] = useState<ShowStatus>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ShowStatus | 'all'>('all');
+  const [newComicName, setNewComicName] = useState('');
   const router = useRouter();
 
   useFocusEffect(
@@ -108,6 +109,36 @@ export default function HomeScreen() {
     ]);
   };
 
+  const handleAddPotentialComic = async () => {
+    const trimmedName = newComicName.trim();
+    if (!trimmedName) return;
+
+    const updatedSettings: AppSettings = {
+      ...settings,
+      potentialComics: [
+        {
+          id: generateId(),
+          name: trimmedName,
+        },
+        ...settings.potentialComics,
+      ],
+    };
+
+    setSettings(updatedSettings);
+    setNewComicName('');
+    await saveSettings(updatedSettings);
+  };
+
+  const handleRemovePotentialComic = async (id: string) => {
+    const updatedSettings: AppSettings = {
+      ...settings,
+      potentialComics: settings.potentialComics.filter((comic) => comic.id !== id),
+    };
+
+    setSettings(updatedSettings);
+    await saveSettings(updatedSettings);
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: settings.brandName || 'Pins & Needles' }} />
@@ -169,6 +200,44 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        <View style={styles.rolodexSection}>
+          <Text style={styles.rolodexTitle}>Potential Comics Rolodex</Text>
+          <View style={styles.rolodexAddRow}>
+            <TextInput
+              style={styles.rolodexInput}
+              placeholder="Comic name"
+              placeholderTextColor="#9CA3AF"
+              value={newComicName}
+              onChangeText={setNewComicName}
+            />
+            <TouchableOpacity
+              style={[styles.rolodexAddBtn, !newComicName.trim() && styles.rolodexAddBtnDisabled]}
+              onPress={handleAddPotentialComic}
+              disabled={!newComicName.trim()}
+            >
+              <Text style={styles.rolodexAddBtnText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+
+          {settings.potentialComics.length > 0 ? (
+            <View style={styles.rolodexList}>
+              {settings.potentialComics.map((comic) => (
+                <View key={comic.id} style={styles.rolodexItem}>
+                  <Text style={styles.rolodexItemName} numberOfLines={1}>{comic.name}</Text>
+                  <TouchableOpacity
+                    style={styles.rolodexRemoveBtn}
+                    onPress={() => handleRemovePotentialComic(comic.id)}
+                  >
+                    <Text style={styles.rolodexRemoveBtnText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.rolodexEmpty}>No comics saved yet.</Text>
+          )}
+        </View>
       </View>
 
       {/* Shows Grid */}
@@ -395,6 +464,86 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: '#fff',
+  },
+  rolodexSection: {
+    marginTop: 10,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    padding: 12,
+    gap: 8,
+  },
+  rolodexTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  rolodexAddRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  rolodexInput: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 42,
+    color: '#1F2937',
+  },
+  rolodexAddBtn: {
+    backgroundColor: '#6B46C1',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rolodexAddBtnDisabled: {
+    opacity: 0.5,
+  },
+  rolodexAddBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  rolodexList: {
+    gap: 6,
+  },
+  rolodexItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  rolodexItemName: {
+    flex: 1,
+    color: '#111827',
+    fontWeight: '600',
+  },
+  rolodexRemoveBtn: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  rolodexRemoveBtnText: {
+    color: '#B91C1C',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  rolodexEmpty: {
+    color: '#6B7280',
+    fontSize: 13,
   },
   grid: {
     padding: 12,

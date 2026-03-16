@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Show, AppSettings } from './types';
+import type { Show, AppSettings, PotentialComic } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
 import { 
@@ -41,6 +41,8 @@ export default function App() {
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [newComicName, setNewComicName] = useState('');
+  const [newComicNotes, setNewComicNotes] = useState('');
 
   // Restore session from sessionStorage on mount
   useEffect(() => {
@@ -269,6 +271,40 @@ export default function App() {
     }
   }
 
+  function handleAddPotentialComic() {
+    const trimmedName = newComicName.trim();
+    const trimmedNotes = newComicNotes.trim();
+    if (!trimmedName || !session) return;
+
+    const newComic: PotentialComic = {
+      id: generateId(),
+      name: trimmedName,
+      notes: trimmedNotes || undefined,
+    };
+
+    const updatedSettings = {
+      ...settings,
+      potentialComics: [newComic, ...settings.potentialComics],
+    };
+
+    setSettings(updatedSettings);
+    saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+    setNewComicName('');
+    setNewComicNotes('');
+  }
+
+  function handleRemovePotentialComic(id: string) {
+    if (!session) return;
+
+    const updatedSettings = {
+      ...settings,
+      potentialComics: settings.potentialComics.filter((comic) => comic.id !== id),
+    };
+
+    setSettings(updatedSettings);
+    saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+  }
+
   function handleUpdateShow(updated: Show) {
     setShows((prev) => {
       // Ensure files array always exists and is never lost
@@ -366,6 +402,58 @@ export default function App() {
                     <p className="bento-tile__value">{totalSceneCount}</p>
                     <p className="bento-tile__meta">Across all shows</p>
                   </article>
+                </section>
+
+                <section className="rolodex" aria-label="Potential comics rolodex">
+                  <div className="rolodex__header">
+                    <h2 className="rolodex__title">Potential Comics Rolodex</h2>
+                    <p className="rolodex__subtitle">Keep a running list of comics you want to book next.</p>
+                  </div>
+
+                  <div className="rolodex__form">
+                    <input
+                      className="rolodex__input"
+                      value={newComicName}
+                      onChange={(e) => setNewComicName(e.target.value)}
+                      placeholder="Comic name"
+                    />
+                    <input
+                      className="rolodex__input"
+                      value={newComicNotes}
+                      onChange={(e) => setNewComicNotes(e.target.value)}
+                      placeholder="Notes (style, contact, socials, etc.)"
+                    />
+                    <button
+                      className="btn btn--secondary"
+                      type="button"
+                      onClick={handleAddPotentialComic}
+                      disabled={!newComicName.trim()}
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {settings.potentialComics.length === 0 ? (
+                    <p className="rolodex__empty">No comics saved yet.</p>
+                  ) : (
+                    <div className="rolodex__list">
+                      {settings.potentialComics.map((comic) => (
+                        <article key={comic.id} className="rolodex__item">
+                          <div className="rolodex__item-content">
+                            <p className="rolodex__name">{comic.name}</p>
+                            {comic.notes ? <p className="rolodex__notes">{comic.notes}</p> : null}
+                          </div>
+                          <button
+                            className="btn btn--danger btn--sm"
+                            type="button"
+                            onClick={() => handleRemovePotentialComic(comic.id)}
+                          >
+                            Remove
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </section>
 
                 {shows.length === 0 ? (

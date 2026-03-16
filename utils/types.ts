@@ -76,6 +76,12 @@ export interface Producer {
   role: string;
 }
 
+export interface PotentialComic {
+  id: string;
+  name: string;
+  notes?: string;
+}
+
 export interface ShowRecap {
   attendance?: number;
   merchSales?: number;
@@ -193,6 +199,7 @@ export interface AppSettings {
   brandBudget: number;
   totalSpent: number;
   trash: DeletedItem[];
+  potentialComics: PotentialComic[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -202,6 +209,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   brandBudget: 0,
   totalSpent: 0,
   trash: [],
+  potentialComics: [],
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
