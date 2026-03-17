@@ -201,6 +201,7 @@ export interface AppSettings {
   totalSpent: number;
   trash: DeletedItem[];
   potentialComics: PotentialComic[];
+  expenses: Expense[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -211,6 +212,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   totalSpent: 0,
   trash: [],
   potentialComics: [],
+  expenses: [],
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
