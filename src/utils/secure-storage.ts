@@ -99,6 +99,7 @@ export async function loadEncryptedShows(
 
 /**
  * Save shows to backend (encrypted)
+ * Backs up existing data before overwriting so it can be recovered.
  */
 export async function saveEncryptedShows(
   shows: Show[],
@@ -110,19 +111,40 @@ export async function saveEncryptedShows(
   await ensureSchema();
   const db = getClient();
 
-  // Safety check: don't wipe existing shows if the array is empty
-  if (shows.length === 0) {
-    const existing = await db.execute(
-      `SELECT count(*) as cnt FROM user_shows WHERE user_id = ?`,
-      [userId],
+  // Count existing rows for this user
+  const existing = await db.execute(
+    `SELECT count(*) as cnt FROM user_shows WHERE user_id = ?`,
+    [userId],
+  );
+  const existingCount = Number(existing.rows[0][0]);
+
+  // Never wipe existing shows with an empty array
+  if (shows.length === 0 && existingCount > 0) {
+    console.warn(
+      `Skipping save: refusing to delete ${existingCount} existing show(s) with an empty array.`,
     );
-    const count = Number(existing.rows[0][0]);
-    if (count > 0) {
-      console.warn(
-        `Skipping save: refusing to delete ${count} existing show(s) with an empty array.`,
-      );
-      return;
-    }
+    return;
+  }
+
+  // Backup current rows before deleting (keeps last 3 snapshots per show)
+  if (existingCount > 0) {
+    await db.execute({
+      sql: `INSERT INTO user_shows_backup (id, user_id, encrypted_data)
+            SELECT id, user_id, encrypted_data FROM user_shows WHERE user_id = ?`,
+      args: [userId],
+    });
+
+    // Prune old backups — keep only the 3 most recent per show
+    await db.execute({
+      sql: `DELETE FROM user_shows_backup
+            WHERE user_id = ? AND rowid NOT IN (
+              SELECT rowid FROM user_shows_backup
+              WHERE user_id = ?
+              ORDER BY backed_up_at DESC
+              LIMIT ? 
+            )`,
+      args: [userId, userId, String(existingCount * 3)],
+    });
   }
 
   const statements: Array<{ sql: string; args: string[] }> = [
@@ -138,6 +160,63 @@ export async function saveEncryptedShows(
   }
 
   await db.batch(statements, "write");
+
+  // Verify the write succeeded — if row count doesn't match, restore from backup
+  const verification = await db.execute(
+    `SELECT count(*) as cnt FROM user_shows WHERE user_id = ?`,
+    [userId],
+  );
+  const savedCount = Number(verification.rows[0][0]);
+  if (savedCount !== shows.length) {
+    console.error(
+      `Save verification failed: expected ${shows.length} rows, found ${savedCount}. Restoring from backup.`,
+    );
+    await restoreFromBackup(userId);
+  }
+}
+
+/**
+ * Restore shows from the most recent backup snapshot
+ */
+async function restoreFromBackup(userId: string): Promise<void> {
+  const db = getClient();
+
+  // Get the most recent backup timestamp for this user
+  const latestBackup = await db.execute({
+    sql: `SELECT backed_up_at FROM user_shows_backup
+          WHERE user_id = ?
+          ORDER BY backed_up_at DESC LIMIT 1`,
+    args: [userId],
+  });
+  if (latestBackup.rows.length === 0) return;
+
+  const backedUpAt = latestBackup.rows[0][0] as string;
+
+  await db.batch([
+    { sql: `DELETE FROM user_shows WHERE user_id = ?`, args: [userId] },
+    {
+      sql: `INSERT INTO user_shows (id, user_id, encrypted_data)
+            SELECT id, user_id, encrypted_data
+            FROM user_shows_backup
+            WHERE user_id = ? AND backed_up_at = ?`,
+      args: [userId, backedUpAt],
+    },
+  ], "write");
+}
+
+/**
+ * Export all user data as a downloadable JSON blob (unencrypted).
+ * Returns a Blob URL the caller can use for a download link.
+ */
+export async function exportUserData(
+  username: string,
+  password: string,
+): Promise<string> {
+  const shows = await loadEncryptedShows(username, password);
+  const settings = await loadEncryptedSettings(username, password);
+  const payload = JSON.stringify({ shows, settings, exportedAt: new Date().toISOString() }, null, 2);
+  const blob = new Blob([payload], { type: "application/json" });
+  return URL.createObjectURL(blob);
 }
 
 /**
