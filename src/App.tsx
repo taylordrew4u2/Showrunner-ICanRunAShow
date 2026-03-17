@@ -7,6 +7,7 @@ import {
   saveEncryptedShows,
   loadEncryptedSettings,
   saveEncryptedSettings,
+  exportUserData,
   createAccount,
   authenticateUser,
 } from './utils/secure-storage';
@@ -79,8 +80,8 @@ export default function App() {
         dataLoaded.current = true;
       } catch (error) {
         console.error('Failed to load shows:', error);
-        setShows([]);
-        setSettings(DEFAULT_SETTINGS);
+        // Never overwrite in-memory shows on load failure — leave state unchanged
+        // so the auto-save effect cannot wipe the database.
       }
     }
 
@@ -503,6 +504,14 @@ export default function App() {
                 saving={settingsSaving}
                 onRecoverShow={handleRecoverShow}
                 onPermanentlyDelete={handlePermanentlyDeleteShow}
+                onExport={session ? async () => {
+                  const url = await exportUserData(session.username, session.password);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `showrunner-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } : undefined}
               />
             )}
           </main>

@@ -45,6 +45,13 @@ export async function ensureSchema(): Promise<void> {
        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
        FOREIGN KEY (user_id) REFERENCES users(id)
      )`,
+    `CREATE TABLE IF NOT EXISTS user_shows_backup (
+       id             TEXT NOT NULL,
+       user_id        TEXT NOT NULL,
+       encrypted_data TEXT NOT NULL,
+       backed_up_at   TEXT NOT NULL DEFAULT (datetime('now')),
+       PRIMARY KEY (id, backed_up_at)
+     )`,
   ]);
   _initialised = true;
 }

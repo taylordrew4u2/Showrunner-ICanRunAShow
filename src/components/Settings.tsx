@@ -10,9 +10,10 @@ interface SettingsProps {
   saving?: boolean;
   onRecoverShow?: (trashItemId: string) => void;
   onPermanentlyDelete?: (trashItemId: string) => void;
+  onExport?: () => Promise<void>;
 }
 
-export function Settings({ settings: initialSettings, onSave, onBack, saving = false }: SettingsProps) {
+export function Settings({ settings: initialSettings, onSave, onBack, saving = false, onExport }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
   const [newProducerName, setNewProducerName] = useState('');
   const [newProducerRole, setNewProducerRole] = useState('');
@@ -130,6 +131,16 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
       <button className="btn btn--primary settings__save" onClick={handleSave} disabled={saving}>
         {saving ? 'Saving...' : 'Save Settings'}
       </button>
+
+      {onExport && (
+        <button
+          className="btn btn--secondary settings__save"
+          onClick={onExport}
+          style={{ marginTop: 8 }}
+        >
+          Export Backup (JSON)
+        </button>
+      )}
     </div>
   );
 }
