@@ -91,6 +91,10 @@
     transition: transform 0.15s;
 }
 
+.expenses-page .receipt-thumb--inline {
+    flex-shrink: 0;
+}
+
 .expenses-page .receipt-thumb:hover {
     transform: scale(1.15);
 }

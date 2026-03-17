@@ -166,11 +166,20 @@ export function ExpensesSection({ expenses, settings, onChange }: ExpensesSectio
         />
         <button
           className="btn btn--ghost btn--sm"
-          title={receiptPhoto ? 'Receipt attached' : 'Attach receipt photo'}
+          title={receiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
           onClick={() => addReceiptInputRef.current?.click()}
         >
-          {receiptPhoto ? '📷✓' : '📷'}
+          📷
         </button>
+        {receiptPhoto && (
+          <img
+            src={receiptPhoto}
+            alt="receipt preview"
+            className="receipt-thumb receipt-thumb--inline"
+            onClick={() => setLightboxSrc(receiptPhoto)}
+            title="Click to view full size"
+          />
+        )}
         <button className="btn btn--primary btn--sm" onClick={addExpense}>Add</button>
       </div>
 
@@ -205,8 +214,17 @@ export function ExpensesSection({ expenses, settings, onChange }: ExpensesSectio
                     title={editReceiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
                     onClick={() => editReceiptInputRef.current?.click()}
                   >
-                    {editReceiptPhoto ? '📷✓' : '📷'}
+                    📷
                   </button>
+                  {editReceiptPhoto && (
+                    <img
+                      src={editReceiptPhoto}
+                      alt="receipt preview"
+                      className="receipt-thumb receipt-thumb--inline"
+                      onClick={() => setLightboxSrc(editReceiptPhoto)}
+                      title="Click to view full size"
+                    />
+                  )}
                   <button className="btn btn--primary btn--sm" onClick={saveEdit}>Save</button>
                   <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
                 </div>
