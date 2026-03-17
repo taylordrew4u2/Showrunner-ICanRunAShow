@@ -20,7 +20,7 @@ import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
 import './App.css';
 
-type View = 'list' | 'detail' | 'settings' | 'expenses';
+type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex';
 
 type Session = {
   username: string;
@@ -421,63 +421,18 @@ export default function App() {
                   </article>
                 </section>
 
-                <section className="rolodex" aria-label="Potential comics rolodex">
-                  <div className="rolodex__header">
-                    <h2 className="rolodex__title">Potential Comics Rolodex</h2>
-                    <p className="rolodex__subtitle">Keep a running list of comics you want to book next.</p>
-                  </div>
-
-                  <div className="rolodex__form">
-                    <input
-                      className="rolodex__input"
-                      value={newComicName}
-                      onChange={(e) => setNewComicName(e.target.value)}
-                      placeholder="Comic name"
-                    />
-                    <input
-                      className="rolodex__input"
-                      value={newComicNotes}
-                      onChange={(e) => setNewComicNotes(e.target.value)}
-                      placeholder="Notes (style, contact, socials, etc.)"
-                    />
-                    <button
-                      className="btn btn--secondary"
-                      type="button"
-                      onClick={handleAddPotentialComic}
-                      disabled={!newComicName.trim()}
-                    >
-                      Add
-                    </button>
-                  </div>
-
-                  {settings.potentialComics.length === 0 ? (
-                    <p className="rolodex__empty">No comics saved yet.</p>
-                  ) : (
-                    <div className="rolodex__list">
-                      {settings.potentialComics.map((comic) => (
-                        <article key={comic.id} className="rolodex__item">
-                          <div className="rolodex__item-content">
-                            <p className="rolodex__name">{comic.name}</p>
-                            {comic.notes ? <p className="rolodex__notes">{comic.notes}</p> : null}
-                          </div>
-                          <button
-                            className="btn btn--danger btn--sm"
-                            type="button"
-                            onClick={() => handleRemovePotentialComic(comic.id)}
-                          >
-                            Remove
-                          </button>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </section>
-
                 {shows.length === 0 ? (
-                  <div className="empty-state">
-                    <div className="empty-state__icon">🎬</div>
-                    <h2>No shows yet</h2>
-                    <p>Tap <strong>+ New Show</strong> to get started.</p>
+                  <div className="shows-grid">
+                    <div className="empty-state">
+                      <div className="empty-state__icon">🎬</div>
+                      <h2>No shows yet</h2>
+                      <p>Tap <strong>+ New Show</strong> to get started.</p>
+                    </div>
+                    <div className="show-card rolodex-tile" onClick={() => setView('rolodex')}>
+                      <div className="rolodex-tile__icon">🎤</div>
+                      <h3 className="rolodex-tile__title">Comic Rolodex</h3>
+                      <p className="rolodex-tile__count">{settings.potentialComics.length} comic{settings.potentialComics.length !== 1 ? 's' : ''}</p>
+                    </div>
                   </div>
                 ) : (
                   <div className="shows-grid">
@@ -489,6 +444,11 @@ export default function App() {
                         onDelete={handleDeleteShow}
                       />
                     ))}
+                    <div className="show-card rolodex-tile" onClick={() => setView('rolodex')}>
+                      <div className="rolodex-tile__icon">🎤</div>
+                      <h3 className="rolodex-tile__title">Comic Rolodex</h3>
+                      <p className="rolodex-tile__count">{settings.potentialComics.length} comic{settings.potentialComics.length !== 1 ? 's' : ''}</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -509,6 +469,61 @@ export default function App() {
                 onBack={handleBack}
                 onUpdateSettings={handleSaveSettings}
               />
+            )}
+
+            {view === 'rolodex' && (
+              <div className="rolodex-page">
+                <div className="rolodex-page__topbar">
+                  <button className="btn btn--ghost" onClick={handleBack}>← Back</button>
+                  <h2 className="rolodex-page__title">🎤 Comic Rolodex</h2>
+                </div>
+                <p className="rolodex-page__subtitle">Keep a running list of comics you want to book next.</p>
+
+                <div className="rolodex__form">
+                  <input
+                    className="rolodex__input"
+                    value={newComicName}
+                    onChange={(e) => setNewComicName(e.target.value)}
+                    placeholder="Comic name"
+                  />
+                  <input
+                    className="rolodex__input"
+                    value={newComicNotes}
+                    onChange={(e) => setNewComicNotes(e.target.value)}
+                    placeholder="Notes (style, contact, socials, etc.)"
+                  />
+                  <button
+                    className="btn btn--secondary"
+                    type="button"
+                    onClick={handleAddPotentialComic}
+                    disabled={!newComicName.trim()}
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {settings.potentialComics.length === 0 ? (
+                  <p className="rolodex__empty">No comics saved yet.</p>
+                ) : (
+                  <div className="rolodex__list">
+                    {settings.potentialComics.map((comic) => (
+                      <article key={comic.id} className="rolodex__item">
+                        <div className="rolodex__item-content">
+                          <p className="rolodex__name">{comic.name}</p>
+                          {comic.notes ? <p className="rolodex__notes">{comic.notes}</p> : null}
+                        </div>
+                        <button
+                          className="btn btn--danger btn--sm"
+                          type="button"
+                          onClick={() => handleRemovePotentialComic(comic.id)}
+                        >
+                          Remove
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {view === 'settings' && (
