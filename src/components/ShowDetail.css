@@ -372,19 +372,12 @@
   }
 }
 
-/* Accordion Layout for Sections - Adaptive Grid */
+/* Accordion Layout for Sections - 2 Column Grid */
 .show-detail__sections-accordion {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(450px, 100%), 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin: 16px 0;
-}
-
-@media (max-width: 1200px) {
-  .show-detail__sections-accordion {
-    grid-template-columns: repeat(auto-fit, minmax(min(400px, 100%), 1fr));
-    gap: 14px;
-  }
 }
 
 @media (max-width: 900px) {
