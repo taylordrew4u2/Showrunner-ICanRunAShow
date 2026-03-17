@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Show, AppSettings, Expense } from '../types';
 import { EXPENSE_CATEGORIES } from '../types';
 import { generateId } from '../utils/id';
@@ -24,6 +24,11 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
   const [editCost, setEditCost] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [editReceiptPhoto, setEditReceiptPhoto] = useState<string | undefined>(undefined);
+  const [receiptPhoto, setReceiptPhoto] = useState<string | undefined>(undefined);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const addReceiptInputRef = useRef<HTMLInputElement>(null);
+  const editReceiptInputRef = useRef<HTMLInputElement>(null);
 
   const brandBudget = settings.brandBudget || 0;
   const totalSpent = settings.totalSpent || 0;
@@ -41,6 +46,12 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
 
   const displayTotal = displayExpenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
 
+  function readImageFile(file: File, onDone: (dataUrl: string) => void) {
+    const reader = new FileReader();
+    reader.onload = () => onDone(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
   function addExpense() {
     if (!itemName.trim() || !cost || !selectedShow) return;
     const expense: Expense = {
@@ -50,12 +61,14 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
       cost: Number(cost) || 0,
       date: date || undefined,
       notes: notes.trim() || undefined,
+      receiptPhoto: receiptPhoto || undefined,
     };
     onUpdateShow({ ...selectedShow, expenses: [...selectedShow.expenses, expense] });
     setItemName('');
     setCost('');
     setDate('');
     setNotes('');
+    setReceiptPhoto(undefined);
   }
 
   function deleteExpense(expenseId: string, showId: string) {
@@ -74,6 +87,7 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
     setEditCost(String(e.cost));
     setEditDate(e.date ?? '');
     setEditNotes(e.notes ?? '');
+    setEditReceiptPhoto(e.receiptPhoto);
   }
 
   function saveEdit(showId: string) {
@@ -91,6 +105,7 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
               cost: Number(editCost) || 0,
               date: editDate || undefined,
               notes: editNotes.trim() || undefined,
+              receiptPhoto: editReceiptPhoto || undefined,
             }
           : e
       ),
@@ -181,6 +196,24 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addExpense())}
               placeholder="Notes (optional)"
             />
+            <input
+              ref={addReceiptInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) readImageFile(file, setReceiptPhoto);
+                e.target.value = '';
+              }}
+            />
+            <button
+              className="btn btn--ghost btn--sm"
+              title={receiptPhoto ? 'Receipt attached' : 'Attach receipt photo'}
+              onClick={() => addReceiptInputRef.current?.click()}
+            >
+              {receiptPhoto ? '📷✓' : '📷'}
+            </button>
             <button className="btn btn--primary btn--sm" onClick={addExpense}>Add</button>
           </div>
         </div>
@@ -201,6 +234,24 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
                   <input className="section-field__input" type="number" step="0.01" value={editCost} onChange={(ev) => setEditCost(ev.target.value)} placeholder="Cost" />
                   <input className="section-field__input" type="date" value={editDate} onChange={(ev) => setEditDate(ev.target.value)} />
                   <input className="section-field__input" value={editNotes} onChange={(ev) => setEditNotes(ev.target.value)} placeholder="Notes" />
+                  <input
+                    ref={editReceiptInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(ev) => {
+                      const file = ev.target.files?.[0];
+                      if (file) readImageFile(file, setEditReceiptPhoto);
+                      ev.target.value = '';
+                    }}
+                  />
+                  <button
+                    className="btn btn--ghost btn--sm"
+                    title={editReceiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
+                    onClick={() => editReceiptInputRef.current?.click()}
+                  >
+                    {editReceiptPhoto ? '📷✓' : '📷'}
+                  </button>
                   <button className="btn btn--primary btn--sm" onClick={() => saveEdit(e.showId)}>Save</button>
                   <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
                 </div>
@@ -214,6 +265,16 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
                   <span className="section-list-item__cost">${(Number(e.cost) || 0).toFixed(2)}</span>
                   {e.date && <span className="section-list-item__tag">{e.date}</span>}
                   {e.notes && <span className="section-list-item__tag">{e.notes}</span>}
+                  {e.receiptPhoto && (
+                    <button
+                      className="btn btn--ghost btn--sm receipt-thumb-btn"
+                      onClick={() => setLightboxSrc(e.receiptPhoto!)}
+                      title="View receipt"
+                      style={{ padding: 0, border: 'none', background: 'none' }}
+                    >
+                      <img src={e.receiptPhoto} className="receipt-thumb" alt="receipt" />
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -230,6 +291,13 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
       {displayExpenses.length > 0 && (
         <div className="section-total">
           <strong>{selectedShowId === '__all__' ? 'Grand Total:' : 'Show Total:'}</strong> <span>${displayTotal.toFixed(2)}</span>
+        </div>
+      )}
+
+      {lightboxSrc && (
+        <div className="receipt-lightbox" onClick={() => setLightboxSrc(null)}>
+          <img src={lightboxSrc} className="receipt-lightbox__img" alt="receipt" />
+          <span className="receipt-lightbox__hint">Click anywhere to close</span>
         </div>
       )}
     </div>
