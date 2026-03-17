@@ -1,18 +1,16 @@
 import { useState, useRef } from 'react';
-import type { Show, AppSettings, Expense } from '../types';
+import type { AppSettings, Expense } from '../types';
 import { EXPENSE_CATEGORIES } from '../types';
 import { generateId } from '../utils/id';
 import './Expenses.css';
 
 interface ExpensesProps {
-  shows: Show[];
   settings: AppSettings;
   onBack: () => void;
-  onUpdateShow: (show: Show) => void;
+  onUpdateSettings: (settings: AppSettings) => void;
 }
 
-export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProps) {
-  const [addShowId, setAddShowId] = useState<string>(shows[0]?.id || '');
+export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) {
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [itemName, setItemName] = useState('');
   const [cost, setCost] = useState('');
@@ -34,13 +32,8 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
   const totalSpent = settings.totalSpent || 0;
   const remaining = brandBudget - totalSpent;
 
-  // All expenses across all shows, tagged with show info
-  const allExpenses = shows.flatMap((show) =>
-    show.expenses.map((e) => ({ ...e, showId: show.id, showName: show.name }))
-  );
-
-  const addShow = shows.find((s) => s.id === addShowId);
-  const displayTotal = allExpenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+  const expenses = settings.expenses || [];
+  const displayTotal = expenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
 
   function readImageFile(file: File, onDone: (dataUrl: string) => void) {
     const reader = new FileReader();
@@ -49,7 +42,7 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
   }
 
   function addExpense() {
-    if (!itemName.trim() || !cost || !addShow) return;
+    if (!itemName.trim() || !cost) return;
     const expense: Expense = {
       id: generateId(),
       category,
@@ -59,7 +52,7 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
       notes: notes.trim() || undefined,
       receiptPhoto: receiptPhoto || undefined,
     };
-    onUpdateShow({ ...addShow, expenses: [...addShow.expenses, expense] });
+    onUpdateSettings({ ...settings, expenses: [...expenses, expense] });
     setItemName('');
     setCost('');
     setDate('');
@@ -67,16 +60,14 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
     setReceiptPhoto(undefined);
   }
 
-  function deleteExpense(expenseId: string, showId: string) {
-    const show = shows.find((s) => s.id === showId);
-    if (!show) return;
-    const expense = show.expenses.find((e) => e.id === expenseId);
+  function deleteExpense(expenseId: string) {
+    const expense = expenses.find((e) => e.id === expenseId);
     if (window.confirm(`Delete expense "${expense?.itemName}" ($${expense?.cost})? This cannot be undone.`)) {
-      onUpdateShow({ ...show, expenses: show.expenses.filter((e) => e.id !== expenseId) });
+      onUpdateSettings({ ...settings, expenses: expenses.filter((e) => e.id !== expenseId) });
     }
   }
 
-  function startEdit(e: typeof allExpenses[0]) {
+  function startEdit(e: Expense) {
     setEditId(e.id);
     setEditCategory(e.category);
     setEditItemName(e.itemName);
@@ -86,13 +77,11 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
     setEditReceiptPhoto(e.receiptPhoto);
   }
 
-  function saveEdit(showId: string) {
+  function saveEdit() {
     if (!editItemName.trim() || !editId) return;
-    const show = shows.find((s) => s.id === showId);
-    if (!show) return;
-    onUpdateShow({
-      ...show,
-      expenses: show.expenses.map((e) =>
+    onUpdateSettings({
+      ...settings,
+      expenses: expenses.map((e) =>
         e.id === editId
           ? {
               ...e,
@@ -141,17 +130,6 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
       <div className="expenses-page__add">
         <h3 className="expenses-page__add-title">Add Expense</h3>
         <div className="section-add-grid">
-          {shows.length > 1 && (
-            <select
-              className="section-field__select"
-              value={addShowId}
-              onChange={(e) => setAddShowId(e.target.value)}
-            >
-              {shows.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          )}
           <select
             className="section-field__select"
             value={category}
@@ -210,11 +188,11 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
         </div>
       </div>
 
-      {allExpenses.length === 0 && <p className="section-empty">No expenses yet.</p>}
+      {expenses.length === 0 && <p className="section-empty">No expenses yet.</p>}
 
       <ul className="section-list">
-        {allExpenses.map((e) => (
-          <li key={`${e.showId}-${e.id}`} className="section-list-item">
+        {expenses.map((e) => (
+          <li key={e.id} className="section-list-item">
             <div className="section-list-item__body">
               {editId === e.id ? (
                 <div className="section-edit-row">
@@ -243,12 +221,11 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
                   >
                     {editReceiptPhoto ? '📷✓' : '📷'}
                   </button>
-                  <button className="btn btn--primary btn--sm" onClick={() => saveEdit(e.showId)}>Save</button>
+                  <button className="btn btn--primary btn--sm" onClick={saveEdit}>Save</button>
                   <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
                 </div>
               ) : (
                 <>
-                  <span className="section-list-item__show-tag">{e.showName}</span>
                   <span className="section-list-item__badge">{e.category}</span>
                   <span className="section-list-item__name">{e.itemName}</span>
                   <span className="section-list-item__cost">${(Number(e.cost) || 0).toFixed(2)}</span>
@@ -270,14 +247,14 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
             {editId !== e.id && (
               <div className="section-list-item__actions">
                 <button className="btn btn--ghost btn--sm" onClick={() => startEdit(e)}>✏️</button>
-                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteExpense(e.id, e.showId)}>✕</button>
+                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteExpense(e.id)}>✕</button>
               </div>
             )}
           </li>
         ))}
       </ul>
 
-      {allExpenses.length > 0 && (
+      {expenses.length > 0 && (
         <div className="section-total">
           <strong>Total:</strong> <span>${displayTotal.toFixed(2)}</span>
         </div>

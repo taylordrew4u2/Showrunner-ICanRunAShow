@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Show, Scene, AppSettings, SectionKey, Expense, TodoItem } from '../types';
+import type { Show, Scene, AppSettings, SectionKey, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
 import { DeadlineIndicator } from './DeadlineIndicator';
@@ -9,7 +9,6 @@ import { ArtistsSection } from './sections/ArtistsSection';
 import { ScheduleSection } from './sections/ScheduleSection';
 import { DJMusicSection } from './sections/DJMusicSection';
 import { StaffSection } from './sections/StaffSection';
-import { ExpensesSection } from './sections/ExpensesSection';
 import { HostsSection } from './sections/HostsSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
 import { FilesSection } from './sections/FilesSection';
@@ -153,43 +152,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
   function handleLockVideoHost() {
     const videoPaymentNum = tempVideoPayment ? parseFloat(tempVideoPayment) : undefined;
     
-    // Auto-create or update video expense
-    if (tempVideoPerson && videoPaymentNum && videoPaymentNum > 0) {
-      const videoExpenseId = 'video-expense-auto';
-      const existingExpenseIndex = show.expenses.findIndex(e => e.id === videoExpenseId);
-      
-      const videoExpense: Expense = {
-        id: videoExpenseId,
-        category: 'Video',
-        itemName: `Video by ${tempVideoPerson}`,
-        cost: videoPaymentNum,
-        date: show.date || new Date().toISOString().split('T')[0],
-        notes: 'Auto-generated from video person assignment',
-      };
-
-      const updatedExpenses = existingExpenseIndex >= 0
-        ? show.expenses.map((e, i) => i === existingExpenseIndex ? videoExpense : e)
-        : [...show.expenses, videoExpense];
-
-      onUpdate({
-        ...show,
-        videoPerson: tempVideoPerson || undefined,
-        videoPayment: videoPaymentNum,
-        selectedHostId: tempSelectedHostId || undefined,
-        expenses: updatedExpenses,
-      });
-    } else {
-      // Remove auto-expense if payment is cleared
-      const filteredExpenses = show.expenses.filter(e => e.id !== 'video-expense-auto');
-      
-      onUpdate({
-        ...show,
-        videoPerson: tempVideoPerson || undefined,
-        videoPayment: videoPaymentNum,
-        selectedHostId: tempSelectedHostId || undefined,
-        expenses: filteredExpenses,
-      });
-    }
+    onUpdate({
+      ...show,
+      videoPerson: tempVideoPerson || undefined,
+      videoPayment: videoPaymentNum,
+      selectedHostId: tempSelectedHostId || undefined,
+    });
     
     triggerSaveIndicator();
     setEditingVideoHost(false);
@@ -308,14 +276,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       subtitle: 'Roles and assignments for production staff.',
       count: show.staff.length,
       content: <StaffSection staff={show.staff} onChange={(staff) => handleUpdate({ staff })} />,
-    },
-    {
-      key: 'expenses',
-      sectionKey: 'expenses' as SectionKey,
-      title: '💰 Expenses',
-      subtitle: 'Track costs, receipts, and budget.',
-      count: show.expenses.length,
-      content: <ExpensesSection expenses={show.expenses} settings={settings} onChange={(expenses) => handleUpdate({ expenses })} />,
     },
     {
       key: 'files',

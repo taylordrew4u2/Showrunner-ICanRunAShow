@@ -75,8 +75,24 @@ export default function App() {
           ...show,
           files: show.files || [],
         }));
+
+        // Migrate per-show expenses into global settings.expenses
+        let migratedSettings = { ...loadedSettings, expenses: loadedSettings.expenses || [] };
+        const perShowExpenses = migratedShows.flatMap((s) => s.expenses || []);
+        if (perShowExpenses.length > 0) {
+          const existingIds = new Set(migratedSettings.expenses.map((e: { id: string }) => e.id));
+          const newExpenses = perShowExpenses.filter((e) => !existingIds.has(e.id));
+          if (newExpenses.length > 0) {
+            migratedSettings = { ...migratedSettings, expenses: [...migratedSettings.expenses, ...newExpenses] };
+          }
+          // Clear per-show expenses after migration
+          for (const show of migratedShows) {
+            show.expenses = [];
+          }
+        }
+
         setShows(migratedShows);
-        setSettings(loadedSettings);
+        setSettings(migratedSettings);
         dataLoaded.current = true;
       } catch (error) {
         console.error('Failed to load shows:', error);
@@ -489,10 +505,9 @@ export default function App() {
 
             {view === 'expenses' && (
               <Expenses
-                shows={shows}
                 settings={settings}
                 onBack={handleBack}
-                onUpdateShow={handleUpdateShow}
+                onUpdateSettings={handleSaveSettings}
               />
             )}
 
