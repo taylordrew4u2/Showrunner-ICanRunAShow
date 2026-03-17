@@ -272,10 +272,6 @@
   gap: 12px;
 }
 
-.shows-grid > :first-child {
-  grid-column: span 2;
-}
-
 .rolodex {
   margin-bottom: 20px;
   background: var(--surface);
