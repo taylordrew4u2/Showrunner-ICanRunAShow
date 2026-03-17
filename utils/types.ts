@@ -240,5 +240,7 @@ export const EXPENSE_CATEGORIES: string[] = [
   "Travel",
   "Printing",
   "Decorations",
+  "Apparel",
+  "Materials",
   "Other",
 ];
