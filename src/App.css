@@ -272,30 +272,68 @@
   gap: 12px;
 }
 
-.rolodex {
-  margin-bottom: 20px;
+/* ── Rolodex Tile (in shows grid) ──────────────────────────────────── */
+
+.rolodex-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 140px;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 16px;
-  box-shadow: var(--shadow-sm);
+  border: 2px dashed var(--border);
 }
 
-.rolodex__header {
-  margin-bottom: 12px;
+.rolodex-tile:hover {
+  border-style: solid;
 }
 
-.rolodex__title {
+.rolodex-tile__icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.rolodex-tile__title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.rolodex-tile__count {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* ── Rolodex Page ──────────────────────────────────────────────────── */
+
+.rolodex-page {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.rolodex-page__topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rolodex-page__title {
+  margin: 0;
+  font-size: 1.3rem;
   font-weight: 800;
 }
 
-.rolodex__subtitle {
-  margin: 6px 0 0;
+.rolodex-page__subtitle {
+  margin: 0 0 16px;
   color: var(--text-muted);
   font-size: 0.9rem;
 }
+
+/* ── Rolodex Shared ────────────────────────────────────────────────── */
 
 .rolodex__form {
   display: grid;
