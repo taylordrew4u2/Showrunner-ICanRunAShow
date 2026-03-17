@@ -9,7 +9,6 @@ import { ArtistsSection } from './sections/ArtistsSection';
 import { ScheduleSection } from './sections/ScheduleSection';
 import { DJMusicSection } from './sections/DJMusicSection';
 import { StaffSection } from './sections/StaffSection';
-import { HostsSection } from './sections/HostsSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
 import { FilesSection } from './sections/FilesSection';
 import { exportShowToPDF } from '../utils/pdfExport';
@@ -260,14 +259,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       subtitle: 'Songs and notes for the DJ.',
       count: show.djSongs.length,
       content: <DJMusicSection songs={show.djSongs} show={show} onChange={(djSongs) => handleUpdate({ djSongs })} />,
-    },
-    {
-      key: 'hosts',
-      sectionKey: 'hosts' as SectionKey,
-      title: '🎙️ Hosts',
-      subtitle: 'Add hosts for the show.',
-      count: show.hosts.length,
-      content: <HostsSection hosts={show.hosts} onChange={(hosts) => handleUpdate({ hosts })} />,
     },
     {
       key: 'staff',
