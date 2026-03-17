@@ -12,7 +12,7 @@ interface ExpensesProps {
 }
 
 export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProps) {
-  const [selectedShowId, setSelectedShowId] = useState<string>(shows[0]?.id || '');
+  const [addShowId, setAddShowId] = useState<string>(shows[0]?.id || '');
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [itemName, setItemName] = useState('');
   const [cost, setCost] = useState('');
@@ -39,12 +39,8 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
     show.expenses.map((e) => ({ ...e, showId: show.id, showName: show.name }))
   );
 
-  const selectedShow = shows.find((s) => s.id === selectedShowId);
-  const displayExpenses = selectedShowId === '__all__'
-    ? allExpenses
-    : allExpenses.filter((e) => e.showId === selectedShowId);
-
-  const displayTotal = displayExpenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+  const addShow = shows.find((s) => s.id === addShowId);
+  const displayTotal = allExpenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
 
   function readImageFile(file: File, onDone: (dataUrl: string) => void) {
     const reader = new FileReader();
@@ -53,7 +49,7 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
   }
 
   function addExpense() {
-    if (!itemName.trim() || !cost || !selectedShow) return;
+    if (!itemName.trim() || !cost || !addShow) return;
     const expense: Expense = {
       id: generateId(),
       category,
@@ -63,7 +59,7 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
       notes: notes.trim() || undefined,
       receiptPhoto: receiptPhoto || undefined,
     };
-    onUpdateShow({ ...selectedShow, expenses: [...selectedShow.expenses, expense] });
+    onUpdateShow({ ...addShow, expenses: [...addShow.expenses, expense] });
     setItemName('');
     setCost('');
     setDate('');
@@ -142,87 +138,82 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
         </div>
       )}
 
-      <div className="expenses-page__filter">
-        <label className="expenses-page__filter-label">Show:</label>
-        <select
-          className="section-field__select"
-          value={selectedShowId}
-          onChange={(e) => setSelectedShowId(e.target.value)}
-        >
-          <option value="__all__">All Shows</option>
-          {shows.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {selectedShow && (
-        <div className="expenses-page__add">
-          <h3 className="expenses-page__add-title">Add Expense to {selectedShow.name}</h3>
-          <div className="section-add-grid">
+      <div className="expenses-page__add">
+        <h3 className="expenses-page__add-title">Add Expense</h3>
+        <div className="section-add-grid">
+          {shows.length > 1 && (
             <select
               className="section-field__select"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              value={addShowId}
+              onChange={(e) => setAddShowId(e.target.value)}
             >
-              {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
+              {shows.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
-            <input
-              className="section-field__input"
-              value={itemName}
-              onChange={(e) => setItemName(e.target.value)}
-              placeholder="Item or service name"
-            />
-            <input
-              className="section-field__input"
-              type="number"
-              step="0.01"
-              value={cost}
-              onChange={(e) => setCost(e.target.value)}
-              placeholder="Cost ($)"
-            />
-            <input
-              className="section-field__input"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-            <input
-              className="section-field__input"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addExpense())}
-              placeholder="Notes (optional)"
-            />
-            <input
-              ref={addReceiptInputRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) readImageFile(file, setReceiptPhoto);
-                e.target.value = '';
-              }}
-            />
-            <button
-              className="btn btn--ghost btn--sm"
-              title={receiptPhoto ? 'Receipt attached' : 'Attach receipt photo'}
-              onClick={() => addReceiptInputRef.current?.click()}
-            >
-              {receiptPhoto ? '📷✓' : '📷'}
-            </button>
-            <button className="btn btn--primary btn--sm" onClick={addExpense}>Add</button>
-          </div>
+          )}
+          <select
+            className="section-field__select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            {EXPENSE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <input
+            className="section-field__input"
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
+            placeholder="Item or service name"
+          />
+          <input
+            className="section-field__input"
+            type="number"
+            step="0.01"
+            value={cost}
+            onChange={(e) => setCost(e.target.value)}
+            placeholder="Cost ($)"
+          />
+          <input
+            className="section-field__input"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <input
+            className="section-field__input"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addExpense())}
+            placeholder="Notes (optional)"
+          />
+          <input
+            ref={addReceiptInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) readImageFile(file, setReceiptPhoto);
+              e.target.value = '';
+            }}
+          />
+          <button
+            className="btn btn--ghost btn--sm"
+            title={receiptPhoto ? 'Receipt attached' : 'Attach receipt photo'}
+            onClick={() => addReceiptInputRef.current?.click()}
+          >
+            {receiptPhoto ? '📷✓' : '📷'}
+          </button>
+          <button className="btn btn--primary btn--sm" onClick={addExpense}>Add</button>
         </div>
-      )}
+      </div>
 
-      {displayExpenses.length === 0 && <p className="section-empty">No expenses yet.</p>}
+      {allExpenses.length === 0 && <p className="section-empty">No expenses yet.</p>}
 
       <ul className="section-list">
-        {displayExpenses.map((e) => (
+        {allExpenses.map((e) => (
           <li key={`${e.showId}-${e.id}`} className="section-list-item">
             <div className="section-list-item__body">
               {editId === e.id ? (
@@ -257,9 +248,7 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
                 </div>
               ) : (
                 <>
-                  {selectedShowId === '__all__' && (
-                    <span className="section-list-item__show-tag">{e.showName}</span>
-                  )}
+                  <span className="section-list-item__show-tag">{e.showName}</span>
                   <span className="section-list-item__badge">{e.category}</span>
                   <span className="section-list-item__name">{e.itemName}</span>
                   <span className="section-list-item__cost">${(Number(e.cost) || 0).toFixed(2)}</span>
@@ -288,9 +277,9 @@ export function Expenses({ shows, settings, onBack, onUpdateShow }: ExpensesProp
         ))}
       </ul>
 
-      {displayExpenses.length > 0 && (
+      {allExpenses.length > 0 && (
         <div className="section-total">
-          <strong>{selectedShowId === '__all__' ? 'Grand Total:' : 'Show Total:'}</strong> <span>${displayTotal.toFixed(2)}</span>
+          <strong>Total:</strong> <span>${displayTotal.toFixed(2)}</span>
         </div>
       )}
 
