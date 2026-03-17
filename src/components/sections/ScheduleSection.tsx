@@ -195,7 +195,11 @@ export function ScheduleSection({ schedule, scheduleImage, onChange, onImageChan
                   ✕ Remove
                 </button>
               </div>
-              <img src={scheduleImage} alt="Show Run" className="schedule-image-fallback__img" />
+              {scheduleImage.startsWith('data:application/pdf') ? (
+                <embed src={scheduleImage} type="application/pdf" className="schedule-image-fallback__pdf" />
+              ) : (
+                <img src={scheduleImage} alt="Show Run" className="schedule-image-fallback__img" />
+              )}
             </div>
           ) : (
             <div
