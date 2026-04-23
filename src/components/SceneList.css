@@ -31,8 +31,8 @@
 
   .scene-item__status,
   .scene-item__delete {
-    font-size: 0.75rem;
-    padding: 3px 8px;
+    font-size: 0.85rem;
+    padding: 4px 10px;
   }
 }
 
@@ -56,7 +56,7 @@
 }
 
 .scene-list__empty {
-  color: #999999;
+  color: #525252;
   font-size: 0.95rem;
   text-align: center;
   padding: 24px 0;
@@ -121,11 +121,11 @@
   border-radius: 8px;
   padding: 4px 10px;
   min-height: 44px;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-family: inherit;
   cursor: pointer;
   outline: none;
-  font-weight: 600;
+  font-weight: 700;
   transition: all 0.2s;
 }
 
@@ -134,7 +134,7 @@
 }
 
 .scene-item__status--planned {
-  color: #999999;
+  color: #4b5563;
 }
 
 .scene-item__status--rehearsed {
@@ -152,9 +152,9 @@
 .scene-item__delete {
   background: none;
   border: none;
-  color: #999999;
+  color: #4b5563;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 1rem;
   padding: 6px;
   min-width: 44px;
   min-height: 44px;

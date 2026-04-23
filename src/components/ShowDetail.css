@@ -111,7 +111,7 @@
 }
 
 .show-detail__status {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 700;
   padding: 6px 14px;
   border-radius: 8px;
@@ -332,11 +332,11 @@
 }
 
 .show-detail__notes h3 {
-  font-size: 0.75rem;
-  color: #666666;
+  font-size: 0.82rem;
+  color: #404040;
   margin: 0 0 10px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   font-weight: 700;
 }
 
@@ -490,7 +490,7 @@
 }
 
 .accordion-section__count {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #dc2626;
   background: #fee2e2;
@@ -502,7 +502,7 @@
 }
 
 .accordion-section__complete-badge {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #16a34a;
   background: #dcfce7;
@@ -553,7 +553,7 @@
 
 @media (max-width: 768px) {
   .accordion-section__lockin-btn {
-    font-size: 0.75rem;
+    font-size: 0.82rem;
     padding: 4px 10px;
   }
 }
@@ -725,7 +725,7 @@
 }
 
 .section-card__count {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #dc2626;
   background: #fee2e2;
@@ -924,7 +924,7 @@
 }
 
 .show-section__count {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -949,18 +949,18 @@
 }
 
 .section-field__label {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  color: #666666;
+  color: #404040;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   margin-bottom: 8px;
   display: block;
 }
 
 @media (max-width: 768px) {
   .section-field__label {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     margin-bottom: 6px;
   }
 }
@@ -1163,10 +1163,10 @@
 }
 
 .media-grid__label {
-  padding: 6px 8px;
-  font-size: 0.72rem;
+  padding: 7px 10px;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: #555;
+  color: #404040;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1178,19 +1178,21 @@
   position: absolute;
   top: 4px;
   right: 4px;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: none;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.6);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   transition: opacity 0.15s;
+  touch-action: manipulation;
 }
 
 @media (hover: hover) {
@@ -1524,7 +1526,7 @@
   .section-list-item__tag,
   .section-list-item__badge,
   .section-list-item__cost {
-    font-size: 0.75rem;
+    font-size: 0.82rem;
     padding: 3px 8px;
   }
 
@@ -1615,7 +1617,7 @@
 }
 
 .completed-sections__label {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1689,7 +1691,7 @@
 }
 
 .hidden-sections__label {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1852,7 +1854,7 @@
   background: none;
   border: none;
   color: #d1d5db;
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   cursor: pointer;
   padding: 8px;
   min-width: 32px;
@@ -1886,7 +1888,7 @@
   margin-bottom: 16px;
 }
 .budget-card__title {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #166534;
   text-transform: uppercase;
@@ -1906,7 +1908,7 @@
   min-width: 100px;
 }
 .budget-card__label {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   color: #6b7280;
   font-weight: 500;
 }
