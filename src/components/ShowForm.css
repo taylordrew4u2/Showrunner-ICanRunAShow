@@ -16,11 +16,11 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: #000000;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
 }
 
 .show-form__input,
