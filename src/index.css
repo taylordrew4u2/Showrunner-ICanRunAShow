@@ -14,6 +14,21 @@ html {
   overflow-x: hidden;
 }
 
+/* Scale every rem-based element up on phones so nothing forces a pinch-zoom.
+   Also keeps all text inputs >= 16px, which prevents iOS Safari's auto-zoom
+   on focus. */
+@media (max-width: 768px) {
+  html {
+    font-size: 17.5px;
+  }
+}
+
+@media (max-width: 430px) {
+  html {
+    font-size: 18px;
+  }
+}
+
 body {
   margin: 0;
   background: #FAFAFA;
