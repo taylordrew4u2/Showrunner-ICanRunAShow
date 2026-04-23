@@ -75,12 +75,12 @@
 }
 
 .show-card__status {
-  font-size: 0.67rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 6px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   white-space: nowrap;
   margin-right: 52px;
 }
@@ -105,14 +105,14 @@
 
 .show-card__status--cancelled {
   background: #FFFFFF;
-  color: #666666;
+  color: #525252;
   border: 1px solid #E5E5E5;
 }
 
 .show-card__venue,
 .show-card__date {
-  font-size: 0.9rem;
-  color: #666666;
+  font-size: 0.95rem;
+  color: #404040;
   margin: 6px 0;
   font-weight: 500;
   word-break: break-word;
@@ -139,9 +139,9 @@
   position: absolute;
   right: 0;
   top: 12px;
-  font-size: 0.8rem;
-  color: #666666;
-  font-weight: 600;
+  font-size: 0.85rem;
+  color: #404040;
+  font-weight: 700;
 }
 
 .show-card__delete {
@@ -186,22 +186,23 @@
   }
 
   .show-card__status {
-    font-size: 0.65rem;
-    padding: 4px 8px;
+    font-size: 0.78rem;
+    padding: 5px 10px;
   }
 
   .show-card__progress-label {
-    font-size: 0.78rem;
+    font-size: 0.85rem;
   }
 
   .show-card__meta {
-    font-size: 0.85rem;
+    font-size: 0.92rem;
   }
 
   .show-card__venue,
   .show-card__date {
-    font-size: 0.85rem;
-    margin: 4px 0;
+    font-size: 0.92rem;
+    line-height: 1.4;
+    margin: 5px 0;
   }
 
   .show-card__progress {

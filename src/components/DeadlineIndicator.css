@@ -2,17 +2,17 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    padding: 7px 12px;
     border-radius: 8px;
-    font-size: 0.8rem;
+    font-size: 0.88rem;
     font-weight: 700;
     border: 2px solid;
     white-space: nowrap;
 }
 
 .deadline-indicator--compact {
-    padding: 4px 8px;
-    font-size: 0.75rem;
+    padding: 5px 9px;
+    font-size: 0.82rem;
 }
 
 .deadline-indicator__icon {
@@ -73,12 +73,12 @@
 /* Mobile styles */
 @media (max-width: 640px) {
     .deadline-indicator {
-        font-size: 0.75rem;
-        padding: 5px 10px;
+        font-size: 0.85rem;
+        padding: 6px 10px;
     }
 
     .deadline-indicator--compact {
-        padding: 3px 6px;
-        font-size: 0.7rem;
+        padding: 4px 8px;
+        font-size: 0.8rem;
     }
 }

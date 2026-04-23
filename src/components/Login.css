@@ -56,10 +56,10 @@
 }
 
 .login__subtitle {
-  font-size: 0.93rem;
-  color: var(--text-muted, #666666);
+  font-size: 1rem;
+  color: #374151;
   margin: 0;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .login__form {
@@ -75,11 +75,11 @@
 }
 
 .login__label {
-  font-size: 0.74rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  color: var(--text-muted, #666666);
+  color: #374151;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .login__input {
@@ -166,9 +166,9 @@
 }
 
 .login__note {
-  font-size: 0.8rem;
-  color: var(--text-muted, #666666);
-  line-height: 1.5;
+  font-size: 0.9rem;
+  color: #374151;
+  line-height: 1.55;
   margin: 0;
   text-align: center;
 }

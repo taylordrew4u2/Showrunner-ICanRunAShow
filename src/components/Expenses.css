@@ -29,9 +29,9 @@
 }
 
 .expenses-page__filter-label {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #374151;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1f2937;
     white-space: nowrap;
 }
 
@@ -53,11 +53,11 @@
 .section-list-item__show-tag {
     display: inline-block;
     background: #eff6ff;
-    color: #2563eb;
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 4px;
+    color: #1d4ed8;
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 5px;
     white-space: nowrap;
 }
 

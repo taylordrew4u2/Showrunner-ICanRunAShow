@@ -3,7 +3,7 @@
   --surface: #FFFFFF;
   --surface-strong: #F5F5F5;
   --text: #000000;
-  --text-muted: #666666;
+  --text-muted: #525252;
   --border: #E5E5E5;
   --primary: #DC2626;
   --primary-pressed: #B91C1C;
@@ -541,8 +541,8 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
   transition: transform 0.1s ease, background-color 0.15s ease;
@@ -605,8 +605,8 @@
 }
 
 .bottom-nav__label {
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 @media (hover: hover) {

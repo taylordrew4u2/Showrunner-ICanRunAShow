@@ -31,11 +31,11 @@
 }
 
 .settings .section-field__label {
-    font-size: 0.73rem;
+    font-size: 0.82rem;
     font-weight: 700;
-    color: var(--text-muted, #667085);
+    color: #374151;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
 }
 
 .settings .section-field__input,
