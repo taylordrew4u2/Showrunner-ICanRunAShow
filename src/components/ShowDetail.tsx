@@ -248,6 +248,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       content: <ScheduleSection
         schedule={show.schedule}
         scheduleImage={show.scheduleImage}
+        showName={show.name}
         onChange={(schedule) => handleUpdate({ schedule })}
         onImageChange={(scheduleImage) => handleUpdate({ scheduleImage })}
       />,
