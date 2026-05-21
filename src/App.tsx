@@ -393,6 +393,57 @@ export default function App() {
         />
       ) : (
         <div className="app">
+          {/* Left sidebar — desktop only */}
+          <nav className="sidebar" aria-label="Primary navigation">
+            <div className="sidebar__brand">
+              <span className="sidebar__brand-icon">🎬</span>
+              <span className="sidebar__brand-name">Showrunner</span>
+            </div>
+            <div className="sidebar__nav-list">
+              <button
+                className={`sidebar__item ${(view === 'list' || view === 'detail') ? 'sidebar__item--active' : ''}`}
+                onClick={handleBack}
+              >
+                <span className="sidebar__item-icon">🎬</span>
+                <span>Shows</span>
+              </button>
+              <button
+                className="sidebar__item"
+                onClick={() => setShowForm(true)}
+              >
+                <span className="sidebar__item-icon">➕</span>
+                <span>New Show</span>
+              </button>
+              <button
+                className={`sidebar__item ${view === 'rolodex' ? 'sidebar__item--active' : ''}`}
+                onClick={() => { setView('rolodex'); setSelectedShow(null); }}
+              >
+                <span className="sidebar__item-icon">🎤</span>
+                <span>Rolodex</span>
+              </button>
+              <button
+                className={`sidebar__item ${view === 'expenses' ? 'sidebar__item--active' : ''}`}
+                onClick={() => { setView('expenses'); setSelectedShow(null); }}
+              >
+                <span className="sidebar__item-icon">💰</span>
+                <span>Expenses</span>
+              </button>
+            </div>
+            <div className="sidebar__footer">
+              <button
+                className={`sidebar__item ${view === 'settings' ? 'sidebar__item--active' : ''}`}
+                onClick={() => { setView('settings'); setSelectedShow(null); }}
+              >
+                <span className="sidebar__item-icon">⚙️</span>
+                <span>Settings</span>
+              </button>
+              <button className="sidebar__item" onClick={handleLogout}>
+                <span className="sidebar__item-icon">🔓</span>
+                <span>Log out</span>
+              </button>
+            </div>
+          </nav>
+
           <main className="app-main">
             {view === 'list' && (
               <div className="shows-list">
@@ -545,6 +596,61 @@ export default function App() {
               />
             )}
           </main>
+
+          {/* Right panel — desktop only */}
+          <aside className="right-panel">
+            <div className="right-panel__cta">
+              <button className="btn btn--primary btn--block" onClick={() => setShowForm(true)}>
+                ➕ New Show
+              </button>
+            </div>
+            <div className="right-panel__section">
+              <h3 className="right-panel__title">Your shows</h3>
+              <div className="right-panel__stats-grid">
+                <div className="right-panel__stat">
+                  <p className="right-panel__stat-value">{upcomingCount}</p>
+                  <p className="right-panel__stat-label">Upcoming</p>
+                </div>
+                <div className="right-panel__stat">
+                  <p className="right-panel__stat-value">{inProgressCount}</p>
+                  <p className="right-panel__stat-label">In Progress</p>
+                </div>
+                <div className="right-panel__stat">
+                  <p className="right-panel__stat-value">{completedCount}</p>
+                  <p className="right-panel__stat-label">Completed</p>
+                </div>
+                <div className="right-panel__stat">
+                  <p className="right-panel__stat-value">{totalSceneCount}</p>
+                  <p className="right-panel__stat-label">Scenes</p>
+                </div>
+              </div>
+            </div>
+            {shows.length > 0 && (
+              <div className="right-panel__section">
+                <h3 className="right-panel__title">
+                  {shows.some(s => s.status === 'upcoming') ? 'Upcoming shows' : 'Recent shows'}
+                </h3>
+                <div className="right-panel__show-list">
+                  {(shows.some(s => s.status === 'upcoming')
+                    ? shows.filter(s => s.status === 'upcoming')
+                    : shows
+                  ).slice(0, 3).map(show => (
+                    <button
+                      key={show.id}
+                      className="right-panel__show-item"
+                      onClick={() => handleSelectShow(show)}
+                    >
+                      <span className="right-panel__show-name">{show.name}</span>
+                      {show.date && <span className="right-panel__show-date">{show.date}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="right-panel__user">
+              <span className="right-panel__username">@{session.username}</span>
+            </div>
+          </aside>
 
           <nav className="bottom-nav" aria-label="Primary navigation">
             <button
