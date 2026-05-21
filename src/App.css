@@ -48,10 +48,11 @@
   .app-main {
     grid-area: main;
     overflow-y: auto;
-    padding: 24px !important;
+    padding: 28px 32px !important;
     width: 100% !important;
     max-width: unset !important;
     margin: 0 !important;
+    min-width: 0;
   }
 
   .bottom-nav {
