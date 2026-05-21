@@ -1084,6 +1084,23 @@
   background: #ffffff;
 }
 
+.section-list-item__content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.section-list-item__buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .section-list-item__body {
   display: flex;
   align-items: center;
