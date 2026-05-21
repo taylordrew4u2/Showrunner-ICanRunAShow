@@ -19,9 +19,10 @@ interface ShowDetailProps {
   settings: AppSettings;
   onBack: () => void;
   onUpdate: (show: Show) => void;
+  onSaveToRolodex?: (comic: import('../types').PotentialComic) => void;
 }
 
-export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps) {
+export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }: ShowDetailProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [editingDeadline, setEditingDeadline] = useState<SectionKey | null>(null);
   const [editingVideoHost, setEditingVideoHost] = useState(false);
@@ -229,7 +230,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
       title: '🎤 Performers',
       subtitle: 'Names, walk-on music, photos, and social media.',
       count: show.performers.length,
-      content: <PerformersSection performers={show.performers} onChange={(performers) => handleUpdate({ performers })} />,
+      content: <PerformersSection
+        performers={show.performers}
+        potentialComics={settings.potentialComics}
+        onSaveToRolodex={onSaveToRolodex}
+        onChange={(performers) => handleUpdate({ performers })}
+      />,
     },
     {
       key: 'artists',
@@ -249,6 +255,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate }: ShowDetailProps
         schedule={show.schedule}
         scheduleImage={show.scheduleImage}
         showName={show.name}
+        performers={show.performers}
         onChange={(schedule) => handleUpdate({ schedule })}
         onImageChange={(scheduleImage) => handleUpdate({ scheduleImage })}
       />,

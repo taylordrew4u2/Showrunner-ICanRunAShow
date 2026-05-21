@@ -91,6 +91,13 @@ export interface PotentialComic {
   id: string;
   name: string;
   notes?: string;
+  // Optional performer data saved from a show
+  photo?: string;
+  socialMedia?: string;
+  credits?: string;
+  walkOnMusic?: string;
+  walkOnMusicName?: string;
+  walkOnMusicTimestamp?: string;
 }
 
 export interface ShowRecap {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { Performer } from '../../types';
+import type { Performer, PotentialComic } from '../../types';
+import { generateId } from '../../utils/id';
 import './PerformerProfile.css';
 
 interface PerformerProfileProps {
@@ -7,15 +8,17 @@ interface PerformerProfileProps {
   onBack: () => void;
   onChange: (updated: Performer) => void;
   onDelete: (id: string) => void;
+  onSaveToRolodex?: (comic: PotentialComic) => void;
 }
 
-export function PerformerProfile({ performer, onBack, onChange, onDelete }: PerformerProfileProps) {
+export function PerformerProfile({ performer, onBack, onChange, onDelete, onSaveToRolodex }: PerformerProfileProps) {
   const [name, setName] = useState(performer.name);
   const [socialMedia, setSocialMedia] = useState(performer.socialMedia || '');
   const [credits, setCredits] = useState(performer.credits || '');
   const [songName, setSongName] = useState(performer.walkOnMusicName || '');
   const [timestamp, setTimestamp] = useState(performer.walkOnMusicTimestamp || '');
   const [dirty, setDirty] = useState(false);
+  const [savedToRolodex, setSavedToRolodex] = useState(false);
 
   const locked = performer.lockedIn;
 
@@ -125,6 +128,29 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete }: Perf
             >
               {locked ? '🔓 Unlock' : '🔒 Lock In'}
             </button>
+            {onSaveToRolodex && (
+              <button
+                className="btn btn--secondary btn--sm"
+                onClick={() => {
+                  const comic: PotentialComic = {
+                    id: generateId(),
+                    name: performer.name,
+                    socialMedia: performer.socialMedia,
+                    credits: performer.credits,
+                    photo: performer.photo,
+                    walkOnMusic: performer.walkOnMusic,
+                    walkOnMusicName: performer.walkOnMusicName,
+                    walkOnMusicTimestamp: performer.walkOnMusicTimestamp,
+                    notes: performer.socialMedia,
+                  };
+                  onSaveToRolodex(comic);
+                  setSavedToRolodex(true);
+                  setTimeout(() => setSavedToRolodex(false), 2000);
+                }}
+              >
+                {savedToRolodex ? '✓ Saved!' : '🎤 Save to Rolodex'}
+              </button>
+            )}
             {!locked && (
               <button
                 className="btn btn--danger btn--sm"

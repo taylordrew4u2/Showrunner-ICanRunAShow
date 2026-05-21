@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { ScheduleItem } from '../types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Performer, ScheduleItem } from '../types';
 import { Icon } from './Icon';
 
 interface LiveModeProps {
   showName: string;
   schedule: ScheduleItem[];
+  performers?: Performer[];
   onClose: () => void;
 }
 
@@ -48,15 +49,30 @@ function formatClock(date: Date): string {
   return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
 }
 
-export function LiveMode({ showName, schedule, onClose }: LiveModeProps) {
+export function LiveMode({ showName, schedule, performers = [], onClose }: LiveModeProps) {
   const [idx, setIdx] = useState(0);
   const [running, setRunning] = useState(true);
   const [elapsed, setElapsed] = useState(0);
   const [now, setNow] = useState(() => new Date());
   const [showFull, setShowFull] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const durations = useMemo(() => durationsFromSchedule(schedule), [schedule]);
   const current = schedule[idx];
+
+  // Find a performer whose name appears in the current/next cue description
+  function matchPerformer(cue: ScheduleItem | undefined): Performer | null {
+    if (!cue || !performers.length) return null;
+    const desc = cue.description.toLowerCase();
+    return performers.find(p => p.walkOnMusic && desc.includes(p.name.toLowerCase())) ?? null;
+  }
+  const currentPerformer = useMemo(() => matchPerformer(current), [current, performers]);
+  const nextPerformer = useMemo(() => matchPerformer(schedule[idx + 1]), [idx, schedule, performers]);
+
+  // Stop audio whenever the cue changes
+  useEffect(() => {
+    audioRef.current?.pause();
+  }, [idx]);
   const totalSec = durations[idx] ?? DEFAULT_CUE_SECONDS;
   const remaining = totalSec - elapsed;
   const isOver = remaining < 0;
@@ -189,6 +205,41 @@ export function LiveMode({ showName, schedule, onClose }: LiveModeProps) {
             style={{ width: `${Math.min(100, pct)}%`, background: progressColor }}
           />
         </div>
+
+        {/* Walk-on music for current cue's performer */}
+        {currentPerformer && (
+          <div className="live-walkon">
+            <div className="live-walkon__header">
+              {currentPerformer.photo && (
+                <img src={currentPerformer.photo} alt="" className="live-walkon__photo" />
+              )}
+              <div className="live-walkon__info">
+                <p className="live-walkon__label">Walk-on music</p>
+                <p className="live-walkon__name">{currentPerformer.name}</p>
+                {currentPerformer.walkOnMusicName && (
+                  <p className="live-walkon__song">🎵 {currentPerformer.walkOnMusicName}{currentPerformer.walkOnMusicTimestamp ? ` @ ${currentPerformer.walkOnMusicTimestamp}` : ''}</p>
+                )}
+              </div>
+            </div>
+            <audio
+              ref={audioRef}
+              src={currentPerformer.walkOnMusic}
+              controls
+              preload="auto"
+              className="live-walkon__audio"
+            />
+          </div>
+        )}
+
+        {/* Preview upcoming performer's music */}
+        {nextPerformer && nextPerformer.id !== currentPerformer?.id && (
+          <div className="live-walkon live-walkon--next">
+            <p className="live-walkon__label">Up next · {nextPerformer.name}</p>
+            {nextPerformer.walkOnMusicName && (
+              <p className="live-walkon__song">🎵 {nextPerformer.walkOnMusicName}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="live-controls">

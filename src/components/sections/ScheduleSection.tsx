@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ScheduleItem } from '../../types';
+import type { Performer, ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { Icon } from '../Icon';
 import { AIImportFlow } from '../AIImportFlow';
@@ -9,6 +9,7 @@ interface ScheduleSectionProps {
   schedule: ScheduleItem[];
   scheduleImage?: string;
   showName?: string;
+  performers?: Performer[];
   onChange: (schedule: ScheduleItem[]) => void;
   onImageChange: (image: string | undefined) => void;
 }
@@ -69,6 +70,7 @@ export function ScheduleSection({
   schedule,
   scheduleImage,
   showName,
+  performers,
   onChange,
   onImageChange,
 }: ScheduleSectionProps) {
@@ -434,6 +436,7 @@ export function ScheduleSection({
         <LiveMode
           showName={showName || 'Show'}
           schedule={schedule}
+          performers={performers}
           onClose={() => setLiveOpen(false)}
         />
       )}

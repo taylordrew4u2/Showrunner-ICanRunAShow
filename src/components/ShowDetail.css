@@ -1967,3 +1967,61 @@
   color: rgba(255,255,255,0.55);
   font-size: 0.875rem;
 }
+
+/* ── Rolodex picker (inline in PerformersSection) ─────────────────── */
+
+.section-rolodex-picker {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.section-rolodex-picker__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+
+.section-rolodex-picker__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  color: var(--text);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.section-rolodex-picker__item:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary-soft-border);
+}
+
+.section-rolodex-picker__photo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.section-rolodex-picker__name {
+  font-weight: 700;
+  flex: 1;
+  min-width: 0;
+}
