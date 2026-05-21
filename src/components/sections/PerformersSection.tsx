@@ -1,17 +1,20 @@
 import { useState } from 'react';
-import type { Performer } from '../../types';
+import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
 import { PerformerProfile } from './PerformerProfile';
 
 interface PerformersSectionProps {
   performers: Performer[];
+  potentialComics?: PotentialComic[];
+  onSaveToRolodex?: (comic: PotentialComic) => void;
   onChange: (performers: Performer[]) => void;
 }
 
-export function PerformersSection({ performers, onChange }: PerformersSectionProps) {
+export function PerformersSection({ performers, potentialComics = [], onSaveToRolodex, onChange }: PerformersSectionProps) {
   const [name, setName] = useState('');
   const [instagram, setInstagram] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showRolodex, setShowRolodex] = useState(false);
 
   const selectedPerformer = performers.find(p => p.id === selectedId) ?? null;
 
@@ -21,6 +24,21 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
     onChange([...performers, p]);
     setName('');
     setInstagram('');
+  }
+
+  function addFromRolodex(comic: PotentialComic) {
+    const p: Performer = {
+      id: generateId(),
+      name: comic.name,
+      socialMedia: comic.socialMedia,
+      credits: comic.credits,
+      photo: comic.photo,
+      walkOnMusic: comic.walkOnMusic,
+      walkOnMusicName: comic.walkOnMusicName,
+      walkOnMusicTimestamp: comic.walkOnMusicTimestamp,
+    };
+    onChange([...performers, p]);
+    setShowRolodex(false);
   }
 
   function updatePerformer(updated: Performer) {
@@ -41,6 +59,7 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
         onBack={() => setSelectedId(null)}
         onChange={updatePerformer}
         onDelete={deletePerformer}
+        onSaveToRolodex={onSaveToRolodex}
       />
     );
   }
@@ -63,7 +82,34 @@ export function PerformersSection({ performers, onChange }: PerformersSectionPro
           placeholder="@instagram"
         />
         <button className="btn btn--primary btn--sm" onClick={addPerformer}>Add</button>
+        {potentialComics.length > 0 && (
+          <button
+            className="btn btn--secondary btn--sm"
+            onClick={() => setShowRolodex(v => !v)}
+          >
+            🎤 From Rolodex
+          </button>
+        )}
       </div>
+
+      {showRolodex && (
+        <div className="section-rolodex-picker">
+          <p className="section-rolodex-picker__label">Pick from Rolodex</p>
+          {potentialComics.map(comic => (
+            <button
+              key={comic.id}
+              className="section-rolodex-picker__item"
+              onClick={() => addFromRolodex(comic)}
+            >
+              {comic.photo && <img src={comic.photo} alt="" className="section-rolodex-picker__photo" />}
+              <span className="section-rolodex-picker__name">{comic.name}</span>
+              {comic.socialMedia && <span className="section-list-item__tag">📱 {comic.socialMedia}</span>}
+              {comic.walkOnMusicName && <span className="section-list-item__tag">🎵 {comic.walkOnMusicName}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
 
       {performers.length === 0 && <p className="section-empty">No performers yet.</p>}
 

@@ -310,6 +310,17 @@ export default function App() {
     setNewComicNotes('');
   }
 
+  function handleSavePerformerToRolodex(comic: PotentialComic) {
+    if (!session) return;
+    const existing = settings.potentialComics.find(c => c.name.toLowerCase() === comic.name.toLowerCase());
+    const updated = existing
+      ? settings.potentialComics.map(c => c.id === existing.id ? { ...c, ...comic, id: c.id } : c)
+      : [comic, ...settings.potentialComics];
+    const updatedSettings = { ...settings, potentialComics: updated };
+    setSettings(updatedSettings);
+    saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+  }
+
   function handleRemovePotentialComic(id: string) {
     if (!session) return;
 
@@ -511,6 +522,7 @@ export default function App() {
                 settings={settings}
                 onBack={handleBack}
                 onUpdate={handleUpdateShow}
+                onSaveToRolodex={handleSavePerformerToRolodex}
               />
             )}
 
