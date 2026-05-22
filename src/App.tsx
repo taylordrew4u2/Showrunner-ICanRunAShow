@@ -18,6 +18,7 @@ import { ShowForm } from './components/ShowForm';
 import { ShowDetail } from './components/ShowDetail';
 import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
+import { RolodexProfile } from './components/sections/RolodexProfile';
 import './App.css';
 
 type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex';
@@ -44,6 +45,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [newComicName, setNewComicName] = useState('');
   const [newComicNotes, setNewComicNotes] = useState('');
+  const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
 
   // Restore session from sessionStorage on mount
   useEffect(() => {
@@ -321,6 +323,37 @@ export default function App() {
     saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
   }
 
+  function handleUpdateRolodexComic(updated: PotentialComic) {
+    if (!session) return;
+    const updatedComics = settings.potentialComics.map(c => c.id === updated.id ? updated : c);
+    const updatedSettings = { ...settings, potentialComics: updatedComics };
+    setSettings(updatedSettings);
+    saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+
+    // Sync matching performers in all shows (match by name, update profile fields)
+    const syncFields = (p: { name: string; [key: string]: unknown }) =>
+      p.name.toLowerCase() === updated.name.toLowerCase()
+        ? {
+            ...p,
+            photo: updated.photo ?? p.photo,
+            socialMedia: updated.socialMedia ?? p.socialMedia,
+            credits: updated.credits ?? p.credits,
+            walkOnMusic: updated.walkOnMusic ?? p.walkOnMusic,
+            walkOnMusicName: updated.walkOnMusicName ?? p.walkOnMusicName,
+            walkOnMusicArtist: updated.walkOnMusicArtist ?? p.walkOnMusicArtist,
+            walkOnMusicTimestamp: updated.walkOnMusicTimestamp ?? p.walkOnMusicTimestamp,
+            walkOnMusicLink: updated.walkOnMusicLink ?? p.walkOnMusicLink,
+          }
+        : p;
+
+    setShows(prev =>
+      prev.map(show => ({
+        ...show,
+        performers: show.performers.map(syncFields),
+      }))
+    );
+  }
+
   function handleRemovePotentialComic(id: string) {
     if (!session) return;
 
@@ -571,21 +604,52 @@ export default function App() {
                   <div className="rolodex__list">
                     {settings.potentialComics.map((comic) => (
                       <article key={comic.id} className="rolodex__item">
+                        {comic.photo && (
+                          <img src={comic.photo} alt={comic.name} className="rolodex__photo" />
+                        )}
+                        {!comic.photo && (
+                          <div className="rolodex__photo-placeholder">
+                            {comic.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         <div className="rolodex__item-content">
                           <p className="rolodex__name">{comic.name}</p>
-                          {comic.notes ? <p className="rolodex__notes">{comic.notes}</p> : null}
+                          {comic.socialMedia && <p className="rolodex__meta">📱 {comic.socialMedia}</p>}
+                          {(comic.walkOnMusicName || comic.walkOnMusicArtist) && (
+                            <p className="rolodex__meta">🎵 {[comic.walkOnMusicName, comic.walkOnMusicArtist].filter(Boolean).join(' — ')}</p>
+                          )}
+                          {comic.notes && <p className="rolodex__notes">{comic.notes}</p>}
                         </div>
                         <button
-                          className="btn btn--danger btn--sm"
+                          className="btn btn--secondary btn--sm"
                           type="button"
-                          onClick={() => handleRemovePotentialComic(comic.id)}
+                          onClick={() => setSelectedComicId(comic.id)}
                         >
-                          Remove
+                          Edit
                         </button>
                       </article>
                     ))}
                   </div>
                 )}
+
+                {/* Rolodex edit drawer */}
+                {selectedComicId && (() => {
+                  const comic = settings.potentialComics.find(c => c.id === selectedComicId);
+                  if (!comic) return null;
+                  return (
+                    <>
+                      <div className="perf-drawer__backdrop" onClick={() => setSelectedComicId(null)} />
+                      <div className="perf-drawer">
+                        <RolodexProfile
+                          comic={comic}
+                          onBack={() => setSelectedComicId(null)}
+                          onChange={handleUpdateRolodexComic}
+                          onDelete={id => { handleRemovePotentialComic(id); setSelectedComicId(null); }}
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
