@@ -222,6 +222,8 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       sectionKey: 'basic' as SectionKey,
       title: '📋 Basic Info',
       subtitle: 'Set show time, location, and venue. Upload a flyer.',
+      accent: 'slate',
+      span: 2,
       content: <BasicInfoSection show={show} onChange={handleUpdate} />,
     },
     {
@@ -229,6 +231,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       sectionKey: 'performers' as SectionKey,
       title: '🎤 Performers',
       subtitle: 'Names, walk-on music, photos, and social media.',
+      accent: 'red',
       count: show.performers.length,
       content: <PerformersSection
         performers={show.performers}
@@ -242,6 +245,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       sectionKey: 'artists' as SectionKey,
       title: '🎨 Artists',
       subtitle: 'Artist entries with name, type, music, and photos.',
+      accent: 'purple',
       count: show.artists.length,
       content: <ArtistsSection artists={show.artists} onChange={(artists) => handleUpdate({ artists })} />,
     },
@@ -250,6 +254,8 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       sectionKey: 'schedule' as SectionKey,
       title: '📅 Schedule',
       subtitle: 'Timeline of events with times and descriptions.',
+      accent: 'blue',
+      span: 2,
       count: show.schedule.length,
       content: <ScheduleSection
         schedule={show.schedule}
@@ -265,6 +271,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       sectionKey: 'dj' as SectionKey,
       title: '🎵 DJ Music',
       subtitle: 'Songs and notes for the DJ.',
+      accent: 'green',
       count: show.djSongs.length,
       content: <DJMusicSection songs={show.djSongs} show={show} onChange={(djSongs) => handleUpdate({ djSongs })} />,
     },
@@ -273,6 +280,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       sectionKey: 'staff' as SectionKey,
       title: '👥 Staff',
       subtitle: 'Roles and assignments for production staff.',
+      accent: 'amber',
       count: show.staff.length,
       content: <StaffSection staff={show.staff} onChange={(staff) => handleUpdate({ staff })} />,
     },
@@ -281,6 +289,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       sectionKey: 'files' as SectionKey,
       title: '📎 Files',
       subtitle: 'Upload and manage any files needed for the show.',
+      accent: 'slate',
       count: show.files?.length || 0,
       content: <FilesSection files={show.files || []} onChange={(files) => handleUpdate({ files })} />,
     },
@@ -293,6 +302,8 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       sectionKey: 'recap' as SectionKey,
       title: '📝 Recap',
       subtitle: 'Attendance, sales, performer notes, and lessons learned.',
+      accent: 'slate',
+      span: 2,
       content: <ShowRecapSection recap={show.recap} expenses={show.expenses} onChange={(recap) => handleUpdate({ recap })} />,
     });
   }
@@ -464,11 +475,13 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         {sections.filter((section) => !show.completions?.[section.sectionKey] && !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
           const isExpanded = expandedSections.has(section.key);
           const isComplete = false;
-          
+          const spanClass = section.span === 2 ? ' accordion-section--span2' : '';
+          const accentClass = section.accent ? ` accordion-section--${section.accent}` : '';
+
           return (
             <div
               key={section.key}
-              className="accordion-section"
+              className={`accordion-section${spanClass}${accentClass}`}
             >
               <div 
                 className="accordion-section__header"
