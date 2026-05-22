@@ -1301,6 +1301,11 @@
   border-color: #bbf7d0;
 }
 
+.section-list-item--active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
 .section-list-item__lock-badge {
   font-size: 0.8rem;
 }

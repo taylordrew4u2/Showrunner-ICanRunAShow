@@ -51,19 +51,6 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
     setSelectedId(null);
   }
 
-  // Show profile page when a performer is selected
-  if (selectedPerformer) {
-    return (
-      <PerformerProfile
-        performer={selectedPerformer}
-        onBack={() => setSelectedId(null)}
-        onChange={updatePerformer}
-        onDelete={deletePerformer}
-        onSaveToRolodex={onSaveToRolodex}
-      />
-    );
-  }
-
   return (
     <div className="section-body">
       <div className="section-add-row">
@@ -115,7 +102,7 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
 
       <ul className="section-list">
         {performers.map((p, idx) => (
-          <li key={p.id} className={`section-list-item ${p.lockedIn ? 'section-list-item--locked' : ''}`}>
+          <li key={p.id} className={`section-list-item ${p.lockedIn ? 'section-list-item--locked' : ''} ${selectedId === p.id ? 'section-list-item--active' : ''}`}>
             {p.photo && <img src={p.photo} alt="" className="section-list-item__photo" />}
             <div className="section-list-item__content">
               <div className="section-list-item__body">
@@ -142,6 +129,21 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
           </li>
         ))}
       </ul>
+
+      {selectedPerformer && (
+        <>
+          <div className="perf-drawer__backdrop" onClick={() => setSelectedId(null)} />
+          <div className="perf-drawer">
+            <PerformerProfile
+              performer={selectedPerformer}
+              onBack={() => setSelectedId(null)}
+              onChange={updatePerformer}
+              onDelete={deletePerformer}
+              onSaveToRolodex={onSaveToRolodex}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
