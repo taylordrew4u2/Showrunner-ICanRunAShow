@@ -88,8 +88,13 @@
   padding: 8px 12px 20px;
 }
 
-.sidebar__brand-icon {
-  font-size: 1.3rem;
+.sidebar__brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+  flex-shrink: 0;
 }
 
 .sidebar__brand-name {

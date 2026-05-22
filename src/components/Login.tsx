@@ -52,9 +52,13 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
     <div className="login">
       <div className="login__container">
         <div className="login__header">
-          <h1 className="login__title">🎬</h1>
+          <div className="login__wordmark">
+            <span className="login__wordmark-dot" />
+            <span className="login__wordmark-text">Showrunner</span>
+          </div>
+          <p className="login__tagline">Professional show management for live events</p>
           <p className="login__subtitle">
-            {mode === 'signup' ? 'Create an account to save your data' : 'Sign in to access your saved shows'}
+            {mode === 'signup' ? 'Create an account — your data is encrypted and stays private.' : 'Sign in to access your shows, lineup, and schedule.'}
           </p>
         </div>
 

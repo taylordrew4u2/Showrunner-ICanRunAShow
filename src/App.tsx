@@ -451,7 +451,7 @@ export default function App() {
           {/* Left sidebar — desktop only */}
           <nav className="sidebar" aria-label="Primary navigation">
             <div className="sidebar__brand">
-              <span className="sidebar__brand-icon">🎬</span>
+              <span className="sidebar__brand-dot" />
               <span className="sidebar__brand-name">Showrunner</span>
             </div>
             <div className="sidebar__nav-list">
