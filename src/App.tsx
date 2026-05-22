@@ -47,16 +47,16 @@ export default function App() {
   const [newComicNotes, setNewComicNotes] = useState('');
   const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
 
-  // Restore session from sessionStorage on mount
+  // Restore session from localStorage on mount (persists until logout)
   useEffect(() => {
-    const savedSession = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    const savedSession = localStorage.getItem(SESSION_STORAGE_KEY);
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession) as Session;
         setSession(parsed);
       } catch (error) {
         console.error('Failed to restore session:', error);
-        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        localStorage.removeItem(SESSION_STORAGE_KEY);
       }
     }
   }, []);
@@ -151,7 +151,7 @@ export default function App() {
 
       const newSession = { username, password };
       setSession(newSession);
-      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
     } catch (error) {
       console.error('Sign in failed:', error);
       setAuthError('Failed to sign in. Please try again.');
@@ -168,7 +168,7 @@ export default function App() {
       await createAccount(username, password);
       const newSession = { username, password };
       setSession(newSession);
-      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
     } catch (error) {
       console.error('Sign up failed:', error);
       const message = error instanceof Error ? error.message : '';
@@ -184,7 +184,7 @@ export default function App() {
 
   function handleLogout() {
     setSession(null);
-    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    localStorage.removeItem(SESSION_STORAGE_KEY);
     dataLoaded.current = false;
     setShows([]);
     setSettings(DEFAULT_SETTINGS);
