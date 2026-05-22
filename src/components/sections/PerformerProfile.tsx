@@ -170,7 +170,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               className={`btn ${locked ? 'btn--secondary' : 'btn--ghost'}`}
               onClick={() => onChange({ ...performer, lockedIn: !locked })}
             >
-              {locked ? '🔓 Unlock' : '🔒 Lock In'}
+              {locked ? 'Unlock' : 'Lock In'}
             </button>
             {onSaveToRolodex && (
               <button
@@ -194,7 +194,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                   setTimeout(() => setSavedToRolodex(false), 2000);
                 }}
               >
-                {savedToRolodex ? '✓ Saved!' : '🎤 Save to Rolodex'}
+                {savedToRolodex ? 'Saved!' : 'Save to Rolodex'}
               </button>
             )}
             {!locked && (
@@ -257,7 +257,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
 
           {/* Walk-On Music */}
           <div className="perf-profile__media-tile">
-            <p className="perf-profile__media-label">🎵 Walk-On Music</p>
+            <p className="perf-profile__media-label">Walk-On Music</p>
             {(performer.walkOnMusicName || performer.walkOnMusicArtist) && (
               <p className="perf-profile__song-info">
                 {[performer.walkOnMusicName, performer.walkOnMusicArtist].filter(Boolean).join(' — ')}
@@ -271,7 +271,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 rel="noopener noreferrer"
                 className="perf-profile__music-link"
               >
-                {performer.walkOnMusicLink.includes('spotify') ? '🎧 Open in Spotify' : '▶ Open in YouTube'}
+                {performer.walkOnMusicLink.includes('spotify') ? 'Open in Spotify' : 'Open in YouTube'}
               </a>
             )}
             {performer.walkOnMusic ? (
@@ -314,7 +314,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                   setSongName(file.name);
                 })}
               >
-                <span className="perf-profile__dropzone-icon">🎵</span>
+                <span className="perf-profile__dropzone-icon"></span>
                 <span className="perf-profile__dropzone-label">
                   {audioDrag ? 'Drop audio file' : 'Drag & drop or click to upload'}
                 </span>
@@ -327,7 +327,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
 
           {/* Video */}
           <div className="perf-profile__media-tile">
-            <p className="perf-profile__media-label">🎬 Video</p>
+            <p className="perf-profile__media-label">Video</p>
             {performer.video ? (
               <>
                 <video src={performer.video} controls preload="none" className="perf-profile__video" />
@@ -357,7 +357,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 onDrop={e => handleDrop(e, 'video/', result => onChange({ ...performer, video: result }), setVideoDrag)}
                 onClick={() => pickFile('video/*', result => onChange({ ...performer, video: result }))}
               >
-                <span className="perf-profile__dropzone-icon">🎬</span>
+                <span className="perf-profile__dropzone-icon"></span>
                 <span className="perf-profile__dropzone-label">
                   {videoDrag ? 'Drop video file' : 'Drag & drop or click to upload'}
                 </span>

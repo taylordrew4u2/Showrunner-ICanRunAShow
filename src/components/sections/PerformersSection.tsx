@@ -76,7 +76,7 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
             className="btn btn--secondary btn--sm"
             onClick={() => setShowRolodex(v => !v)}
           >
-            🎤 From Rolodex
+            From Rolodex
           </button>
         )}
       </div>
@@ -92,8 +92,8 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
             >
               {comic.photo && <img src={comic.photo} alt="" className="section-rolodex-picker__photo" />}
               <span className="section-rolodex-picker__name">{comic.name}</span>
-              {comic.socialMedia && <span className="section-list-item__tag">📱 {comic.socialMedia}</span>}
-              {comic.walkOnMusicName && <span className="section-list-item__tag">🎵 {comic.walkOnMusicName}</span>}
+              {comic.socialMedia && <span className="section-list-item__tag">{comic.socialMedia}</span>}
+              {comic.walkOnMusicName && <span className="section-list-item__tag">{comic.walkOnMusicName}</span>}
             </button>
           ))}
         </div>
@@ -109,15 +109,15 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
             <div className="section-list-item__content">
               <div className="section-list-item__body">
                 <span className="section-list-item__order">{idx + 1}</span>
-                {p.lockedIn && <span className="section-list-item__lock-badge">🔒</span>}
+                {p.lockedIn && <span className="section-list-item__lock-badge">Locked</span>}
                 <span className="section-list-item__name">{p.name}</span>
-                {p.socialMedia && <span className="section-list-item__tag">📱 {p.socialMedia}</span>}
+                {p.socialMedia && <span className="section-list-item__tag">{p.socialMedia}</span>}
                 {(p.walkOnMusicName || p.walkOnMusicArtist) && (
                   <span className="section-list-item__tag">
-                    🎵 {[p.walkOnMusicName, p.walkOnMusicArtist].filter(Boolean).join(' — ')}{p.walkOnMusicTimestamp ? ` @ ${p.walkOnMusicTimestamp}` : ''}
+                    {[p.walkOnMusicName, p.walkOnMusicArtist].filter(Boolean).join(' — ')}{p.walkOnMusicTimestamp ? ` @ ${p.walkOnMusicTimestamp}` : ''}
                   </span>
                 )}
-                {p.credits && <span className="section-list-item__tag">📝 {p.credits}</span>}
+                {p.credits && <span className="section-list-item__tag">{p.credits}</span>}
               </div>
               <div className="section-list-item__buttons">
                 <button

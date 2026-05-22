@@ -130,8 +130,8 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
             </div>
             {editId !== s.id && (
               <div className="section-list-item__actions">
-                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(s)}>✏️</button>
-                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteSong(s.id)}>✕</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(s)}>Edit</button>
+                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteSong(s.id)}>×</button>
               </div>
             )}
           </li>
@@ -141,10 +141,10 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
       {songs.length > 0 && (
         <div className="section-actions">
           <button className="btn btn--secondary" onClick={exportDJList}>
-            📤 Share / Export DJ List (Text)
+            Share / Export DJ List (Text)
           </button>
           <button className="btn btn--secondary" onClick={() => exportDJListToPDF(show)}>
-            🧾 Export DJ List (PDF)
+            Export DJ List (PDF)
           </button>
         </div>
       )}

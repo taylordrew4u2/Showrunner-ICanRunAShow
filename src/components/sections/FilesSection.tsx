@@ -72,7 +72,7 @@ export function FilesSection({ files, onChange }: FilesSectionProps) {
           placeholder="Notes (optional)"
         />
         <button className="btn btn--primary btn--sm" onClick={handleFileUpload}>
-          📎 Upload Files
+          Upload Files
         </button>
       </div>
 
@@ -90,13 +90,13 @@ export function FilesSection({ files, onChange }: FilesSectionProps) {
                 <audio controls preload="none"><source src={file.fileData} type={file.fileType} /></audio>
               </div>
             ) : (
-              <div className="media-grid__file-icon" onClick={() => downloadFile(file)} style={{ cursor: 'pointer' }}>📄</div>
+              <div className="media-grid__file-icon" onClick={() => downloadFile(file)} style={{ cursor: 'pointer' }}>File</div>
             )}
             <span className="media-grid__label" title={file.name}>
               {file.name}
               {file.notes ? ` · ${file.notes}` : ''}
             </span>
-            <button className="media-grid__remove" onClick={() => deleteFile(file.id)} title="Delete file">✕</button>
+            <button className="media-grid__remove" onClick={() => deleteFile(file.id)} title="Delete file">×</button>
           </div>
         ))}
       </div>

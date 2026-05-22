@@ -87,7 +87,7 @@ export function SceneList({ scenes, onChange }: SceneListProps) {
               onClick={() => deleteScene(scene.id)}
               aria-label="Delete scene"
             >
-              ✕
+              ×
             </button>
           </li>
         ))}
