@@ -32,7 +32,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const [tempVideoPayment, setTempVideoPayment] = useState(show.videoPayment?.toString() || '');
   const [tempSelectedHostId, setTempSelectedHostId] = useState(show.selectedHostId || '');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [newTodoText, setNewTodoText] = useState('');
   const [lightMode, setLightMode] = useState<boolean>(() => {
     try {
       return localStorage.getItem('showrunner:lightMode') === '1';
@@ -198,16 +197,16 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     setEditingShowName(true);
   }
 
-  function handleAddTodo() {
-    if (!newTodoText.trim()) return;
+  function handleAddTodoText(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
     const todo: TodoItem = {
       id: generateId(),
-      text: newTodoText.trim(),
+      text: trimmed,
       completed: false,
     };
     onUpdate({ ...show, todos: [...(show.todos || []), todo] });
     triggerSaveIndicator();
-    setNewTodoText('');
   }
 
   function handleToggleTodo(todoId: string) {
@@ -319,7 +318,17 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       subtitle: 'Attendance, sales, performer notes, and lessons learned.',
       accent: 'slate',
       span: 2,
-      content: <ShowRecapSection recap={show.recap} expenses={show.expenses} onChange={(recap) => handleUpdate({ recap })} />,
+      content: (
+        <ShowRecapSection
+          recap={show.recap}
+          expenses={show.expenses}
+          todos={show.todos || []}
+          onChange={(recap) => handleUpdate({ recap })}
+          onAddTodo={handleAddTodoText}
+          onToggleTodo={handleToggleTodo}
+          onDeleteTodo={handleDeleteTodo}
+        />
+      ),
     });
   }
 
@@ -493,8 +502,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         )}
       </div>
 
-      <div className="show-detail__main-layout">
-        <div className="show-detail__sections-accordion">
+      <div className="show-detail__sections-accordion">
         {sections.filter((section) => !show.completions?.[section.sectionKey] && !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
           const isExpanded = expandedSections.has(section.key);
           const isComplete = false;
@@ -619,48 +627,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
             </div>
           );
         })}
-        </div>
-
-        <div className="show-detail__todo-sidebar">
-          <h3 className="todo-sidebar__title">To-Do List</h3>
-          <div className="todo-sidebar__add">
-            <input
-              type="text"
-              className="todo-sidebar__input"
-              placeholder="Add a task..."
-              value={newTodoText}
-              onChange={(e) => setNewTodoText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleAddTodo(); }}
-            />
-            <button className="todo-sidebar__add-btn" onClick={handleAddTodo} disabled={!newTodoText.trim()}>
-              +
-            </button>
-          </div>
-          <ul className="todo-sidebar__list">
-            {(show.todos || []).map((todo) => (
-              <li key={todo.id} className={`todo-sidebar__item ${todo.completed ? 'todo-sidebar__item--done' : ''}`}>
-                <label className="todo-sidebar__check">
-                  <input
-                    type="checkbox"
-                    checked={todo.completed}
-                    onChange={() => handleToggleTodo(todo.id)}
-                  />
-                  <span className="todo-sidebar__text">{todo.text}</span>
-                </label>
-                <button
-                  className="todo-sidebar__delete"
-                  onClick={() => handleDeleteTodo(todo.id)}
-                  title="Remove"
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-          {(show.todos || []).length === 0 && (
-            <p className="todo-sidebar__empty">No tasks yet. Add one above!</p>
-          )}
-        </div>
       </div>
 
       {sections.some((section) => show.completions?.[section.sectionKey]) && (
