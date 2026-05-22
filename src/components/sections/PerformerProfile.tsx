@@ -19,6 +19,9 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   const [timestamp, setTimestamp] = useState(performer.walkOnMusicTimestamp || '');
   const [dirty, setDirty] = useState(false);
   const [savedToRolodex, setSavedToRolodex] = useState(false);
+  const [photoDrag, setPhotoDrag] = useState(false);
+  const [audioDrag, setAudioDrag] = useState(false);
+  const [videoDrag, setVideoDrag] = useState(false);
 
   const locked = performer.lockedIn;
 
@@ -36,6 +39,12 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
     setDirty(false);
   }
 
+  function readFile(file: File, onLoad: (result: string, file: File) => void) {
+    const reader = new FileReader();
+    reader.onload = () => onLoad(reader.result as string, file);
+    reader.readAsDataURL(file);
+  }
+
   function pickFile(accept: string, onLoad: (result: string, file: File) => void) {
     const input = document.createElement('input');
     input.type = 'file';
@@ -43,11 +52,22 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => onLoad(reader.result as string, file);
-      reader.readAsDataURL(file);
+      readFile(file, onLoad);
     };
     input.click();
+  }
+
+  function handleDrop(
+    e: React.DragEvent,
+    mimePrefix: string,
+    onLoad: (result: string, file: File) => void,
+    setDrag: (v: boolean) => void,
+  ) {
+    e.preventDefault();
+    setDrag(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith(mimePrefix)) return;
+    readFile(file, onLoad);
   }
 
   return (
@@ -169,31 +189,36 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
 
         {/* Photo panel */}
         <div className="perf-profile__photo-panel">
-          <div className="perf-profile__avatar-wrap">
-            {performer.photo ? (
-              <img src={performer.photo} alt={performer.name} className="perf-profile__avatar" />
-            ) : (
-              <div className="perf-profile__avatar-placeholder">
-                {performer.name.charAt(0).toUpperCase()}
-              </div>
+          <div
+            className={`perf-profile__photo-drop${photoDrag ? ' perf-profile__photo-drop--active' : ''}${locked ? ' perf-profile__photo-drop--locked' : ''}`}
+            onDragOver={e => e.preventDefault()}
+            onDragEnter={() => !locked && setPhotoDrag(true)}
+            onDragLeave={() => setPhotoDrag(false)}
+            onDrop={e => !locked && handleDrop(e, 'image/', result => onChange({ ...performer, photo: result }), setPhotoDrag)}
+            onClick={() => !locked && pickFile('image/*', result => onChange({ ...performer, photo: result }))}
+          >
+            <div className="perf-profile__avatar-wrap">
+              {performer.photo ? (
+                <img src={performer.photo} alt={performer.name} className="perf-profile__avatar" />
+              ) : (
+                <div className="perf-profile__avatar-placeholder">
+                  {performer.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            {!locked && (
+              <p className="perf-profile__photo-hint">
+                {photoDrag ? 'Drop photo' : performer.photo ? 'Click or drag to update' : 'Click or drag to upload'}
+              </p>
             )}
           </div>
           <p className="perf-profile__photo-name">{performer.name}</p>
-          <p className="perf-profile__photo-sub">Profile Photo</p>
-          {!locked && (
-            <button
-              className="perf-profile__photo-link"
-              onClick={() => pickFile('image/*', result => onChange({ ...performer, photo: result }))}
-            >
-              {performer.photo ? 'Update' : 'Upload'}
-            </button>
-          )}
           {performer.photo && !locked && (
             <button
               className="perf-profile__photo-remove"
-              onClick={() => onChange({ ...performer, photo: undefined })}
+              onClick={e => { e.stopPropagation(); onChange({ ...performer, photo: undefined }); }}
             >
-              Remove
+              Remove photo
             </button>
           )}
         </div>
@@ -203,60 +228,104 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
       <div className="perf-profile__card perf-profile__card--media">
         <p className="perf-profile__section-label">Media</p>
         <div className="perf-profile__media-grid">
-          {performer.walkOnMusic && (
-            <div className="perf-profile__media-tile">
-              <p className="perf-profile__media-label">🎵 Walk-On Music</p>
-              <audio controls preload="none" className="perf-profile__audio">
-                <source src={performer.walkOnMusic} />
-              </audio>
-              {!locked && (
-                <button
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => onChange({ ...performer, walkOnMusic: undefined, walkOnMusicName: undefined })}
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          )}
-          {performer.video && (
-            <div className="perf-profile__media-tile">
-              <p className="perf-profile__media-label">🎬 Video</p>
-              <video src={performer.video} controls preload="none" className="perf-profile__video" />
-              {!locked && (
-                <button
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => onChange({ ...performer, video: undefined })}
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          )}
-          {!locked && (
-            <div className="perf-profile__upload-row">
-              <button
-                className="btn btn--secondary btn--sm"
-                onClick={() =>
-                  pickFile('audio/*', (result, file) => {
-                    onChange({ ...performer, walkOnMusic: result, walkOnMusicName: file.name });
-                    setSongName(file.name);
-                  })
-                }
+
+          {/* Walk-On Music */}
+          <div className="perf-profile__media-tile">
+            <p className="perf-profile__media-label">🎵 Walk-On Music</p>
+            {performer.walkOnMusic ? (
+              <>
+                <audio controls preload="none" className="perf-profile__audio">
+                  <source src={performer.walkOnMusic} />
+                </audio>
+                {!locked && (
+                  <div className="perf-profile__media-actions">
+                    <button
+                      className="btn btn--secondary btn--sm"
+                      onClick={() => pickFile('audio/*', (result, file) => {
+                        onChange({ ...performer, walkOnMusic: result, walkOnMusicName: file.name });
+                        setSongName(file.name);
+                      })}
+                    >
+                      Replace
+                    </button>
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => onChange({ ...performer, walkOnMusic: undefined, walkOnMusicName: undefined })}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : !locked ? (
+              <div
+                className={`perf-profile__dropzone${audioDrag ? ' perf-profile__dropzone--active' : ''}`}
+                onDragOver={e => e.preventDefault()}
+                onDragEnter={() => setAudioDrag(true)}
+                onDragLeave={() => setAudioDrag(false)}
+                onDrop={e => handleDrop(e, 'audio/', (result, file) => {
+                  onChange({ ...performer, walkOnMusic: result, walkOnMusicName: file.name });
+                  setSongName(file.name);
+                }, setAudioDrag)}
+                onClick={() => pickFile('audio/*', (result, file) => {
+                  onChange({ ...performer, walkOnMusic: result, walkOnMusicName: file.name });
+                  setSongName(file.name);
+                })}
               >
-                🎵 {performer.walkOnMusic ? 'Replace Music' : 'Upload Walk-On Music'}
-              </button>
-              <button
-                className="btn btn--secondary btn--sm"
+                <span className="perf-profile__dropzone-icon">🎵</span>
+                <span className="perf-profile__dropzone-label">
+                  {audioDrag ? 'Drop audio file' : 'Drag & drop or click to upload'}
+                </span>
+                <span className="perf-profile__dropzone-sub">MP3, WAV, AAC, M4A</span>
+              </div>
+            ) : (
+              <p className="perf-profile__media-empty">No audio uploaded.</p>
+            )}
+          </div>
+
+          {/* Video */}
+          <div className="perf-profile__media-tile">
+            <p className="perf-profile__media-label">🎬 Video</p>
+            {performer.video ? (
+              <>
+                <video src={performer.video} controls preload="none" className="perf-profile__video" />
+                {!locked && (
+                  <div className="perf-profile__media-actions">
+                    <button
+                      className="btn btn--secondary btn--sm"
+                      onClick={() => pickFile('video/*', result => onChange({ ...performer, video: result }))}
+                    >
+                      Replace
+                    </button>
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => onChange({ ...performer, video: undefined })}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : !locked ? (
+              <div
+                className={`perf-profile__dropzone${videoDrag ? ' perf-profile__dropzone--active' : ''}`}
+                onDragOver={e => e.preventDefault()}
+                onDragEnter={() => setVideoDrag(true)}
+                onDragLeave={() => setVideoDrag(false)}
+                onDrop={e => handleDrop(e, 'video/', result => onChange({ ...performer, video: result }), setVideoDrag)}
                 onClick={() => pickFile('video/*', result => onChange({ ...performer, video: result }))}
               >
-                🎬 {performer.video ? 'Replace Video' : 'Upload Video'}
-              </button>
-            </div>
-          )}
-          {!performer.walkOnMusic && !performer.video && locked && (
-            <p className="perf-profile__media-empty">No media uploaded.</p>
-          )}
+                <span className="perf-profile__dropzone-icon">🎬</span>
+                <span className="perf-profile__dropzone-label">
+                  {videoDrag ? 'Drop video file' : 'Drag & drop or click to upload'}
+                </span>
+                <span className="perf-profile__dropzone-sub">MP4, MOV, WebM</span>
+              </div>
+            ) : (
+              <p className="perf-profile__media-empty">No video uploaded.</p>
+            )}
+          </div>
+
         </div>
       </div>
     </div>
