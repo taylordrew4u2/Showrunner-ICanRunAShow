@@ -3,7 +3,7 @@ import './ShowCard.css';
 
 interface ShowCardProps {
   show: Show;
-  onSelect: (show: Show) => void;
+  onSelect: (show: Show, e: React.MouseEvent) => void;
   onDelete: (id: string) => void;
 }
 
@@ -26,7 +26,7 @@ export function ShowCard({ show, onSelect, onDelete }: ShowCardProps) {
   }
 
   return (
-    <div className="show-card" onClick={() => onSelect(show)}>
+    <div className="show-card" onClick={e => onSelect(show, e)}>
       <div className="show-card__header">
         <h3 className="show-card__title">{show.name}</h3>
         <span className={`show-card__status show-card__status--${show.status}`}>

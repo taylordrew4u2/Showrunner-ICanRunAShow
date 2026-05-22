@@ -273,6 +273,27 @@
   color: var(--text-muted);
 }
 
+/* ── Show expand animation ───────────────────────────────────────── */
+
+.show-detail-expand {
+  width: 100%;
+  transform-origin: var(--expand-origin-x, 50%) var(--expand-origin-y, 30%);
+  animation: show-card-expand 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes show-card-expand {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+    border-radius: 20px;
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    border-radius: 0;
+  }
+}
+
 .app-header {
   position: fixed;
   inset: 0 0 auto 0;
