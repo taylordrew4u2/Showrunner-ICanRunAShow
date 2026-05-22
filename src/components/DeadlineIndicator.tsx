@@ -16,33 +16,33 @@ export function DeadlineIndicator({ deadline, compact = false, isComplete = fals
 
   let status: 'completed' | 'passed' | 'urgent' | 'soon' | 'ok' = 'ok';
   let label = '';
-  let icon = '📅';
+  let icon = '●';
 
   // Check if completed (filled out before deadline)
   if (isComplete && diffDays >= 0) {
     status = 'completed';
     label = 'Completed';
-    icon = '✅';
+    icon = '✓';
   } else if (diffDays < 0) {
     status = 'passed';
     label = `${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'} overdue`;
-    icon = '⚠️';
+    icon = '!';
   } else if (diffDays === 0) {
     status = 'urgent';
     label = 'Due today';
-    icon = '🔴';
+    icon = '!';
   } else if (diffDays <= 3) {
     status = 'urgent';
     label = `${diffDays} day${diffDays === 1 ? '' : 's'} left`;
-    icon = '🔴';
+    icon = '!';
   } else if (diffDays <= 7) {
     status = 'soon';
     label = `${diffDays} days left`;
-    icon = '🟡';
+    icon = '◐';
   } else {
     status = 'ok';
     label = deadlineDate.toLocaleDateString();
-    icon = '📅';
+    icon = '●';
   }
 
   if (compact) {

@@ -165,7 +165,7 @@ export function ScheduleSection({
       {mode === 'choose' && (
         <div className="schedule-choice">
           <button className="schedule-choice__option" onClick={() => setMode('build')}>
-            <span className="schedule-choice__icon">✏️</span>
+            <span className="schedule-choice__icon"><Icon name="edit" size={20} /></span>
             <span className="schedule-choice__label">Build Your Own</span>
             <span className="schedule-choice__desc">Create the show run manually</span>
           </button>
@@ -175,7 +175,7 @@ export function ScheduleSection({
             <span className="schedule-choice__desc">Photo, PDF, or paste — AI extracts cues</span>
           </button>
           <button className="schedule-choice__option" onClick={() => setMode('upload')}>
-            <span className="schedule-choice__icon">📄</span>
+            <span className="schedule-choice__icon"><Icon name="file" size={20} /></span>
             <span className="schedule-choice__label">Upload File</span>
             <span className="schedule-choice__desc">Attach a PDF or image of your show run</span>
           </button>
@@ -365,7 +365,7 @@ export function ScheduleSection({
             style={{ marginTop: 12 }}
             onClick={handleSwitchToUpload}
           >
-            📄 Switch to upload instead
+            Switch to upload instead
           </button>
         </>
       )}
@@ -375,20 +375,20 @@ export function ScheduleSection({
           {scheduleImage ? (
             <div className="schedule-image-fallback">
               <div className="schedule-image-fallback__header">
-                <span className="schedule-image-fallback__badge">📄 Uploaded Show Run</span>
+                <span className="schedule-image-fallback__badge">Uploaded Show Run</span>
                 <button
                   className="btn btn--ghost btn--sm"
                   onClick={() => fileInputRef.current?.click()}
                   title="Replace with a different file"
                 >
-                  🔄 Replace
+                  Replace
                 </button>
                 <button
                   className="btn btn--ghost btn--sm"
                   onClick={handleSwitchToBuild}
                   title="Remove image and build manually"
                 >
-                  ✕ Remove
+                  × Remove
                 </button>
               </div>
               {scheduleImage.startsWith('data:application/pdf') ? (
@@ -418,7 +418,7 @@ export function ScheduleSection({
               style={{ marginTop: 12 }}
               onClick={handleSwitchToBuild}
             >
-              ✏️ Switch to build your own instead
+              Switch to build your own instead
             </button>
           )}
         </>

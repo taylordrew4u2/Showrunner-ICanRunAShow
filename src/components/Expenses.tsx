@@ -102,7 +102,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
     <div className="expenses-page">
       <div className="expenses-page__topbar">
         <button className="btn btn--ghost" onClick={onBack}>← Back</button>
-        <h2 className="expenses-page__title">💰 Expenses</h2>
+        <h2 className="expenses-page__title">Expenses</h2>
       </div>
 
       {brandBudget > 0 && (
@@ -182,7 +182,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
             title={receiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
             onClick={() => addReceiptInputRef.current?.click()}
           >
-            📷
+            Receipt
           </button>
           {receiptPhoto && (
             <img
@@ -228,7 +228,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
                     title={editReceiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
                     onClick={() => editReceiptInputRef.current?.click()}
                   >
-                    📷
+                    Receipt
                   </button>
                   {editReceiptPhoto && (
                     <img
@@ -264,8 +264,8 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
             </div>
             {editId !== e.id && (
               <div className="section-list-item__actions">
-                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(e)}>✏️</button>
-                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteExpense(e.id)}>✕</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(e)}>Edit</button>
+                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteExpense(e.id)}>×</button>
               </div>
             )}
           </li>
