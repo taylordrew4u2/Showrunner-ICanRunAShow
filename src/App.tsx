@@ -46,6 +46,7 @@ export default function App() {
   const [newComicName, setNewComicName] = useState('');
   const [newComicNotes, setNewComicNotes] = useState('');
   const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
+  const [expandOrigin, setExpandOrigin] = useState({ x: 50, y: 30 });
 
   // Restore session from localStorage on mount (persists until logout)
   useEffect(() => {
@@ -410,7 +411,18 @@ export default function App() {
     });
   }
 
-  function handleSelectShow(show: Show) {
+  function handleSelectShow(show: Show, e?: React.MouseEvent) {
+    if (e) {
+      const main = document.querySelector('.app-main');
+      const cardEl = e.currentTarget as HTMLElement;
+      if (main) {
+        const mainRect = main.getBoundingClientRect();
+        const cardRect = cardEl.getBoundingClientRect();
+        const x = ((cardRect.left + cardRect.width / 2 - mainRect.left) / mainRect.width) * 100;
+        const y = ((cardRect.top + cardRect.height / 2 - mainRect.top) / mainRect.height) * 100;
+        setExpandOrigin({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
+      }
+    }
     setSelectedShow(show);
     setView('detail');
   }
@@ -549,13 +561,19 @@ export default function App() {
             )}
 
             {view === 'detail' && selectedShow && (
-              <ShowDetail
-                show={selectedShow}
-                settings={settings}
-                onBack={handleBack}
-                onUpdate={handleUpdateShow}
-                onSaveToRolodex={handleSavePerformerToRolodex}
-              />
+              <div
+                key={selectedShow.id}
+                className="show-detail-expand"
+                style={{ '--expand-origin-x': `${expandOrigin.x}%`, '--expand-origin-y': `${expandOrigin.y}%` } as React.CSSProperties}
+              >
+                <ShowDetail
+                  show={selectedShow}
+                  settings={settings}
+                  onBack={handleBack}
+                  onUpdate={handleUpdateShow}
+                  onSaveToRolodex={handleSavePerformerToRolodex}
+                />
+              </div>
             )}
 
             {view === 'expenses' && (
