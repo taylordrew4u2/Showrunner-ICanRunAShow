@@ -31,29 +31,29 @@
 .expenses-page__filter-label {
     font-weight: 700;
     font-size: 0.95rem;
-    color: #1f2937;
+    color: var(--text);
     white-space: nowrap;
 }
 
 .expenses-page__add {
     margin-bottom: 24px;
     padding: 16px;
-    background: #f9fafb;
+    background: var(--surface-strong);
     border-radius: 12px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border);
 }
 
 .expenses-page__add-title {
     font-size: 0.95rem;
     font-weight: 600;
     margin: 0 0 12px;
-    color: #374151;
+    color: var(--text);
 }
 
 .section-list-item__show-tag {
     display: inline-block;
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
     font-size: 0.82rem;
     font-weight: 700;
     padding: 3px 9px;
@@ -86,7 +86,7 @@
     height: 40px;
     object-fit: cover;
     border-radius: 6px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border);
     cursor: pointer;
     transition: transform 0.15s;
 }

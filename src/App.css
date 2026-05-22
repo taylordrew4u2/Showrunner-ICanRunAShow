@@ -618,7 +618,7 @@
   border: 1px solid var(--border);
   padding: 10px 12px;
   font-size: 0.95rem;
-  background: #ffffff;
+  background: var(--surface-strong);
   color: var(--text);
   outline: none;
 }

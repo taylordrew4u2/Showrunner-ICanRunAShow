@@ -169,7 +169,7 @@ export function ExpensesSection({ expenses, settings, onChange }: ExpensesSectio
           title={receiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
           onClick={() => addReceiptInputRef.current?.click()}
         >
-          📷
+          Receipt
         </button>
         {receiptPhoto && (
           <img
@@ -214,7 +214,7 @@ export function ExpensesSection({ expenses, settings, onChange }: ExpensesSectio
                     title={editReceiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
                     onClick={() => editReceiptInputRef.current?.click()}
                   >
-                    📷
+                    Receipt
                   </button>
                   {editReceiptPhoto && (
                     <img
@@ -250,8 +250,8 @@ export function ExpensesSection({ expenses, settings, onChange }: ExpensesSectio
             </div>
             {editId !== e.id && (
               <div className="section-list-item__actions">
-                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(e)}>✏️</button>
-                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteExpense(e.id)}>✕</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(e)}>Edit</button>
+                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteExpense(e.id)}>×</button>
               </div>
             )}
           </li>

@@ -459,28 +459,24 @@ export default function App() {
                 className={`sidebar__item ${(view === 'list' || view === 'detail') ? 'sidebar__item--active' : ''}`}
                 onClick={handleBack}
               >
-                <span className="sidebar__item-icon">🎬</span>
                 <span>Shows</span>
               </button>
               <button
                 className="sidebar__item"
                 onClick={() => setShowForm(true)}
               >
-                <span className="sidebar__item-icon">➕</span>
                 <span>New Show</span>
               </button>
               <button
                 className={`sidebar__item ${view === 'rolodex' ? 'sidebar__item--active' : ''}`}
                 onClick={() => { setView('rolodex'); setSelectedShow(null); }}
               >
-                <span className="sidebar__item-icon">🎤</span>
                 <span>Rolodex</span>
               </button>
               <button
                 className={`sidebar__item ${view === 'expenses' ? 'sidebar__item--active' : ''}`}
                 onClick={() => { setView('expenses'); setSelectedShow(null); }}
               >
-                <span className="sidebar__item-icon">💰</span>
                 <span>Expenses</span>
               </button>
             </div>
@@ -489,11 +485,9 @@ export default function App() {
                 className={`sidebar__item ${view === 'settings' ? 'sidebar__item--active' : ''}`}
                 onClick={() => { setView('settings'); setSelectedShow(null); }}
               >
-                <span className="sidebar__item-icon">⚙️</span>
                 <span>Settings</span>
               </button>
               <button className="sidebar__item" onClick={handleLogout}>
-                <span className="sidebar__item-icon">🔓</span>
                 <span>Log out</span>
               </button>
             </div>
@@ -530,12 +524,12 @@ export default function App() {
                 {shows.length === 0 ? (
                   <div className="shows-grid">
                     <div className="empty-state">
-                      <div className="empty-state__icon">🎬</div>
+                      <div className="empty-state__icon"></div>
                       <h2>No shows yet</h2>
                       <p>Tap <strong>+ New Show</strong> to get started.</p>
                     </div>
                     <div className="show-card rolodex-tile" onClick={() => setView('rolodex')}>
-                      <div className="rolodex-tile__icon">🎤</div>
+                      <div className="rolodex-tile__icon"></div>
                       <h3 className="rolodex-tile__title">Comic Rolodex</h3>
                       <p className="rolodex-tile__count">{settings.potentialComics.length} comic{settings.potentialComics.length !== 1 ? 's' : ''}</p>
                     </div>
@@ -551,7 +545,7 @@ export default function App() {
                       />
                     ))}
                     <div className="show-card rolodex-tile" onClick={() => setView('rolodex')}>
-                      <div className="rolodex-tile__icon">🎤</div>
+                      <div className="rolodex-tile__icon"></div>
                       <h3 className="rolodex-tile__title">Comic Rolodex</h3>
                       <p className="rolodex-tile__count">{settings.potentialComics.length} comic{settings.potentialComics.length !== 1 ? 's' : ''}</p>
                     </div>
@@ -588,7 +582,7 @@ export default function App() {
               <div className="rolodex-page">
                 <div className="rolodex-page__topbar">
                   <button className="btn btn--ghost" onClick={handleBack}>← Back</button>
-                  <h2 className="rolodex-page__title">🎤 Comic Rolodex</h2>
+                  <h2 className="rolodex-page__title">Comic Rolodex</h2>
                 </div>
                 <p className="rolodex-page__subtitle">Keep a running list of comics you want to book next.</p>
 
@@ -631,9 +625,9 @@ export default function App() {
                         )}
                         <div className="rolodex__item-content">
                           <p className="rolodex__name">{comic.name}</p>
-                          {comic.socialMedia && <p className="rolodex__meta">📱 {comic.socialMedia}</p>}
+                          {comic.socialMedia && <p className="rolodex__meta">{comic.socialMedia}</p>}
                           {(comic.walkOnMusicName || comic.walkOnMusicArtist) && (
-                            <p className="rolodex__meta">🎵 {[comic.walkOnMusicName, comic.walkOnMusicArtist].filter(Boolean).join(' — ')}</p>
+                            <p className="rolodex__meta">{[comic.walkOnMusicName, comic.walkOnMusicArtist].filter(Boolean).join(' — ')}</p>
                           )}
                           {comic.notes && <p className="rolodex__notes">{comic.notes}</p>}
                         </div>
@@ -694,7 +688,7 @@ export default function App() {
           <aside className="right-panel">
             <div className="right-panel__cta">
               <button className="btn btn--primary btn--block" onClick={() => setShowForm(true)}>
-                ➕ New Show
+                New Show
               </button>
             </div>
             <div className="right-panel__section">
@@ -763,7 +757,6 @@ export default function App() {
                     setMenuOpen(false);
                   }}
                 >
-                  <span className="bottom-nav__icon">🎬</span>
                   <span>Shows</span>
                 </button>
                 <button
@@ -773,7 +766,6 @@ export default function App() {
                     setMenuOpen(false);
                   }}
                 >
-                  <span className="bottom-nav__icon">➕</span>
                   <span>New Show</span>
                 </button>
                 <button
@@ -784,7 +776,6 @@ export default function App() {
                     setMenuOpen(false);
                   }}
                 >
-                  <span className="bottom-nav__icon">💰</span>
                   <span>Expenses</span>
                 </button>
                 <button
@@ -795,7 +786,6 @@ export default function App() {
                     setMenuOpen(false);
                   }}
                 >
-                  <span className="bottom-nav__icon">⚙️</span>
                   <span>Settings</span>
                 </button>
                 <button
@@ -805,7 +795,6 @@ export default function App() {
                     setMenuOpen(false);
                   }}
                 >
-                  <span className="bottom-nav__icon">🔓</span>
                   <span>Logout</span>
                 </button>
               </div>

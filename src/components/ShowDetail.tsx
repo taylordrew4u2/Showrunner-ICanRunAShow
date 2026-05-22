@@ -220,7 +220,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     {
       key: 'basic',
       sectionKey: 'basic' as SectionKey,
-      title: '📋 Basic Info',
+      title: 'Basic Info',
       subtitle: 'Set show time, location, and venue. Upload a flyer.',
       accent: 'slate',
       span: 2,
@@ -229,7 +229,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     {
       key: 'performers',
       sectionKey: 'performers' as SectionKey,
-      title: '🎤 Performers',
+      title: 'Performers',
       subtitle: 'Names, walk-on music, photos, and social media.',
       accent: 'red',
       count: show.performers.length,
@@ -243,7 +243,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     {
       key: 'artists',
       sectionKey: 'artists' as SectionKey,
-      title: '🎨 Artists',
+      title: 'Artists',
       subtitle: 'Artist entries with name, type, music, and photos.',
       accent: 'purple',
       count: show.artists.length,
@@ -252,7 +252,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     {
       key: 'schedule',
       sectionKey: 'schedule' as SectionKey,
-      title: '📅 Schedule',
+      title: 'Schedule',
       subtitle: 'Timeline of events with times and descriptions.',
       accent: 'blue',
       span: 2,
@@ -269,7 +269,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     {
       key: 'dj',
       sectionKey: 'dj' as SectionKey,
-      title: '🎵 DJ Music',
+      title: 'DJ Music',
       subtitle: 'Songs and notes for the DJ.',
       accent: 'green',
       count: show.djSongs.length,
@@ -278,7 +278,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     {
       key: 'staff',
       sectionKey: 'staff' as SectionKey,
-      title: '👥 Staff',
+      title: 'Staff',
       subtitle: 'Roles and assignments for production staff.',
       accent: 'amber',
       count: show.staff.length,
@@ -287,7 +287,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     {
       key: 'files',
       sectionKey: 'files' as SectionKey,
-      title: '📎 Files',
+      title: 'Files',
       subtitle: 'Upload and manage any files needed for the show.',
       accent: 'slate',
       count: show.files?.length || 0,
@@ -300,7 +300,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     sections.push({
       key: 'recap',
       sectionKey: 'recap' as SectionKey,
-      title: '📝 Recap',
+      title: 'Recap',
       subtitle: 'Attendance, sales, performer notes, and lessons learned.',
       accent: 'slate',
       span: 2,
@@ -321,12 +321,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
             )}
             {saveStatus === 'saved' && (
               <span className="show-detail__save-indicator show-detail__save-indicator--saved">
-                ✓ Saved
+                Saved
               </span>
             )}
           </div>
           <button className="btn btn--secondary btn--sm" onClick={() => exportShowToPDF(show, settings)}>
-            📄 Export PDF
+            Export PDF
           </button>
         </div>
         <div className="show-detail__header">
@@ -359,7 +359,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                 onClick={handleEditShowName}
                 title="Edit show name"
               >
-                ✏️
+                Edit
               </button>
             </>
           )}
@@ -369,10 +369,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         </div>
         {(show.venueName || show.location || show.date || show.time) && (
           <div className="show-detail__meta">
-            {show.venueName && <span>🏛️ {show.venueName}</span>}
-            {show.location && <span>🗺️ {show.location}</span>}
-            {show.date && <span>📅 {new Date(show.date).toLocaleDateString()}</span>}
-            {show.time && <span>⏰ {show.time}</span>}
+            {show.venueName && <span>{show.venueName}</span>}
+            {show.location && <span>{show.location}</span>}
+            {show.date && <span>{new Date(show.date).toLocaleDateString()}</span>}
+            {show.time && <span>{show.time}</span>}
           </div>
         )}
       </div>
@@ -390,7 +390,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           <div className="video-host-locked">
             {show.videoPerson && (
               <div className="video-host-locked__item">
-                <span className="video-host-locked__label">📹 Video:</span>
+                <span className="video-host-locked__label">Video:</span>
                 <span className="video-host-locked__value">{show.videoPerson}</span>
                 {show.videoPayment && (
                   <span className="video-host-locked__payment">${show.videoPayment.toFixed(2)}</span>
@@ -399,7 +399,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
             )}
             {selectedHostName && (
               <div className="video-host-locked__item">
-                <span className="video-host-locked__label">🎙️ Host:</span>
+                <span className="video-host-locked__label">Host:</span>
                 <span className="video-host-locked__value">{selectedHostName}</span>
               </div>
             )}
@@ -416,7 +416,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
             <h3 className="video-host-editor__title">Video & Host Assignment</h3>
             <div className="video-host-editor__fields">
               <div className="video-host-editor__field">
-                <label className="section-field__label">📹 Video Person</label>
+                <label className="section-field__label">Video Person</label>
                 <input
                   type="text"
                   className="section-field__input"
@@ -426,7 +426,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                 />
               </div>
               <div className="video-host-editor__field video-host-editor__field--narrow">
-                <label className="section-field__label">💰 Video Payment ($)</label>
+                <label className="section-field__label">Video Payment ($)</label>
                 <input
                   type="number"
                   className="section-field__input"
@@ -438,7 +438,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                 />
               </div>
               <div className="video-host-editor__field">
-                <label className="section-field__label">🎙️ Select Host</label>
+                <label className="section-field__label">Select Host</label>
                 <select
                   className="section-field__select"
                   value={tempSelectedHostId}
@@ -506,7 +506,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                         handleHideSection(section.sectionKey!);
                       }}
                     >
-                      ✕
+                      ×
                     </button>
                   )}
                   {section.sectionKey && (
@@ -518,7 +518,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                       }}
                       title="Lock In"
                     >
-                      🔒 Lock In
+                      Lock In
                     </button>
                   )}
                   <button 
@@ -599,7 +599,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         </div>
 
         <div className="show-detail__todo-sidebar">
-          <h3 className="todo-sidebar__title">✅ To-Do List</h3>
+          <h3 className="todo-sidebar__title">To-Do List</h3>
           <div className="todo-sidebar__add">
             <input
               type="text"
@@ -629,7 +629,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                   onClick={() => handleDeleteTodo(todo.id)}
                   title="Remove"
                 >
-                  ✕
+                  ×
                 </button>
               </li>
             ))}
@@ -651,7 +651,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                 onClick={() => handleCompletionToggle(section.sectionKey!)}
                 title={`Unlock "${section.title}"`}
               >
-                <span className="completed-bubble__icon">🔒</span>
+                <span className="completed-bubble__icon">✓</span>
                 <span className="completed-bubble__title">{section.title}</span>
               </button>
             ))}
