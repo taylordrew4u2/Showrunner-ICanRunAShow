@@ -361,20 +361,6 @@
   }
 }
 
-/* Main Layout: Sections + Todo Sidebar */
-.show-detail__main-layout {
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 20px;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .show-detail__main-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* ─── Bento Grid Layout for Sections ──────────────────────────────────────── */
 .show-detail__sections-accordion {
   display: grid;
@@ -1831,132 +1817,125 @@
   white-space: nowrap;
 }
 
-/* ─── To-Do Sidebar ──────────────────────────────────────────────────────── */
+/* ─── Recap To-Do List (lives inside Recap section) ─────────────────────── */
 
-.show-detail__todo-sidebar {
-  position: sticky;
-  top: 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-}
-
-.todo-sidebar__title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  margin: 0 0 12px;
-  color: var(--text);
-  letter-spacing: -0.015em;
-}
-
-.todo-sidebar__add {
+.recap-todo {
   display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
 }
 
-.todo-sidebar__input {
+.recap-todo__add {
+  display: flex;
+  gap: 8px;
+}
+
+.recap-todo__input {
   flex: 1;
-  padding: 8px 10px;
+  min-width: 0;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  font-family: inherit;
   outline: none;
-  background: var(--surface-strong);
+  background: var(--surface);
   color: var(--text);
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.todo-sidebar__input:focus {
+.recap-todo__input:focus {
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
-.todo-sidebar__add-btn {
-  width: 44px;
-  height: 44px;
-  border: none;
+.recap-todo__add-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid transparent;
   border-radius: var(--radius-xs);
   background: var(--primary);
   color: #fff;
-  font-size: 1.2rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: background 0.15s;
   flex-shrink: 0;
 }
 
-.todo-sidebar__add-btn:hover {
+.recap-todo__add-btn:hover:not(:disabled) {
   background: var(--primary-pressed);
 }
 
-.todo-sidebar__add-btn:disabled {
-  background: var(--border);
-  cursor: default;
+.recap-todo__add-btn:disabled {
+  background: var(--border-strong);
+  color: var(--text-soft);
+  cursor: not-allowed;
 }
 
-.todo-sidebar__list {
+.recap-todo__list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-.todo-sidebar__item {
+.recap-todo__item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
   padding: 6px 8px;
   border-radius: var(--radius-xs);
   transition: background 0.12s;
 }
 
-.todo-sidebar__item:hover {
-  background: var(--surface-strong);
+.recap-todo__item:hover {
+  background: var(--surface);
 }
 
-.todo-sidebar__item--done .todo-sidebar__text {
+.recap-todo__item--done .recap-todo__text {
   text-decoration: line-through;
-  color: #9ca3af;
+  color: var(--text-soft);
 }
 
-.todo-sidebar__check {
+.recap-todo__check {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
   flex: 1;
   min-width: 0;
 }
 
-.todo-sidebar__check input[type="checkbox"] {
-  width: 22px;
-  height: 22px;
-  accent-color: #22c55e;
+.recap-todo__check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
   cursor: pointer;
   flex-shrink: 0;
 }
 
-.todo-sidebar__text {
-  font-size: 0.85rem;
+.recap-todo__text {
+  font-size: 0.9rem;
   color: var(--text);
   word-break: break-word;
 }
 
-.todo-sidebar__delete {
+.recap-todo__delete {
   background: none;
   border: none;
-  color: var(--border-strong);
-  font-size: 0.82rem;
+  color: var(--text-soft);
+  font-size: 1rem;
+  line-height: 1;
   cursor: pointer;
-  padding: 8px;
   min-width: 32px;
   min-height: 32px;
   display: flex;
@@ -1967,16 +1946,17 @@
   flex-shrink: 0;
 }
 
-.todo-sidebar__delete:hover {
+.recap-todo__delete:hover {
   color: var(--primary);
   background: var(--primary-soft);
 }
 
-.todo-sidebar__empty {
-  font-size: 0.8rem;
-  color: #9ca3af;
+.recap-todo__empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
   text-align: center;
-  margin: 8px 0 0;
+  margin: 4px 0 0;
+  font-style: italic;
 }
 
 /* ─── Budget Card ─────────────────────────────────────────────────────────── */

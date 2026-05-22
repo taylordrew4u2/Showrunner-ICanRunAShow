@@ -1,23 +1,35 @@
 import { useState, useEffect } from 'react';
-import type { ShowRecap, Expense } from '../../types';
+import type { ShowRecap, Expense, TodoItem } from '../../types';
 
 interface ShowRecapSectionProps {
   recap: ShowRecap | undefined;
   expenses: Expense[];
+  todos: TodoItem[];
   onChange: (recap: ShowRecap) => void;
+  onAddTodo: (text: string) => void;
+  onToggleTodo: (todoId: string) => void;
+  onDeleteTodo: (todoId: string) => void;
 }
 
-export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSectionProps) {
+export function ShowRecapSection({
+  recap,
+  expenses,
+  todos,
+  onChange,
+  onAddTodo,
+  onToggleTodo,
+  onDeleteTodo,
+}: ShowRecapSectionProps) {
   const [attendance, setAttendance] = useState(recap?.attendance?.toString() || '');
   const [merchSales, setMerchSales] = useState(recap?.merchSales?.toString() || '');
   const [performerNotes, setPerformerNotes] = useState(recap?.performerNotes || '');
   const [improvementNotes, setImprovementNotes] = useState(recap?.improvementNotes || '');
+  const [newTodoText, setNewTodoText] = useState('');
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.cost, 0);
   const totalRevenue = Number(merchSales) || 0;
   const profitLoss = totalRevenue - totalExpenses;
 
-  // Sync local state when recap prop changes from outside
   const recapKey = JSON.stringify(recap);
   useEffect(() => {
     setAttendance(recap?.attendance?.toString() || '');
@@ -41,6 +53,12 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
       profitLoss: rev - totalExpenses,
     };
     onChange(updated);
+  }
+
+  function submitTodo() {
+    if (!newTodoText.trim()) return;
+    onAddTodo(newTodoText.trim());
+    setNewTodoText('');
   }
 
   return (
@@ -91,6 +109,60 @@ export function ShowRecapSection({ recap, expenses, onChange }: ShowRecapSection
                 {profitLoss >= 0 ? '+' : ''}${profitLoss.toFixed(2)}
               </span>
             </div>
+          </div>
+        </div>
+
+        <div className="section-field">
+          <span className="section-field__label">To-Do List</span>
+          <div className="recap-todo">
+            <div className="recap-todo__add">
+              <input
+                type="text"
+                className="recap-todo__input"
+                placeholder="Add a task..."
+                value={newTodoText}
+                onChange={(e) => setNewTodoText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitTodo(); } }}
+              />
+              <button
+                type="button"
+                className="recap-todo__add-btn"
+                onClick={submitTodo}
+                disabled={!newTodoText.trim()}
+              >
+                Add
+              </button>
+            </div>
+            {todos.length > 0 ? (
+              <ul className="recap-todo__list">
+                {todos.map((todo) => (
+                  <li
+                    key={todo.id}
+                    className={`recap-todo__item ${todo.completed ? 'recap-todo__item--done' : ''}`}
+                  >
+                    <label className="recap-todo__check">
+                      <input
+                        type="checkbox"
+                        checked={todo.completed}
+                        onChange={() => onToggleTodo(todo.id)}
+                      />
+                      <span className="recap-todo__text">{todo.text}</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="recap-todo__delete"
+                      onClick={() => onDeleteTodo(todo.id)}
+                      title="Remove"
+                      aria-label="Remove task"
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="recap-todo__empty">No tasks yet.</p>
+            )}
           </div>
         </div>
 
