@@ -114,7 +114,41 @@
   align-items: center;
   text-align: center;
   gap: 8px;
-  padding-top: 28px; /* align with first field row */
+}
+
+.perf-profile__photo-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 2px dashed var(--border);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.perf-profile__photo-drop:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.perf-profile__photo-drop--active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.perf-profile__photo-drop--locked {
+  border-color: transparent;
+  cursor: default;
+}
+
+.perf-profile__photo-hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin: 0;
 }
 
 .perf-profile__avatar-wrap {
@@ -123,7 +157,6 @@
   border-radius: 50%;
   overflow: hidden;
   border: 2px solid var(--border);
-  margin-bottom: 6px;
   flex-shrink: 0;
 }
 
@@ -152,23 +185,6 @@
   color: var(--text);
 }
 
-.perf-profile__photo-sub {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-.perf-profile__photo-link {
-  background: none;
-  border: 0;
-  color: var(--primary);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  padding: 0;
-}
-
 .perf-profile__photo-remove {
   background: none;
   border: 0;
@@ -177,6 +193,10 @@
   cursor: pointer;
   font-family: inherit;
   padding: 0;
+}
+
+.perf-profile__photo-remove:hover {
+  color: var(--primary);
 }
 
 /* ── Media ─────────────────────────────────────────────────────────── */
@@ -190,7 +210,7 @@
 .perf-profile__media-tile {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -202,6 +222,11 @@
   font-weight: 700;
   margin: 0;
   color: var(--text);
+}
+
+.perf-profile__media-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .perf-profile__audio {
@@ -216,16 +241,82 @@
   background: #000;
 }
 
-.perf-profile__upload-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
 .perf-profile__media-empty {
   color: var(--text-muted);
   font-size: 0.88rem;
   margin: 0;
+}
+
+/* ── Drop zones ────────────────────────────────────────────────────── */
+
+.perf-profile__dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 28px 20px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  min-height: 100px;
+}
+
+.perf-profile__dropzone:hover,
+.perf-profile__dropzone--active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.perf-profile__dropzone-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.perf-profile__dropzone-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.perf-profile__dropzone-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* ── Drawer overrides (panel is narrower than 860px breakpoint) ─────── */
+
+.perf-drawer .perf-profile__card {
+  grid-template-columns: 1fr;
+  gap: 20px;
+  padding: 22px;
+}
+
+.perf-drawer .perf-profile__photo-panel {
+  flex-direction: row;
+  align-items: center;
+  text-align: left;
+  gap: 16px;
+  padding-top: 0;
+}
+
+.perf-drawer .perf-profile__photo-drop {
+  width: auto;
+  flex-direction: row;
+  padding: 10px 14px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.perf-drawer .perf-profile__avatar-wrap {
+  width: 72px;
+  height: 72px;
+}
+
+.perf-drawer .perf-profile__photo-hint {
+  font-size: 0.68rem;
 }
 
 /* ── Tablet / narrow desktop ───────────────────────────────────────── */
@@ -241,14 +332,12 @@
     flex-direction: row;
     text-align: left;
     align-items: flex-start;
-    padding-top: 0;
     gap: 16px;
   }
 
   .perf-profile__avatar-wrap {
     width: 80px;
     height: 80px;
-    margin-bottom: 0;
   }
 }
 
@@ -268,7 +357,7 @@
   }
 }
 
-/* ── Drawer ─────────────────────────────────────────────────────────── */
+/* ── Drawer container ──────────────────────────────────────────────── */
 
 .perf-drawer__backdrop {
   position: fixed;
