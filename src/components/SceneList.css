@@ -1,7 +1,7 @@
 .scene-list__heading {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #000000;
+  color: var(--text);
   margin: 0 0 16px;
   letter-spacing: -0.01em;
 }
@@ -38,11 +38,11 @@
 
 .scene-list__input {
   flex: 1;
-  background: #fafafa;
-  border: 2px solid #e5e5e5;
+  background: var(--surface-strong);
+  border: 2px solid var(--border);
   border-radius: 10px;
   padding: 12px 16px;
-  color: #000000;
+  color: var(--text);
   font-size: 0.95rem;
   font-family: inherit;
   outline: none;
@@ -51,12 +51,12 @@
 
 .scene-list__input:focus {
   border-color: #dc2626;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
 }
 
 .scene-list__empty {
-  color: #525252;
+  color: var(--text-soft);
   font-size: 0.95rem;
   text-align: center;
   padding: 24px 0;
@@ -76,8 +76,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #fafafa;
-  border: 2px solid #f5f5f5;
+  background: var(--surface-strong);
+  border: 2px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
   transition: all 0.2s;
@@ -86,8 +86,8 @@
 }
 
 .scene-item:hover {
-  border-color: #e5e5e5;
-  background: #ffffff;
+  border-color: var(--border-strong);
+  background: var(--surface);
 }
 
 .scene-item__order {
@@ -106,7 +106,7 @@
 
 .scene-item__title {
   flex: 1;
-  color: #000000;
+  color: var(--text);
   font-size: 0.95rem;
   font-weight: 500;
   overflow: hidden;
@@ -117,7 +117,7 @@
 
 .scene-item__status {
   background: transparent;
-  border: 2px solid #e5e5e5;
+  border: 2px solid var(--border);
   border-radius: 8px;
   padding: 4px 10px;
   min-height: 44px;
@@ -127,6 +127,7 @@
   outline: none;
   font-weight: 700;
   transition: all 0.2s;
+  color: var(--text);
 }
 
 .scene-item__status:hover {
@@ -134,7 +135,7 @@
 }
 
 .scene-item__status--planned {
-  color: #4b5563;
+  color: var(--text-muted);
 }
 
 .scene-item__status--rehearsed {
@@ -142,17 +143,17 @@
 }
 
 .scene-item__status--filmed {
-  color: #3b82f6;
+  color: #60a5fa;
 }
 
 .scene-item__status--done {
-  color: #16a34a;
+  color: #4ade80;
 }
 
 .scene-item__delete {
   background: none;
   border: none;
-  color: #4b5563;
+  color: var(--text-soft);
   cursor: pointer;
   font-size: 1rem;
   padding: 6px;
@@ -168,5 +169,5 @@
 
 .scene-item__delete:hover {
   color: #dc2626;
-  background: #fee2e2;
+  background: rgba(220, 38, 38, 0.12);
 }

@@ -226,7 +226,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
               rel="noopener noreferrer"
               className="perf-profile__music-link"
             >
-              {comic.walkOnMusicLink.includes('spotify') ? '🎧 Open in Spotify' : '▶ Open in YouTube'}
+              {comic.walkOnMusicLink.includes('spotify') ? 'Open in Spotify' : 'Open in YouTube'}
             </a>
           )}
           {comic.walkOnMusic ? (
@@ -267,7 +267,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
                 setSongName(file.name);
               })}
             >
-              <span className="perf-profile__dropzone-icon">🎵</span>
+              <span className="perf-profile__dropzone-icon"></span>
               <span className="perf-profile__dropzone-label">
                 {audioDrag ? 'Drop audio file' : 'Drag & drop or click to upload'}
               </span>

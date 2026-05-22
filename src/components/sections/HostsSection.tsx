@@ -113,11 +113,11 @@ export function HostsSection({ hosts, onChange }: HostsSectionProps) {
                   onClick={() => toggleHosting(h.id)}
                   title="Set as host"
                 >
-                  🎤
+                  Host
                 </button>
-                <button className="btn btn--ghost btn--sm" onClick={() => handlePhoto(h.id)} title="Upload photo">📷</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(h)}>✏️</button>
-                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteHost(h.id)}>✕</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => handlePhoto(h.id)} title="Upload photo">Photo</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(h)}>Edit</button>
+                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteHost(h.id)}>×</button>
               </div>
             )}
 
@@ -126,8 +126,8 @@ export function HostsSection({ hosts, onChange }: HostsSectionProps) {
               <div className="media-grid">
                 <div className="media-grid__tile">
                   <img src={h.photo} alt={h.name} className="media-grid__preview" />
-                  <span className="media-grid__label">📷 Photo</span>
-                  <button className="media-grid__remove" onClick={() => onChange(hosts.map(hh => hh.id === h.id ? { ...hh, photo: undefined } : hh))} title="Remove photo">✕</button>
+                  <span className="media-grid__label">Photo</span>
+                  <button className="media-grid__remove" onClick={() => onChange(hosts.map(hh => hh.id === h.id ? { ...hh, photo: undefined } : hh))} title="Remove photo">×</button>
                 </div>
               </div>
             )}

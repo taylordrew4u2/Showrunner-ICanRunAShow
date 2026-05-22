@@ -33,10 +33,10 @@ export function ShowCard({ show, onSelect, onDelete }: ShowCardProps) {
           {STATUS_LABELS[show.status]}
         </span>
       </div>
-      {show.venueName && <p className="show-card__venue">📍 {show.venueName}</p>}
+      {show.venueName && <p className="show-card__venue">{show.venueName}</p>}
       {show.date && (
         <p className="show-card__date">
-          📅 {new Date(show.date).toLocaleDateString()}
+          {new Date(show.date).toLocaleDateString()}
         </p>
       )}
       {sceneCount > 0 && (
@@ -55,7 +55,7 @@ export function ShowCard({ show, onSelect, onDelete }: ShowCardProps) {
         onClick={handleDelete}
         aria-label="Delete show"
       >
-        🗑
+        ×
       </button>
     </div>
   );
