@@ -1,84 +1,76 @@
 .deadline-indicator {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 12px;
-    border-radius: 8px;
-    font-size: 0.88rem;
-    font-weight: 700;
-    border: 2px solid;
-    white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid;
+  white-space: nowrap;
+  letter-spacing: -0.005em;
 }
 
 .deadline-indicator--compact {
-    padding: 5px 9px;
-    font-size: 0.82rem;
+  padding: 3px 9px;
+  font-size: 0.72rem;
 }
 
 .deadline-indicator__icon {
-    font-size: 1em;
-    line-height: 1;
+  font-size: 0.9em;
+  line-height: 1;
 }
 
 .deadline-indicator__label {
-    line-height: 1;
+  line-height: 1;
 }
 
-/* Status colors */
+/* Status colors — dark-theme-aware */
 .deadline-indicator--completed {
-    background: #F5F5F5;
-    border-color: #666666;
-    color: #000000;
-    font-weight: 800;
+  background: var(--surface-strong);
+  border-color: var(--border-strong);
+  color: var(--text-muted);
 }
 
 .deadline-indicator--ok {
-    background: #FFFFFF;
-    border-color: #E5E5E5;
-    color: #000000;
+  background: var(--surface-strong);
+  border-color: var(--border);
+  color: var(--text-muted);
 }
 
 .deadline-indicator--soon {
-    background: #FEF2F2;
-    border-color: #FECACA;
-    color: #7F1D1D;
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fbbf24;
 }
 
 .deadline-indicator--urgent {
-    background: #FEE2E2;
-    border-color: #DC2626;
-    color: #7F1D1D;
-    animation: pulse 2s ease-in-out infinite;
+  background: var(--primary-soft);
+  border-color: var(--primary-soft-border);
+  color: var(--primary);
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .deadline-indicator--passed {
-    background: #DC2626;
-    border-color: #B91C1C;
-    color: #FFFFFF;
-    animation: pulse 2s ease-in-out infinite;
+  background: var(--primary);
+  border-color: var(--primary-pressed);
+  color: #fff;
+  animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.7;
-    }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
-/* Mobile styles */
 @media (max-width: 640px) {
-    .deadline-indicator {
-        font-size: 0.85rem;
-        padding: 6px 10px;
-    }
+  .deadline-indicator {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+  }
 
-    .deadline-indicator--compact {
-        padding: 4px 8px;
-        font-size: 0.8rem;
-    }
+  .deadline-indicator--compact {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+  }
 }

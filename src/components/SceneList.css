@@ -1,15 +1,15 @@
 .scene-list__heading {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text);
-  margin: 0 0 16px;
+  margin: 0 0 14px;
   letter-spacing: -0.01em;
 }
 
 .scene-list__add {
   display: flex;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -39,25 +39,25 @@
 .scene-list__input {
   flex: 1;
   background: var(--surface-strong);
-  border: 2px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
   color: var(--text);
   font-size: 0.95rem;
   font-family: inherit;
   outline: none;
-  transition: all 0.2s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .scene-list__input:focus {
-  border-color: #dc2626;
+  border-color: var(--primary);
   background: var(--surface);
-  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .scene-list__empty {
   color: var(--text-soft);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   text-align: center;
   padding: 24px 0;
   font-style: italic;
@@ -69,7 +69,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .scene-item {
@@ -77,37 +77,37 @@
   align-items: center;
   gap: 12px;
   background: var(--surface-strong);
-  border: 2px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
-  transition: all 0.2s;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  transition: border-color 0.15s;
   max-width: 100%;
   box-sizing: border-box;
 }
 
 .scene-item:hover {
   border-color: var(--border-strong);
-  background: var(--surface);
 }
 
 .scene-item__order {
-  width: 28px;
-  height: 28px;
-  background: #dc2626;
-  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  background: var(--primary);
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
-  color: #ffffff;
+  font-size: 0.75rem;
+  color: #fff;
   font-weight: 700;
   flex-shrink: 0;
+  letter-spacing: -0.02em;
 }
 
 .scene-item__title {
   flex: 1;
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -117,21 +117,21 @@
 
 .scene-item__status {
   background: transparent;
-  border: 2px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
   padding: 4px 10px;
-  min-height: 44px;
-  font-size: 0.88rem;
+  min-height: 36px;
+  font-size: 0.82rem;
   font-family: inherit;
   cursor: pointer;
   outline: none;
-  font-weight: 700;
-  transition: all 0.2s;
+  font-weight: 600;
+  transition: border-color 0.15s;
   color: var(--text);
 }
 
 .scene-item__status:hover {
-  border-color: #dc2626;
+  border-color: var(--primary);
 }
 
 .scene-item__status--planned {
@@ -155,19 +155,19 @@
   border: none;
   color: var(--text-soft);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.9rem;
   padding: 6px;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 36px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   flex-shrink: 0;
-  transition: all 0.2s;
+  transition: color 0.15s, background 0.15s;
 }
 
 .scene-item__delete:hover {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.12);
+  color: var(--primary);
+  background: var(--primary-soft);
 }
