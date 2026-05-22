@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Show, Scene, AppSettings, SectionKey, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
@@ -33,7 +33,22 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const [tempSelectedHostId, setTempSelectedHostId] = useState(show.selectedHostId || '');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [newTodoText, setNewTodoText] = useState('');
-  
+  const [lightMode, setLightMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('showrunner:lightMode') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('showrunner:lightMode', lightMode ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [lightMode]);
+
   // Check if the show date has passed
   const isPastShow = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
   
@@ -309,7 +324,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   }
 
   return (
-    <div className="show-detail">
+    <div className={`show-detail${lightMode ? ' show-detail--light' : ''}`}>
       <div className="show-detail__hero">
         <div className="show-detail__topbar">
           <button className="btn btn--ghost" onClick={onBack}>← Back</button>
@@ -325,6 +340,14 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
               </span>
             )}
           </div>
+          <button
+            className="btn btn--ghost btn--sm show-detail__theme-toggle"
+            onClick={() => setLightMode((v) => !v)}
+            title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+            aria-pressed={lightMode}
+          >
+            {lightMode ? 'Dark' : 'Light'}
+          </button>
           <button className="btn btn--secondary btn--sm" onClick={() => exportShowToPDF(show, settings)}>
             Export PDF
           </button>

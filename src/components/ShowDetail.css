@@ -94,11 +94,12 @@
 }
 
 .show-detail__title {
-  font-size: 2rem;
-  font-weight: 800;
+  font-size: 2.25rem;
+  font-weight: 700;
   color: var(--text);
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   word-break: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
@@ -106,7 +107,8 @@
 
 @media (max-width: 768px) {
   .show-detail__title {
-    font-size: 1.5rem;
+    font-size: 1.65rem;
+    letter-spacing: -0.025em;
   }
 }
 
@@ -145,11 +147,12 @@
 
 .show-detail__meta {
   display: flex;
-  gap: 20px;
+  gap: 18px;
   flex-wrap: wrap;
   color: var(--text-muted);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 500;
+  letter-spacing: -0.005em;
   word-break: break-word;
   overflow-wrap: break-word;
 }
@@ -514,43 +517,58 @@
 }
 
 .accordion-section__title {
-  font-size: 1.05rem;
-  font-weight: 800;
+  font-size: 1.15rem;
+  font-weight: 700;
   color: var(--text);
   margin: 0;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+/* Wider tiles get a larger headline so type scales with surface */
+.accordion-section--span2 .accordion-section__title {
+  font-size: 1.3rem;
   letter-spacing: -0.02em;
 }
 
 @media (max-width: 768px) {
-  .accordion-section__title {
-    font-size: 0.95rem;
+  .accordion-section__title,
+  .accordion-section--span2 .accordion-section__title {
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
   }
 }
 
 .accordion-section__subtitle {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
   margin: 0;
-  font-weight: 500;
-  line-height: 1.4;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+}
+
+.accordion-section--span2 .accordion-section__subtitle {
+  font-size: 0.9rem;
 }
 
 @media (max-width: 768px) {
-  .accordion-section__subtitle {
-    font-size: 0.78rem;
+  .accordion-section__subtitle,
+  .accordion-section--span2 .accordion-section__subtitle {
+    font-size: 0.8rem;
   }
 }
 
 .accordion-section__count {
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 600;
   color: var(--primary);
   background: var(--primary-soft);
   border: 1px solid var(--primary-soft-border);
-  border-radius: 8px;
-  padding: 4px 10px;
+  border-radius: 999px;
+  padding: 3px 10px;
   white-space: nowrap;
-  line-height: 1;
+  line-height: 1.2;
 }
 
 .accordion-section__complete-badge {
@@ -585,13 +603,14 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 6px 14px;
-  border: 2px solid #15803d;
-  border-radius: 8px;
+  padding: 6px 12px;
+  border: 1.5px solid #15803d;
+  border-radius: 999px;
   background: #14532d30;
   color: #22c55e;
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
   cursor: pointer;
   transition: all 0.18s ease;
   white-space: nowrap;
@@ -954,10 +973,11 @@
 
 .show-section__title {
   margin: 0 0 6px;
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   color: var(--text);
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
   word-break: break-word;
   overflow-wrap: break-word;
 }
@@ -1001,18 +1021,18 @@
 }
 
 .section-field__label {
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   margin-bottom: 8px;
   display: block;
 }
 
 @media (max-width: 768px) {
   .section-field__label {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     margin-bottom: 6px;
   }
 }
@@ -1301,6 +1321,7 @@
   font-weight: 600;
   color: var(--text);
   font-size: 0.95rem;
+  letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   word-break: break-word;
@@ -1308,8 +1329,9 @@
 
 .section-list-item__subtext {
   font-weight: 400;
-  color: var(--text-muted);
-  font-size: 0.85rem;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  letter-spacing: -0.005em;
 }
 
 .section-list-item__tag,
@@ -1822,10 +1844,11 @@
 }
 
 .todo-sidebar__title {
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   margin: 0 0 12px;
   color: var(--text);
+  letter-spacing: -0.015em;
 }
 
 .todo-sidebar__add {
@@ -2101,4 +2124,46 @@
   font-weight: 700;
   flex: 1;
   min-width: 0;
+}
+
+/* ─── Theme Toggle Button ────────────────────────────────────────────────── */
+.show-detail__theme-toggle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+}
+
+/* ─── Light Mode Override ─────────────────────────────────────────────────
+   Per-page override that re-defines the global design tokens so this view
+   reads as light against the otherwise-dark app. Only affects descendants
+   of .show-detail--light.
+*/
+.show-detail--light {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-strong: #f1f5f9;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --text-soft: #94a3b8;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --primary: #dc2626;
+  --primary-pressed: #b91c1c;
+  --primary-soft: #fee2e2;
+  --primary-soft-border: #fecaca;
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.1);
+
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+@media (max-width: 768px) {
+  .show-detail--light {
+    padding: 12px;
+  }
 }
