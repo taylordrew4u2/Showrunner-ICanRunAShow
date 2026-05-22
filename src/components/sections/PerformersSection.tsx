@@ -35,7 +35,9 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
       photo: comic.photo,
       walkOnMusic: comic.walkOnMusic,
       walkOnMusicName: comic.walkOnMusicName,
+      walkOnMusicArtist: comic.walkOnMusicArtist,
       walkOnMusicTimestamp: comic.walkOnMusicTimestamp,
+      walkOnMusicLink: comic.walkOnMusicLink,
     };
     onChange([...performers, p]);
     setShowRolodex(false);
@@ -110,9 +112,9 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
                 {p.lockedIn && <span className="section-list-item__lock-badge">🔒</span>}
                 <span className="section-list-item__name">{p.name}</span>
                 {p.socialMedia && <span className="section-list-item__tag">📱 {p.socialMedia}</span>}
-                {p.walkOnMusicName && (
+                {(p.walkOnMusicName || p.walkOnMusicArtist) && (
                   <span className="section-list-item__tag">
-                    🎵 {p.walkOnMusicName}{p.walkOnMusicTimestamp ? ` @ ${p.walkOnMusicTimestamp}` : ''}
+                    🎵 {[p.walkOnMusicName, p.walkOnMusicArtist].filter(Boolean).join(' — ')}{p.walkOnMusicTimestamp ? ` @ ${p.walkOnMusicTimestamp}` : ''}
                   </span>
                 )}
                 {p.credits && <span className="section-list-item__tag">📝 {p.credits}</span>}

@@ -216,8 +216,8 @@ export function LiveMode({ showName, schedule, performers = [], onClose }: LiveM
               <div className="live-walkon__info">
                 <p className="live-walkon__label">Walk-on music</p>
                 <p className="live-walkon__name">{currentPerformer.name}</p>
-                {currentPerformer.walkOnMusicName && (
-                  <p className="live-walkon__song">🎵 {currentPerformer.walkOnMusicName}{currentPerformer.walkOnMusicTimestamp ? ` @ ${currentPerformer.walkOnMusicTimestamp}` : ''}</p>
+                {(currentPerformer.walkOnMusicName || currentPerformer.walkOnMusicArtist) && (
+                  <p className="live-walkon__song">🎵 {[currentPerformer.walkOnMusicName, currentPerformer.walkOnMusicArtist].filter(Boolean).join(' — ')}{currentPerformer.walkOnMusicTimestamp ? ` @ ${currentPerformer.walkOnMusicTimestamp}` : ''}</p>
                 )}
               </div>
             </div>
@@ -235,8 +235,8 @@ export function LiveMode({ showName, schedule, performers = [], onClose }: LiveM
         {nextPerformer && nextPerformer.id !== currentPerformer?.id && (
           <div className="live-walkon live-walkon--next">
             <p className="live-walkon__label">Up next · {nextPerformer.name}</p>
-            {nextPerformer.walkOnMusicName && (
-              <p className="live-walkon__song">🎵 {nextPerformer.walkOnMusicName}</p>
+            {(nextPerformer.walkOnMusicName || nextPerformer.walkOnMusicArtist) && (
+              <p className="live-walkon__song">🎵 {[nextPerformer.walkOnMusicName, nextPerformer.walkOnMusicArtist].filter(Boolean).join(' — ')}</p>
             )}
           </div>
         )}
