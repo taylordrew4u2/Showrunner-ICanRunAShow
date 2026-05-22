@@ -1,62 +1,164 @@
 # Showrunner
 
-> Full-stack, multi-platform show management app with end-to-end encryption, AI-powered schedule import, and real-time live show coordination.
+> Production-grade show management built for live event coordinators — from pre-show logistics to real-time stage management.
 
-**[Live Demo →](https://showrunner-theta.vercel.app)**
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+[![Live Demo](https://img.shields.io/badge/demo-live-DC2626)](https://showrunner-theta.vercel.app)
 
-Built solo from scratch — web, mobile (iOS/Android), and desktop (macOS) from a single TypeScript codebase.
+**[→ Live Demo](https://showrunner-theta.vercel.app)**
+
+Built solo from scratch: web app (React + Vite PWA), mobile (React Native + Expo), and desktop (Electron) from a single TypeScript codebase. Deployed to Vercel. No UI library — every component is handwritten CSS.
+
+---
+
+## The Problem
+
+Comedians, promoters, and stage managers who run regular shows cobble together Google Docs, Spotify tabs, and notes apps to manage their lineups. There's no tool that spans the full lifecycle: building the lineup, coordinating staff, importing a schedule from a photo of a printed runsheet, and running the actual live show — all in one place with their data encrypted and synced across devices.
+
+Showrunner is that tool.
 
 ---
 
 ## What It Does
 
-Showrunner is a production tool for live event coordinators: comedians, promoters, and stage managers who run shows regularly. It handles everything from pre-show logistics to real-time stage management:
-
-- **Pre-show:** Build the lineup, attach walk-on music per performer, coordinate staff, track the budget, and generate a PDF runsheet
-- **Day-of:** Import the schedule by uploading a photo, PDF, or plain text — AI extracts and structures it automatically
-- **Live:** Run the show from a full-screen live mode that tracks cue timing, displays countdowns, and automatically surfaces a performer's walk-on music the moment they're up next
+| Phase | Features |
+|---|---|
+| **Pre-show** | Build lineup, attach walk-on music per performer, coordinate staff & DJ, track budget, generate PDF runsheet |
+| **Day-of** | Import schedule by uploading a photo, PDF, or plain text — AI structures it automatically |
+| **Live** | Full-screen stage manager with cue countdowns, progress tracking, and automatic walk-on music cueing |
 
 ---
 
 ## Architecture
 
-### Multi-Platform from One Codebase
+### One Codebase, Three Platforms
 
-| Platform | Stack |
-|---|---|
-| Web | React 19 + Vite 7 + PWA |
-| Mobile | React Native + Expo SDK 54 + Expo Router v4 |
-| Desktop | Electron 40 wrapping the Vite build |
+```
+showrunner/
+├── src/              ← Web app (React 19 + Vite 7)
+├── app/              ← Mobile (React Native + Expo Router v4)
+├── desktop/          ← Desktop (Electron 40 wrapper)
+├── components/       ← Shared mobile components
+└── utils/            ← Shared utilities
+```
 
-Shared TypeScript types across all three targets. The web app is deployed to Vercel and installable as a PWA; the desktop app is a universal macOS binary (x64 + arm64); mobile is distributed via EAS Build.
+Shared TypeScript types across all three targets. The web app deploys to Vercel and installs as a PWA; the desktop app builds a universal macOS binary (x64 + arm64); mobile distributes via EAS Build.
 
 ### Security Model
 
-All user data is encrypted **before** it leaves the device using AES-GCM with a key derived from the user's password (PBKDF2). The database (Turso/libSQL) stores only ciphertext — the server never sees plaintext data. There is no OAuth, no third-party auth provider, and no analytics.
+No backend server ever sees plaintext data. All encryption happens client-side before anything touches the network:
+
+```
+Password → PBKDF2 (100k iterations, SHA-256, random salt)
+         → 256-bit AES-GCM key
+Data     → JSON.stringify → AES-GCM encrypt → base64 → Turso (libSQL)
+```
+
+Implemented with the [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API) directly — no third-party crypto library. Each user's data is isolated by their derived key. Multi-device access works because any device that knows the password can derive the same key. No OAuth, no analytics, no key escrow.
 
 ### Layout System
 
-Three-column dashboard layout on desktop (fixed sidebar nav + scrollable content + contextual right panel), collapses to a bottom-nav mobile layout below 1024px. Built with CSS Grid `grid-template-areas` — no layout library.
+Three-column dashboard on desktop (sidebar nav + scrollable content + contextual right panel), collapsing to a bottom-nav mobile layout below 1024px.
+
+```
+┌──────────────┬────────────────────────┬────────────┐
+│   Sidebar    │     Main Content       │ Right Panel│
+│   220px      │     1fr (scrollable)   │   280px    │
+│              │                        │            │
+│  Shows       │  [Show cards, forms,   │  Stats     │
+│  Rolodex     │   performer profiles,  │  Recent    │
+│  Expenses    │   schedule builder,    │  Upcoming  │
+│  Settings    │   live mode...]        │            │
+└──────────────┴────────────────────────┴────────────┘
+```
+
+Built with CSS Grid `grid-template-areas`. No layout library. Collapses to a fixed bottom nav below 1024px.
 
 ---
 
 ## Technical Highlights
 
-### AI Schedule Import
-The schedule section accepts text files, multi-page PDFs, and images (photos of printed runsheets, scanned documents, screenshots). PDF.js handles client-side text extraction; images go to GPT-4o-mini Vision. A regex fallback handles common time formats when the API is unavailable. The entire extraction pipeline runs in the browser with no backend server required.
+### AI Schedule Import Pipeline
 
-### Live Mode
-A full-screen stage management view built for use during an actual show. It tracks elapsed/remaining time per cue with a live countdown, auto-advances the progress bar, and supports keyboard shortcuts (space to pause, arrow keys to navigate). The key feature: if a schedule cue description contains a performer's name, their walk-on music player surfaces inline automatically — so the operator never has to hunt for it mid-show.
+The schedule section accepts images (photos of printed runsheets, screenshots), multi-page PDFs, and plain text. The extraction pipeline:
+
+1. **PDF.js** — client-side text extraction from multi-page PDFs with no server upload
+2. **GPT-4o-mini Vision** — for images; the model returns structured JSON (time + description pairs)
+3. **Regex fallback** — handles common time formats (`HH:MM`, `H:MMam`) when the API is unavailable or the key isn't configured
+
+The entire pipeline runs in the browser. No backend server. No file uploads to a third party.
+
+### Live Mode — Performer Name Matching
+
+The core feature of live mode: if a schedule cue's description contains a performer's name, their walk-on music player surfaces automatically. The matching function:
+
+```typescript
+function matchPerformer(cue: ScheduleItem | undefined): Performer | null {
+  if (!cue || !performers.length) return null;
+  const desc = cue.description.toLowerCase();
+  return performers.find(
+    p => p.walkOnMusic && desc.includes(p.name.toLowerCase())
+  ) ?? null;
+}
+```
+
+This runs on every cue change. Performers without walk-on music are excluded. The current and next-up performers both surface — so the operator can cue the next song before the current act finishes.
 
 ### Performer Rolodex
-Performers saved across shows are stored in a global rolodex with their full profile: photo, social media, walk-on music file, credits, and intro notes. When building a new show, any rolodex entry can be added to the lineup with one click — all their data pre-fills. This pattern (entity library → show-level use) mirrors how real production companies operate.
 
-### Encryption Architecture
+A global entity library that persists across shows. When a performer is saved to the rolodex, their full profile (photo, walk-on music + artist + Spotify/YouTube link, credits, social media) is stored. Adding them to a new show pre-fills all their data. Editing a rolodex entry syncs updated fields to every matching performer in every existing show — the rolodex is the source of truth.
+
+### Slide-in Drawer Pattern
+
+Performer profiles open in a fixed-position drawer panel (580px, full-screen on mobile) using a CSS animation originating from the clicked row:
+
+```css
+.perf-drawer {
+  animation: perf-slide-in 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes perf-slide-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
 ```
-Password → PBKDF2 (100k iterations, SHA-256) → AES-GCM key
-Data → JSON.stringify → encrypt → base64 → Turso
+
+Show cards use a position-aware expand animation: the clicked card's center is computed as a `transform-origin` percentage, so the detail view scales up from exactly where you tapped.
+
+### Drag-and-Drop Uploads
+
+Photo, audio, and video upload zones accept both click-to-upload and drag-and-drop. MIME type is validated on drop. Each zone shows visual feedback (dashed border → red highlight) on `dragenter`. Implemented with standard browser drag events — no library.
+
+---
+
+## Design System
+
+Custom CSS design system — no Tailwind, no CSS Modules, no styled-components.
+
+### Tokens
+
+```css
+:root {
+  --bg:               #FAFAFA;
+  --surface:          #FFFFFF;
+  --surface-strong:   #F5F5F5;
+  --text:             #000000;
+  --text-muted:       #525252;
+  --border:           #E5E5E5;
+  --primary:          #DC2626;   /* Red — the brand color */
+  --primary-soft:     #FEF2F2;   /* Red tint for backgrounds */
+  --shadow-sm:        0 2px 8px rgba(0,0,0,0.08);
+  --shadow-md:        0 8px 24px rgba(0,0,0,0.12);
+}
 ```
-Each user's data is isolated by their derived key. The app supports multi-device access: any device that knows the password can decrypt. No key escrow, no recovery codes — by design.
+
+### Component Patterns
+
+- **BEM-ish naming**: `.section-list-item__body`, `.perf-profile__photo-drop`
+- **Utility classes**: `.btn`, `.btn--primary`, `.btn--ghost`, `.btn--sm`, `.pill`, `.pill--red`
+- **Responsive strategy**: Desktop-first 3-column grid → single-column mobile stack. No media query libraries.
+- **Interaction states**: Every interactive element has `hover`, `active`, `focus`, `disabled`, and `drag` states
 
 ---
 
@@ -64,49 +166,40 @@ Each user's data is isolated by their derived key. The app supports multi-device
 
 | Layer | Technology |
 |---|---|
-| Language | TypeScript (strict mode throughout) |
-| Web Framework | React 19 (hooks, concurrent features) |
-| Build Tool | Vite 7 with PWA plugin |
+| Language | TypeScript — strict mode, no `any` |
+| Web Framework | React 19 — hooks, concurrent features |
+| Build | Vite 7 + PWA plugin (Workbox) |
 | Mobile | React Native + Expo SDK 54 |
-| Mobile Routing | Expo Router v4 (file-based) |
+| Mobile Routing | Expo Router v4 — file-based |
 | Desktop | Electron 40 |
-| Database | Turso (libSQL — serverless SQLite) |
-| Encryption | Web Crypto API (AES-GCM + PBKDF2) |
-| AI | OpenAI GPT-4o-mini (text + vision) |
-| PDF Processing | PDF.js (client-side) |
-| Styling | Custom CSS (design tokens, BEM-ish, no framework) |
+| Database | Turso — serverless libSQL (SQLite edge) |
+| Encryption | Web Crypto API — AES-GCM + PBKDF2 |
+| AI | OpenAI GPT-4o-mini — text extraction + vision |
+| PDF | PDF.js — client-side, no server upload |
+| Styling | Custom CSS — design tokens, zero dependencies |
 | Deployment | Vercel (web) + EAS Build (mobile) |
 
 ---
 
 ## Features
 
-### Show Management
-- Create and manage multiple shows with full lifecycle tracking (upcoming → in-progress → completed)
-- Per-show lineup: performers, artists, hosts, DJ, staff — each with their own profile, media, and notes
-- Drag-and-drop schedule builder with time-based cue system
-- Budget tracker with expense categories and receipt photo upload
-- PDF export of the full runsheet (generated client-side)
-- Todo list per show
-- Section deadlines and completion tracking
+**Show lifecycle** — create shows, track status (upcoming → in-progress → completed → cancelled), manage sections with deadlines and completion indicators
 
-### Performer Profiles
-Each performer has a dedicated profile card (photo, social media, credits, walk-on song + timestamp, video). Profiles are stored in a global rolodex and can be reused across shows. Walk-on music is attached to the performer, not the schedule — it surfaces automatically in live mode when their cue is active.
+**Lineup management** — performers, artists, hosts, DJ, and staff each have their own section with profiles, media, and notes; drag-and-drop ordering
 
-### AI Schedule Import
-Upload any of the following and the schedule populates automatically:
-- Plain text or CSV
-- Multi-page PDF documents
-- Photos, screenshots, or scans of printed runsheets
+**Per-performer profiles** — photo, social media, credits/intro notes, walk-on song title + artist + start timestamp + Spotify/YouTube link, audio file, video clip; all stored in the global rolodex
 
-### Live Mode
-Full-screen show coordination with per-cue countdown timers, progress tracking, keyboard navigation, and automatic walk-on music cueing based on performer name matching in the schedule.
+**AI schedule import** — upload a PDF, image, or paste text; AI structures it into a timed cue list automatically
 
-### Security & Sync
-- End-to-end encrypted at rest and in transit
-- Multi-device: sign in from any device, data syncs via encrypted cloud storage
-- Session persistence across browser refreshes (sessionStorage)
-- Trash/recovery system for deleted shows
+**Live mode** — full-screen stage manager with per-cue countdowns, progress bar, keyboard navigation (space to pause, arrows to navigate), and automatic walk-on music cueing from performer name matching
+
+**Budget tracker** — expense categories with receipt photo upload and running totals
+
+**PDF runsheet** — client-side PDF export of the full show runsheet
+
+**Rolodex** — global performer database; editing an entry syncs to all matching performers across all shows
+
+**Security** — end-to-end encrypted, multi-device, persistent login via localStorage (password never sent to the server)
 
 ---
 
@@ -116,23 +209,24 @@ Full-screen show coordination with per-cue countdown timers, progress tracking, 
 git clone https://github.com/taylordrew4u2/showrunner.git
 cd showrunner
 npm install
-
-# Web
-npm run dev          # http://localhost:5173
-
-# Desktop (macOS)
-npm run mac          # Electron + Vite live reload
-
-# Mobile
-npm run start        # Expo dev server
+npm run dev          # → http://localhost:5173
 ```
 
-### Environment Variables
+**Environment variables** (copy `.env.example` → `.env`):
 
 ```env
 VITE_TURSO_DATABASE_URL=your_turso_url
 VITE_TURSO_AUTH_TOKEN=your_turso_token
-VITE_OPENAI_API_KEY=sk-...   # Optional — enables AI schedule import
+VITE_OPENAI_API_KEY=sk-...   # optional — enables AI schedule import
+```
+
+**Other targets:**
+
+```bash
+npm run mac          # Electron desktop (macOS, live reload)
+npm run start        # Expo mobile dev server
+npm run build        # Production web build → dist/
+npm run build:mac    # Universal macOS .dmg → dist-electron/
 ```
 
 ---
@@ -140,48 +234,28 @@ VITE_OPENAI_API_KEY=sk-...   # Optional — enables AI schedule import
 ## Project Structure
 
 ```
-showrunner/
-├── src/                        # Web app (React + Vite)
-│   ├── App.tsx                 # Root — auth, routing, state
-│   ├── components/
-│   │   ├── LiveMode.tsx        # Full-screen show runner
-│   │   ├── ShowDetail.tsx      # Per-show management hub
-│   │   ├── sections/
-│   │   │   ├── PerformersSection.tsx   # Lineup management
-│   │   │   ├── PerformerProfile.tsx    # Per-performer profile view
-│   │   │   ├── ScheduleSection.tsx     # Cue builder + AI import
-│   │   │   ├── ExpensesSection.tsx     # Budget tracking
-│   │   │   └── ...
-│   └── utils/
-│       ├── secure-storage.ts   # E2E encryption layer
-│       ├── aiExtractor.ts      # OpenAI + PDF.js pipeline
-│       └── pdfExport.ts        # Client-side PDF generation
-│
-├── app/                        # Mobile app (Expo Router)
-├── desktop/                    # Electron wrapper
-├── components/                 # Shared mobile components
-└── utils/                      # Shared mobile utilities
-```
-
----
-
-## Build & Deploy
-
-```bash
-# Web production build
-npm run build          # Output: dist/
-vercel --prod          # Deploy to Vercel
-
-# macOS desktop
-npm run build:mac      # Universal .dmg → dist-electron/
-
-# Android
-npm run build:android  # Production AAB (Google Play)
-npm run download:android  # Direct-install APK
-
-# iOS
-npm run build:ios      # App Store build via EAS
-npm run build:ios:submit  # Build + submit to TestFlight
+src/
+├── App.tsx                          # Root — auth, routing, global state
+├── App.css                          # Design tokens + layout system
+├── types/index.ts                   # All shared TypeScript types
+├── components/
+│   ├── Login.tsx                    # Auth screen (sign in / sign up)
+│   ├── ShowCard.tsx                 # Show grid tile with expand animation
+│   ├── ShowDetail.tsx               # Per-show management hub
+│   ├── LiveMode.tsx                 # Full-screen show runner
+│   ├── Settings.tsx                 # Account + app settings
+│   ├── Expenses.tsx                 # Global budget tracker
+│   └── sections/
+│       ├── PerformersSection.tsx    # Lineup with rolodex picker
+│       ├── PerformerProfile.tsx     # Drawer profile editor + drag/drop
+│       ├── RolodexProfile.tsx       # Rolodex entry editor
+│       ├── ScheduleSection.tsx      # Cue builder + AI import
+│       ├── ArtistsSection.tsx       # Artists / support acts
+│       └── ...
+└── utils/
+    ├── secure-storage.ts            # AES-GCM + PBKDF2 encryption layer
+    ├── aiExtractor.ts               # OpenAI + PDF.js + regex pipeline
+    └── pdfExport.ts                 # Client-side runsheet PDF generation
 ```
 
 ---

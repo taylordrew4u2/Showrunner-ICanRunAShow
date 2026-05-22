@@ -40,26 +40,46 @@
 
 .login__header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
-.login__title {
-  font-size: clamp(1.65rem, 5vw, 2rem);
+.login__wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.login__wordmark-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--primary, #DC2626);
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.18);
+  flex-shrink: 0;
+}
+
+.login__wordmark-text {
+  font-size: 1.55rem;
   font-weight: 800;
+  letter-spacing: -0.03em;
   color: var(--text, #000000);
-  margin: 0 0 8px;
-  letter-spacing: -0.02em;
 }
 
-.login__title-accent {
+.login__tagline {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   color: var(--primary, #DC2626);
+  margin: 0 0 10px;
 }
 
 .login__subtitle {
-  font-size: 1rem;
-  color: #374151;
+  font-size: 0.92rem;
+  color: #6b7280;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .login__form {
