@@ -331,25 +331,24 @@ export default function App() {
     saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
 
     // Sync matching performers in all shows (match by name, update profile fields)
-    const syncFields = (p: { name: string; [key: string]: unknown }) =>
-      p.name.toLowerCase() === updated.name.toLowerCase()
-        ? {
-            ...p,
-            photo: updated.photo ?? p.photo,
-            socialMedia: updated.socialMedia ?? p.socialMedia,
-            credits: updated.credits ?? p.credits,
-            walkOnMusic: updated.walkOnMusic ?? p.walkOnMusic,
-            walkOnMusicName: updated.walkOnMusicName ?? p.walkOnMusicName,
-            walkOnMusicArtist: updated.walkOnMusicArtist ?? p.walkOnMusicArtist,
-            walkOnMusicTimestamp: updated.walkOnMusicTimestamp ?? p.walkOnMusicTimestamp,
-            walkOnMusicLink: updated.walkOnMusicLink ?? p.walkOnMusicLink,
-          }
-        : p;
-
     setShows(prev =>
       prev.map(show => ({
         ...show,
-        performers: show.performers.map(syncFields),
+        performers: show.performers.map(p =>
+          p.name.toLowerCase() === updated.name.toLowerCase()
+            ? {
+                ...p,
+                photo: updated.photo ?? p.photo,
+                socialMedia: updated.socialMedia ?? p.socialMedia,
+                credits: updated.credits ?? p.credits,
+                walkOnMusic: updated.walkOnMusic ?? p.walkOnMusic,
+                walkOnMusicName: updated.walkOnMusicName ?? p.walkOnMusicName,
+                walkOnMusicArtist: updated.walkOnMusicArtist ?? p.walkOnMusicArtist,
+                walkOnMusicTimestamp: updated.walkOnMusicTimestamp ?? p.walkOnMusicTimestamp,
+                walkOnMusicLink: updated.walkOnMusicLink ?? p.walkOnMusicLink,
+              }
+            : p
+        ),
       }))
     );
   }
