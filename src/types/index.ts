@@ -16,7 +16,9 @@ export interface Performer {
   socialMedia?: string;
   walkOnMusic?: string; // file URI
   walkOnMusicName?: string;
+  walkOnMusicArtist?: string;
   walkOnMusicTimestamp?: string;
+  walkOnMusicLink?: string; // YouTube or Spotify URL
   credits?: string;
   lockedIn?: boolean;
   photo?: string; // file URI
@@ -97,7 +99,9 @@ export interface PotentialComic {
   credits?: string;
   walkOnMusic?: string;
   walkOnMusicName?: string;
+  walkOnMusicArtist?: string;
   walkOnMusicTimestamp?: string;
+  walkOnMusicLink?: string;
 }
 
 export interface ShowRecap {

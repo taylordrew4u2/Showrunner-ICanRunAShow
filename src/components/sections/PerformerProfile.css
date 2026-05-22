@@ -247,6 +247,38 @@
   margin: 0;
 }
 
+.perf-profile__song-info {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.perf-profile__song-ts {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.perf-profile__music-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-soft-border);
+  transition: opacity 0.15s ease;
+  align-self: flex-start;
+}
+
+.perf-profile__music-link:hover {
+  opacity: 0.8;
+}
+
 /* ── Drop zones ────────────────────────────────────────────────────── */
 
 .perf-profile__dropzone {

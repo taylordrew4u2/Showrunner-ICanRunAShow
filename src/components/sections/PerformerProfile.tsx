@@ -16,7 +16,9 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   const [socialMedia, setSocialMedia] = useState(performer.socialMedia || '');
   const [credits, setCredits] = useState(performer.credits || '');
   const [songName, setSongName] = useState(performer.walkOnMusicName || '');
+  const [songArtist, setSongArtist] = useState(performer.walkOnMusicArtist || '');
   const [timestamp, setTimestamp] = useState(performer.walkOnMusicTimestamp || '');
+  const [musicLink, setMusicLink] = useState(performer.walkOnMusicLink || '');
   const [dirty, setDirty] = useState(false);
   const [savedToRolodex, setSavedToRolodex] = useState(false);
   const [photoDrag, setPhotoDrag] = useState(false);
@@ -34,7 +36,9 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
       socialMedia: socialMedia.trim() || undefined,
       credits: credits.trim() || undefined,
       walkOnMusicName: songName.trim() || undefined,
+      walkOnMusicArtist: songArtist.trim() || undefined,
       walkOnMusicTimestamp: timestamp.trim() || undefined,
+      walkOnMusicLink: musicLink.trim() || undefined,
     });
     setDirty(false);
   }
@@ -120,17 +124,37 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 className="perf-profile__input"
                 value={songName}
                 onChange={e => { setSongName(e.target.value); mark(); }}
-                placeholder="Song name"
+                placeholder="Song title"
                 disabled={locked}
               />
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Timestamp</label>
+              <label className="perf-profile__label">Artist</label>
+              <input
+                className="perf-profile__input"
+                value={songArtist}
+                onChange={e => { setSongArtist(e.target.value); mark(); }}
+                placeholder="Artist name"
+                disabled={locked}
+              />
+            </div>
+            <div className="perf-profile__field">
+              <label className="perf-profile__label">Start Timestamp</label>
               <input
                 className="perf-profile__input"
                 value={timestamp}
                 onChange={e => { setTimestamp(e.target.value); mark(); }}
                 placeholder="e.g. 1:30"
+                disabled={locked}
+              />
+            </div>
+            <div className="perf-profile__field">
+              <label className="perf-profile__label">YouTube / Spotify Link</label>
+              <input
+                className="perf-profile__input"
+                value={musicLink}
+                onChange={e => { setMusicLink(e.target.value); mark(); }}
+                placeholder="https://open.spotify.com/... or youtu.be/..."
                 disabled={locked}
               />
             </div>
@@ -160,7 +184,9 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                     photo: performer.photo,
                     walkOnMusic: performer.walkOnMusic,
                     walkOnMusicName: performer.walkOnMusicName,
+                    walkOnMusicArtist: performer.walkOnMusicArtist,
                     walkOnMusicTimestamp: performer.walkOnMusicTimestamp,
+                    walkOnMusicLink: performer.walkOnMusicLink,
                     notes: performer.socialMedia,
                   };
                   onSaveToRolodex(comic);
@@ -232,6 +258,22 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
           {/* Walk-On Music */}
           <div className="perf-profile__media-tile">
             <p className="perf-profile__media-label">🎵 Walk-On Music</p>
+            {(performer.walkOnMusicName || performer.walkOnMusicArtist) && (
+              <p className="perf-profile__song-info">
+                {[performer.walkOnMusicName, performer.walkOnMusicArtist].filter(Boolean).join(' — ')}
+                {performer.walkOnMusicTimestamp && <span className="perf-profile__song-ts"> @ {performer.walkOnMusicTimestamp}</span>}
+              </p>
+            )}
+            {performer.walkOnMusicLink && (
+              <a
+                href={performer.walkOnMusicLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="perf-profile__music-link"
+              >
+                {performer.walkOnMusicLink.includes('spotify') ? '🎧 Open in Spotify' : '▶ Open in YouTube'}
+              </a>
+            )}
             {performer.walkOnMusic ? (
               <>
                 <audio controls preload="none" className="perf-profile__audio">
