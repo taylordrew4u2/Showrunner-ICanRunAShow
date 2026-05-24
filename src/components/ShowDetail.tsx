@@ -9,6 +9,7 @@ import { ArtistsSection } from './sections/ArtistsSection';
 import { ScheduleSection } from './sections/ScheduleSection';
 import { DJMusicSection } from './sections/DJMusicSection';
 import { StaffSection } from './sections/StaffSection';
+import { VendorsSection } from './sections/VendorsSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
 import { FilesSection } from './sections/FilesSection';
 import { exportShowToPDF } from '../utils/pdfExport';
@@ -297,6 +298,15 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       accent: 'amber',
       count: show.staff.length,
       content: <StaffSection staff={show.staff} onChange={(staff) => handleUpdate({ staff })} />,
+    },
+    {
+      key: 'vendors',
+      sectionKey: 'vendors' as SectionKey,
+      title: 'Vendors',
+      subtitle: 'Build a profile for each vendor — contact, cost, and notes.',
+      accent: 'green',
+      count: (show.vendors || []).length,
+      content: <VendorsSection vendors={show.vendors || []} onChange={(vendors) => handleUpdate({ vendors })} />,
     },
     {
       key: 'files',

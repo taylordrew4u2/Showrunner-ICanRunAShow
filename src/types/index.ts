@@ -73,6 +73,20 @@ export interface StaffMember {
   personName: string;
 }
 
+export interface Vendor {
+  id: string;
+  name: string;
+  category?: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  cost?: number;
+  notes?: string;
+  photo?: string; // logo or photo, base64 data URL
+  booked?: boolean;
+}
+
 export interface Expense {
   id: string;
   category: string;
@@ -126,6 +140,7 @@ export type SectionKey =
   | "hosts"
   | "dj"
   | "staff"
+  | "vendors"
   | "expenses"
   | "files"
   | "recap";
@@ -138,6 +153,7 @@ export interface SectionDeadlines {
   hosts?: string;
   dj?: string;
   staff?: string;
+  vendors?: string;
   expenses?: string;
   files?: string;
   recap?: string;
@@ -151,6 +167,7 @@ export interface SectionCompletions {
   hosts?: boolean;
   dj?: boolean;
   staff?: boolean;
+  vendors?: boolean;
   expenses?: boolean;
   files?: boolean;
   recap?: boolean;
@@ -173,6 +190,7 @@ export interface Show {
   hosts: Host[];
   djSongs: DJSong[];
   staff: StaffMember[];
+  vendors?: Vendor[];
   expenses: Expense[];
   files: ShowFile[];
   scenes?: Scene[];
@@ -227,6 +245,23 @@ export const STAFF_ROLES: string[] = [
   "Stage Manager",
   "MC",
   "Door Person",
+  "Other",
+];
+
+export const VENDOR_CATEGORIES: string[] = [
+  "Catering",
+  "Bar",
+  "Sound",
+  "Lighting",
+  "Staging",
+  "Rentals",
+  "Photography",
+  "Videography",
+  "Security",
+  "Decor",
+  "Transportation",
+  "Printing",
+  "Venue",
   "Other",
 ];
 
