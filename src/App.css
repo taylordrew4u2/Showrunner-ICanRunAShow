@@ -1777,3 +1777,35 @@
 }
 
 
+
+/* Save error banner */
+.save-error-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: var(--primary-soft);
+  border-bottom: 1px solid var(--primary-soft-border);
+  color: var(--primary);
+}
+.save-error-banner__text {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.save-error-banner__close {
+  background: none;
+  border: 0;
+  color: var(--primary);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+}

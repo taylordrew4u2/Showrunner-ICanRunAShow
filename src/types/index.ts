@@ -23,18 +23,23 @@ export interface Performer {
   lockedIn?: boolean;
   photo?: string; // file URI
   video?: string; // file URI
+  videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
 }
 
 export interface Artist {
   id: string;
   name: string;
   artistType?: string;
+  socialMedia?: string;
+  credits?: string;
   photo?: string;
   walkOnMusic?: string;
   walkOnMusicName?: string;
   video?: string;
+  videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
   file?: string; // generic file URI
   fileName?: string;
+  lockedIn?: boolean;
 }
 
 export interface ShowFile {

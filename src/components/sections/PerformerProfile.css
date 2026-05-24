@@ -247,6 +247,21 @@
   margin: 0;
 }
 
+.perf-profile__media-error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-soft-border);
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.perf-profile__video-link {
+  margin-bottom: 4px;
+}
+
 .perf-profile__song-info {
   font-size: 0.88rem;
   font-weight: 600;
