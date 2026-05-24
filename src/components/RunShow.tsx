@@ -12,7 +12,8 @@ interface RunShowProps {
 const DEFAULT_CUE_SECONDS = 5 * 60;
 const MIN_CUE_SECONDS = 30;
 const DRIFT_TOLERANCE = 30; // seconds we still count as "On Time"
-const STEP_SECONDS = 2 * 60; // +/- buttons
+const STEP_SECONDS = 2 * 60; // coarse +/- buttons
+const FINE_STEP_SECONDS = 30; // fine +/- buttons
 
 function parseClockToMinutes(time: string | undefined): number | null {
   if (!time) return null;
@@ -85,10 +86,10 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   const [idx, setIdx] = useState(0);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0); // within current cue
-  const [showElapsed, setShowElapsed] = useState(0); // whole show
-  const [completedDrift, setCompletedDrift] = useState(0); // actual - planned across finished cues
+  const [showElapsed, setShowElapsed] = useState(0); // whole show, real wall time
   const [adjust, setAdjust] = useState<Record<number, number>>({});
   const [muted, setMuted] = useState(false);
+  const [showCues, setShowCues] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const base = useMemo(() => baseDurations(schedule), [schedule]);
@@ -114,8 +115,10 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   const pct = Math.max(0, Math.min(100, (elapsed / totalSec) * 100));
   const isLast = idx >= schedule.length - 1;
 
-  const liveOverrun = elapsed > totalSec ? elapsed - totalSec : 0;
-  const drift = completedDrift + liveOverrun;
+  // Drift = real time used vs. where the plan says we should be. Recomputed from
+  // current position so Prev / Jump / Reset stay consistent. Capping elapsed at
+  // the allocation means an over-running cue reads as Behind.
+  const drift = showElapsed - offsets[idx] - Math.min(elapsed, totalSec);
   const status: 'On Time' | 'Behind' | 'Ahead' =
     drift > DRIFT_TOLERANCE ? 'Behind' : drift < -DRIFT_TOLERANCE ? 'Ahead' : 'On Time';
 
@@ -149,10 +152,26 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
     if (audioRef.current) audioRef.current.muted = muted;
   }, [muted, idx, hasAudio]);
 
+  function goTo(target: number) {
+    const t = Math.max(0, Math.min(schedule.length - 1, target));
+    setIdx(t);
+    setElapsed(0);
+  }
+
   function goNext() {
-    if (isLast) return;
-    setCompletedDrift((d) => d + (elapsed - totalSec));
-    setIdx((i) => i + 1);
+    if (!isLast) goTo(idx + 1);
+  }
+
+  function goPrev() {
+    if (idx > 0) goTo(idx - 1);
+  }
+
+  function jumpTo(target: number) {
+    goTo(target);
+    setShowCues(false);
+  }
+
+  function resetCueTimer() {
     setElapsed(0);
   }
 
@@ -165,8 +184,8 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
     setIdx(0);
     setElapsed(0);
     setShowElapsed(0);
-    setCompletedDrift(0);
     setAdjust({});
+    setShowCues(false);
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -200,6 +219,7 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
         setRunning((r) => !r);
       }
       if (e.key === 'ArrowRight') goNext();
+      if (e.key === 'ArrowLeft') goPrev();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -296,17 +316,39 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
           <div className="rs-controls__group">
             <div className="rs-controls__label">Timer Controls</div>
             <div className="rs-controls__row">
+              <button className="rs-btn" onClick={goPrev} disabled={idx === 0}>
+                Prev
+              </button>
               <button className="rs-btn rs-btn--start" onClick={() => setRunning((r) => !r)}>
                 {startLabel}
+              </button>
+              <button className="rs-btn rs-btn--next" onClick={goNext} disabled={isLast}>
+                Next
+              </button>
+            </div>
+            <div className="rs-controls__row">
+              <button className="rs-btn" onClick={() => adjustTime(-STEP_SECONDS)}>
+                −2 Min
+              </button>
+              <button className="rs-btn" onClick={() => adjustTime(-FINE_STEP_SECONDS)}>
+                −30s
+              </button>
+              <button className="rs-btn" onClick={() => adjustTime(FINE_STEP_SECONDS)}>
+                +30s
               </button>
               <button className="rs-btn" onClick={() => adjustTime(STEP_SECONDS)}>
                 +2 Min
               </button>
-              <button className="rs-btn" onClick={() => adjustTime(-STEP_SECONDS)}>
-                −2 Min
+            </div>
+            <div className="rs-controls__row">
+              <button className="rs-btn" onClick={resetCueTimer}>
+                Reset cue timer
               </button>
-              <button className="rs-btn rs-btn--next" onClick={goNext} disabled={isLast}>
-                Next
+              <button
+                className={`rs-btn ${showCues ? 'rs-btn--active' : ''}`}
+                onClick={() => setShowCues((v) => !v)}
+              >
+                {showCues ? 'Hide cues' : 'Jump to cue'}
               </button>
             </div>
           </div>
@@ -339,6 +381,30 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
             )}
           </div>
         </div>
+
+        {/* Jump-to-cue list */}
+        {showCues && (
+          <div className="rs-card rs-cues">
+            <div className="rs-cues__title">Jump to cue</div>
+            <ul className="rs-cues__list">
+              {schedule.map((cue, i) => (
+                <li key={cue.id}>
+                  <button
+                    className={`rs-cue ${i === idx ? 'rs-cue--current' : ''}`}
+                    onClick={() => jumpTo(i)}
+                  >
+                    <span className="rs-cue__num">{i + 1}</span>
+                    <span className="rs-cue__range">
+                      {fmtOffset(offsets[i])}–{fmtOffset(offsets[i] + effDurations[i])}
+                    </span>
+                    <span className="rs-cue__desc">{cue.description || 'Untitled cue'}</span>
+                    {i === idx && <span className="rs-cue__badge">Now</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {hasAudio && (
