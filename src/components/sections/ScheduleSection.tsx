@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ScheduleItem } from '../../types';
+import type { Performer, ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
+import { embedSizeError, readFileAsDataURL } from '../../utils/media';
 import { Icon } from '../Icon';
 import { AIImportFlow } from '../AIImportFlow';
 
@@ -8,6 +9,7 @@ interface ScheduleSectionProps {
   schedule: ScheduleItem[];
   scheduleImage?: string;
   showName?: string;
+  performers?: Performer[];
   onChange: (schedule: ScheduleItem[]) => void;
   onImageChange: (image: string | undefined) => void;
 }
@@ -68,6 +70,7 @@ export function ScheduleSection({
   schedule,
   scheduleImage,
   showName,
+  performers = [],
   onChange,
   onImageChange,
 }: ScheduleSectionProps) {
@@ -79,6 +82,8 @@ export function ScheduleSection({
   const [editTime, setEditTime] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [importOpen, setImportOpen] = useState(false);
+  const [mediaOpenId, setMediaOpenId] = useState<string | null>(null);
+  const [musicError, setMusicError] = useState<string | null>(null);
   const [, forceRender] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -118,6 +123,35 @@ export function ScheduleSection({
       ),
     );
     setEditId(null);
+  }
+
+  function updateItem(id: string, patch: Partial<ScheduleItem>) {
+    onChange(schedule.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+
+  function handleCueMusic(id: string) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'audio/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const err = embedSizeError(file, 'audio file');
+      if (err) { setMusicError(err); return; }
+      setMusicError(null);
+      readFileAsDataURL(file)
+        .then((data) => updateItem(id, { music: data, musicName: file.name }))
+        .catch(() => setMusicError('Could not read that file. Please try again.'));
+    };
+    input.click();
+  }
+
+  // What music will actually play for a cue, in priority order.
+  function cueMusicLabel(item: ScheduleItem): string | null {
+    if (item.music) return item.musicName || 'Uploaded track';
+    const perf = item.performerId ? performers.find((p) => p.id === item.performerId) : null;
+    if (perf?.walkOnMusic) return `Walk-on · ${perf.walkOnMusicName || perf.name}`;
+    return null;
   }
 
   function move(idx: number, dir: -1 | 1) {
@@ -232,9 +266,11 @@ export function ScheduleSection({
                 const status = statusForIndex(schedule, idx);
                 const dur = durationLabel(schedule, idx);
                 const isEditing = editId === item.id;
+                const musicLabel = cueMusicLabel(item);
+                const mediaOpen = mediaOpenId === item.id;
                 return (
+                  <div key={item.id} className="cue-row">
                   <div
-                    key={item.id}
                     className={`cue cue--${status} ${isEditing ? 'cue--editing' : ''}`}
                   >
                     <div className="cue__rail" />
@@ -278,6 +314,12 @@ export function ScheduleSection({
                             )}
                             {status === 'done' && <span>Done</span>}
                             {status === 'upcoming' && <span>Upcoming</span>}
+                            {musicLabel && (
+                              <span className="cue__music-tag">
+                                <Icon name="music" size={11} /> {musicLabel}
+                                {item.musicDuration ? ` · ${item.musicDuration}s` : ''}
+                              </span>
+                            )}
                           </p>
                         </>
                       )}
@@ -321,6 +363,15 @@ export function ScheduleSection({
                             <span aria-hidden style={{ fontSize: 14, fontWeight: 700 }}>↓</span>
                           </button>
                           <button
+                            className={`icon-btn icon-btn--ghost ${mediaOpen || musicLabel ? 'icon-btn--active' : ''}`}
+                            onClick={() => setMediaOpenId(mediaOpen ? null : item.id)}
+                            aria-label="Comic & music"
+                            title="Comic & music"
+                            style={musicLabel ? { color: 'var(--primary)' } : undefined}
+                          >
+                            <Icon name="music" size={14} />
+                          </button>
+                          <button
                             className="icon-btn icon-btn--ghost"
                             onClick={() => startEdit(item)}
                             aria-label="Edit"
@@ -341,10 +392,70 @@ export function ScheduleSection({
                       )}
                     </div>
                   </div>
+
+                  {mediaOpen && !isEditing && (
+                    <div className="cue-media">
+                      <div className="cue-media__field">
+                        <label className="cue-media__label">Comic on stage</label>
+                        <select
+                          className="section-field__select"
+                          value={item.performerId ?? ''}
+                          onChange={(e) => updateItem(item.id, { performerId: e.target.value || undefined })}
+                        >
+                          <option value="">— None —</option>
+                          {performers.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}{p.walkOnMusic ? ' (has walk-on)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="cue-media__field">
+                        <label className="cue-media__label">Transition / intro music</label>
+                        {item.music ? (
+                          <div className="cue-media__music">
+                            <span className="cue-media__music-name"><Icon name="music" size={12} /> {item.musicName || 'Uploaded track'}</span>
+                            <button className="btn btn--ghost btn--sm" onClick={() => handleCueMusic(item.id)}>Replace</button>
+                            <button className="btn btn--ghost btn--sm" onClick={() => updateItem(item.id, { music: undefined, musicName: undefined })}>Remove</button>
+                          </div>
+                        ) : (
+                          <div className="cue-media__music">
+                            {cueMusicLabel(item) ? (
+                              <span className="cue-media__music-name">{cueMusicLabel(item)}</span>
+                            ) : (
+                              <span className="cue-media__hint">Uses the comic's walk-on, or upload a track.</span>
+                            )}
+                            <button className="btn btn--secondary btn--sm" onClick={() => handleCueMusic(item.id)}>Upload music</button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="cue-media__field cue-media__field--duration">
+                        <label className="cue-media__label">Play for (seconds)</label>
+                        <input
+                          className="section-field__input"
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={item.musicDuration ?? ''}
+                          onChange={(e) =>
+                            updateItem(item.id, {
+                              musicDuration: e.target.value === '' ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0),
+                            })
+                          }
+                          placeholder="full track"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  </div>
                 );
               })}
             </div>
           )}
+
+          {musicError && <p className="cue-media__error">{musicError}</p>}
 
           <button
             className="btn btn--ghost btn--sm"
