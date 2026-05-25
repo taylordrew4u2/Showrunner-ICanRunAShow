@@ -12,17 +12,25 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
   const [role, setRole] = useState(STAFF_ROLES[0]);
   const [customRole, setCustomRole] = useState('');
   const [personName, setPersonName] = useState('');
+  const [phone, setPhone] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editRole, setEditRole] = useState('');
   const [editPerson, setEditPerson] = useState('');
+  const [editPhone, setEditPhone] = useState('');
 
   function addStaff() {
     const finalRole = role === 'Other' ? customRole.trim() : role;
     if (!finalRole || !personName.trim()) return;
-    const member: StaffMember = { id: generateId(), role: finalRole, personName: personName.trim() };
+    const member: StaffMember = {
+      id: generateId(),
+      role: finalRole,
+      personName: personName.trim(),
+      phone: phone.trim() || undefined,
+    };
     onChange([...staff, member]);
     setPersonName('');
     setCustomRole('');
+    setPhone('');
   }
 
   function deleteStaff(id: string) {
@@ -36,12 +44,15 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
     setEditId(s.id);
     setEditRole(s.role);
     setEditPerson(s.personName);
+    setEditPhone(s.phone ?? '');
   }
 
   function saveEdit() {
     if (!editRole.trim() || !editPerson.trim() || !editId) return;
     onChange(staff.map((s) =>
-      s.id === editId ? { ...s, role: editRole.trim(), personName: editPerson.trim() } : s
+      s.id === editId
+        ? { ...s, role: editRole.trim(), personName: editPerson.trim(), phone: editPhone.trim() || undefined }
+        : s
     ));
     setEditId(null);
   }
@@ -73,6 +84,14 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addStaff())}
           placeholder="Person name"
         />
+        <input
+          className="section-field__input"
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addStaff())}
+          placeholder="Phone (optional)"
+        />
         <button className="btn btn--primary btn--sm" onClick={addStaff}>Add</button>
       </div>
 
@@ -86,6 +105,7 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
                 <div className="section-edit-row">
                   <input className="section-field__input" value={editRole} onChange={(e) => setEditRole(e.target.value)} placeholder="Role" />
                   <input className="section-field__input" value={editPerson} onChange={(e) => setEditPerson(e.target.value)} placeholder="Person" autoFocus />
+                  <input className="section-field__input" type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="Phone" />
                   <button className="btn btn--primary btn--sm" onClick={saveEdit}>Save</button>
                   <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
                 </div>
@@ -93,6 +113,9 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
                 <>
                   <span className="section-list-item__badge">{s.role}</span>
                   <span className="section-list-item__name">{s.personName}</span>
+                  {s.phone && (
+                    <a className="section-list-item__tag" href={`tel:${s.phone}`}>{s.phone}</a>
+                  )}
                 </>
               )}
             </div>
