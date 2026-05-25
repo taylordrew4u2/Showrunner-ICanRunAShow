@@ -7,6 +7,7 @@ import type {
   Host,
   DJSong,
   StaffMember,
+  Vendor,
   Expense,
   ShowFile,
   Scene,
@@ -170,6 +171,17 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <table>
     <tr><th>Role</th><th>Person</th></tr>
     ${show.staff.map((s: StaffMember) => `<tr><td>${esc(s.role)}</td><td>${esc(s.personName)}</td></tr>`).join("")}
+  </table>`
+      : ""
+  }
+
+  ${
+    (show.vendors?.length ?? 0) > 0
+      ? `
+  <h2>Vendors</h2>
+  <table>
+    <tr><th>Vendor</th><th>Category</th><th>Contact</th><th>Phone</th><th>Email</th><th>Cost</th><th>Booked</th><th>Notes</th></tr>
+    ${show.vendors!.map((v: Vendor) => `<tr><td>${esc(v.name)}</td><td>${esc(v.category)}</td><td>${esc(v.contactName)}</td><td>${esc(v.phone)}</td><td>${esc(v.email)}</td><td>${typeof v.cost === "number" && !Number.isNaN(v.cost) ? formatCurrency(v.cost) : ""}</td><td>${v.booked ? "Yes" : "No"}</td><td>${esc(v.notes)}</td></tr>`).join("")}
   </table>`
       : ""
   }

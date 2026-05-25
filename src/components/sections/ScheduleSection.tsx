@@ -3,7 +3,7 @@ import type { Performer, ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { Icon } from '../Icon';
 import { AIImportFlow } from '../AIImportFlow';
-import { LiveMode } from '../LiveMode';
+import { RunShow } from '../RunShow';
 
 interface ScheduleSectionProps {
   schedule: ScheduleItem[];
@@ -82,7 +82,7 @@ export function ScheduleSection({
   const [editTime, setEditTime] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [importOpen, setImportOpen] = useState(false);
-  const [liveOpen, setLiveOpen] = useState(false);
+  const [runOpen, setRunOpen] = useState(false);
   const [, forceRender] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -194,13 +194,13 @@ export function ScheduleSection({
             </div>
             <button
               className="go-live-btn"
-              onClick={() => setLiveOpen(true)}
+              onClick={() => setRunOpen(true)}
               disabled={schedule.length === 0}
               style={schedule.length === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
-              title={schedule.length === 0 ? 'Add a cue first' : 'Run the show in Live mode'}
+              title={schedule.length === 0 ? 'Add a cue first' : 'Run the show'}
             >
               <Icon name="play" size={12} />
-              Go Live
+              Run Show
             </button>
           </div>
 
@@ -432,12 +432,12 @@ export function ScheduleSection({
         />
       )}
 
-      {liveOpen && (
-        <LiveMode
+      {runOpen && (
+        <RunShow
           showName={showName || 'Show'}
           schedule={schedule}
           performers={performers}
-          onClose={() => setLiveOpen(false)}
+          onClose={() => setRunOpen(false)}
         />
       )}
     </div>
