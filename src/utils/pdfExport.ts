@@ -169,8 +169,8 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       ? `
   <h2>Staff &amp; Crew</h2>
   <table>
-    <tr><th>Role</th><th>Person</th></tr>
-    ${show.staff.map((s: StaffMember) => `<tr><td>${esc(s.role)}</td><td>${esc(s.personName)}</td></tr>`).join("")}
+    <tr><th>Role</th><th>Person</th><th>Phone</th></tr>
+    ${show.staff.map((s: StaffMember) => `<tr><td>${esc(s.role)}</td><td>${esc(s.personName)}</td><td>${esc(s.phone)}</td></tr>`).join("")}
   </table>`
       : ""
   }

@@ -1433,25 +1433,6 @@
 }
 .sheet__title { font-size: 1.05rem; font-weight: 700; margin: 4px 0 12px; letter-spacing: -0.01em; }
 
-/* Hero CTA on schedule (Run Show) */
-.go-live-btn {
-  background: var(--surface-strong);
-  color: var(--text);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 9px 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-}
-.go-live-btn:hover { background: var(--border); }
-.go-live-btn--primary { background: var(--primary); border-color: var(--primary); }
-.go-live-btn--primary:hover { background: var(--primary-pressed); }
-
 /* AI import header (sheet) */
 .import-header {
   display: flex;
