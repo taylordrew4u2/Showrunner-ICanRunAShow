@@ -36,6 +36,7 @@ export default function App() {
   const [authError, setAuthError] = useState('');
 
   const [shows, setShows] = useState<Show[]>([]);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const dataLoaded = useRef(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -115,8 +116,12 @@ export default function App() {
     const timeout = setTimeout(async () => {
       try {
         await saveEncryptedShows(shows, currentSession.username, currentSession.password);
+        setSaveError(null);
       } catch (error) {
         console.error('Failed to save shows:', error);
+        setSaveError(
+          "Couldn't save your latest changes. This is usually caused by an uploaded file (often a video) being too large. Try removing it or using a link instead — your other edits are safe.",
+        );
       }
     }, 1000); // Debounce saves
 
@@ -448,6 +453,18 @@ export default function App() {
         />
       ) : (
         <div className="app">
+          {saveError && (
+            <div className="save-error-banner" role="alert">
+              <span className="save-error-banner__text">{saveError}</span>
+              <button
+                className="save-error-banner__close"
+                onClick={() => setSaveError(null)}
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          )}
           {/* Left sidebar — desktop only */}
           <nav className="sidebar" aria-label="Primary navigation">
             <div className="sidebar__brand">
