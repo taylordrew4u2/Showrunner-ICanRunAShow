@@ -279,6 +279,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         schedule={show.schedule}
         scheduleImage={show.scheduleImage}
         showName={show.name}
+        performers={show.performers}
         onChange={(schedule) => handleUpdate({ schedule })}
         onImageChange={(scheduleImage) => handleUpdate({ scheduleImage })}
       />,

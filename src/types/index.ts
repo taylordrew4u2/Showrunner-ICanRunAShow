@@ -55,6 +55,10 @@ export interface ScheduleItem {
   id: string;
   time: string;
   description: string;
+  performerId?: string; // comic/performer on stage for this segment
+  music?: string; // uploaded intro/transition music (data URL); overrides walk-on
+  musicName?: string;
+  musicDuration?: number; // seconds to auto-play when the segment starts; undefined = full track
 }
 
 export interface Host {

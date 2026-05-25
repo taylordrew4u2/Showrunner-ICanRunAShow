@@ -91,6 +91,8 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   const [muted, setMuted] = useState(false);
   const [showCues, setShowCues] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const autoPlayedIdxRef = useRef<number | null>(null);
+  const musicStopRef = useRef<number | null>(null);
 
   const base = useMemo(() => baseDurations(schedule), [schedule]);
   const effDurations = useMemo(
@@ -122,12 +124,26 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   const status: 'On Time' | 'Behind' | 'Ahead' =
     drift > DRIFT_TOLERANCE ? 'Behind' : drift < -DRIFT_TOLERANCE ? 'Ahead' : 'On Time';
 
-  const currentPerformer = useMemo<Performer | null>(() => {
-    if (!current || !performers.length) return null;
+  // Resolve the cue's music: an uploaded track wins, then the assigned comic's
+  // walk-on, then a name match in the description (legacy). Duration always
+  // comes from the cue so it stays adjustable per segment.
+  const currentMusic = useMemo<{ src: string; name: string; duration?: number } | null>(() => {
+    if (!current) return null;
+    if (current.music) {
+      return { src: current.music, name: current.musicName || 'Uploaded track', duration: current.musicDuration };
+    }
+    const assigned = current.performerId ? performers.find((p) => p.id === current.performerId) : null;
+    if (assigned?.walkOnMusic) {
+      return { src: assigned.walkOnMusic, name: assigned.walkOnMusicName || assigned.name, duration: current.musicDuration };
+    }
     const desc = current.description.toLowerCase();
-    return performers.find((p) => p.walkOnMusic && desc.includes(p.name.toLowerCase())) ?? null;
+    const match = performers.find((p) => p.walkOnMusic && desc.includes(p.name.toLowerCase()));
+    if (match?.walkOnMusic) {
+      return { src: match.walkOnMusic, name: match.walkOnMusicName || match.name, duration: current.musicDuration };
+    }
+    return null;
   }, [current, performers]);
-  const hasAudio = !!currentPerformer?.walkOnMusic;
+  const hasAudio = !!currentMusic;
 
   // Tick the clocks while running.
   useEffect(() => {
@@ -139,13 +155,41 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
     return () => window.clearInterval(t);
   }, [running]);
 
-  // Stop and reset audio whenever the cue changes.
+  // Stop/reset audio and re-arm auto-play whenever the cue changes.
   useEffect(() => {
+    if (musicStopRef.current) {
+      window.clearTimeout(musicStopRef.current);
+      musicStopRef.current = null;
+    }
+    autoPlayedIdxRef.current = null;
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
   }, [idx]);
+
+  // Auto-play the segment's intro/transition music once, when the segment is
+  // active and the show is running. Stops after the cue's set duration (if any).
+  useEffect(() => {
+    if (!running || !currentMusic || autoPlayedIdxRef.current === idx) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+    autoPlayedIdxRef.current = idx;
+    audio.currentTime = 0;
+    audio.muted = muted;
+    audio.play().catch(() => {});
+    if (currentMusic.duration && currentMusic.duration > 0) {
+      if (musicStopRef.current) window.clearTimeout(musicStopRef.current);
+      musicStopRef.current = window.setTimeout(() => {
+        audioRef.current?.pause();
+      }, currentMusic.duration * 1000);
+    }
+  }, [idx, running, currentMusic, muted]);
+
+  // Clear any pending music-stop timer on unmount.
+  useEffect(() => () => {
+    if (musicStopRef.current) window.clearTimeout(musicStopRef.current);
+  }, []);
 
   // Keep the audio element's mute state in sync (incl. newly mounted cues).
   useEffect(() => {
@@ -373,11 +417,13 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
                 {muted ? 'Unmute' : 'Mute'}
               </button>
             </div>
-            {hasAudio && (
+            {hasAudio ? (
               <div className="rs-audio-now">
-                Walk-on · {currentPerformer?.name}
-                {currentPerformer?.walkOnMusicName ? ` — ${currentPerformer.walkOnMusicName}` : ''}
+                {currentMusic?.name}
+                {currentMusic?.duration ? ` · auto-plays ${currentMusic.duration}s` : ''}
               </div>
+            ) : (
+              <div className="rs-audio-now">No music set for this cue.</div>
             )}
           </div>
         </div>
@@ -408,7 +454,7 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
       </div>
 
       {hasAudio && (
-        <audio ref={audioRef} src={currentPerformer?.walkOnMusic} preload="auto" />
+        <audio ref={audioRef} src={currentMusic?.src} preload="auto" />
       )}
     </div>
   );

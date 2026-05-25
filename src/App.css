@@ -1150,6 +1150,41 @@
 .cue__edit-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .cue__edit-input--time { font-size: 0.78rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+/* Per-cue comic + music panel */
+.cue-row { display: flex; flex-direction: column; gap: 6px; }
+.cue__music-tag { display: inline-flex; align-items: center; gap: 4px; color: var(--primary); font-weight: 600; }
+.cue-media {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.cue-media__field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 200px; min-width: 0; }
+.cue-media__field--duration { flex: 0 0 130px; }
+.cue-media__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cue-media__music { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cue-media__music-name { display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; font-weight: 600; color: var(--text); }
+.cue-media__hint { font-size: 0.78rem; color: var(--text-muted); }
+.cue-media__error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-soft-border);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 /* Quick add bar */
 .quick-add {
   display: flex;
