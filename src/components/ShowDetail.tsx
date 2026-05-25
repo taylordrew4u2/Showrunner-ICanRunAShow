@@ -3,6 +3,7 @@ import type { Show, Scene, AppSettings, SectionKey, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
 import { DeadlineIndicator } from './DeadlineIndicator';
+import { Icon } from './Icon';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
 import { ArtistsSection } from './sections/ArtistsSection';
@@ -12,6 +13,7 @@ import { StaffSection } from './sections/StaffSection';
 import { VendorsSection } from './sections/VendorsSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
 import { FilesSection } from './sections/FilesSection';
+import { RunShow } from './RunShow';
 import { exportShowToPDF } from '../utils/pdfExport';
 import './ShowDetail.css';
 
@@ -28,6 +30,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const [editingDeadline, setEditingDeadline] = useState<SectionKey | null>(null);
   const [editingVideoHost, setEditingVideoHost] = useState(false);
   const [editingShowName, setEditingShowName] = useState(false);
+  const [runShowOpen, setRunShowOpen] = useState(false);
   const [tempShowName, setTempShowName] = useState(show.name);
   const [tempVideoPerson, setTempVideoPerson] = useState(show.videoPerson || '');
   const [tempVideoPayment, setTempVideoPayment] = useState(show.videoPayment?.toString() || '');
@@ -276,7 +279,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         schedule={show.schedule}
         scheduleImage={show.scheduleImage}
         showName={show.name}
-        performers={show.performers}
         onChange={(schedule) => handleUpdate({ schedule })}
         onImageChange={(scheduleImage) => handleUpdate({ scheduleImage })}
       />,
@@ -369,6 +371,14 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           </button>
           <button className="btn btn--secondary btn--sm" onClick={() => exportShowToPDF(show, settings)}>
             Export PDF
+          </button>
+          <button
+            className="show-detail__run-show"
+            onClick={() => setRunShowOpen(true)}
+            title="Run the live show"
+          >
+            <Icon name="play" size={14} />
+            Run Show
           </button>
         </div>
         <div className="show-detail__header">
@@ -680,6 +690,15 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       <div className="show-detail__scenes">
         <SceneList scenes={show.scenes ?? []} onChange={handleScenesChange} />
       </div>
+
+      {runShowOpen && (
+        <RunShow
+          showName={show.name}
+          schedule={show.schedule}
+          performers={show.performers}
+          onClose={() => setRunShowOpen(false)}
+        />
+      )}
     </div>
   );
 }

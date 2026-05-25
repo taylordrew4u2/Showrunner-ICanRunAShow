@@ -76,6 +76,7 @@ export interface StaffMember {
   id: string;
   role: string;
   personName: string;
+  phone?: string;
 }
 
 export interface Vendor {

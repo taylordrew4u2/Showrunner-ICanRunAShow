@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Performer, ScheduleItem } from '../../types';
+import type { ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { Icon } from '../Icon';
 import { AIImportFlow } from '../AIImportFlow';
-import { RunShow } from '../RunShow';
 
 interface ScheduleSectionProps {
   schedule: ScheduleItem[];
   scheduleImage?: string;
   showName?: string;
-  performers?: Performer[];
   onChange: (schedule: ScheduleItem[]) => void;
   onImageChange: (image: string | undefined) => void;
 }
@@ -70,7 +68,6 @@ export function ScheduleSection({
   schedule,
   scheduleImage,
   showName,
-  performers,
   onChange,
   onImageChange,
 }: ScheduleSectionProps) {
@@ -82,7 +79,6 @@ export function ScheduleSection({
   const [editTime, setEditTime] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [importOpen, setImportOpen] = useState(false);
-  const [runOpen, setRunOpen] = useState(false);
   const [, forceRender] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -192,16 +188,6 @@ export function ScheduleSection({
               </div>
               {totalLabel && <div className="schedule-summary__meta">{totalLabel}</div>}
             </div>
-            <button
-              className="go-live-btn"
-              onClick={() => setRunOpen(true)}
-              disabled={schedule.length === 0}
-              style={schedule.length === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
-              title={schedule.length === 0 ? 'Add a cue first' : 'Run the show'}
-            >
-              <Icon name="play" size={12} />
-              Run Show
-            </button>
           </div>
 
           <button className="ai-import-entry" onClick={() => setImportOpen(true)}>
@@ -429,15 +415,6 @@ export function ScheduleSection({
           showName={showName || 'Show'}
           onClose={() => setImportOpen(false)}
           onApply={handleApplyImport}
-        />
-      )}
-
-      {runOpen && (
-        <RunShow
-          showName={showName || 'Show'}
-          schedule={schedule}
-          performers={performers}
-          onClose={() => setRunOpen(false)}
         />
       )}
     </div>
