@@ -290,7 +290,11 @@
 .show-detail-expand {
   width: 100%;
   transform-origin: var(--expand-origin-x, 50%) var(--expand-origin-y, 30%);
-  animation: show-card-expand 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+  /* Not "both": retaining the final transform: scale(1) would make this a
+     containing block for position: fixed children (e.g. the performer profile
+     drawer), breaking their positioning. The end state matches the base style,
+     so reverting after the animation is visually identical. */
+  animation: show-card-expand 0.3s cubic-bezier(0.32, 0.72, 0, 1) backwards;
 }
 
 @keyframes show-card-expand {
