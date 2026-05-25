@@ -23,6 +23,35 @@
   gap: 12px;
 }
 
+/* Prominent "Run Show" action — always visible when a show is open */
+.show-detail__run-show {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: var(--radius-full);
+  border: 1px solid #2faf68;
+  background: #34d27b;
+  color: #04210f;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(52, 210, 123, 0.35);
+  flex-shrink: 0;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+.show-detail__run-show:hover { filter: brightness(1.06); }
+.show-detail__run-show:active { transform: translateY(1px); }
+
+@media (max-width: 768px) {
+  .show-detail__run-show {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+  }
+}
+
 /* Save Indicator – fixed toast at bottom-right */
 .show-detail__save-indicator-container {
   flex: 1;
