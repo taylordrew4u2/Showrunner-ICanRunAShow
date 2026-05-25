@@ -92,7 +92,6 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   const [showCues, setShowCues] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoPlayedIdxRef = useRef<number | null>(null);
-  const musicStopRef = useRef<number | null>(null);
 
   const base = useMemo(() => baseDurations(schedule), [schedule]);
   const effDurations = useMemo(
@@ -157,10 +156,6 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
 
   // Stop/reset audio and re-arm auto-play whenever the cue changes.
   useEffect(() => {
-    if (musicStopRef.current) {
-      window.clearTimeout(musicStopRef.current);
-      musicStopRef.current = null;
-    }
     autoPlayedIdxRef.current = null;
     if (audioRef.current) {
       audioRef.current.pause();
@@ -169,7 +164,8 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   }, [idx]);
 
   // Auto-play the segment's intro/transition music once, when the segment is
-  // active and the show is running. Stops after the cue's set duration (if any).
+  // active and the show is running. Playback is capped by the cue's duration in
+  // the timeupdate handler below, so this just starts it from the top.
   useEffect(() => {
     if (!running || !currentMusic || autoPlayedIdxRef.current === idx) return;
     const audio = audioRef.current;
@@ -178,18 +174,17 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
     audio.currentTime = 0;
     audio.muted = muted;
     audio.play().catch(() => {});
-    if (currentMusic.duration && currentMusic.duration > 0) {
-      if (musicStopRef.current) window.clearTimeout(musicStopRef.current);
-      musicStopRef.current = window.setTimeout(() => {
-        audioRef.current?.pause();
-      }, currentMusic.duration * 1000);
-    }
   }, [idx, running, currentMusic, muted]);
 
-  // Clear any pending music-stop timer on unmount.
-  useEffect(() => () => {
-    if (musicStopRef.current) window.clearTimeout(musicStopRef.current);
-  }, []);
+  // Enforce the per-cue play duration on ALL playback (auto-play and the manual
+  // Play/Restart buttons): pause the moment we reach the set number of seconds.
+  function handleTimeUpdate() {
+    const audio = audioRef.current;
+    const limit = currentMusic?.duration;
+    if (audio && limit && limit > 0 && audio.currentTime >= limit) {
+      audio.pause();
+    }
+  }
 
   // Keep the audio element's mute state in sync (incl. newly mounted cues).
   useEffect(() => {
@@ -237,7 +232,10 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   }
 
   function playAudio() {
-    audioRef.current?.play().catch(() => {});
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
   }
   function stopAudio() {
     if (audioRef.current) {
@@ -454,7 +452,7 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
       </div>
 
       {hasAudio && (
-        <audio ref={audioRef} src={currentMusic?.src} preload="auto" />
+        <audio ref={audioRef} src={currentMusic?.src} preload="auto" onTimeUpdate={handleTimeUpdate} />
       )}
     </div>
   );
