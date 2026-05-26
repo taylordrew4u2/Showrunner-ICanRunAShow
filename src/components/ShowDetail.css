@@ -1586,6 +1586,53 @@
   display: none;
 }
 
+/* Uploaded reference inside the builder */
+.schedule-ref {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.schedule-ref__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.schedule-ref__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.schedule-ref__chevron { color: var(--text-muted); font-size: 0.7rem; }
+.schedule-ref__actions { display: flex; gap: 6px; }
+.schedule-ref .schedule-image-fallback__img,
+.schedule-ref .schedule-image-fallback__pdf { margin-top: 10px; }
+
+/* Convert-uploaded-file CTA */
+.schedule-upload__cta {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+.schedule-upload__cta-text {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.schedule-upload__cta-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
 .schedule-upload__dropzone {
   display: flex;
   flex-direction: column;

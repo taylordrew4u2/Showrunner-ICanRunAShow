@@ -74,7 +74,7 @@ export function ScheduleSection({
   onChange,
   onImageChange,
 }: ScheduleSectionProps) {
-  const initialMode: ScheduleMode = scheduleImage ? 'upload' : schedule.length > 0 ? 'build' : 'choose';
+  const initialMode: ScheduleMode = schedule.length > 0 ? 'build' : scheduleImage ? 'upload' : 'choose';
   const [mode, setMode] = useState<ScheduleMode>(initialMode);
   const [time, setTime] = useState('');
   const [desc, setDesc] = useState('');
@@ -84,6 +84,7 @@ export function ScheduleSection({
   const [importOpen, setImportOpen] = useState(false);
   const [mediaOpenId, setMediaOpenId] = useState<string | null>(null);
   const [musicError, setMusicError] = useState<string | null>(null);
+  const [refOpen, setRefOpen] = useState(false);
   const [, forceRender] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -168,19 +169,23 @@ export function ScheduleSection({
     const reader = new FileReader();
     reader.onload = () => {
       onImageChange(reader.result as string);
-      onChange([]);
     };
     reader.readAsDataURL(file);
     event.target.value = '';
   }
 
-  function handleSwitchToBuild() {
+  // Go to the editable cue builder, keeping any uploaded file as a reference.
+  function goBuild() {
+    setMode('build');
+  }
+
+  // Remove the uploaded reference file; keep any cues and stay in the builder.
+  function removeImage() {
     onImageChange(undefined);
     setMode('build');
   }
 
   function handleSwitchToUpload() {
-    onChange([]);
     setMode('upload');
   }
 
@@ -223,6 +228,36 @@ export function ScheduleSection({
               {totalLabel && <div className="schedule-summary__meta">{totalLabel}</div>}
             </div>
           </div>
+
+          {scheduleImage && (
+            <div className="schedule-ref">
+              <div className="schedule-ref__header">
+                <button className="schedule-ref__toggle" onClick={() => setRefOpen((v) => !v)}>
+                  <Icon name="file" size={14} />
+                  Uploaded reference
+                  <span className="schedule-ref__chevron">{refOpen ? '▲' : '▼'}</span>
+                </button>
+                <div className="schedule-ref__actions">
+                  <button className="btn btn--ghost btn--sm" onClick={() => fileInputRef.current?.click()}>Replace</button>
+                  <button className="btn btn--ghost btn--sm" onClick={removeImage}>Remove file</button>
+                </div>
+              </div>
+              {refOpen && (
+                scheduleImage.startsWith('data:application/pdf') ? (
+                  <embed src={scheduleImage} type="application/pdf" className="schedule-image-fallback__pdf" />
+                ) : (
+                  <img src={scheduleImage} alt="Uploaded show run" className="schedule-image-fallback__img" />
+                )
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,image/*"
+                onChange={handleFileUpload}
+                className="schedule-upload__file-input"
+              />
+            </div>
+          )}
 
           <button className="ai-import-entry" onClick={() => setImportOpen(true)}>
             <span className="ai-import-entry__icon"><Icon name="sparkle" size={14} /></span>
@@ -457,13 +492,15 @@ export function ScheduleSection({
             </div>
           )}
 
-          <button
-            className="btn btn--ghost btn--sm"
-            style={{ marginTop: 12 }}
-            onClick={handleSwitchToUpload}
-          >
-            Switch to upload instead
-          </button>
+          {!scheduleImage && (
+            <button
+              className="btn btn--ghost btn--sm"
+              style={{ marginTop: 12 }}
+              onClick={handleSwitchToUpload}
+            >
+              Attach a reference file (PDF / image)
+            </button>
+          )}
         </>
       )}
 
@@ -482,8 +519,8 @@ export function ScheduleSection({
                 </button>
                 <button
                   className="btn btn--ghost btn--sm"
-                  onClick={handleSwitchToBuild}
-                  title="Remove image and build manually"
+                  onClick={removeImage}
+                  title="Remove file"
                 >
                   × Remove
                 </button>
@@ -509,15 +546,30 @@ export function ScheduleSection({
             onChange={handleFileUpload}
             className="schedule-upload__file-input"
           />
-          {!scheduleImage && (
-            <button
-              className="btn btn--ghost btn--sm"
-              style={{ marginTop: 12 }}
-              onClick={handleSwitchToBuild}
-            >
-              Switch to build your own instead
-            </button>
+
+          {scheduleImage && (
+            <div className="schedule-upload__cta">
+              <p className="schedule-upload__cta-text">
+                Want to edit it? Turn it into an editable run-of-show — the file stays attached as a reference.
+              </p>
+              <div className="schedule-upload__cta-row">
+                <button className="btn btn--primary btn--sm" onClick={() => setImportOpen(true)}>
+                  Extract cues with AI
+                </button>
+                <button className="btn btn--secondary btn--sm" onClick={goBuild}>
+                  Build / edit cues manually
+                </button>
+              </div>
+            </div>
           )}
+
+          <button
+            className="btn btn--ghost btn--sm"
+            style={{ marginTop: 12 }}
+            onClick={goBuild}
+          >
+            {scheduleImage ? 'Back to builder' : 'Switch to build your own instead'}
+          </button>
         </>
       )}
 
