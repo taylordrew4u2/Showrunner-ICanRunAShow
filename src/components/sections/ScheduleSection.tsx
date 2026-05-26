@@ -364,7 +364,7 @@ export function ScheduleSection({
                           </button>
                           <button
                             className={`icon-btn icon-btn--ghost ${mediaOpen || musicLabel ? 'icon-btn--active' : ''}`}
-                            onClick={() => setMediaOpenId(mediaOpen ? null : item.id)}
+                            onClick={() => { setMusicError(null); setMediaOpenId(mediaOpen ? null : item.id); }}
                             aria-label="Comic & music"
                             title="Comic & music"
                             style={musicLabel ? { color: 'var(--primary)' } : undefined}
@@ -447,6 +447,8 @@ export function ScheduleSection({
                           placeholder="full track"
                         />
                       </div>
+
+                      {musicError && <p className="cue-media__error">{musicError}</p>}
                     </div>
                   )}
                   </div>
@@ -454,8 +456,6 @@ export function ScheduleSection({
               })}
             </div>
           )}
-
-          {musicError && <p className="cue-media__error">{musicError}</p>}
 
           <button
             className="btn btn--ghost btn--sm"
