@@ -1166,6 +1166,7 @@
 .cue__edit-fields { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .cue__edit-fields .cue__edit-input { flex: 2 1 160px; }
 .cue__edit-input--perf { flex: 1 1 110px; }
+.cue__edit-fields .cue__edit-input--perfsel { flex: 1 1 150px; min-width: 0; }
 .cue__edit-input--len { flex: 0 0 72px; }
 
 /* Per-cue comic + music panel */
@@ -1869,6 +1870,54 @@
 .rs-audio-now {
   font-size: 0.78rem;
   color: rgba(255, 255, 255, 0.5);
+  margin-top: 2px;
+}
+
+/* On-stage performer card */
+.rs-onstage {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.rs-onstage__photo {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.rs-onstage__photo--placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+.rs-onstage__info { min-width: 0; }
+.rs-onstage__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+.rs-onstage__name {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+}
+.rs-onstage__credits {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.72);
+  margin-top: 4px;
+}
+.rs-onstage__social {
+  font-size: 0.85rem;
+  color: var(--rs-blue);
   margin-top: 2px;
 }
 
