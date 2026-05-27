@@ -1125,10 +1125,11 @@
 .cue__sub { font-size: 0.72rem; color: var(--text-muted); margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .cue__menu {
   flex-shrink: 0;
-  width: 40px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding-right: 6px;
   color: var(--text-muted);
 }
 .cue--done { opacity: 0.55; }
