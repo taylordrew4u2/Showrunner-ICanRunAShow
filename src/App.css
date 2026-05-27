@@ -1762,6 +1762,50 @@
   font-size: clamp(4rem, 14vw, 7rem);
 }
 .rs-timer--over { color: var(--rs-red); }
+.rs-timer--warning { color: var(--rs-red); animation: rs-timer-flash 1s ease-in-out infinite; }
+@keyframes rs-timer-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* Pre-roll countdown overlay */
+.rs-countdown {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(6, 8, 12, 0.92);
+  cursor: pointer;
+}
+.rs-countdown__num {
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: clamp(7rem, 30vw, 16rem);
+  line-height: 1;
+  color: #fff;
+  animation: rs-countdown-pop 1s ease-out;
+}
+@keyframes rs-countdown-pop {
+  0% { opacity: 0.2; transform: scale(0.6); }
+  30% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0.85; transform: scale(1); }
+}
+.rs-countdown__label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  padding: 0 20px;
+}
+.rs-countdown__hint {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+}
 .rs-showtime {
   font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
