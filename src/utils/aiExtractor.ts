@@ -287,38 +287,49 @@ If no schedule data is found, return an empty array: []`;
 }
 
 /**
+ * Run on-device OCR on an image (lazy-loaded so it stays out of the main bundle).
+ */
+async function ocrImage(file: File): Promise<string> {
+  const { recognize } = await import("tesseract.js");
+  const { data } = await recognize(file, "eng");
+  return data.text ?? "";
+}
+
+/**
  * Main function to import schedule from a file
  * Supports text files (.txt, .csv, .json), PDFs, and images (.jpg, .png, etc.)
  *
- * Text and PDF sources ALWAYS fall back to deterministic local parsing when the
- * AI is unavailable (no key, network blocked, or error), so extraction is
- * foolproof for anything that yields text. Images need AI vision (no in-browser
- * OCR), so we surface a clear, actionable message when it can't run.
+ * Every path is foolproof without AI: text/PDF fall back to deterministic local
+ * parsing, and images fall back to on-device OCR (Tesseract) + local parsing.
+ * AI is used first only when a key is configured and working.
  */
 export async function importScheduleFromFile(
   file: File,
 ): Promise<ScheduleItem[]> {
-  // Images: require AI vision; no local text to parse.
+  // Images: try AI vision first (if available), then on-device OCR.
   if (isImageFile(file)) {
-    if (!OPENAI_API_KEY) {
-      throw new Error(
-        "AI is unavailable, so photos can't be read automatically. Paste the schedule text instead, or attach the image as a reference and add cues manually.",
-      );
-    }
-    try {
-      const scheduleItems = await extractScheduleFromImage(file);
-      if (scheduleItems.length === 0) {
-        throw new Error(
-          "No schedule data found in the image. Make sure it shows times and events, or paste the text instead.",
-        );
+    if (OPENAI_API_KEY) {
+      try {
+        const aiItems = await extractScheduleFromImage(file);
+        if (aiItems.length > 0) return aiItems;
+      } catch (error) {
+        // No quota / network / API error — fall through to OCR.
+        console.warn("AI vision failed, falling back to OCR:", error);
       }
-      return scheduleItems;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `${msg} You can paste the schedule text instead, or attach the image as a reference and add cues manually.`,
-      );
     }
+
+    let ocrText = "";
+    try {
+      ocrText = await ocrImage(file);
+    } catch (error) {
+      console.error("OCR failed:", error);
+    }
+    const ocrItems = parseScheduleManually(ocrText);
+    if (ocrItems.length > 0) return ocrItems;
+
+    throw new Error(
+      "Couldn't read a schedule from that photo. Make sure the times are clearly visible, paste the text instead, or attach the image as a reference and add cues manually.",
+    );
   }
 
   // Text / PDF: extract the text, try AI, then fall back to local parsing.

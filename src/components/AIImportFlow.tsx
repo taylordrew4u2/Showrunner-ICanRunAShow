@@ -18,7 +18,7 @@ interface ReviewItem extends ScheduleItem {
 }
 
 const AI_STEPS = [
-  { label: 'Reading file', subFor: { photo: 'Vision · GPT-4o', pdf: 'PDF.js extract', paste: 'Text parse' } },
+  { label: 'Reading file', subFor: { photo: 'Vision · OCR fallback', pdf: 'PDF.js extract', paste: 'Text parse' } },
   { label: 'Detecting times', sub: '12h / 24h / informal' },
   { label: 'Parsing cues', sub: 'Names · descriptions' },
   { label: 'Final pass', sub: 'Review & dedupe' },
