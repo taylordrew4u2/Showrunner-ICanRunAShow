@@ -1166,6 +1166,7 @@
 .cue__edit-fields { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .cue__edit-fields .cue__edit-input { flex: 2 1 160px; }
 .cue__edit-input--perf { flex: 1 1 110px; }
+.cue__edit-input--len { flex: 0 0 72px; }
 
 /* Per-cue comic + music panel */
 .cue-row { display: flex; flex-direction: column; gap: 6px; }
