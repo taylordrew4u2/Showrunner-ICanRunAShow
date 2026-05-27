@@ -1139,6 +1139,24 @@
 .cue--current .cue__time { color: var(--primary); }
 .cue--upcoming .cue__rail { background: var(--text); }
 
+/* Mobile: stack the action buttons onto their own row so the cue isn't cramped */
+@media (max-width: 640px) {
+  .cue { flex-wrap: wrap; }
+  .cue__handle { display: none; }
+  .cue__time { min-width: 68px; padding: 10px 8px; }
+  .cue__body { flex: 1 1 60%; }
+  .cue__menu {
+    flex-basis: 100%;
+    width: 100%;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 4px 6px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-strong);
+  }
+  .cue__edit-input--len { flex: 1 1 64px; }
+}
+
 .cue__edit-input {
   width: 100%;
   border: 1px solid var(--border);
