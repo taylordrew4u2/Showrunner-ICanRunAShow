@@ -1285,6 +1285,7 @@
   justify-content: space-between;
   gap: 10px;
 }
+.schedule-summary__clear { color: var(--danger); flex-shrink: 0; }
 .schedule-summary__label {
   font-size: 0.65rem;
   font-weight: 700;
