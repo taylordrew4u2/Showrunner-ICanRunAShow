@@ -135,8 +135,8 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
     if (assigned?.walkOnMusic) {
       return { src: assigned.walkOnMusic, name: assigned.walkOnMusicName || assigned.name, duration: current.musicDuration };
     }
-    const desc = current.description.toLowerCase();
-    const match = performers.find((p) => p.walkOnMusic && desc.includes(p.name.toLowerCase()));
+    const hay = `${current.description} ${current.performer ?? ""}`.toLowerCase();
+    const match = performers.find((p) => p.walkOnMusic && hay.includes(p.name.toLowerCase()));
     if (match?.walkOnMusic) {
       return { src: match.walkOnMusic, name: match.walkOnMusicName || match.name, duration: current.musicDuration };
     }
@@ -310,6 +310,7 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
           <div className="rs-segment">
             {fmtOffset(offsets[idx])}–{fmtOffset(offsets[idx] + totalSec)}
             {current?.description ? ` | ${current.description}` : ''}
+            {current?.performer ? ` · ${current.performer}` : ''}
           </div>
           <div className="rs-progress">
             <div
