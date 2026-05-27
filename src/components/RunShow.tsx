@@ -14,6 +14,9 @@ const MIN_CUE_SECONDS = 30;
 const DRIFT_TOLERANCE = 30; // seconds we still count as "On Time"
 const STEP_SECONDS = 2 * 60; // coarse +/- buttons
 const FINE_STEP_SECONDS = 30; // fine +/- buttons
+const PREROLL_SECONDS = 5; // flashing countdown before each segment
+const FADE_MS = 800; // audio fade in/out duration
+const WARNING_SECONDS = 60; // timer flashes red at/under this remaining
 
 function parseClockToMinutes(time: string | undefined): number | null {
   if (!time) return null;
@@ -92,8 +95,10 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   const [adjust, setAdjust] = useState<Record<number, number>>({});
   const [muted, setMuted] = useState(false);
   const [showCues, setShowCues] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null); // pre-roll seconds before a segment starts
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const autoPlayedIdxRef = useRef<number | null>(null);
+  const startedIdxRef = useRef<number | null>(null); // idx whose pre-roll has completed
+  const fadeRef = useRef<number | null>(null);
 
   const base = useMemo(() => baseDurations(schedule), [schedule]);
   const effDurations = useMemo(
@@ -156,45 +161,92 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   }, [current, performers]);
   const onStageName = onStagePerformer?.name || current?.performer || '';
 
-  // Tick the clocks while running.
+  // Tick the clocks while running — but not during a pre-roll countdown.
   useEffect(() => {
-    if (!running) return;
+    if (!running || countdown !== null) return;
     const t = window.setInterval(() => {
       setElapsed((e) => e + 1);
       setShowElapsed((e) => e + 1);
     }, 1000);
     return () => window.clearInterval(t);
-  }, [running]);
+  }, [running, countdown]);
 
-  // Stop/reset audio and re-arm auto-play whenever the cue changes.
-  useEffect(() => {
-    autoPlayedIdxRef.current = null;
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+  // ── Audio fades ──────────────────────────────────────────────────────────
+  function clearFade() {
+    if (fadeRef.current) {
+      window.clearInterval(fadeRef.current);
+      fadeRef.current = null;
     }
-  }, [idx]);
-
-  // Auto-play the segment's intro/transition music once, when the segment is
-  // active and the show is running. Playback is capped by the cue's duration in
-  // the timeupdate handler below, so this just starts it from the top.
-  useEffect(() => {
-    if (!running || !currentMusic || autoPlayedIdxRef.current === idx) return;
+  }
+  function fadeInAudio() {
     const audio = audioRef.current;
     if (!audio) return;
-    autoPlayedIdxRef.current = idx;
+    clearFade();
     audio.currentTime = 0;
-    audio.muted = muted;
+    audio.volume = 0;
     audio.play().catch(() => {});
-  }, [idx, running, currentMusic, muted]);
+    const start = performance.now();
+    fadeRef.current = window.setInterval(() => {
+      const t = Math.min(1, (performance.now() - start) / FADE_MS);
+      audio.volume = t;
+      if (t >= 1) clearFade();
+    }, 30);
+  }
+  function fadeOutAudio() {
+    const audio = audioRef.current;
+    if (!audio || audio.paused) return;
+    clearFade();
+    const startVol = audio.volume;
+    const start = performance.now();
+    fadeRef.current = window.setInterval(() => {
+      const t = Math.min(1, (performance.now() - start) / FADE_MS);
+      audio.volume = startVol * (1 - t);
+      if (t >= 1) {
+        clearFade();
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = 1;
+      }
+    }, 30);
+  }
 
-  // Enforce the per-cue play duration on ALL playback (auto-play and the manual
-  // Play/Restart buttons): pause the moment we reach the set number of seconds.
+  // Fade the current segment's music out whenever we leave the cue.
+  useEffect(() => {
+    fadeOutAudio();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx]);
+
+  // Start a flashing pre-roll countdown when entering a segment while running.
+  useEffect(() => {
+    if (!running || countdown !== null) return;
+    if (startedIdxRef.current === idx) return;
+    setCountdown(PREROLL_SECONDS);
+  }, [running, idx, countdown]);
+
+  // Run the countdown; when it ends, the segment starts and its music fades in.
+  useEffect(() => {
+    if (countdown === null || !running) return;
+    if (countdown <= 0) {
+      startedIdxRef.current = idx;
+      setCountdown(null);
+      if (currentMusic) fadeInAudio();
+      return;
+    }
+    const t = window.setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countdown, running, idx]);
+
+  function skipCountdown() {
+    if (countdown !== null) setCountdown(0);
+  }
+
+  // Enforce the per-cue play duration on ALL playback — fade out at the limit.
   function handleTimeUpdate() {
     const audio = audioRef.current;
     const limit = currentMusic?.duration;
-    if (audio && limit && limit > 0 && audio.currentTime >= limit) {
-      audio.pause();
+    if (audio && !audio.paused && limit && limit > 0 && audio.currentTime >= limit) {
+      fadeOutAudio();
     }
   }
 
@@ -202,6 +254,9 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   useEffect(() => {
     if (audioRef.current) audioRef.current.muted = muted;
   }, [muted, idx, hasAudio]);
+
+  // Clean up any running fade on unmount.
+  useEffect(() => () => clearFade(), []);
 
   function goTo(target: number) {
     const t = Math.max(0, Math.min(schedule.length - 1, target));
@@ -237,29 +292,43 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
     setShowElapsed(0);
     setAdjust({});
     setShowCues(false);
+    setCountdown(null);
+    startedIdxRef.current = null;
+    clearFade();
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+      audioRef.current.volume = 1;
     }
   }
 
+  // Unlock audio within the Start gesture so the deferred (post-countdown) play
+  // isn't blocked by the browser's autoplay policy.
+  function primeAudio() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const v = audio.volume;
+    audio.volume = 0;
+    audio
+      .play()
+      .then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = v;
+      })
+      .catch(() => {
+        audio.volume = v;
+      });
+  }
+
   function playAudio() {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
-    }
+    fadeInAudio();
   }
   function stopAudio() {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
+    fadeOutAudio();
   }
   function restartAudio() {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
-    }
+    fadeInAudio();
   }
   function toggleMute() {
     setMuted((m) => !m);
@@ -317,7 +386,11 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
       <div className="run-show__scroll">
         {/* Timer card */}
         <div className="rs-card rs-timer-card">
-          <div className={`rs-timer ${isOver ? 'rs-timer--over' : ''}`}>{fmtCountdown(remaining)}</div>
+          <div
+            className={`rs-timer ${isOver ? 'rs-timer--over' : ''} ${remaining <= WARNING_SECONDS ? 'rs-timer--warning' : ''}`}
+          >
+            {fmtCountdown(remaining)}
+          </div>
           <div className="rs-showtime">Show Time: {fmtShowTime(showElapsed)}</div>
           <div className="rs-segment">
             {fmtOffset(offsets[idx])}–{fmtOffset(offsets[idx] + totalSec)}
@@ -397,7 +470,10 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
               <button className="rs-btn" onClick={goPrev} disabled={idx === 0}>
                 Prev
               </button>
-              <button className="rs-btn rs-btn--start" onClick={() => setRunning((r) => !r)}>
+              <button
+                className="rs-btn rs-btn--start"
+                onClick={() => { primeAudio(); setRunning((r) => !r); }}
+              >
                 {startLabel}
               </button>
               <button className="rs-btn rs-btn--next" onClick={goNext} disabled={isLast}>
@@ -487,9 +563,24 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
         )}
       </div>
 
-      {hasAudio && (
-        <audio ref={audioRef} src={currentMusic?.src} preload="auto" onTimeUpdate={handleTimeUpdate} />
+      {countdown !== null && countdown > 0 && (
+        <div className="rs-countdown" onClick={skipCountdown} role="button" aria-label="Skip countdown">
+          <div className="rs-countdown__num" key={countdown}>{countdown}</div>
+          <div className="rs-countdown__label">
+            Starting{current?.description ? `: ${current.description}` : ''}
+            {currentMusic ? ' · music' : ''}
+          </div>
+          <div className="rs-countdown__hint">tap to skip</div>
+        </div>
       )}
+
+      {/* Single persistent element so it stays "unlocked" for autoplay across cues. */}
+      <audio
+        ref={audioRef}
+        src={currentMusic?.src || undefined}
+        preload="auto"
+        onTimeUpdate={handleTimeUpdate}
+      />
     </div>
   );
 }
