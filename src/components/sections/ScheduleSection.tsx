@@ -116,6 +116,16 @@ export function ScheduleSection({
     }
   }
 
+  function clearAll() {
+    if (schedule.length === 0) return;
+    if (window.confirm(`Delete all ${schedule.length} cues and start over? This can't be undone.`)) {
+      onChange([]);
+      setEditId(null);
+      setMediaOpenId(null);
+      setMusicError(null);
+    }
+  }
+
   function startEdit(item: ScheduleItem) {
     setEditId(item.id);
     setEditTime(item.time);
@@ -243,6 +253,15 @@ export function ScheduleSection({
               </div>
               {totalLabel && <div className="schedule-summary__meta">{totalLabel}</div>}
             </div>
+            {schedule.length > 0 && (
+              <button
+                className="btn btn--ghost btn--sm schedule-summary__clear"
+                onClick={clearAll}
+                title="Delete every cue and start over"
+              >
+                Clear all
+              </button>
+            )}
           </div>
 
           {scheduleImage && (
