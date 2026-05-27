@@ -41,6 +41,8 @@ function parseDurationSeconds(text: string | undefined): number | null {
 function baseDurations(schedule: ScheduleItem[]): number[] {
   const clock = schedule.map((s) => parseClockToMinutes(s.time));
   return schedule.map((s, i) => {
+    // An explicit per-segment length wins so Run Show matches what was set.
+    if (s.durationMin && s.durationMin > 0) return Math.max(MIN_CUE_SECONDS, s.durationMin * 60);
     const cur = clock[i];
     const next = clock[i + 1];
     if (cur != null && next != null && next > cur) return (next - cur) * 60;

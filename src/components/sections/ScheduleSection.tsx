@@ -29,18 +29,21 @@ function timeToMinutes(time: string): number | null {
   return h * 60 + mins;
 }
 
+function formatMinutes(total: number): string {
+  if (total >= 60) {
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  }
+  return `${total}m`;
+}
+
 function durationLabel(items: ScheduleItem[], idx: number): string | null {
+  const explicit = items[idx]?.durationMin;
+  if (explicit && explicit > 0) return formatMinutes(explicit);
   const cur = timeToMinutes(items[idx]?.time || '');
   const next = timeToMinutes(items[idx + 1]?.time || '');
-  if (cur != null && next != null && next > cur) {
-    const diff = next - cur;
-    if (diff >= 60) {
-      const h = Math.floor(diff / 60);
-      const m = diff % 60;
-      return m === 0 ? `${h}h` : `${h}h ${m}m`;
-    }
-    return `${diff}m`;
-  }
+  if (cur != null && next != null && next > cur) return formatMinutes(next - cur);
   return null;
 }
 
@@ -82,6 +85,7 @@ export function ScheduleSection({
   const [editTime, setEditTime] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editPerformer, setEditPerformer] = useState('');
+  const [editLength, setEditLength] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [mediaOpenId, setMediaOpenId] = useState<string | null>(null);
   const [musicError, setMusicError] = useState<string | null>(null);
@@ -116,14 +120,22 @@ export function ScheduleSection({
     setEditTime(item.time);
     setEditDesc(item.description);
     setEditPerformer(item.performer ?? '');
+    setEditLength(item.durationMin != null ? String(item.durationMin) : '');
   }
 
   function saveEdit() {
     if (!editDesc.trim() || !editId) return;
+    const lengthNum = editLength.trim() === '' ? undefined : Math.max(0, parseInt(editLength, 10) || 0);
     onChange(
       schedule.map((s) =>
         s.id === editId
-          ? { ...s, time: editTime.trim(), description: editDesc.trim(), performer: editPerformer.trim() || undefined }
+          ? {
+              ...s,
+              time: editTime.trim(),
+              description: editDesc.trim(),
+              performer: editPerformer.trim() || undefined,
+              durationMin: lengthNum && lengthNum > 0 ? lengthNum : undefined,
+            }
           : s,
       ),
     );
@@ -354,6 +366,20 @@ export function ScheduleSection({
                             aria-label="Who's on stage"
                             placeholder="On stage"
                           />
+                          <input
+                            className="cue__edit-input cue__edit-input--len"
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={editLength}
+                            onChange={(e) => setEditLength(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEdit();
+                              if (e.key === 'Escape') setEditId(null);
+                            }}
+                            aria-label="Segment length in minutes"
+                            placeholder="Min"
+                          />
                         </div>
                       ) : (
                         <>
@@ -449,19 +475,34 @@ export function ScheduleSection({
                   {mediaOpen && !isEditing && (
                     <div className="cue-media">
                       <div className="cue-media__field">
-                        <label className="cue-media__label">Comic on stage</label>
-                        <select
-                          className="section-field__select"
-                          value={item.performerId ?? ''}
-                          onChange={(e) => updateItem(item.id, { performerId: e.target.value || undefined })}
-                        >
-                          <option value="">— None —</option>
-                          {performers.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}{p.walkOnMusic ? ' (has walk-on)' : ''}
-                            </option>
-                          ))}
-                        </select>
+                        <label className="cue-media__label">On stage (performer)</label>
+                        <input
+                          className="section-field__input"
+                          value={item.performer ?? ''}
+                          onChange={(e) => updateItem(item.id, { performer: e.target.value || undefined })}
+                          placeholder="Who's on stage"
+                        />
+                        {performers.length > 0 && (
+                          <select
+                            className="section-field__select"
+                            value={item.performerId ?? ''}
+                            onChange={(e) => {
+                              const id = e.target.value || undefined;
+                              const perf = id ? performers.find((p) => p.id === id) : null;
+                              updateItem(item.id, {
+                                performerId: id,
+                                performer: perf ? perf.name : item.performer,
+                              });
+                            }}
+                          >
+                            <option value="">Attach a performer (for walk-on music)…</option>
+                            {performers.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}{p.walkOnMusic ? ' (has walk-on)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
 
                       <div className="cue-media__field">

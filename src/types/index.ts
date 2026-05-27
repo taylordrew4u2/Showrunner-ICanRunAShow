@@ -56,6 +56,7 @@ export interface ScheduleItem {
   time: string;
   description: string; // the segment / what happens
   performer?: string; // who's on stage (free-text name, e.g. from import)
+  durationMin?: number; // how long this segment runs (minutes) — used by Run Show
   performerId?: string; // optional link to a performer record (for walk-on music)
   music?: string; // uploaded intro/transition music (data URL); overrides walk-on
   musicName?: string;
