@@ -146,6 +146,16 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   }, [current, performers]);
   const hasAudio = !!currentMusic;
 
+  // Who's on stage for this cue: the linked performer record, else a name match.
+  const onStagePerformer = useMemo<Performer | null>(() => {
+    if (!current) return null;
+    if (current.performerId) return performers.find((p) => p.id === current.performerId) ?? null;
+    const name = (current.performer ?? '').trim().toLowerCase();
+    if (name) return performers.find((p) => p.name.toLowerCase() === name) ?? null;
+    return null;
+  }, [current, performers]);
+  const onStageName = onStagePerformer?.name || current?.performer || '';
+
   // Tick the clocks while running.
   useEffect(() => {
     if (!running) return;
@@ -321,6 +331,29 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
             />
           </div>
         </div>
+
+        {/* On stage */}
+        {onStageName && (
+          <div className="rs-card rs-onstage">
+            {onStagePerformer?.photo ? (
+              <img src={onStagePerformer.photo} alt="" className="rs-onstage__photo" />
+            ) : (
+              <div className="rs-onstage__photo rs-onstage__photo--placeholder">
+                {onStageName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="rs-onstage__info">
+              <div className="rs-onstage__label">On stage</div>
+              <div className="rs-onstage__name">{onStageName}</div>
+              {onStagePerformer?.credits && (
+                <div className="rs-onstage__credits">{onStagePerformer.credits}</div>
+              )}
+              {onStagePerformer?.socialMedia && (
+                <div className="rs-onstage__social">{onStagePerformer.socialMedia}</div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="rs-card rs-grid">

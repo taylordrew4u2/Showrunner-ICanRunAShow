@@ -85,6 +85,7 @@ export function ScheduleSection({
   const [editTime, setEditTime] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editPerformer, setEditPerformer] = useState('');
+  const [editPerformerId, setEditPerformerId] = useState('');
   const [editLength, setEditLength] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [mediaOpenId, setMediaOpenId] = useState<string | null>(null);
@@ -120,6 +121,7 @@ export function ScheduleSection({
     setEditTime(item.time);
     setEditDesc(item.description);
     setEditPerformer(item.performer ?? '');
+    setEditPerformerId(item.performerId ?? '');
     setEditLength(item.durationMin != null ? String(item.durationMin) : '');
   }
 
@@ -134,6 +136,7 @@ export function ScheduleSection({
               time: editTime.trim(),
               description: editDesc.trim(),
               performer: editPerformer.trim() || undefined,
+              performerId: editPerformerId || undefined,
               durationMin: lengthNum && lengthNum > 0 ? lengthNum : undefined,
             }
           : s,
@@ -366,6 +369,26 @@ export function ScheduleSection({
                             aria-label="Who's on stage"
                             placeholder="On stage"
                           />
+                          {performers.length > 0 && (
+                            <select
+                              className="section-field__select cue__edit-input--perfsel"
+                              value={editPerformerId}
+                              onChange={(e) => {
+                                const id = e.target.value;
+                                const perf = id ? performers.find((p) => p.id === id) : null;
+                                setEditPerformerId(id);
+                                if (perf) setEditPerformer(perf.name);
+                              }}
+                              aria-label="Attach a performer"
+                            >
+                              <option value="">Attach performer…</option>
+                              {performers.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}{p.walkOnMusic ? ' (walk-on)' : ''}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                           <input
                             className="cue__edit-input cue__edit-input--len"
                             type="number"
@@ -474,37 +497,6 @@ export function ScheduleSection({
 
                   {mediaOpen && !isEditing && (
                     <div className="cue-media">
-                      <div className="cue-media__field">
-                        <label className="cue-media__label">On stage (performer)</label>
-                        <input
-                          className="section-field__input"
-                          value={item.performer ?? ''}
-                          onChange={(e) => updateItem(item.id, { performer: e.target.value || undefined })}
-                          placeholder="Who's on stage"
-                        />
-                        {performers.length > 0 && (
-                          <select
-                            className="section-field__select"
-                            value={item.performerId ?? ''}
-                            onChange={(e) => {
-                              const id = e.target.value || undefined;
-                              const perf = id ? performers.find((p) => p.id === id) : null;
-                              updateItem(item.id, {
-                                performerId: id,
-                                performer: perf ? perf.name : item.performer,
-                              });
-                            }}
-                          >
-                            <option value="">Attach a performer (for walk-on music)…</option>
-                            {performers.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}{p.walkOnMusic ? ' (has walk-on)' : ''}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-
                       <div className="cue-media__field">
                         <label className="cue-media__label">Transition / intro music</label>
                         {item.music ? (
