@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
-import { embedSizeError, readFileAsDataURL } from '../../utils/media';
+import { embedSizeError, readFileAsDataURL, pickFile } from '../../utils/media';
 import { Icon } from '../Icon';
 import { AIImportFlow } from '../AIImportFlow';
 
@@ -134,21 +134,18 @@ export function ScheduleSection({
     onChange(schedule.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }
 
-  function handleCueMusic(id: string) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'audio/*';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const err = embedSizeError(file, 'audio file');
-      if (err) { setMusicError(err); return; }
-      setMusicError(null);
-      readFileAsDataURL(file)
-        .then((data) => updateItem(id, { music: data, musicName: file.name }))
-        .catch(() => setMusicError('Could not read that file. Please try again.'));
-    };
-    input.click();
+  async function handleCueMusic(id: string) {
+    const file = await pickFile('audio/*');
+    if (!file) return;
+    const err = embedSizeError(file, 'audio file');
+    if (err) { setMusicError(err); return; }
+    setMusicError(null);
+    try {
+      const data = await readFileAsDataURL(file);
+      updateItem(id, { music: data, musicName: file.name });
+    } catch {
+      setMusicError('Could not read that file. Please try again.');
+    }
   }
 
   // What music will actually play for a cue, in priority order.
