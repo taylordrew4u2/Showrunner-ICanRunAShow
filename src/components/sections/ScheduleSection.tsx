@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { embedSizeError, readFileAsDataURL, pickFile } from '../../utils/media';
@@ -58,17 +58,6 @@ function totalRuntimeLabel(items: ScheduleItem[]): string | null {
   return h === 0 ? `${m}m total` : m === 0 ? `${h}h total` : `${h}h ${m}m total`;
 }
 
-function statusForIndex(items: ScheduleItem[], idx: number): 'done' | 'current' | 'upcoming' | 'pending' {
-  const target = timeToMinutes(items[idx]?.time || '');
-  if (target == null) return 'pending';
-  const now = new Date();
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const next = timeToMinutes(items[idx + 1]?.time || '');
-  if (nowMins >= target && (next == null || nowMins < next)) return 'current';
-  if (nowMins >= target) return 'done';
-  return 'upcoming';
-}
-
 export function ScheduleSection({
   schedule,
   scheduleImage,
@@ -91,14 +80,7 @@ export function ScheduleSection({
   const [mediaOpenId, setMediaOpenId] = useState<string | null>(null);
   const [musicError, setMusicError] = useState<string | null>(null);
   const [refOpen, setRefOpen] = useState(false);
-  const [, forceRender] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Tick once a minute so "current" status updates on its own.
-  useEffect(() => {
-    const id = window.setInterval(() => forceRender((n) => n + 1), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
 
   const totalLabel = useMemo(() => totalRuntimeLabel(schedule), [schedule]);
 
@@ -333,16 +315,13 @@ export function ScheduleSection({
           ) : (
             <div className="cue-list">
               {schedule.map((item, idx) => {
-                const status = statusForIndex(schedule, idx);
                 const dur = durationLabel(schedule, idx);
                 const isEditing = editId === item.id;
                 const musicLabel = cueMusicLabel(item);
                 const mediaOpen = mediaOpenId === item.id;
                 return (
                   <div key={item.id} className="cue-row">
-                  <div
-                    className={`cue cue--${status} ${isEditing ? 'cue--editing' : ''}`}
-                  >
+                  <div className={`cue ${isEditing ? 'cue--editing' : ''}`}>
                     <div className="cue__rail" />
                     <div className="cue__handle" aria-hidden="true">
                       <Icon name="drag" size={14} />
@@ -429,19 +408,14 @@ export function ScheduleSection({
                             {item.description}
                             {item.performer && <span className="cue__perf">{item.performer}</span>}
                           </p>
-                          <p className="cue__sub">
-                            {status === 'current' && (
-                              <span style={{ color: 'var(--primary)', fontWeight: 700 }}>Now</span>
-                            )}
-                            {status === 'done' && <span>Done</span>}
-                            {status === 'upcoming' && <span>Upcoming</span>}
-                            {musicLabel && (
+                          {musicLabel && (
+                            <p className="cue__sub">
                               <span className="cue__music-tag">
                                 <Icon name="music" size={11} /> {musicLabel}
                                 {item.musicDuration ? ` · ${item.musicDuration}s` : ''}
                               </span>
-                            )}
-                          </p>
+                            </p>
+                          )}
                         </>
                       )}
                     </div>
