@@ -36,3 +36,48 @@ export function readFileAsDataURL(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+/**
+ * Open a native file picker and resolve with the chosen file (or null if
+ * cancelled). The input is attached to the DOM before clicking — a detached
+ * input.click() silently does nothing on iOS Safari and some mobile browsers,
+ * which is why uploads could appear to "do nothing."
+ */
+export function pickFile(accept: string): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.style.position = 'fixed';
+    input.style.left = '-9999px';
+    input.style.opacity = '0';
+    let settled = false;
+
+    const cleanup = () => {
+      if (input.parentNode) input.parentNode.removeChild(input);
+    };
+
+    input.addEventListener('change', () => {
+      settled = true;
+      const file = input.files && input.files[0] ? input.files[0] : null;
+      cleanup();
+      resolve(file);
+    });
+
+    // If the dialog is dismissed without choosing, clean up on refocus.
+    const onFocus = () => {
+      window.removeEventListener('focus', onFocus);
+      window.setTimeout(() => {
+        if (!settled) {
+          cleanup();
+          resolve(null);
+        }
+      }, 500);
+    };
+    window.addEventListener('focus', onFocus);
+
+    document.body.appendChild(input);
+    input.click();
+  });
+}
+

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
-import { embedSizeError, readFileAsDataURL } from '../../utils/media';
+import { embedSizeError, readFileAsDataURL, pickFile } from '../../utils/media';
 import { Icon } from '../Icon';
 import { AIImportFlow } from '../AIImportFlow';
 
@@ -81,6 +81,7 @@ export function ScheduleSection({
   const [editId, setEditId] = useState<string | null>(null);
   const [editTime, setEditTime] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [editPerformer, setEditPerformer] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [mediaOpenId, setMediaOpenId] = useState<string | null>(null);
   const [musicError, setMusicError] = useState<string | null>(null);
@@ -114,13 +115,16 @@ export function ScheduleSection({
     setEditId(item.id);
     setEditTime(item.time);
     setEditDesc(item.description);
+    setEditPerformer(item.performer ?? '');
   }
 
   function saveEdit() {
     if (!editDesc.trim() || !editId) return;
     onChange(
       schedule.map((s) =>
-        s.id === editId ? { ...s, time: editTime.trim(), description: editDesc.trim() } : s,
+        s.id === editId
+          ? { ...s, time: editTime.trim(), description: editDesc.trim(), performer: editPerformer.trim() || undefined }
+          : s,
       ),
     );
     setEditId(null);
@@ -130,21 +134,18 @@ export function ScheduleSection({
     onChange(schedule.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }
 
-  function handleCueMusic(id: string) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'audio/*';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const err = embedSizeError(file, 'audio file');
-      if (err) { setMusicError(err); return; }
-      setMusicError(null);
-      readFileAsDataURL(file)
-        .then((data) => updateItem(id, { music: data, musicName: file.name }))
-        .catch(() => setMusicError('Could not read that file. Please try again.'));
-    };
-    input.click();
+  async function handleCueMusic(id: string) {
+    const file = await pickFile('audio/*');
+    if (!file) return;
+    const err = embedSizeError(file, 'audio file');
+    if (err) { setMusicError(err); return; }
+    setMusicError(null);
+    try {
+      const data = await readFileAsDataURL(file);
+      updateItem(id, { music: data, musicName: file.name });
+    } catch {
+      setMusicError('Could not read that file. Please try again.');
+    }
   }
 
   // What music will actually play for a cue, in priority order.
@@ -329,20 +330,37 @@ export function ScheduleSection({
                     </div>
                     <div className="cue__body">
                       {isEditing ? (
-                        <input
-                          className="cue__edit-input"
-                          value={editDesc}
-                          onChange={(e) => setEditDesc(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveEdit();
-                            if (e.key === 'Escape') setEditId(null);
-                          }}
-                          autoFocus
-                          aria-label="Edit description"
-                        />
+                        <div className="cue__edit-fields">
+                          <input
+                            className="cue__edit-input"
+                            value={editDesc}
+                            onChange={(e) => setEditDesc(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEdit();
+                              if (e.key === 'Escape') setEditId(null);
+                            }}
+                            autoFocus
+                            aria-label="Edit segment"
+                            placeholder="Segment"
+                          />
+                          <input
+                            className="cue__edit-input cue__edit-input--perf"
+                            value={editPerformer}
+                            onChange={(e) => setEditPerformer(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEdit();
+                              if (e.key === 'Escape') setEditId(null);
+                            }}
+                            aria-label="Who's on stage"
+                            placeholder="On stage"
+                          />
+                        </div>
                       ) : (
                         <>
-                          <p className="cue__title">{item.description}</p>
+                          <p className="cue__title">
+                            {item.description}
+                            {item.performer && <span className="cue__perf">{item.performer}</span>}
+                          </p>
                           <p className="cue__sub">
                             {status === 'current' && (
                               <span style={{ color: 'var(--primary)', fontWeight: 700 }}>Now</span>
