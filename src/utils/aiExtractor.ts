@@ -289,72 +289,99 @@ If no schedule data is found, return an empty array: []`;
 /**
  * Main function to import schedule from a file
  * Supports text files (.txt, .csv, .json), PDFs, and images (.jpg, .png, etc.)
+ *
+ * Text and PDF sources ALWAYS fall back to deterministic local parsing when the
+ * AI is unavailable (no key, network blocked, or error), so extraction is
+ * foolproof for anything that yields text. Images need AI vision (no in-browser
+ * OCR), so we surface a clear, actionable message when it can't run.
  */
 export async function importScheduleFromFile(
   file: File,
 ): Promise<ScheduleItem[]> {
-  try {
-    // Check if it's an image file - use vision API
-    if (isImageFile(file)) {
-      const scheduleItems = await extractScheduleFromImage(file);
-
-      if (scheduleItems.length === 0) {
-        throw new Error(
-          "No schedule data found in the image. Please make sure the image contains time and event information.",
-        );
-      }
-
-      return scheduleItems;
-    }
-
-    // For text and PDF files - extract text first
-    const text = await extractTextFromFile(file);
-
-    if (!text || text.trim().length === 0) {
-      throw new Error("File is empty or contains no readable text");
-    }
-
-    // Use AI to extract schedule items from text
-    const scheduleItems = await extractScheduleWithAI(text);
-
-    if (scheduleItems.length === 0) {
+  // Images: require AI vision; no local text to parse.
+  if (isImageFile(file)) {
+    if (!OPENAI_API_KEY) {
       throw new Error(
-        "No schedule data found in the file. Please make sure the file contains time and event information.",
+        "AI is unavailable, so photos can't be read automatically. Paste the schedule text instead, or attach the image as a reference and add cues manually.",
       );
     }
-
-    return scheduleItems;
-  } catch (error) {
-    console.error("Import schedule error:", error);
-    throw error;
+    try {
+      const scheduleItems = await extractScheduleFromImage(file);
+      if (scheduleItems.length === 0) {
+        throw new Error(
+          "No schedule data found in the image. Make sure it shows times and events, or paste the text instead.",
+        );
+      }
+      return scheduleItems;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `${msg} You can paste the schedule text instead, or attach the image as a reference and add cues manually.`,
+      );
+    }
   }
+
+  // Text / PDF: extract the text, try AI, then fall back to local parsing.
+  const text = await extractTextFromFile(file);
+  if (!text || text.trim().length === 0) {
+    throw new Error("File is empty or contains no readable text.");
+  }
+
+  if (OPENAI_API_KEY) {
+    try {
+      const aiItems = await extractScheduleWithAI(text);
+      if (aiItems.length > 0) return aiItems;
+    } catch (error) {
+      // AI failed (network/quota/etc.) — fall through to local parsing.
+      console.warn("AI extraction failed, falling back to local parsing:", error);
+    }
+  }
+
+  const manualItems = parseScheduleManually(text);
+  if (manualItems.length > 0) return manualItems;
+
+  throw new Error(
+    'No schedule lines found. Make sure the file has lines with times like "8:00 PM Welcome".',
+  );
 }
 
 /**
- * Parse schedule from plain text manually (fallback without AI)
- * Looks for time patterns and descriptions on the same line
+ * Parse schedule from plain text manually (deterministic fallback, no AI).
+ * Pulls a time and description from each line; handles 12h/24h formats, ranges
+ * (8:00–8:20), times anywhere in the line, and leading bullets/separators.
  */
 export function parseScheduleManually(text: string): ScheduleItem[] {
-  const lines = text.split("\n").filter((line) => line.trim());
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   const items: ScheduleItem[] = [];
 
-  // Common time patterns: "7:00 PM", "19:00", "7pm", etc.
-  const timePattern =
-    /(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?|\d{1,2}\s*(?:AM|PM|am|pm))/i;
+  // "7:00 PM", "19:00", "7pm", "7 a.m." — a colon-time, or a bare hour with am/pm.
+  const timePattern = /\b(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?|\d{1,2}\s*[ap]\.?m\.?)\b/i;
 
   for (const line of lines) {
     const match = line.match(timePattern);
-    if (match) {
-      const time = match[1].trim();
-      const description = line.replace(match[0], "").trim();
+    if (!match || match.index === undefined) continue;
 
-      if (description) {
-        items.push({
-          id: generateId(),
-          time,
-          description,
-        });
-      }
+    const time = match[1].replace(/\s+/g, " ").replace(/\.\s*/g, "").trim();
+    let description = line.slice(0, match.index) + line.slice(match.index + match[0].length);
+
+    // Drop a leftover range-end time ("8:00–8:20 PM Devon" → after removing
+    // "8:00" → "–8:20 PM Devon" → "Devon"). Requires a real range separator so
+    // a description that simply starts with a number (e.g. "5 min break") is kept.
+    description = description.replace(
+      /^[\s•·*>]*(?:[-–—]|to)\s*\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?(?=\s|$)/i,
+      "",
+    );
+    // Trim leading bullets/separators and trailing separators.
+    description = description
+      .replace(/^[\s\-–—:|•·*.>]+/, "")
+      .replace(/[\s\-–—:|]+$/, "")
+      .trim();
+
+    if (description) {
+      items.push({ id: generateId(), time, description });
     }
   }
 

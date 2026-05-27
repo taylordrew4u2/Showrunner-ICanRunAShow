@@ -37,6 +37,7 @@ export default function App() {
 
   const [shows, setShows] = useState<Show[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [loadingData, setLoadingData] = useState(false);
   const dataLoaded = useRef(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -68,6 +69,7 @@ export default function App() {
     if (!session) return;
     const currentSession = session;
 
+    if (!dataLoaded.current) setLoadingData(true);
     async function loadData() {
       try {
         const [loadedShows, loadedSettings] = await Promise.all([
@@ -102,6 +104,8 @@ export default function App() {
         console.error('Failed to load shows:', error);
         // Never overwrite in-memory shows on load failure — leave state unchanged
         // so the auto-save effect cannot wipe the database.
+      } finally {
+        setLoadingData(false);
       }
     }
 
@@ -453,6 +457,12 @@ export default function App() {
         />
       ) : (
         <div className="app">
+          {loadingData && (
+            <div className="app-loading" role="status" aria-live="polite">
+              <div className="app-loading__spinner" aria-hidden="true" />
+              <div className="app-loading__text">Loading your shows…</div>
+            </div>
+          )}
           {saveError && (
             <div className="save-error-banner" role="alert">
               <span className="save-error-banner__text">{saveError}</span>
