@@ -2,7 +2,10 @@ import type { Show, AppSettings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 import {
   encryptData,
+  encryptWithKey,
   decryptData,
+  decryptWithKey,
+  deriveKey,
   deriveUserId,
   hashPassword,
 } from "./encryption";
@@ -91,10 +94,10 @@ export async function loadEncryptedShows(
     [userId],
   );
 
-  return result.rows.map((row) => {
-    const encrypted = row[0] as string;
-    return decryptData<Show>(encrypted, password);
-  });
+  // Derive the key once and reuse it for every row — PBKDF2 is deliberately
+  // slow, so re-deriving per show was the main first-load lag.
+  const key = deriveKey(password);
+  return result.rows.map((row) => decryptWithKey<Show>(row[0] as string, key));
 }
 
 /**
@@ -151,8 +154,10 @@ export async function saveEncryptedShows(
     { sql: `DELETE FROM user_shows WHERE user_id = ?`, args: [userId] },
   ];
 
+  // Derive the key once for the whole batch (PBKDF2 is slow).
+  const key = deriveKey(password);
   for (const show of shows) {
-    const encrypted = encryptData(show, password);
+    const encrypted = encryptWithKey(show, key);
     statements.push({
       sql: `INSERT INTO user_shows (id, user_id, encrypted_data) VALUES (?, ?, ?)`,
       args: [show.id, userId, encrypted],
