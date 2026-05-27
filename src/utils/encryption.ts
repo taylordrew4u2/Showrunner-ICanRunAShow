@@ -27,20 +27,29 @@ export function deriveKey(password: string): string {
  * Encrypt data with password-derived key
  */
 export function encryptData(data: unknown, password: string): string {
-  const key = deriveKey(password);
-  const jsonString = JSON.stringify(data);
-  const encrypted = CryptoJS.AES.encrypt(jsonString, key).toString();
-  return encrypted;
+  return encryptWithKey(data, deriveKey(password));
 }
 
 /**
  * Decrypt data with password-derived key
  */
 export function decryptData<T>(encrypted: string, password: string): T {
-  const key = deriveKey(password);
-  const decrypted = CryptoJS.AES.decrypt(encrypted, key).toString(
-    CryptoJS.enc.Utf8,
-  );
+  return decryptWithKey<T>(encrypted, deriveKey(password));
+}
+
+/**
+ * Encrypt with an already-derived key. Use when processing many records with
+ * the same password so PBKDF2 only runs once (deriveKey is intentionally slow).
+ */
+export function encryptWithKey(data: unknown, key: string): string {
+  return CryptoJS.AES.encrypt(JSON.stringify(data), key).toString();
+}
+
+/**
+ * Decrypt with an already-derived key (see encryptWithKey).
+ */
+export function decryptWithKey<T>(encrypted: string, key: string): T {
+  const decrypted = CryptoJS.AES.decrypt(encrypted, key).toString(CryptoJS.enc.Utf8);
   return JSON.parse(decrypted) as T;
 }
 
