@@ -1150,6 +1150,22 @@
 .cue__edit-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .cue__edit-input--time { font-size: 0.78rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+.cue__perf {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-soft-border);
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.cue__edit-fields { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.cue__edit-fields .cue__edit-input { flex: 2 1 160px; }
+.cue__edit-input--perf { flex: 1 1 110px; }
+
 /* Per-cue comic + music panel */
 .cue-row { display: flex; flex-direction: column; gap: 6px; }
 .cue__music-tag { display: inline-flex; align-items: center; gap: 4px; color: var(--primary); font-weight: 600; }
@@ -1434,6 +1450,70 @@
 .review-row__desc { font-size: 0.85rem; line-height: 1.35; }
 .review-row__body { flex: 1; min-width: 0; }
 .review-row__meta { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+
+/* Editable review row (time · segment · on-stage) */
+.review-edit {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.review-edit--off { opacity: 0.5; }
+.review-edit__check {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin-top: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-strong);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.review-edit--off .review-edit__check { background: transparent; }
+.review-edit__fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.review-edit__time,
+.review-edit__desc,
+.review-edit__perf {
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+.review-edit__time { flex: 0 0 84px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.review-edit__desc { flex: 2 1 160px; }
+.review-edit__perf { flex: 1 1 110px; }
+.review-edit__time:focus,
+.review-edit__desc:focus,
+.review-edit__perf:focus { outline: none; border-color: var(--primary); }
+.review-edit__del {
+  flex-shrink: 0;
+  margin-top: 2px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.review-edit__del:hover { color: var(--danger); background: var(--surface-strong); }
 
 /* Sheet (bottom modal) */
 .sheet-backdrop {

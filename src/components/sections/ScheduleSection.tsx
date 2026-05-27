@@ -81,6 +81,7 @@ export function ScheduleSection({
   const [editId, setEditId] = useState<string | null>(null);
   const [editTime, setEditTime] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [editPerformer, setEditPerformer] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [mediaOpenId, setMediaOpenId] = useState<string | null>(null);
   const [musicError, setMusicError] = useState<string | null>(null);
@@ -114,13 +115,16 @@ export function ScheduleSection({
     setEditId(item.id);
     setEditTime(item.time);
     setEditDesc(item.description);
+    setEditPerformer(item.performer ?? '');
   }
 
   function saveEdit() {
     if (!editDesc.trim() || !editId) return;
     onChange(
       schedule.map((s) =>
-        s.id === editId ? { ...s, time: editTime.trim(), description: editDesc.trim() } : s,
+        s.id === editId
+          ? { ...s, time: editTime.trim(), description: editDesc.trim(), performer: editPerformer.trim() || undefined }
+          : s,
       ),
     );
     setEditId(null);
@@ -329,20 +333,37 @@ export function ScheduleSection({
                     </div>
                     <div className="cue__body">
                       {isEditing ? (
-                        <input
-                          className="cue__edit-input"
-                          value={editDesc}
-                          onChange={(e) => setEditDesc(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveEdit();
-                            if (e.key === 'Escape') setEditId(null);
-                          }}
-                          autoFocus
-                          aria-label="Edit description"
-                        />
+                        <div className="cue__edit-fields">
+                          <input
+                            className="cue__edit-input"
+                            value={editDesc}
+                            onChange={(e) => setEditDesc(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEdit();
+                              if (e.key === 'Escape') setEditId(null);
+                            }}
+                            autoFocus
+                            aria-label="Edit segment"
+                            placeholder="Segment"
+                          />
+                          <input
+                            className="cue__edit-input cue__edit-input--perf"
+                            value={editPerformer}
+                            onChange={(e) => setEditPerformer(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEdit();
+                              if (e.key === 'Escape') setEditId(null);
+                            }}
+                            aria-label="Who's on stage"
+                            placeholder="On stage"
+                          />
+                        </div>
                       ) : (
                         <>
-                          <p className="cue__title">{item.description}</p>
+                          <p className="cue__title">
+                            {item.description}
+                            {item.performer && <span className="cue__perf">{item.performer}</span>}
+                          </p>
                           <p className="cue__sub">
                             {status === 'current' && (
                               <span style={{ color: 'var(--primary)', fontWeight: 700 }}>Now</span>

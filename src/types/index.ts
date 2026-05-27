@@ -54,8 +54,9 @@ export interface ShowFile {
 export interface ScheduleItem {
   id: string;
   time: string;
-  description: string;
-  performerId?: string; // comic/performer on stage for this segment
+  description: string; // the segment / what happens
+  performer?: string; // who's on stage (free-text name, e.g. from import)
+  performerId?: string; // optional link to a performer record (for walk-on music)
   music?: string; // uploaded intro/transition music (data URL); overrides walk-on
   musicName?: string;
   musicDuration?: number; // seconds to auto-play when the segment starts; undefined = full track

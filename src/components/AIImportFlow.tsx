@@ -116,14 +116,34 @@ export function AIImportFlow({ showName, onClose, onApply }: AIImportFlowProps) 
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, selected: !i.selected } : i)));
   }
 
+  function editItem(id: string, patch: Partial<ReviewItem>) {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  }
+
+  function removeRow(id: string) {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+  }
+
+  function addRow() {
+    setItems((prev) => [
+      ...prev,
+      { id: generateId(), time: '', description: '', performer: '', selected: true },
+    ]);
+  }
+
   function selectAll() {
     setItems((prev) => prev.map((i) => ({ ...i, selected: true })));
   }
 
   function apply() {
     const picked = items
-      .filter((i) => i.selected)
-      .map((i) => ({ id: i.id || generateId(), time: i.time, description: i.description }));
+      .filter((i) => i.selected && (i.description.trim() || i.time.trim() || (i.performer ?? '').trim()))
+      .map((i) => ({
+        id: i.id || generateId(),
+        time: i.time.trim(),
+        description: i.description.trim(),
+        performer: (i.performer ?? '').trim() || undefined,
+      }));
     onApply(picked);
   }
 
@@ -278,33 +298,67 @@ export function AIImportFlow({ showName, onClose, onApply }: AIImportFlowProps) 
             </div>
             {items.length === 0 ? (
               <p className="muted" style={{ fontSize: 13, padding: '20px 4px' }}>
-                No cues were extracted. Try a different source.
+                No cues were extracted. Add rows below, or go back and try a different source.
               </p>
             ) : (
               <div className="stack">
                 {items.map((i) => (
-                  <button
+                  <div
                     key={i.id}
-                    className={`review-row ${i.selected ? 'review-row--checked' : ''}`}
-                    onClick={() => toggle(i.id)}
+                    className={`review-edit ${i.selected ? '' : 'review-edit--off'}`}
                   >
-                    <span className="review-row__check">
+                    <button
+                      className="review-edit__check"
+                      onClick={() => toggle(i.id)}
+                      aria-label={i.selected ? 'Exclude cue' : 'Include cue'}
+                      title={i.selected ? 'Excluded from add' : 'Included'}
+                    >
                       {i.selected && <Icon name="check" size={12} />}
-                    </span>
-                    <span className="review-row__time">{i.time || '—'}</span>
-                    <div className="review-row__body">
-                      <div className="review-row__desc">{i.description}</div>
+                    </button>
+                    <div className="review-edit__fields">
+                      <input
+                        className="review-edit__time"
+                        value={i.time}
+                        onChange={(e) => editItem(i.id, { time: e.target.value })}
+                        placeholder="Time"
+                        aria-label="Time"
+                      />
+                      <input
+                        className="review-edit__desc"
+                        value={i.description}
+                        onChange={(e) => editItem(i.id, { description: e.target.value })}
+                        placeholder="Segment"
+                        aria-label="Segment"
+                      />
+                      <input
+                        className="review-edit__perf"
+                        value={i.performer ?? ''}
+                        onChange={(e) => editItem(i.id, { performer: e.target.value })}
+                        placeholder="On stage"
+                        aria-label="Who's on stage"
+                      />
                     </div>
-                    <span style={{ color: 'var(--text-soft)' }}><Icon name="edit" size={14} /></span>
-                  </button>
+                    <button
+                      className="review-edit__del"
+                      onClick={() => removeRow(i.id)}
+                      aria-label="Remove cue"
+                      title="Remove"
+                    >
+                      <Icon name="x" size={14} />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
+            <button className="btn btn--ghost btn--sm" style={{ marginTop: 10 }} onClick={addRow}>
+              <Icon name="plus" size={14} />
+              <span style={{ marginLeft: 6 }}>Add a cue</span>
+            </button>
             <div
               className="import-banner"
               style={{ background: 'var(--surface-strong)', color: 'var(--text-muted)', marginTop: 14, padding: '10px 14px', fontSize: 12 }}
             >
-              <strong style={{ color: 'var(--text)' }}>Tip:</strong>&nbsp;You can edit times and descriptions inline once cues are added to your schedule.
+              <strong style={{ color: 'var(--text)' }}>Tip:</strong>&nbsp;Fix the time, segment, and who's on stage here before adding. Photo reads can be rough — pasting the text gives the cleanest result.
             </div>
           </>
         )}

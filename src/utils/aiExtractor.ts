@@ -15,6 +15,32 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
+const SCHEDULE_SYSTEM_PROMPT = `You are a run-of-show schedule extractor. Extract each line/row as a JSON array item with these fields:
+- time: string (start time, e.g. "7:00 PM", "19:00"; "" if none)
+- description: string (the segment / what happens — e.g. "Opening set", "Host intro", "Intermission")
+- performer: string (who is on stage for that segment — a person/act name; "" if it's not a performance, like doors/intermission)
+
+Separate the performer's name from the segment when both are present (e.g. "8:00 Maya — opening set" → performer "Maya", description "opening set").
+Return ONLY a valid JSON array, no markdown. Example:
+[
+  {"time": "7:30 PM", "description": "Doors open", "performer": ""},
+  {"time": "8:00 PM", "description": "Opening set", "performer": "Maya"}
+]
+If no schedule data is found, return []`;
+
+function mapAIItem(item: {
+  time?: string;
+  description?: string;
+  performer?: string;
+}): ScheduleItem {
+  return {
+    id: generateId(),
+    time: item.time || "",
+    description: item.description || "",
+    performer: item.performer || undefined,
+  };
+}
+
 interface OpenAIMessageText {
   role: "system" | "user";
   content: string;
@@ -129,18 +155,7 @@ async function extractScheduleFromImage(file: File): Promise<ScheduleItem[]> {
 
   const base64Image = await fileToBase64(file);
 
-  const systemPrompt = `You are a schedule data extractor. Extract schedule items from the provided image and return them as a JSON array.
-Each item should have:
-- time: string (e.g., "7:00 PM", "19:00", etc.)
-- description: string (what happens at that time)
-
-Return ONLY a valid JSON array with no additional text or markdown. Example format:
-[
-  {"time": "7:00 PM", "description": "Doors open"},
-  {"time": "7:30 PM", "description": "Opening act performance"}
-]
-
-If no schedule data is found, return an empty array: []`;
+  const systemPrompt = SCHEDULE_SYSTEM_PROMPT;
 
   const messages: OpenAIMessage[] = [
     { role: "system", content: systemPrompt },
@@ -192,11 +207,7 @@ If no schedule data is found, return an empty array: []`;
       throw new Error("AI returned invalid format (not an array)");
     }
 
-    return parsedData.map((item: { time?: string; description?: string }) => ({
-      id: generateId(),
-      time: item.time || "",
-      description: item.description || "",
-    }));
+    return parsedData.map(mapAIItem);
   } catch (error) {
     console.error("AI vision extraction error:", error);
     if (error instanceof Error) {
@@ -218,18 +229,7 @@ async function extractScheduleWithAI(text: string): Promise<ScheduleItem[]> {
     );
   }
 
-  const systemPrompt = `You are a schedule data extractor. Extract schedule items from the provided text and return them as a JSON array.
-Each item should have:
-- time: string (e.g., "7:00 PM", "19:00", etc.)
-- description: string (what happens at that time)
-
-Return ONLY a valid JSON array with no additional text or markdown. Example format:
-[
-  {"time": "7:00 PM", "description": "Doors open"},
-  {"time": "7:30 PM", "description": "Opening act performance"}
-]
-
-If no schedule data is found, return an empty array: []`;
+  const systemPrompt = SCHEDULE_SYSTEM_PROMPT;
 
   const messages: OpenAIMessage[] = [
     { role: "system", content: systemPrompt },
@@ -272,11 +272,7 @@ If no schedule data is found, return an empty array: []`;
     }
 
     // Convert to ScheduleItem format with generated IDs
-    return parsedData.map((item: { time?: string; description?: string }) => ({
-      id: generateId(),
-      time: item.time || "",
-      description: item.description || "",
-    }));
+    return parsedData.map(mapAIItem);
   } catch (error) {
     console.error("AI extraction error:", error);
     if (error instanceof Error) {
