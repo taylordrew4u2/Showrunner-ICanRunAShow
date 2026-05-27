@@ -418,8 +418,8 @@ export function ScheduleSection({
                           <button
                             className={`icon-btn icon-btn--ghost ${mediaOpen || musicLabel ? 'icon-btn--active' : ''}`}
                             onClick={() => { setMusicError(null); setMediaOpenId(mediaOpen ? null : item.id); }}
-                            aria-label="Comic & music"
-                            title="Comic & music"
+                            aria-label="Segment audio"
+                            title="Add segment audio (plays at the start of this cue)"
                             style={musicLabel ? { color: 'var(--primary)' } : undefined}
                           >
                             <Icon name="music" size={14} />
