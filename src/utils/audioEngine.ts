@@ -52,12 +52,38 @@ class AudioEngine {
     if (this.master) this.master.gain.value = muted ? 0 : 1;
   }
 
+  /**
+   * Pre-decode an audio source so the next play() call is instant.
+   * Safe to call any time after init() — silently no-ops if there's no ctx
+   * yet. Repeated calls for the same src hit the buffer cache.
+   */
+  async preload(src: string): Promise<void> {
+    if (!this.ctx) return;
+    await this.getBuffer(src);
+  }
+
+  /** Resume the AudioContext if it was auto-suspended (Safari/iOS especially). */
+  private async ensureRunning(): Promise<void> {
+    if (!this.ctx) return;
+    if (this.ctx.state === 'suspended') {
+      try { await this.ctx.resume(); } catch { /* ignore */ }
+    }
+  }
+
   /** Play the given audio src (data URL or http url) from the start with a fade in. */
   async play(src: string, opts: PlayOptions = {}): Promise<void> {
     if (!this.ctx || !this.master) return;
+    // Safari/iOS can auto-suspend the AudioContext after silence (e.g. the
+    // 5-second pre-roll between cues). Always resume before scheduling a
+    // source — otherwise source.start() is silent.
+    await this.ensureRunning();
     this.stopNow();
     const buffer = await this.getBuffer(src);
     if (!buffer || !this.ctx || !this.master) return;
+    // Belt-and-suspenders: the decode and resume above are async; the ctx
+    // could have been suspended again in between. Resume one more time so
+    // currentTime advances and start(now) is heard.
+    await this.ensureRunning();
     const source = this.ctx.createBufferSource();
     const gain = this.ctx.createGain();
     source.buffer = buffer;
