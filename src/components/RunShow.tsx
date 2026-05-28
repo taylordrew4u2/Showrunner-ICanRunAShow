@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../types';
+import { audioEngine } from '../utils/audioEngine';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { Icon } from './Icon';
 
@@ -99,10 +100,7 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
   const [muted, setMuted] = useState(false);
   const [showCues, setShowCues] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null); // pre-roll seconds before a segment starts
-  const [loadedSrc, setLoadedSrc] = useState<string | undefined>(undefined); // audio src — only swaps after fade-out
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const startedIdxRef = useRef<number | null>(null); // idx whose pre-roll has completed
-  const fadeRef = useRef<number | null>(null);
 
   const base = useMemo(() => baseDurations(schedule), [schedule]);
   const effDurations = useMemo(
@@ -190,62 +188,11 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
     }
   }, [running, countdown, elapsed, totalSec, isLast, schedule.length]);
 
-  // ── Audio fades ──────────────────────────────────────────────────────────
-  function clearFade() {
-    if (fadeRef.current) {
-      window.clearInterval(fadeRef.current);
-      fadeRef.current = null;
-    }
-  }
-  function fadeInAudio() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    clearFade();
-    audio.currentTime = 0;
-    audio.volume = 0;
-    audio.play().catch(() => {});
-    const start = performance.now();
-    fadeRef.current = window.setInterval(() => {
-      const t = Math.min(1, (performance.now() - start) / FADE_MS);
-      audio.volume = t;
-      if (t >= 1) clearFade();
-    }, 30);
-  }
-  function fadeOutAudio(onDone?: () => void) {
-    const audio = audioRef.current;
-    if (!audio || audio.paused) {
-      onDone?.();
-      return;
-    }
-    clearFade();
-    const startVol = audio.volume;
-    const start = performance.now();
-    fadeRef.current = window.setInterval(() => {
-      const t = Math.min(1, (performance.now() - start) / FADE_MS);
-      audio.volume = startVol * (1 - t);
-      if (t >= 1) {
-        clearFade();
-        audio.pause();
-        audio.currentTime = 0;
-        audio.volume = 1;
-        onDone?.();
-      }
-    }, 30);
-  }
-
-  // Swap the loaded audio src only after fading out the current one — so
-  // segment changes get a fade-out instead of an instant cut.
+  // ── Audio (Web Audio engine) ─────────────────────────────────────────────
+  // Stop any current playback (with fade) when leaving a segment.
   useEffect(() => {
-    const targetSrc = currentMusic?.src;
-    if (targetSrc === loadedSrc) return;
-    const audio = audioRef.current;
-    if (audio && !audio.paused) {
-      fadeOutAudio(() => setLoadedSrc(targetSrc));
-    } else {
-      setLoadedSrc(targetSrc);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentMusic]);
+    audioEngine.stop({ fadeMs: FADE_MS });
+  }, [idx]);
 
   // Start a flashing pre-roll countdown when entering a segment while running.
   useEffect(() => {
@@ -254,13 +201,18 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
     setCountdown(PREROLL_SECONDS);
   }, [running, idx, countdown]);
 
-  // Run the countdown; when it ends, the segment starts and its music fades in.
+  // Run the countdown; at zero, the segment starts and its music fades in.
   useEffect(() => {
     if (countdown === null || !running) return;
     if (countdown <= 0) {
       startedIdxRef.current = idx;
       setCountdown(null);
-      if (currentMusic) fadeInAudio();
+      if (currentMusic) {
+        audioEngine.play(currentMusic.src, {
+          fadeMs: FADE_MS,
+          durationSec: currentMusic.duration,
+        });
+      }
       return;
     }
     const t = window.setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
@@ -272,22 +224,13 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
     if (countdown !== null) setCountdown(0);
   }
 
-  // Enforce the per-cue play duration on ALL playback — fade out at the limit.
-  function handleTimeUpdate() {
-    const audio = audioRef.current;
-    const limit = currentMusic?.duration;
-    if (audio && !audio.paused && limit && limit > 0 && audio.currentTime >= limit) {
-      fadeOutAudio();
-    }
-  }
-
-  // Keep the audio element's mute state in sync (incl. newly mounted cues).
+  // Keep mute state in sync with the engine.
   useEffect(() => {
-    if (audioRef.current) audioRef.current.muted = muted;
-  }, [muted, idx, hasAudio]);
+    audioEngine.setMuted(muted);
+  }, [muted]);
 
-  // Clean up any running fade on unmount.
-  useEffect(() => () => clearFade(), []);
+  // Stop on unmount.
+  useEffect(() => () => audioEngine.stopNow(), []);
 
   // ── Live viewer publishing ───────────────────────────────────────────────
   // Publish the live state when something meaningful changes. The viewer
@@ -378,36 +321,25 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
     setShowCues(false);
     setCountdown(null);
     startedIdxRef.current = null;
-    fadeOutAudio();
+    audioEngine.stop({ fadeMs: FADE_MS });
   }
 
-  // Unlock audio within the Start gesture so the deferred (post-countdown) play
-  // isn't blocked by the browser's autoplay policy.
+  // Unlock the Web Audio AudioContext within the Start gesture so that all
+  // later (post-countdown / auto-advance) playback works without a gesture.
   function primeAudio() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const v = audio.volume;
-    audio.volume = 0;
-    audio
-      .play()
-      .then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-        audio.volume = v;
-      })
-      .catch(() => {
-        audio.volume = v;
-      });
+    audioEngine.init();
   }
 
   function playAudio() {
-    fadeInAudio();
+    if (currentMusic) {
+      audioEngine.play(currentMusic.src, { fadeMs: FADE_MS, durationSec: currentMusic.duration });
+    }
   }
   function stopAudio() {
-    fadeOutAudio();
+    audioEngine.stop({ fadeMs: FADE_MS });
   }
   function restartAudio() {
-    fadeInAudio();
+    playAudio();
   }
   function toggleMute() {
     setMuted((m) => !m);
@@ -653,14 +585,6 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
         </div>
       )}
 
-      {/* Single persistent element so it stays "unlocked" for autoplay across
-          cues. src is controlled via loadedSrc, which only swaps after a fade-out. */}
-      <audio
-        ref={audioRef}
-        src={loadedSrc}
-        preload="auto"
-        onTimeUpdate={handleTimeUpdate}
-      />
     </div>
   );
 }
