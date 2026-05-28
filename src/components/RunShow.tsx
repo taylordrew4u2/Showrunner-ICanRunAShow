@@ -96,6 +96,7 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   const [muted, setMuted] = useState(false);
   const [showCues, setShowCues] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null); // pre-roll seconds before a segment starts
+  const [loadedSrc, setLoadedSrc] = useState<string | undefined>(undefined); // audio src — only swaps after fade-out
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const startedIdxRef = useRef<number | null>(null); // idx whose pre-roll has completed
   const fadeRef = useRef<number | null>(null);
@@ -201,9 +202,12 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
       if (t >= 1) clearFade();
     }, 30);
   }
-  function fadeOutAudio() {
+  function fadeOutAudio(onDone?: () => void) {
     const audio = audioRef.current;
-    if (!audio || audio.paused) return;
+    if (!audio || audio.paused) {
+      onDone?.();
+      return;
+    }
     clearFade();
     const startVol = audio.volume;
     const start = performance.now();
@@ -215,15 +219,24 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
         audio.pause();
         audio.currentTime = 0;
         audio.volume = 1;
+        onDone?.();
       }
     }, 30);
   }
 
-  // Fade the current segment's music out whenever we leave the cue.
+  // Swap the loaded audio src only after fading out the current one — so
+  // segment changes get a fade-out instead of an instant cut.
   useEffect(() => {
-    fadeOutAudio();
+    const targetSrc = currentMusic?.src;
+    if (targetSrc === loadedSrc) return;
+    const audio = audioRef.current;
+    if (audio && !audio.paused) {
+      fadeOutAudio(() => setLoadedSrc(targetSrc));
+    } else {
+      setLoadedSrc(targetSrc);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx]);
+  }, [currentMusic]);
 
   // Start a flashing pre-roll countdown when entering a segment while running.
   useEffect(() => {
@@ -303,12 +316,7 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
     setShowCues(false);
     setCountdown(null);
     startedIdxRef.current = null;
-    clearFade();
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current.volume = 1;
-    }
+    fadeOutAudio();
   }
 
   // Unlock audio within the Start gesture so the deferred (post-countdown) play
@@ -583,10 +591,11 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
         </div>
       )}
 
-      {/* Single persistent element so it stays "unlocked" for autoplay across cues. */}
+      {/* Single persistent element so it stays "unlocked" for autoplay across
+          cues. src is controlled via loadedSrc, which only swaps after a fade-out. */}
       <audio
         ref={audioRef}
-        src={currentMusic?.src || undefined}
+        src={loadedSrc}
         preload="auto"
         onTimeUpdate={handleTimeUpdate}
       />
