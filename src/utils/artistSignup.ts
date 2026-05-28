@@ -26,6 +26,7 @@ export interface ArtistSignupEntry {
   id: string;
   name: string;
   phone?: string; // present for admin queries; the public list strips it client-side
+  email?: string; // present for admin queries; the public list strips it client-side
   imageNumber?: number;
   color?: 'black' | 'color';
   completed: boolean;
@@ -61,7 +62,7 @@ export async function listSignups(token: string): Promise<ArtistSignupEntry[]> {
   await ensureSchema();
   const db = getClient();
   const result = await db.execute({
-    sql: `SELECT id, name, phone, image_number, color, completed, created_at
+    sql: `SELECT id, name, phone, email, image_number, color, completed, created_at
             FROM artist_signup_entries
            WHERE token = ?
            ORDER BY created_at ASC`,
@@ -71,27 +72,29 @@ export async function listSignups(token: string): Promise<ArtistSignupEntry[]> {
     id: String(row[0]),
     name: String(row[1] ?? ''),
     phone: row[2] != null ? String(row[2]) : undefined,
-    imageNumber: row[3] != null ? Number(row[3]) : undefined,
-    color: (row[4] === 'black' || row[4] === 'color' ? (row[4] as 'black' | 'color') : undefined),
-    completed: Number(row[5]) === 1,
-    createdAt: String(row[6] ?? ''),
+    email: row[3] != null ? String(row[3]) : undefined,
+    imageNumber: row[4] != null ? Number(row[4]) : undefined,
+    color: (row[5] === 'black' || row[5] === 'color' ? (row[5] as 'black' | 'color') : undefined),
+    completed: Number(row[6]) === 1,
+    createdAt: String(row[7] ?? ''),
   }));
 }
 
 export async function createSignup(
   token: string,
-  entry: { id: string; name: string; phone?: string; imageNumber?: number; color?: 'black' | 'color' },
+  entry: { id: string; name: string; phone?: string; email?: string; imageNumber?: number; color?: 'black' | 'color' },
 ): Promise<void> {
   await ensureSchema();
   const db = getClient();
   await db.execute({
-    sql: `INSERT INTO artist_signup_entries (id, token, name, phone, image_number, color)
-          VALUES (?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO artist_signup_entries (id, token, name, phone, email, image_number, color)
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
     args: [
       entry.id,
       token,
       entry.name,
       entry.phone ?? null,
+      entry.email ?? null,
       entry.imageNumber ?? null,
       entry.color ?? null,
     ],

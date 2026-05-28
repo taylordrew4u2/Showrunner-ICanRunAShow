@@ -67,11 +67,16 @@ export async function ensureSchema(): Promise<void> {
        token         TEXT NOT NULL,
        name          TEXT NOT NULL,
        phone         TEXT,
+       email         TEXT,
        image_number  INTEGER,
        color         TEXT,
        completed     INTEGER DEFAULT 0,
        created_at    TEXT NOT NULL DEFAULT (datetime('now'))
      )`,
   ]);
+  // Add email column for existing installs (no-op if it already exists).
+  try {
+    await db.execute(`ALTER TABLE artist_signup_entries ADD COLUMN email TEXT`);
+  } catch { /* column already exists */ }
   _initialised = true;
 }
