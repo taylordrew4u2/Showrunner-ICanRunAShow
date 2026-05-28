@@ -6,6 +6,8 @@ export interface ArtistSignupPayload {
   scheduleVisible: boolean;
   schedule?: Array<{ time?: string; description: string; performer?: string }>;
   flashImage?: string;
+  scheduleImage?: string;
+  startsAtIso?: string; // ISO datetime for the public "starts at" countdown
   paymentLinks?: { cashApp?: string; venmo?: string; zelle?: string; other?: string };
   liveToken?: string; // so the page can also pull live on-stage/up-next from live_view
   welcomeMessage?: string;
