@@ -2976,6 +2976,219 @@
   .artist-signup__form { grid-template-columns: 1fr; }
 }
 
+/* ── "Starts at" card for pre-show state on the artist home view ─── */
+.artist-signup__starts {
+  margin: 0 16px;
+  padding: 24px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+.artist-signup__starts-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.artist-signup__starts-date {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.artist-signup__starts-time {
+  font-size: clamp(2.2rem, 7vw, 3rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-top: 4px;
+}
+
+/* ── Home-view nav buttons (sign up / schedule) ──────────────────── */
+.artist-signup__nav {
+  margin: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.artist-signup__nav-btn {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.1s, background 0.15s;
+}
+.artist-signup__nav-btn:not(:disabled):hover { background: var(--surface-strong); }
+.artist-signup__nav-btn:not(:disabled):active { transform: translateY(1px); }
+.artist-signup__nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.artist-signup__nav-btn--primary {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.artist-signup__nav-btn--primary:not(:disabled):hover { background: var(--primary); filter: brightness(1.08); }
+.artist-signup__nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+.artist-signup__nav-btn:not(.artist-signup__nav-btn--primary) .artist-signup__nav-icon {
+  background: var(--surface-strong);
+  color: var(--primary);
+}
+.artist-signup__nav-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.artist-signup__nav-title { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; }
+.artist-signup__nav-sub { font-size: 0.85rem; opacity: 0.8; }
+.artist-signup__nav-chevron { font-size: 1.6rem; font-weight: 400; opacity: 0.6; line-height: 1; }
+
+/* ── Sub-view header (back button) ───────────────────────────────── */
+.artist-signup__subhead {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.artist-signup__back {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 14px 7px 10px;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.artist-signup__back:hover { border-color: var(--border-strong); background: var(--surface-strong); }
+.artist-signup__subtitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.artist-signup__back-btn {
+  margin-top: 14px;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Punk-rock overrides for the new elements (matches existing theme block) */
+.artist-signup__starts {
+  background: var(--punk-surface) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-left: 6px solid var(--punk-red) !important;
+  border-radius: 0 !important;
+  color: var(--punk-white);
+}
+.artist-signup__starts-eyebrow {
+  color: var(--punk-red-bright) !important;
+  letter-spacing: 0.2em !important;
+}
+.artist-signup__starts-date,
+.artist-signup__starts-time {
+  color: var(--punk-white);
+  text-transform: uppercase;
+  font-weight: 900 !important;
+}
+.artist-signup__nav-btn {
+  background: var(--punk-bg) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+  color: var(--punk-white) !important;
+  box-shadow: 4px 4px 0 var(--punk-red);
+}
+.artist-signup__nav-btn:not(:disabled):hover {
+  background: var(--punk-surface) !important;
+}
+.artist-signup__nav-btn:not(:disabled):active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 2px 2px 0 var(--punk-red) !important;
+}
+.artist-signup__nav-btn--primary {
+  background: var(--punk-red) !important;
+  border-color: var(--punk-white) !important;
+  color: var(--punk-white) !important;
+  box-shadow: 4px 4px 0 var(--punk-white);
+}
+.artist-signup__nav-btn--primary:not(:disabled):hover {
+  background: var(--punk-red-bright) !important;
+  filter: none !important;
+}
+.artist-signup__nav-icon {
+  background: var(--punk-bg) !important;
+  color: var(--punk-white) !important;
+  border-radius: 0 !important;
+  border: 2px solid var(--punk-white);
+}
+.artist-signup__nav-btn--primary .artist-signup__nav-icon {
+  background: var(--punk-bg) !important;
+  color: var(--punk-red-bright) !important;
+  border-color: var(--punk-white) !important;
+}
+.artist-signup__nav-title {
+  text-transform: uppercase;
+  font-weight: 900 !important;
+  letter-spacing: 0.02em;
+}
+.artist-signup__nav-sub {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.artist-signup__subhead {
+  background: var(--punk-bg) !important;
+  border-bottom: 2px solid var(--punk-red) !important;
+  color: var(--punk-white);
+}
+.artist-signup__back {
+  background: var(--punk-bg) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+  color: var(--punk-white) !important;
+  text-transform: uppercase;
+  font-weight: 800 !important;
+}
+.artist-signup__subtitle {
+  color: var(--punk-white);
+  text-transform: uppercase;
+  font-weight: 900 !important;
+}
+.artist-signup__back-btn {
+  background: var(--punk-bg) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+  color: var(--punk-white) !important;
+  text-transform: uppercase;
+  font-weight: 900 !important;
+}
+
 /* ╔══════════════════════════════════════════════════════════════════╗
    ║  PUNK ROCK THEME — viewing pages only (LiveViewer + ArtistSignup) ║
    ║  Black. White. Red. That's the whole palette.                     ║

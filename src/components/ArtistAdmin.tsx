@@ -22,6 +22,7 @@ type Tab = 'queue' | 'signups' | 'settings';
 interface Draft {
   scheduleVisible: boolean;
   flashImage: string;
+  scheduleImage: string;
   welcomeMessage: string;
   cashApp: string;
   venmo: string;
@@ -43,6 +44,7 @@ const DEFAULT_NOTIFY = "Hi {name}! You're up next — head over for your tattoo.
 
 function buildPayload(show: Show): ArtistSignupPayload {
   const hidden = new Set(show.artistHiddenCues ?? []);
+  const startsAtIso = show.date && show.time ? `${show.date}T${show.time}` : show.date || undefined;
   return {
     showName: show.name,
     venueName: show.venueName,
@@ -55,6 +57,8 @@ function buildPayload(show: Show): ArtistSignupPayload {
         performer: s.performer || undefined,
       })),
     flashImage: show.artistFlashImage,
+    scheduleImage: show.artistScheduleImage,
+    startsAtIso,
     paymentLinks: show.artistPaymentLinks,
     liveToken: show.viewToken,
     welcomeMessage: show.artistWelcomeMessage,
@@ -86,6 +90,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
   const [draft, setDraft] = useState<Draft>({
     scheduleVisible: show.artistScheduleVisible ?? true,
     flashImage: show.artistFlashImage ?? '',
+    scheduleImage: show.artistScheduleImage ?? '',
     welcomeMessage: show.artistWelcomeMessage ?? '',
     cashApp: show.artistPaymentLinks?.cashApp ?? '',
     venmo: show.artistPaymentLinks?.venmo ?? '',
@@ -136,6 +141,17 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     }
   }
 
+  async function handleUploadScheduleImage() {
+    const file = await pickFile('image/*');
+    if (!file) return;
+    try {
+      const data = await compressImage(file, { maxDim: 1800, quality: 0.85 });
+      setDraft((d) => ({ ...d, scheduleImage: data }));
+    } catch {
+      alert("Couldn't read that image.");
+    }
+  }
+
   function toggleCue(id: string) {
     setDraft((d) => {
       const next = new Set(d.hiddenCues);
@@ -160,6 +176,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     const updates: Partial<Show> = {
       artistScheduleVisible: draft.scheduleVisible,
       artistFlashImage: draft.flashImage || undefined,
+      artistScheduleImage: draft.scheduleImage || undefined,
       artistPaymentLinks: paymentLinks,
       artistWelcomeMessage: draft.welcomeMessage.trim() || undefined,
       artistPricingLabels: pricingLabels,
@@ -461,6 +478,22 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
             </div>
           ) : (
             <button className="btn btn--secondary btn--sm" onClick={handleUploadFlash}>Upload flash sheet</button>
+          )}
+        </section>
+
+        <section className="artist-card artist-page__col-full">
+          <h3 className="artist-card__title">Tonight's schedule image</h3>
+          <p className="artist-card__hint">Shown when artists tap "Tonight's schedule" on the public page. Upload your show run as an image.</p>
+          {draft.scheduleImage ? (
+            <div className="artist-admin__flash">
+              <img src={draft.scheduleImage} alt="Tonight's schedule" />
+              <div className="artist-admin__flash-actions">
+                <button className="btn btn--secondary btn--sm" onClick={handleUploadScheduleImage}>Replace</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => setDraft((d) => ({ ...d, scheduleImage: '' }))}>Remove</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn--secondary btn--sm" onClick={handleUploadScheduleImage}>Upload schedule image</button>
           )}
         </section>
 
