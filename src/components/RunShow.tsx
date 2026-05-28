@@ -171,6 +171,15 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
     return () => window.clearInterval(t);
   }, [running, countdown]);
 
+  // Auto-advance to the next cue when this segment's timer reaches zero.
+  useEffect(() => {
+    if (!running || countdown !== null || isLast) return;
+    if (elapsed >= totalSec) {
+      setIdx((i) => Math.min(schedule.length - 1, i + 1));
+      setElapsed(0);
+    }
+  }, [running, countdown, elapsed, totalSec, isLast, schedule.length]);
+
   // ── Audio fades ──────────────────────────────────────────────────────────
   function clearFade() {
     if (fadeRef.current) {
