@@ -349,7 +349,8 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
   }
 
   function restartShow() {
-    setRunning(false);
+    if (!window.confirm('Restart the show from the beginning?')) return;
+    // Reset all timer + audio state synchronously.
     setIdx(0);
     setElapsed(0);
     setShowElapsed(0);
@@ -358,6 +359,11 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
     setCountdown(null);
     startedIdxRef.current = null;
     audioEngine.stop({ fadeMs: FADE_MS });
+    // Re-unlock the AudioContext within this gesture (idempotent), then
+    // kick the show off again so the user doesn't have to press Start a
+    // second time. The countdown-start effect picks this up.
+    audioEngine.init();
+    setRunning(true);
   }
 
   // Unlock the Web Audio AudioContext within the Start gesture so that all
