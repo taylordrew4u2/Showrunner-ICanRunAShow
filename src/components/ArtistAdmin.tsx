@@ -354,6 +354,15 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
                 ✓ Mark paid
               </button>
             </div>
+            <div className="artist-queue__next-secondary">
+              <button
+                className="btn btn--ghost btn--sm artist-queue__remove"
+                onClick={() => handleDelete(nextUp.id)}
+                title="Remove this sign-up"
+              >
+                Remove from queue
+              </button>
+            </div>
             {notifyError && <p className="artist-queue__notify-error">{notifyError}</p>}
           </section>
         ) : (
@@ -380,12 +389,22 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
                       </span>}
                     </div>
                   </div>
-                  <button
-                    className="btn btn--success btn--sm"
-                    onClick={() => handleMarkPaid(s)}
-                  >
-                    Paid
-                  </button>
+                  <div className="artist-queue__deck-actions">
+                    <button
+                      className="btn btn--success btn--sm"
+                      onClick={() => handleMarkPaid(s)}
+                    >
+                      Paid
+                    </button>
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => handleDelete(s.id)}
+                      title="Remove this sign-up"
+                      aria-label="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </li>
               ))}
             </ol>

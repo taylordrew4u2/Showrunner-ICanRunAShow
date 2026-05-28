@@ -153,6 +153,21 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
   }, [current, performers]);
   const hasAudio = !!currentMusic;
 
+  // Compute the *next* cue's music too so we can pre-decode it ahead of time.
+  // The end-to-end "music must start exactly when the cue starts" guarantee
+  // hinges on the buffer being ready by then — fetch + decodeAudioData can
+  // otherwise take 100-500ms on first play and cause the audio to come in late.
+  const nextCue = !isLast ? schedule[idx + 1] : null;
+  const nextMusicSrc = useMemo<string | null>(() => {
+    if (!nextCue) return null;
+    if (nextCue.music) return nextCue.music;
+    const assigned = nextCue.performerId ? performers.find((p) => p.id === nextCue.performerId) : null;
+    if (assigned?.walkOnMusic) return assigned.walkOnMusic;
+    const hay = `${nextCue.description} ${nextCue.performer ?? ''}`.toLowerCase();
+    const match = performers.find((p) => p.walkOnMusic && hay.includes(p.name.toLowerCase()));
+    return match?.walkOnMusic ?? null;
+  }, [nextCue, performers]);
+
   // Who's on stage for this cue: the linked performer record, else a name match.
   const resolveCuePerformer = useCallback(
     (cue: ScheduleItem | undefined): Performer | null => {
@@ -194,6 +209,33 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
     audioEngine.stop({ fadeMs: FADE_MS });
   }, [idx]);
 
+  // Pre-decode the current and next cue's music so play() at countdown=0 is
+  // instant. fetch + decodeAudioData would otherwise take 100-500ms on first
+  // play and the music would lag the cue start.
+  useEffect(() => {
+    if (currentMusic?.src) audioEngine.preload(currentMusic.src).catch(() => {});
+    if (nextMusicSrc) audioEngine.preload(nextMusicSrc).catch(() => {});
+  }, [currentMusic?.src, nextMusicSrc]);
+
+  // Read the *latest* currentMusic when the trigger fires (avoid stale closure).
+  const currentMusicRef = useRef(currentMusic);
+  useEffect(() => { currentMusicRef.current = currentMusic; }, [currentMusic]);
+
+  // Single source of truth for "start this cue's music now". Always tries to
+  // resume the AudioContext first (Safari can suspend it during the silent
+  // pre-roll). Retries once after a short tick if the first play call fails.
+  const playCurrentMusicRef = useRef(() => {});
+  playCurrentMusicRef.current = () => {
+    const m = currentMusicRef.current;
+    if (!m) return;
+    audioEngine.play(m.src, { fadeMs: FADE_MS, durationSec: m.duration }).catch((err) => {
+      console.warn('cue music: play failed, retrying', err);
+      window.setTimeout(() => {
+        audioEngine.play(m.src, { fadeMs: FADE_MS, durationSec: m.duration }).catch(() => {});
+      }, 120);
+    });
+  };
+
   // Start a flashing pre-roll countdown when entering a segment while running.
   useEffect(() => {
     if (!running || countdown !== null) return;
@@ -207,17 +249,11 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
     if (countdown <= 0) {
       startedIdxRef.current = idx;
       setCountdown(null);
-      if (currentMusic) {
-        audioEngine.play(currentMusic.src, {
-          fadeMs: FADE_MS,
-          durationSec: currentMusic.duration,
-        });
-      }
+      playCurrentMusicRef.current();
       return;
     }
     const t = window.setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
     return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown, running, idx]);
 
   function skipCountdown() {

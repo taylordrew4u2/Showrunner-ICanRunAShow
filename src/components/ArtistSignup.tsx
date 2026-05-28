@@ -170,7 +170,6 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
                     )}
                     <div>
                       <div className="artist-signup__live-name">{live.segment?.name || live.segment?.description || '—'}</div>
-                      {live.segment?.credits && <div className="artist-signup__live-credits">{live.segment.credits}</div>}
                     </div>
                   </div>
                 </div>
