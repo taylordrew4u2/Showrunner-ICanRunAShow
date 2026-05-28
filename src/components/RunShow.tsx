@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../types';
+import { generateId } from '../utils/id';
+import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { Icon } from './Icon';
 
 interface RunShowProps {
   showName: string;
+  showId?: string;
   schedule: ScheduleItem[];
   performers?: Performer[];
   onClose: () => void;
@@ -87,7 +90,7 @@ function nextUpLabel(desc: string, durationSec: number): string {
   return `${desc} (${mins} min)`;
 }
 
-export function RunShow({ showName, schedule, performers = [], onClose }: RunShowProps) {
+export function RunShow({ showName, showId, schedule, performers = [], onClose }: RunShowProps) {
   const [idx, setIdx] = useState(0);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0); // within current cue
@@ -97,6 +100,11 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   const [showCues, setShowCues] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null); // pre-roll seconds before a segment starts
   const [loadedSrc, setLoadedSrc] = useState<string | undefined>(undefined); // audio src — only swaps after fade-out
+  const [shareToken, setShareToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined' || !showId) return null;
+    try { return window.localStorage.getItem(`showrunner:viewToken:${showId}`); } catch { return null; }
+  });
+  const [shareCopied, setShareCopied] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const startedIdxRef = useRef<number | null>(null); // idx whose pre-roll has completed
   const fadeRef = useRef<number | null>(null);
@@ -153,14 +161,20 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   const hasAudio = !!currentMusic;
 
   // Who's on stage for this cue: the linked performer record, else a name match.
-  const onStagePerformer = useMemo<Performer | null>(() => {
-    if (!current) return null;
-    if (current.performerId) return performers.find((p) => p.id === current.performerId) ?? null;
-    const name = (current.performer ?? '').trim().toLowerCase();
-    if (name) return performers.find((p) => p.name.toLowerCase() === name) ?? null;
-    return null;
-  }, [current, performers]);
+  const resolveCuePerformer = useCallback(
+    (cue: ScheduleItem | undefined): Performer | null => {
+      if (!cue) return null;
+      if (cue.performerId) return performers.find((p) => p.id === cue.performerId) ?? null;
+      const n = (cue.performer ?? '').trim().toLowerCase();
+      if (n) return performers.find((p) => p.name.toLowerCase() === n) ?? null;
+      return null;
+    },
+    [performers],
+  );
+  const onStagePerformer = useMemo<Performer | null>(() => resolveCuePerformer(current), [current, resolveCuePerformer]);
   const onStageName = onStagePerformer?.name || current?.performer || '';
+  const nextPerformer = useMemo<Performer | null>(() => resolveCuePerformer(next), [next, resolveCuePerformer]);
+  const nextName = nextPerformer?.name || next?.performer || '';
 
   // Tick the clocks while running — but not during a pre-roll countdown.
   useEffect(() => {
@@ -280,6 +294,76 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
   // Clean up any running fade on unmount.
   useEffect(() => () => clearFade(), []);
 
+  // ── Live viewer publishing ───────────────────────────────────────────────
+  function handleShare() {
+    let token = shareToken;
+    if (!token) {
+      token = generateId();
+      setShareToken(token);
+      if (showId) {
+        try { window.localStorage.setItem(`showrunner:viewToken:${showId}`, token); } catch { /* ignore */ }
+      }
+    }
+    const url = `${window.location.origin}/?view=${token}`;
+    navigator.clipboard?.writeText(url).then(() => {
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 1800);
+    }).catch(() => {
+      window.prompt('Copy this viewer link:', url);
+    });
+  }
+
+  // Publish the live state when something meaningful changes. The viewer
+  // interpolates the remaining seconds between updates from lastUpdateMs, so we
+  // don't need to write on every tick.
+  useEffect(() => {
+    if (!shareToken) return;
+    const status: LiveViewPayload['status'] =
+      countdown !== null ? 'countdown' : running ? 'running' : (showElapsed > 0 || idx > 0 ? 'paused' : 'idle');
+    const payload: LiveViewPayload = {
+      showName,
+      status,
+      countdown: countdown ?? undefined,
+      segment: {
+        name: onStageName,
+        description: current?.description,
+        photo: onStagePerformer?.photo,
+        credits: onStagePerformer?.credits,
+      },
+      next: {
+        name: nextName || undefined,
+        description: next?.description,
+        photo: nextPerformer?.photo,
+      },
+      totalSec,
+      remainingAtLastUpdate: totalSec - elapsed,
+      lastUpdateMs: Date.now(),
+    };
+    publishLiveView(shareToken, payload).catch(() => { /* swallow */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareToken, idx, running, countdown, totalSec, showName]);
+
+  // On Run Show close, mark the live view ended so viewers see the final state.
+  useEffect(() => () => {
+    if (!shareToken) return;
+    const payload: LiveViewPayload = {
+      showName,
+      status: 'ended',
+      segment: {
+        name: onStageName,
+        description: current?.description,
+        photo: onStagePerformer?.photo,
+        credits: onStagePerformer?.credits,
+      },
+      next: {},
+      totalSec,
+      remainingAtLastUpdate: 0,
+      lastUpdateMs: Date.now(),
+    };
+    publishLiveView(shareToken, payload).catch(() => { /* ignore */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function goTo(target: number) {
     const t = Math.max(0, Math.min(schedule.length - 1, target));
     setIdx(t);
@@ -391,6 +475,13 @@ export function RunShow({ showName, schedule, performers = [], onClose }: RunSho
       <div className="run-show__bar">
         <span className="run-show__name">{showName}</span>
         <div className="run-show__bar-actions">
+          <button
+            className="run-show__restart"
+            onClick={handleShare}
+            title="Copy a read-only viewer link to share"
+          >
+            {shareCopied ? 'Link copied!' : shareToken ? 'Copy viewer link' : 'Share viewer link'}
+          </button>
           <button className="run-show__restart" onClick={restartShow} title="Restart show from the top">
             Restart show
           </button>

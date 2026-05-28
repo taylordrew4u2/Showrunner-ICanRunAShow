@@ -52,6 +52,11 @@ export async function ensureSchema(): Promise<void> {
        backed_up_at   TEXT NOT NULL DEFAULT (datetime('now')),
        PRIMARY KEY (id, backed_up_at)
      )`,
+    `CREATE TABLE IF NOT EXISTS live_view (
+       token      TEXT PRIMARY KEY,
+       payload    TEXT NOT NULL,
+       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+     )`,
   ]);
   _initialised = true;
 }

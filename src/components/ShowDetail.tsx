@@ -695,6 +695,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       {runShowOpen && (
         <RunShow
           showName={show.name}
+          showId={show.id}
           schedule={show.schedule}
           performers={show.performers}
           onClose={() => setRunShowOpen(false)}
