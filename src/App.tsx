@@ -19,6 +19,7 @@ import { ShowDetail } from './components/ShowDetail';
 import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
 import { RolodexProfile } from './components/sections/RolodexProfile';
+import { LiveViewer } from './components/LiveViewer';
 import './App.css';
 
 type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex';
@@ -445,6 +446,12 @@ export default function App() {
   const inProgressCount = shows.filter((show) => show.status === 'in-progress').length;
   const completedCount = shows.filter((show) => show.status === 'completed').length;
   const totalSceneCount = shows.reduce((sum, show) => sum + (show.scenes?.length ?? 0), 0);
+
+  // Public read-only live viewer route — no auth required.
+  const viewToken = new URLSearchParams(window.location.search).get('view');
+  if (viewToken) {
+    return <LiveViewer token={viewToken} />;
+  }
 
   return (
     <>
