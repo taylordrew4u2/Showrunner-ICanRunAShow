@@ -2314,6 +2314,179 @@
 }
 .artist-page__bar-right { display: flex; align-items: center; gap: 10px; }
 .artist-page__saved { font-size: 0.82rem; color: #34d27b; font-weight: 600; }
+
+.artist-page__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.artist-page__tab {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 12px 16px;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+.artist-page__tab:hover { color: var(--text); }
+.artist-page__tab--active {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+.artist-page__tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.artist-page__tab--active .artist-page__tab-badge { background: var(--primary); color: #fff; }
+
+/* Queue tab */
+.artist-queue__counts {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.artist-queue__count {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 12px;
+  text-align: center;
+}
+.artist-queue__count-num {
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.artist-queue__count-label {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.artist-queue__next {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(52, 210, 123, 0.16), rgba(52, 210, 123, 0.04));
+  border: 2px solid rgba(52, 210, 123, 0.5);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.artist-queue__next-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.artist-queue__next-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #34d27b;
+}
+.artist-queue__next-pos {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #34d27b;
+  background: rgba(52, 210, 123, 0.16);
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+.artist-queue__next-name {
+  font-size: clamp(1.6rem, 5vw, 2.2rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.artist-queue__next-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.artist-queue__next-phone { font-size: 1rem; margin-top: 2px; }
+.artist-queue__next-phone a { color: var(--primary); text-decoration: none; font-weight: 600; }
+.artist-queue__next-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+.artist-queue__next-btn {
+  text-align: center;
+  justify-content: center;
+  padding: 14px 12px !important;
+  font-size: 0.95rem !important;
+}
+.artist-queue__paid-btn {
+  font-weight: 800 !important;
+}
+.btn--success {
+  background: #34d27b;
+  color: #02240e;
+  border: 1px solid #34d27b;
+}
+.btn--success:hover {
+  background: #2ab86a;
+  border-color: #2ab86a;
+}
+
+.artist-queue__empty {
+  text-align: center;
+  padding: 36px 16px !important;
+}
+.artist-queue__empty-icon { font-size: 2.4rem; }
+.artist-queue__empty-title { font-size: 1.2rem; font-weight: 800; margin-top: 8px; }
+.artist-queue__empty-sub { font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; }
+
+.artist-queue__deck { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.artist-queue__deck-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.artist-queue__deck-pos {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--border);
+  font-weight: 800;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+.artist-queue__deck-body { flex: 1; min-width: 0; }
+.artist-queue__deck-name { font-weight: 700; font-size: 0.98rem; }
+.artist-queue__deck-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+
+@media (max-width: 560px) {
+  .artist-queue__next-actions { grid-template-columns: 1fr; }
+}
+
 .artist-page__scroll {
   flex: 1;
   overflow-y: auto;
