@@ -40,7 +40,7 @@ interface Draft {
 
 const DEFAULT_BLACK_LABEL = 'Black — $60';
 const DEFAULT_COLOR_LABEL = 'Full color — $80';
-const DEFAULT_NOTIFY = "Hi {name}! You're up next — head over for your tattoo.";
+const DEFAULT_NOTIFY = "Hi {name}! You're up — head over for your tattoo.";
 
 function buildPayload(show: Show): ArtistSignupPayload {
   const hidden = new Set(show.artistHiddenCues ?? []);
@@ -68,11 +68,29 @@ function buildPayload(show: Show): ArtistSignupPayload {
   };
 }
 
-function buildNotifyHref(phone: string | undefined, name: string, template: string): string | undefined {
-  if (!phone) return undefined;
-  const message = template.replace(/\{name\}/g, name).trim() || DEFAULT_NOTIFY.replace('{name}', name);
-  const cleanPhone = phone.replace(/[^\d+]/g, '');
-  return `sms:${cleanPhone}?body=${encodeURIComponent(message)}`;
+function renderTemplate(template: string, name: string): string {
+  return template.replace(/\{name\}/g, name).trim() || DEFAULT_NOTIFY.replace('{name}', name);
+}
+
+async function sendNotifyEmail(
+  email: string,
+  name: string,
+  message: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/notify-artist', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, name, message, subject: "You're up!" }),
+    });
+    const data: { ok?: boolean; error?: string } = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      return { ok: false, error: data.error || `Server returned ${res.status}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Network error' };
+  }
 }
 
 function telHref(phone: string | undefined): string | undefined {
@@ -80,12 +98,48 @@ function telHref(phone: string | undefined): string | undefined {
   return `tel:${phone.replace(/[^\d+]/g, '')}`;
 }
 
+type NotifyState = 'idle' | 'sending' | 'sent' | 'error';
+
 export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
   const [tab, setTab] = useState<Tab>('queue');
   const [signups, setSignups] = useState<ArtistSignupEntry[]>([]);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [notifyById, setNotifyById] = useState<Record<string, NotifyState>>({});
+  const [notifyError, setNotifyError] = useState<string | null>(null);
+
+  async function notifyEntry(entry: ArtistSignupEntry) {
+    if (!entry.email) {
+      setNotifyError(`${entry.name} didn't leave an email on sign-up — can't notify.`);
+      return;
+    }
+    setNotifyError(null);
+    setNotifyById((m) => ({ ...m, [entry.id]: 'sending' }));
+    const message = renderTemplate(draft.notifyTemplate, entry.name);
+    const result = await sendNotifyEmail(entry.email, entry.name, message);
+    if (result.ok) {
+      setNotifyById((m) => ({ ...m, [entry.id]: 'sent' }));
+      setTimeout(() => {
+        setNotifyById((m) => {
+          const { [entry.id]: _drop, ...rest } = m;
+          void _drop;
+          return rest;
+        });
+      }, 2500);
+    } else {
+      setNotifyById((m) => ({ ...m, [entry.id]: 'error' }));
+      setNotifyError(result.error || "Couldn't send the email. Check Brevo setup.");
+    }
+  }
+
+  function notifyButtonLabel(id: string, fallback: string): string {
+    const s = notifyById[id];
+    if (s === 'sending') return 'Sending…';
+    if (s === 'sent') return 'Sent ✓';
+    if (s === 'error') return 'Try again';
+    return fallback;
+  }
 
   const [draft, setDraft] = useState<Draft>({
     scheduleVisible: show.artistScheduleVisible ?? true,
@@ -269,16 +323,27 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
                 <a href={telHref(nextUp.phone)}>{nextUp.phone}</a>
               </div>
             )}
+            {nextUp.email && (
+              <div className="artist-queue__next-phone">
+                <a href={`mailto:${nextUp.email}`}>{nextUp.email}</a>
+              </div>
+            )}
             <div className="artist-queue__next-actions">
-              <a
+              <button
                 className="btn btn--primary artist-queue__next-btn"
-                href={buildNotifyHref(nextUp.phone, nextUp.name, draft.notifyTemplate)}
+                onClick={() => notifyEntry(nextUp)}
+                disabled={!nextUp.email || notifyById[nextUp.id] === 'sending'}
+                title={nextUp.email ? 'Send "you\'re up" email' : 'No email on file'}
               >
-                Text "you're up"
-              </a>
+                {nextUp.email
+                  ? notifyButtonLabel(nextUp.id, 'Email "you\'re up"')
+                  : 'No email'}
+              </button>
               <a
                 className="btn btn--secondary artist-queue__next-btn"
                 href={telHref(nextUp.phone)}
+                aria-disabled={!nextUp.phone}
+                style={!nextUp.phone ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
               >
                 Call
               </a>
@@ -289,6 +354,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
                 ✓ Mark paid
               </button>
             </div>
+            {notifyError && <p className="artist-queue__notify-error">{notifyError}</p>}
           </section>
         ) : (
           <div className="artist-card artist-page__col-full artist-queue__empty">
@@ -363,14 +429,22 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
                   {s.color && <span className={`artist-admin__entry-tag artist-admin__entry-tag--${s.color}`}>
                     {s.color === 'black' ? 'Black' : 'Color'}
                   </span>}
+                  {s.email && (
+                    <a className="artist-admin__entry-phone" href={`mailto:${s.email}`} title={s.email}>{s.email}</a>
+                  )}
                   {s.phone && (
                     <a className="artist-admin__entry-phone" href={telHref(s.phone)}>{s.phone}</a>
                   )}
                 </div>
                 <div className="artist-admin__entry-actions">
-                  {s.phone && (
-                    <a className="btn btn--secondary btn--sm" href={buildNotifyHref(s.phone, s.name, draft.notifyTemplate)}>Text ▸</a>
-                  )}
+                  <button
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => notifyEntry(s)}
+                    disabled={!s.email || notifyById[s.id] === 'sending'}
+                    title={s.email ? 'Send "you\'re up" email' : 'No email on file'}
+                  >
+                    {s.email ? notifyButtonLabel(s.id, 'Email ▸') : 'No email'}
+                  </button>
                   <button
                     className={s.completed ? 'btn btn--ghost btn--sm' : 'btn btn--success btn--sm'}
                     onClick={() => handleMarkPaid(s)}
@@ -516,7 +590,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
         </section>
 
         <section className="artist-card artist-page__col-full">
-          <h3 className="artist-card__title">Notify text template</h3>
+          <h3 className="artist-card__title">Notification email template</h3>
           <p className="artist-card__hint">Use <code>{'{name}'}</code> for the artist's name.</p>
           <textarea
             className="section-field__input artist-admin__textarea"

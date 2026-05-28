@@ -46,6 +46,7 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [imageNum, setImageNum] = useState('');
   const [color, setColor] = useState<'black' | 'color'>('black');
   const [submitting, setSubmitting] = useState(false);
@@ -90,8 +91,8 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) { setFormError('Add your name.'); return; }
-    if (!phone.trim()) {
-      setFormError("Phone is required so we can text you when you're up.");
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setFormError("A valid email is required so we can notify you when you're up.");
       return;
     }
     setSubmitting(true);
@@ -101,7 +102,8 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
       await createSignup(token, {
         id: entryId,
         name: name.trim(),
-        phone: phone.trim(),
+        phone: phone.trim() || undefined,
+        email: email.trim(),
         imageNumber: imageNum.trim() ? parseInt(imageNum, 10) : undefined,
         color,
       });
@@ -109,7 +111,7 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
       setSignups(updated);
       const mine = updated.find((s) => s.id === entryId);
       setSubmittedEntry(mine ?? null);
-      setName(''); setPhone(''); setImageNum(''); setColor('black');
+      setName(''); setPhone(''); setEmail(''); setImageNum(''); setColor('black');
       setTimeout(() => setSubmittedEntry(null), 8000);
     } catch {
       setFormError("Couldn't submit. Please try again.");
@@ -271,7 +273,7 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
                   </div>
                 )}
                 <div className="artist-signup__success-sub">
-                  We'll text you when it's your turn.
+                  We'll email you when it's your turn. <strong>Check your spam folder</strong> so you don't miss it.
                 </div>
                 <button type="button" className="artist-signup__back-btn" onClick={() => setView('home')}>
                   Back to home
@@ -286,8 +288,13 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
                     <input className="artist-signup__input" value={name} onChange={(e) => setName(e.target.value)} placeholder="First and last" autoComplete="name" />
                   </label>
                   <label className="artist-signup__field artist-signup__field--full">
-                    <span>Phone *</span>
-                    <input className="artist-signup__input" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="So we can text you when you're up" autoComplete="tel" inputMode="tel" />
+                    <span>Email *</span>
+                    <input className="artist-signup__input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" inputMode="email" />
+                    <span className="artist-signup__field-hint">We'll email you when you're up — please check your spam folder.</span>
+                  </label>
+                  <label className="artist-signup__field artist-signup__field--full">
+                    <span>Phone (optional)</span>
+                    <input className="artist-signup__input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="For backup contact" autoComplete="tel" inputMode="tel" />
                   </label>
                   <label className="artist-signup__field">
                     <span>Image #</span>

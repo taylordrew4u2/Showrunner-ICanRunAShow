@@ -133,9 +133,31 @@ npm run build
 VITE_TURSO_DATABASE_URL=
 VITE_TURSO_AUTH_TOKEN=
 VITE_OPENAI_API_KEY=
+
+# Artist sign-up email notifications (Brevo — free 300/day)
+BREVO_API_KEY=
+BREVO_SENDER_EMAIL=
+BREVO_SENDER_NAME=Showrunner
 ```
 
 `VITE_OPENAI_API_KEY` is optional. Without it, the AI schedule import falls back to regex parsing. The Turso variables are required for data persistence; the app will not load stored shows without them.
+
+#### Artist notification emails (free)
+
+The "You're up" button in Artist admin sends a real email via [Brevo](https://www.brevo.com) (formerly Sendinblue) — free tier allows 300 emails/day with no domain verification required.
+
+One-time setup:
+
+1. Sign up at brevo.com → verify your email
+2. Settings → Senders & IP → add a sender email and click the verification link in your inbox (any email you own; Gmail works)
+3. Settings → SMTP & API → API Keys → Generate a new v3 API key
+4. In Vercel project settings → Environment Variables add:
+   - `BREVO_API_KEY` — the key from step 3
+   - `BREVO_SENDER_EMAIL` — the verified sender from step 2
+   - `BREVO_SENDER_NAME` — display name (e.g. your show name)
+5. Redeploy
+
+Without these, the Email button shows a clear error explaining what's missing.
 
 ---
 
