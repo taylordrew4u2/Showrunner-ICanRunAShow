@@ -2494,6 +2494,21 @@
   font-weight: 600;
 }
 
+.artist-queue__next-secondary {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.artist-queue__remove {
+  color: #ff6b6b !important;
+}
+.artist-queue__deck-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .artist-signup__field-hint {
   text-transform: none;
   letter-spacing: normal;
