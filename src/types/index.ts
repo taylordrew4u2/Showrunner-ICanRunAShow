@@ -218,6 +218,7 @@ export interface Show {
   viewNote?: string; // optional note shown on the viewer page before the show starts
   artistSignupToken?: string; // public sign-up sheet link token
   artistFlashImage?: string; // flash sheet image (data URL)
+  artistScheduleImage?: string; // tonight's schedule image shown on the public artist page (data URL)
   artistPaymentLinks?: { cashApp?: string; venmo?: string; zelle?: string; other?: string };
   artistScheduleVisible?: boolean; // show the schedule on the public sign-up page
   artistWelcomeMessage?: string; // intro shown at the top of the public page
