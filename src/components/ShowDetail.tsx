@@ -14,7 +14,9 @@ import { VendorsSection } from './sections/VendorsSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
 import { FilesSection } from './sections/FilesSection';
 import { RunShow } from './RunShow';
+import { Modal } from './Modal';
 import { exportShowToPDF } from '../utils/pdfExport';
+import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import './ShowDetail.css';
 
 interface ShowDetailProps {
@@ -31,6 +33,9 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const [editingVideoHost, setEditingVideoHost] = useState(false);
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerNoteDraft, setViewerNoteDraft] = useState('');
+  const [viewerCopied, setViewerCopied] = useState(false);
   const [tempShowName, setTempShowName] = useState(show.name);
   const [tempVideoPerson, setTempVideoPerson] = useState(show.videoPerson || '');
   const [tempVideoPayment, setTempVideoPayment] = useState(show.videoPayment?.toString() || '');
@@ -199,6 +204,49 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   function handleEditShowName() {
     setTempShowName(show.name);
     setEditingShowName(true);
+  }
+
+  function buildStartsAtISO(): string | undefined {
+    if (!show.date) return undefined;
+    if (show.time) return `${show.date}T${show.time}`;
+    return show.date;
+  }
+
+  function viewerUrl(token: string): string {
+    return `${window.location.origin}/?view=${token}`;
+  }
+
+  async function handleSaveViewer() {
+    let token = show.viewToken;
+    let updates: Partial<Show> = { viewNote: viewerNoteDraft.trim() || undefined };
+    if (!token) {
+      token = generateId();
+      updates = { ...updates, viewToken: token };
+    }
+    onUpdate({ ...show, ...updates });
+    triggerSaveIndicator();
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now();
+    const payload: LiveViewPayload = {
+      showName: show.name,
+      status: 'scheduled',
+      startsAt: buildStartsAtISO(),
+      note: viewerNoteDraft.trim() || undefined,
+      lastUpdateMs: now,
+    };
+    try { await publishLiveView(token, payload); } catch { /* ignore */ }
+  }
+
+  function handleCopyViewer() {
+    const token = show.viewToken;
+    if (!token) return;
+    const url = viewerUrl(token);
+    navigator.clipboard?.writeText(url).then(() => {
+      setViewerCopied(true);
+      setTimeout(() => setViewerCopied(false), 1800);
+    }).catch(() => {
+      window.prompt('Copy this viewer link:', url);
+    });
   }
 
   function handleAddTodoText(text: string) {
@@ -372,6 +420,17 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           </button>
           <button className="btn btn--secondary btn--sm" onClick={() => exportShowToPDF(show, settings)}>
             Export PDF
+          </button>
+          <button
+            className="btn btn--secondary btn--sm"
+            onClick={() => {
+              setViewerNoteDraft(show.viewNote ?? '');
+              setViewerCopied(false);
+              setViewerOpen(true);
+            }}
+            title="Public read-only viewer link"
+          >
+            Viewer link
           </button>
           <button
             className="show-detail__run-show"
@@ -696,10 +755,59 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         <RunShow
           showName={show.name}
           showId={show.id}
+          viewToken={show.viewToken}
           schedule={show.schedule}
           performers={show.performers}
           onClose={() => setRunShowOpen(false)}
         />
+      )}
+
+      {viewerOpen && (
+        <Modal onClose={() => setViewerOpen(false)}>
+          <div className="viewer-link-modal">
+            <h3 className="viewer-link-modal__title">Public viewer link</h3>
+            <p className="viewer-link-modal__sub">
+              A read-only page anyone with the link can open — shows the timer, who's on stage,
+              and who's coming up next. Until the show goes live, it shows the start time and
+              your note below.
+            </p>
+
+            {show.viewToken ? (
+              <div className="viewer-link-modal__url-row">
+                <input
+                  className="section-field__input"
+                  readOnly
+                  value={viewerUrl(show.viewToken)}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <button className="btn btn--secondary btn--sm" onClick={handleCopyViewer}>
+                  {viewerCopied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            ) : (
+              <p className="viewer-link-modal__hint">
+                Save to generate the link.
+              </p>
+            )}
+
+            <label className="section-field__label" style={{ marginTop: 14 }}>Pre-show note (optional)</label>
+            <textarea
+              className="section-field__input"
+              rows={4}
+              value={viewerNoteDraft}
+              onChange={(e) => setViewerNoteDraft(e.target.value)}
+              placeholder="e.g. Doors at 7:30 PM · 21+ · BYOB"
+              style={{ resize: 'vertical' }}
+            />
+
+            <div className="viewer-link-modal__actions">
+              <button className="btn btn--primary" onClick={handleSaveViewer}>
+                {show.viewToken ? 'Save & publish' : 'Generate link & publish'}
+              </button>
+              <button className="btn btn--ghost" onClick={() => setViewerOpen(false)}>Close</button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

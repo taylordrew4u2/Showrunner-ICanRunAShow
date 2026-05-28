@@ -2238,3 +2238,34 @@
 @media (max-width: 640px) {
   .live-viewer__cards { grid-template-columns: 1fr; }
 }
+
+/* Pre-show state */
+.live-viewer--pre { gap: 14px; }
+.live-viewer__pre-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+.live-viewer__pre-when {
+  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+.live-viewer__pre-until {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+.live-viewer__note {
+  max-width: min(640px, 100%);
+  margin-top: 12px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.82);
+  white-space: pre-wrap;
+}
