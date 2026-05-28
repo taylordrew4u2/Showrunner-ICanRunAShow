@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
-import { embedSizeError, readFileAsDataURL } from '../../utils/media';
+import { compressImage, embedSizeError, readFileAsDataURL } from '../../utils/media';
 import './PerformerProfile.css';
 
 interface PerformerProfileProps {
@@ -46,10 +46,14 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   }
 
   function guardRead(file: File, kind: string, onLoad: (result: string, file: File) => void) {
-    const err = embedSizeError(file, kind);
-    if (err) { setMediaError(err); return; }
+    const isPhoto = /image|photo/i.test(kind) || file.type.startsWith('image/');
+    if (!isPhoto) {
+      const err = embedSizeError(file, kind);
+      if (err) { setMediaError(err); return; }
+    }
     setMediaError(null);
-    readFileAsDataURL(file)
+    const reader = isPhoto ? compressImage(file) : readFileAsDataURL(file);
+    reader
       .then((result) => onLoad(result, file))
       .catch(() => setMediaError('Could not read that file. Please try again.'));
   }
@@ -58,11 +62,15 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = accept;
+    input.style.position = 'fixed';
+    input.style.left = '-9999px';
     input.onchange = () => {
       const file = input.files?.[0];
+      if (input.parentNode) input.parentNode.removeChild(input);
       if (!file) return;
       guardRead(file, kind, onLoad);
     };
+    document.body.appendChild(input);
     input.click();
   }
 

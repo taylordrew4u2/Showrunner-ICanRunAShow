@@ -214,6 +214,8 @@ export interface Show {
   videoPayment?: number; // Amount to pay video person
   selectedHostId?: string; // ID of the selected host
   todos?: TodoItem[];
+  viewToken?: string; // public read-only viewer link token
+  viewNote?: string; // optional note shown on the viewer page before the show starts
   createdAt: string;
   updatedAt: string;
 }

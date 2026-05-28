@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../types';
-import { generateId } from '../utils/id';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { Icon } from './Icon';
 
 interface RunShowProps {
   showName: string;
   showId?: string;
+  viewToken?: string;
   schedule: ScheduleItem[];
   performers?: Performer[];
   onClose: () => void;
@@ -90,7 +90,7 @@ function nextUpLabel(desc: string, durationSec: number): string {
   return `${desc} (${mins} min)`;
 }
 
-export function RunShow({ showName, showId, schedule, performers = [], onClose }: RunShowProps) {
+export function RunShow({ showName, viewToken, schedule, performers = [], onClose }: RunShowProps) {
   const [idx, setIdx] = useState(0);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0); // within current cue
@@ -100,11 +100,6 @@ export function RunShow({ showName, showId, schedule, performers = [], onClose }
   const [showCues, setShowCues] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null); // pre-roll seconds before a segment starts
   const [loadedSrc, setLoadedSrc] = useState<string | undefined>(undefined); // audio src — only swaps after fade-out
-  const [shareToken, setShareToken] = useState<string | null>(() => {
-    if (typeof window === 'undefined' || !showId) return null;
-    try { return window.localStorage.getItem(`showrunner:viewToken:${showId}`); } catch { return null; }
-  });
-  const [shareCopied, setShareCopied] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const startedIdxRef = useRef<number | null>(null); // idx whose pre-roll has completed
   const fadeRef = useRef<number | null>(null);
@@ -295,29 +290,12 @@ export function RunShow({ showName, showId, schedule, performers = [], onClose }
   useEffect(() => () => clearFade(), []);
 
   // ── Live viewer publishing ───────────────────────────────────────────────
-  function handleShare() {
-    let token = shareToken;
-    if (!token) {
-      token = generateId();
-      setShareToken(token);
-      if (showId) {
-        try { window.localStorage.setItem(`showrunner:viewToken:${showId}`, token); } catch { /* ignore */ }
-      }
-    }
-    const url = `${window.location.origin}/?view=${token}`;
-    navigator.clipboard?.writeText(url).then(() => {
-      setShareCopied(true);
-      window.setTimeout(() => setShareCopied(false), 1800);
-    }).catch(() => {
-      window.prompt('Copy this viewer link:', url);
-    });
-  }
-
   // Publish the live state when something meaningful changes. The viewer
   // interpolates the remaining seconds between updates from lastUpdateMs, so we
-  // don't need to write on every tick.
+  // don't need to write on every tick. The viewer link itself is configured in
+  // the show detail page (Viewer link button); we just write to its token here.
   useEffect(() => {
-    if (!shareToken) return;
+    if (!viewToken) return;
     const status: LiveViewPayload['status'] =
       countdown !== null ? 'countdown' : running ? 'running' : (showElapsed > 0 || idx > 0 ? 'paused' : 'idle');
     const payload: LiveViewPayload = {
@@ -339,13 +317,13 @@ export function RunShow({ showName, showId, schedule, performers = [], onClose }
       remainingAtLastUpdate: totalSec - elapsed,
       lastUpdateMs: Date.now(),
     };
-    publishLiveView(shareToken, payload).catch(() => { /* swallow */ });
+    publishLiveView(viewToken, payload).catch(() => { /* swallow */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shareToken, idx, running, countdown, totalSec, showName]);
+  }, [viewToken, idx, running, countdown, totalSec, showName]);
 
   // On Run Show close, mark the live view ended so viewers see the final state.
   useEffect(() => () => {
-    if (!shareToken) return;
+    if (!viewToken) return;
     const payload: LiveViewPayload = {
       showName,
       status: 'ended',
@@ -360,7 +338,7 @@ export function RunShow({ showName, showId, schedule, performers = [], onClose }
       remainingAtLastUpdate: 0,
       lastUpdateMs: Date.now(),
     };
-    publishLiveView(shareToken, payload).catch(() => { /* ignore */ });
+    publishLiveView(viewToken, payload).catch(() => { /* ignore */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -475,13 +453,6 @@ export function RunShow({ showName, showId, schedule, performers = [], onClose }
       <div className="run-show__bar">
         <span className="run-show__name">{showName}</span>
         <div className="run-show__bar-actions">
-          <button
-            className="run-show__restart"
-            onClick={handleShare}
-            title="Copy a read-only viewer link to share"
-          >
-            {shareCopied ? 'Link copied!' : shareToken ? 'Copy viewer link' : 'Share viewer link'}
-          </button>
           <button className="run-show__restart" onClick={restartShow} title="Restart show from the top">
             Restart show
           </button>
