@@ -2802,3 +2802,474 @@
 @media (max-width: 520px) {
   .artist-signup__form { grid-template-columns: 1fr; }
 }
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║  PUNK ROCK THEME — viewing pages only (LiveViewer + ArtistSignup) ║
+   ║  Black. White. Red. That's the whole palette.                     ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+.artist-signup,
+.live-viewer {
+  --punk-bg: #000;
+  --punk-surface: #0a0a0a;
+  --punk-surface-2: #141414;
+  --punk-white: #fff;
+  --punk-red: #e10600;
+  --punk-red-bright: #ff1a0d;
+  --punk-muted: #888;
+  --punk-border: #fff;
+}
+
+/* ─── Public artist sign-up — punk ─── */
+.artist-signup {
+  background: var(--punk-bg) !important;
+  color: var(--punk-white) !important;
+  font-family: "Helvetica Neue", "Arial Black", Impact, sans-serif;
+}
+.artist-signup__msg { color: var(--punk-muted); }
+
+/* Hero: brutal black with red slash */
+.artist-signup__hero {
+  background: var(--punk-bg) !important;
+  border-bottom: none !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  padding: 56px 24px 40px !important;
+  text-align: left !important;
+  position: relative;
+  overflow: visible;
+}
+.artist-signup__hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0,
+      transparent 16px,
+      rgba(225, 6, 0, 0.05) 16px,
+      rgba(225, 6, 0, 0.05) 18px
+    );
+  pointer-events: none;
+}
+.artist-signup__hero::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 8px;
+  background: var(--punk-red);
+}
+.artist-signup__hero-inner { position: relative; z-index: 1; }
+.artist-signup__hero-eyebrow {
+  display: inline-block !important;
+  background: var(--punk-red);
+  color: var(--punk-white) !important;
+  padding: 4px 10px;
+  font-size: 0.7rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 14px !important;
+  transform: skew(-8deg);
+}
+.artist-signup__title {
+  color: var(--punk-white) !important;
+  font-family: "Helvetica Neue", "Arial Black", Impact, sans-serif;
+  font-size: clamp(2.2rem, 8vw, 3.6rem) !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 0.95 !important;
+  text-transform: uppercase;
+}
+.artist-signup__hero-sub {
+  color: var(--punk-red-bright) !important;
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-top: 12px !important;
+}
+
+/* Welcome */
+.artist-signup__welcome {
+  background: var(--punk-surface) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-left: 6px solid var(--punk-red) !important;
+  border-radius: 0 !important;
+  color: var(--punk-white);
+}
+
+/* Live card */
+.artist-signup__live-card {
+  background: var(--punk-bg) !important;
+  border: 2px solid var(--punk-red) !important;
+  border-radius: 0 !important;
+  box-shadow: 6px 6px 0 var(--punk-red);
+}
+.artist-signup__live-badge {
+  background: var(--punk-red);
+  color: var(--punk-white) !important;
+  padding: 4px 10px;
+  font-size: 0.72rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.18em !important;
+}
+.artist-signup__live-dot { background: var(--punk-white) !important; }
+.artist-signup__live-label {
+  color: var(--punk-red-bright) !important;
+  text-transform: uppercase;
+  font-weight: 900 !important;
+}
+.artist-signup__live-photo {
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+  background: var(--punk-surface) !important;
+  color: var(--punk-white) !important;
+}
+.artist-signup__live-photo--placeholder { background: var(--punk-surface) !important; color: var(--punk-white) !important; }
+.artist-signup__live-name { color: var(--punk-white); text-transform: uppercase; font-weight: 900; letter-spacing: -0.01em; }
+.artist-signup__live-credits { color: var(--punk-muted); }
+
+/* Sections */
+.artist-signup__section {
+  background: var(--punk-surface) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 var(--punk-red);
+}
+.artist-signup__h2 {
+  color: var(--punk-white);
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: 2px solid var(--punk-red);
+  padding-bottom: 6px;
+}
+.artist-signup__hint { color: var(--punk-muted) !important; }
+
+/* Timeline */
+.artist-signup__timeline::before { background: var(--punk-red) !important; width: 3px !important; }
+.artist-signup__timeline-dot {
+  background: var(--punk-bg) !important;
+  border: 3px solid var(--punk-red) !important;
+  border-radius: 0 !important;
+  transform: rotate(45deg);
+  width: 12px !important; height: 12px !important;
+  left: -1px !important;
+}
+.artist-signup__timeline-time { color: var(--punk-muted) !important; font-weight: 700 !important; text-transform: uppercase; }
+.artist-signup__timeline-desc { color: var(--punk-white); font-weight: 900 !important; text-transform: uppercase; letter-spacing: -0.005em; }
+.artist-signup__timeline-perf { color: var(--punk-red-bright) !important; font-weight: 700; }
+
+/* Flash sheet */
+.artist-signup__flash {
+  border: 3px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+}
+.artist-signup__flash-zoom {
+  background: var(--punk-red) !important;
+  color: var(--punk-white) !important;
+  border-radius: 0 !important;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Sign-up form */
+.artist-signup__signup-section {
+  background: var(--punk-surface) !important;
+  border: 2px solid var(--punk-red) !important;
+  box-shadow: 6px 6px 0 var(--punk-white) !important;
+}
+.artist-signup__field { color: var(--punk-white) !important; font-weight: 900 !important; }
+.artist-signup__input {
+  background: var(--punk-bg) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+  color: var(--punk-white) !important;
+  font-weight: 700;
+}
+.artist-signup__input:focus {
+  border-color: var(--punk-red) !important;
+  box-shadow: 4px 4px 0 var(--punk-red) !important;
+}
+.artist-signup__input::placeholder { color: #555; }
+.artist-signup__seg {
+  background: var(--punk-bg) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+.artist-signup__seg-btn {
+  background: var(--punk-bg) !important;
+  color: var(--punk-white) !important;
+  border-radius: 0 !important;
+  border-right: 2px solid var(--punk-white) !important;
+  text-transform: uppercase;
+  font-weight: 900 !important;
+  letter-spacing: 0.04em;
+}
+.artist-signup__seg-btn:last-child { border-right: 0 !important; }
+.artist-signup__seg-btn:hover { background: var(--punk-surface) !important; }
+.artist-signup__seg-btn--active {
+  background: var(--punk-red) !important;
+  color: var(--punk-white) !important;
+}
+.artist-signup__seg-btn--active:hover { background: var(--punk-red) !important; }
+.artist-signup__submit {
+  background: var(--punk-red) !important;
+  color: var(--punk-white) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  box-shadow: 4px 4px 0 var(--punk-white) !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+.artist-signup__submit:hover:not(:disabled) {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 2px 2px 0 var(--punk-white) !important;
+}
+.artist-signup__submit:active:not(:disabled) {
+  transform: translate(4px, 4px) !important;
+  box-shadow: 0 0 0 var(--punk-white) !important;
+}
+.artist-signup__error {
+  background: var(--punk-red) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+  color: var(--punk-white) !important;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.artist-signup__success-card {
+  background: var(--punk-bg) !important;
+  border: 3px solid var(--punk-red) !important;
+  border-radius: 0 !important;
+  box-shadow: 6px 6px 0 var(--punk-white);
+}
+.artist-signup__success-headline {
+  color: var(--punk-red-bright) !important;
+  text-transform: uppercase;
+  font-weight: 900 !important;
+  letter-spacing: 0.06em;
+}
+.artist-signup__success-pos strong { color: var(--punk-red-bright) !important; }
+.artist-signup__success-sub { color: var(--punk-muted) !important; }
+
+/* Sign-up list */
+.artist-signup__list-count { color: var(--punk-red-bright) !important; font-weight: 800; text-transform: uppercase; }
+.artist-signup__entry {
+  background: var(--punk-bg) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+}
+.artist-signup__entry--mine {
+  background: var(--punk-bg) !important;
+  border-color: var(--punk-red) !important;
+  box-shadow: 4px 4px 0 var(--punk-red);
+}
+.artist-signup__entry--done {
+  opacity: 1 !important;
+  border-color: var(--punk-muted) !important;
+  position: relative;
+}
+.artist-signup__entry--done::after {
+  content: '';
+  position: absolute;
+  left: 8px; right: 8px;
+  top: 50%;
+  height: 3px;
+  background: var(--punk-red);
+  transform: rotate(-2deg);
+  pointer-events: none;
+}
+.artist-signup__entry--done .artist-signup__entry-name { color: var(--punk-muted) !important; text-decoration: none !important; }
+.artist-signup__entry-avatar {
+  background: var(--punk-white) !important;
+  color: var(--punk-bg) !important;
+  border-radius: 0 !important;
+  font-weight: 900;
+}
+.artist-signup__entry--mine .artist-signup__entry-avatar {
+  background: var(--punk-red) !important;
+  color: var(--punk-white) !important;
+}
+.artist-signup__entry-name { color: var(--punk-white); text-transform: uppercase; font-weight: 900 !important; letter-spacing: 0.01em; }
+.artist-signup__entry-you {
+  background: var(--punk-red) !important;
+  color: var(--punk-white) !important;
+  border-radius: 0 !important;
+  font-weight: 900 !important;
+}
+.artist-signup__entry-tag {
+  background: var(--punk-surface-2) !important;
+  color: var(--punk-white) !important;
+  border-radius: 0 !important;
+  border: 1px solid var(--punk-white);
+  text-transform: uppercase;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+}
+.artist-signup__entry-tag--black { background: var(--punk-white) !important; color: var(--punk-bg) !important; border-color: var(--punk-white) !important; }
+.artist-signup__entry-tag--color { background: var(--punk-red) !important; color: var(--punk-white) !important; border-color: var(--punk-red) !important; }
+.artist-signup__entry-tag--done { background: var(--punk-muted) !important; color: var(--punk-bg) !important; border-color: var(--punk-muted) !important; }
+.artist-signup__entry-pos {
+  color: var(--punk-red-bright) !important;
+  font-weight: 900 !important;
+  font-size: 1.05rem !important;
+}
+
+/* Payment buttons — punk overrides brand colors */
+.artist-signup__pay {
+  background: var(--punk-bg) !important;
+  border: 2px solid var(--punk-white) !important;
+  color: var(--punk-white) !important;
+  border-radius: 0 !important;
+  text-transform: uppercase;
+  font-weight: 900 !important;
+  letter-spacing: 0.06em;
+  box-shadow: 3px 3px 0 var(--punk-red);
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+.artist-signup__pay:hover {
+  background: var(--punk-red) !important;
+  border-color: var(--punk-red) !important;
+  color: var(--punk-white) !important;
+  transform: translate(1px, 1px) !important;
+  box-shadow: 2px 2px 0 var(--punk-white) !important;
+}
+.artist-signup__pay--cashapp,
+.artist-signup__pay--venmo {
+  background: var(--punk-bg) !important;
+  color: var(--punk-white) !important;
+  border-color: var(--punk-white) !important;
+}
+.artist-signup__pay--cashapp:hover,
+.artist-signup__pay--venmo:hover {
+  background: var(--punk-red) !important;
+  border-color: var(--punk-red) !important;
+  color: var(--punk-white) !important;
+}
+
+/* Lightbox */
+.artist-signup__lightbox { background: var(--punk-bg) !important; }
+.artist-signup__lightbox img { border: 3px solid var(--punk-white); border-radius: 0; }
+.artist-signup__lightbox-close {
+  background: var(--punk-red) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+}
+
+/* ─── Live viewer — punk ─── */
+.live-viewer {
+  background: var(--punk-bg) !important;
+  color: var(--punk-white) !important;
+  font-family: "Helvetica Neue", "Arial Black", Impact, sans-serif;
+}
+/* Diagonal red slashes in the background */
+.live-viewer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0,
+      transparent 24px,
+      rgba(225, 6, 0, 0.04) 24px,
+      rgba(225, 6, 0, 0.04) 26px
+    );
+  pointer-events: none;
+}
+.live-viewer > * { position: relative; z-index: 1; }
+.live-viewer__top { color: var(--punk-muted) !important; }
+.live-viewer__show {
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--punk-white);
+}
+.live-viewer__status {
+  background: var(--punk-white) !important;
+  color: var(--punk-bg) !important;
+  border-radius: 0 !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.16em !important;
+}
+.live-viewer__status--running { background: var(--punk-red) !important; color: var(--punk-white) !important; }
+.live-viewer__status--paused { background: var(--punk-white) !important; color: var(--punk-bg) !important; }
+.live-viewer__status--countdown { background: var(--punk-red) !important; color: var(--punk-white) !important; }
+.live-viewer__status--ended { background: var(--punk-muted) !important; color: var(--punk-bg) !important; }
+.live-viewer__timer {
+  color: var(--punk-white) !important;
+  font-family: "Helvetica Neue", "Arial Black", Impact, sans-serif !important;
+  text-transform: uppercase;
+}
+.live-viewer__timer--over,
+.live-viewer__timer--warning { color: var(--punk-red-bright) !important; }
+.live-viewer__starting {
+  color: var(--punk-red-bright) !important;
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.live-viewer__card {
+  background: var(--punk-bg) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+  box-shadow: 6px 6px 0 var(--punk-red);
+}
+.live-viewer__label {
+  color: var(--punk-red-bright) !important;
+  font-weight: 900 !important;
+}
+.live-viewer__photo {
+  border: 2px solid var(--punk-white) !important;
+  border-radius: 0 !important;
+}
+.live-viewer__photo--placeholder {
+  background: var(--punk-surface) !important;
+  color: var(--punk-white) !important;
+}
+.live-viewer__name {
+  color: var(--punk-white);
+  text-transform: uppercase;
+  font-weight: 900 !important;
+  letter-spacing: -0.01em;
+}
+.live-viewer__credits { color: var(--punk-muted) !important; }
+.live-viewer__message { color: var(--punk-muted) !important; }
+
+/* Pre-show punk */
+.live-viewer__pre-label {
+  background: var(--punk-red);
+  color: var(--punk-white) !important;
+  padding: 4px 12px;
+  letter-spacing: 0.18em !important;
+  font-weight: 900 !important;
+  transform: skew(-8deg);
+  display: inline-block;
+}
+.live-viewer__pre-when {
+  color: var(--punk-white) !important;
+  text-transform: uppercase;
+  font-weight: 900 !important;
+  letter-spacing: -0.02em !important;
+}
+.live-viewer__pre-until {
+  color: var(--punk-red-bright) !important;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.live-viewer__note {
+  background: var(--punk-surface) !important;
+  border: 2px solid var(--punk-white) !important;
+  border-left: 6px solid var(--punk-red) !important;
+  border-radius: 0 !important;
+  color: var(--punk-white) !important;
+}
