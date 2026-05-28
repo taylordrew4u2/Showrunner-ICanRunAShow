@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { embedSizeError, readFileAsDataURL, pickFile } from '../../utils/media';
@@ -58,6 +58,266 @@ function totalRuntimeLabel(items: ScheduleItem[]): string | null {
   return h === 0 ? `${m}m total` : m === 0 ? `${h}h total` : `${h}h ${m}m total`;
 }
 
+function cueMusicLabelFor(item: ScheduleItem, performers: Performer[]): string | null {
+  if (item.music) return item.musicName || 'Uploaded track';
+  const perf = item.performerId ? performers.find((p) => p.id === item.performerId) : null;
+  if (perf?.walkOnMusic) return `Walk-on · ${perf.walkOnMusicName || perf.name}`;
+  return null;
+}
+
+// ─── Memoized cue row ──────────────────────────────────────────────
+// Each row owns its own edit + media-panel state so typing only re-renders
+// this single row instead of all 30+ cues in the list.
+
+interface CueRowProps {
+  item: ScheduleItem;
+  idx: number;
+  isFirst: boolean;
+  isLast: boolean;
+  durationText: string | null;
+  musicLabel: string | null;
+  performers: Performer[];
+  onPatch: (id: string, patch: Partial<ScheduleItem>) => void;
+  onDelete: (id: string) => void;
+  onMove: (idx: number, dir: -1 | 1) => void;
+  onPickMusic: (id: string) => Promise<string | null>; // returns error or null
+}
+
+const CueRow = memo(function CueRow({
+  item, idx, isFirst, isLast, durationText, musicLabel, performers,
+  onPatch, onDelete, onMove, onPickMusic,
+}: CueRowProps) {
+  const [editing, setEditing] = useState(false);
+  const [editTime, setEditTime] = useState(item.time);
+  const [editDesc, setEditDesc] = useState(item.description);
+  const [editPerformer, setEditPerformer] = useState(item.performer ?? '');
+  const [editPerformerId, setEditPerformerId] = useState(item.performerId ?? '');
+  const [editLength, setEditLength] = useState(item.durationMin != null ? String(item.durationMin) : '');
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [musicError, setMusicError] = useState<string | null>(null);
+  // Local state for music duration so each keystroke doesn't propagate up the tree.
+  const [musicDurDraft, setMusicDurDraft] = useState<string>(item.musicDuration != null ? String(item.musicDuration) : '');
+
+  function startEdit() {
+    setEditTime(item.time);
+    setEditDesc(item.description);
+    setEditPerformer(item.performer ?? '');
+    setEditPerformerId(item.performerId ?? '');
+    setEditLength(item.durationMin != null ? String(item.durationMin) : '');
+    setEditing(true);
+  }
+
+  function saveEdit() {
+    if (!editDesc.trim()) return;
+    const lengthNum = editLength.trim() === '' ? undefined : Math.max(0, parseInt(editLength, 10) || 0);
+    onPatch(item.id, {
+      time: editTime.trim(),
+      description: editDesc.trim(),
+      performer: editPerformer.trim() || undefined,
+      performerId: editPerformerId || undefined,
+      durationMin: lengthNum && lengthNum > 0 ? lengthNum : undefined,
+    });
+    setEditing(false);
+  }
+
+  function commitMusicDuration() {
+    const v = musicDurDraft.trim();
+    const next = v === '' ? undefined : Math.max(0, parseInt(v, 10) || 0);
+    if (next !== item.musicDuration) {
+      onPatch(item.id, { musicDuration: next });
+    }
+  }
+
+  async function handlePickMusic() {
+    setMusicError(null);
+    const err = await onPickMusic(item.id);
+    if (err) setMusicError(err);
+  }
+
+  return (
+    <div className="cue-row">
+      <div className={`cue ${editing ? 'cue--editing' : ''}`}>
+        <div className="cue__rail" />
+        <div className="cue__handle" aria-hidden="true">
+          <Icon name="drag" size={14} />
+        </div>
+        <div className="cue__time">
+          {editing ? (
+            <input
+              className="cue__edit-input cue__edit-input--time"
+              value={editTime}
+              onChange={(e) => setEditTime(e.target.value)}
+              aria-label="Edit time"
+            />
+          ) : (
+            <>
+              <span>{item.time || '—'}</span>
+              {durationText && <span className="cue__time-sub">{durationText}</span>}
+            </>
+          )}
+        </div>
+        <div className="cue__body">
+          {editing ? (
+            <div className="cue__edit-fields">
+              <input
+                className="cue__edit-input"
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEdit();
+                  if (e.key === 'Escape') setEditing(false);
+                }}
+                autoFocus
+                aria-label="Edit segment"
+                placeholder="Segment"
+              />
+              <input
+                className="cue__edit-input cue__edit-input--perf"
+                value={editPerformer}
+                onChange={(e) => setEditPerformer(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEdit();
+                  if (e.key === 'Escape') setEditing(false);
+                }}
+                aria-label="Who's on stage"
+                placeholder="On stage"
+              />
+              {performers.length > 0 && (
+                <select
+                  className="section-field__select cue__edit-input--perfsel"
+                  value={editPerformerId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    const perf = id ? performers.find((p) => p.id === id) : null;
+                    setEditPerformerId(id);
+                    if (perf) setEditPerformer(perf.name);
+                  }}
+                  aria-label="Attach a performer"
+                >
+                  <option value="">Attach performer…</option>
+                  {performers.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}{p.walkOnMusic ? ' (walk-on)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <input
+                className="cue__edit-input cue__edit-input--len"
+                type="number"
+                min="0"
+                step="1"
+                value={editLength}
+                onChange={(e) => setEditLength(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEdit();
+                  if (e.key === 'Escape') setEditing(false);
+                }}
+                aria-label="Segment length in minutes"
+                placeholder="Min"
+              />
+            </div>
+          ) : (
+            <>
+              <p className="cue__title">
+                {item.description}
+                {item.performer && <span className="cue__perf">{item.performer}</span>}
+              </p>
+              {musicLabel && (
+                <p className="cue__sub">
+                  <span className="cue__music-tag">
+                    <Icon name="music" size={11} /> {musicLabel}
+                    {item.musicDuration ? ` · ${item.musicDuration}s` : ''}
+                  </span>
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        <div className="cue__menu" style={{ display: 'flex', gap: 2 }}>
+          {editing ? (
+            <>
+              <button className="icon-btn icon-btn--ghost" onClick={saveEdit} aria-label="Save">
+                <Icon name="check" size={16} />
+              </button>
+              <button className="icon-btn icon-btn--ghost" onClick={() => setEditing(false)} aria-label="Cancel">
+                <Icon name="x" size={16} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="icon-btn icon-btn--ghost" onClick={() => onMove(idx, -1)} disabled={isFirst} aria-label="Move up" title="Move up">
+                <span aria-hidden style={{ fontSize: 14, fontWeight: 700 }}>↑</span>
+              </button>
+              <button className="icon-btn icon-btn--ghost" onClick={() => onMove(idx, 1)} disabled={isLast} aria-label="Move down" title="Move down">
+                <span aria-hidden style={{ fontSize: 14, fontWeight: 700 }}>↓</span>
+              </button>
+              <button
+                className={`icon-btn icon-btn--ghost ${mediaOpen || musicLabel ? 'icon-btn--active' : ''}`}
+                onClick={() => { setMusicError(null); setMediaOpen((v) => !v); }}
+                aria-label="Segment audio"
+                title="Add segment audio (plays at the start of this cue)"
+                style={musicLabel ? { color: 'var(--primary)' } : undefined}
+              >
+                <Icon name="music" size={14} />
+              </button>
+              <button className="icon-btn icon-btn--ghost" onClick={startEdit} aria-label="Edit" title="Edit">
+                <Icon name="edit" size={14} />
+              </button>
+              <button className="icon-btn icon-btn--ghost" onClick={() => onDelete(item.id)} aria-label="Delete" title="Delete" style={{ color: 'var(--danger)' }}>
+                <Icon name="x" size={14} />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {mediaOpen && !editing && (
+        <div className="cue-media">
+          <div className="cue-media__field">
+            <label className="cue-media__label">Transition / intro music</label>
+            {item.music ? (
+              <div className="cue-media__music">
+                <span className="cue-media__music-name"><Icon name="music" size={12} /> {item.musicName || 'Uploaded track'}</span>
+                <button className="btn btn--ghost btn--sm" onClick={handlePickMusic}>Replace</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => onPatch(item.id, { music: undefined, musicName: undefined })}>Remove</button>
+              </div>
+            ) : (
+              <div className="cue-media__music">
+                {musicLabel ? (
+                  <span className="cue-media__music-name">{musicLabel}</span>
+                ) : (
+                  <span className="cue-media__hint">Uses the comic's walk-on, or upload a track.</span>
+                )}
+                <button className="btn btn--secondary btn--sm" onClick={handlePickMusic}>Upload music</button>
+              </div>
+            )}
+          </div>
+
+          <div className="cue-media__field cue-media__field--duration">
+            <label className="cue-media__label">Play for (seconds)</label>
+            <input
+              className="section-field__input"
+              type="number"
+              min="0"
+              step="1"
+              value={musicDurDraft}
+              onChange={(e) => setMusicDurDraft(e.target.value)}
+              onBlur={commitMusicDuration}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+              }}
+              placeholder="full track"
+            />
+          </div>
+
+          {musicError && <p className="cue-media__error">{musicError}</p>}
+        </div>
+      )}
+    </div>
+  );
+});
+
 export function ScheduleSection({
   schedule,
   scheduleImage,
@@ -70,17 +330,16 @@ export function ScheduleSection({
   const [mode, setMode] = useState<ScheduleMode>(initialMode);
   const [time, setTime] = useState('');
   const [desc, setDesc] = useState('');
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editTime, setEditTime] = useState('');
-  const [editDesc, setEditDesc] = useState('');
-  const [editPerformer, setEditPerformer] = useState('');
-  const [editPerformerId, setEditPerformerId] = useState('');
-  const [editLength, setEditLength] = useState('');
   const [importOpen, setImportOpen] = useState(false);
-  const [mediaOpenId, setMediaOpenId] = useState<string | null>(null);
-  const [musicError, setMusicError] = useState<string | null>(null);
   const [refOpen, setRefOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Keep latest schedule + onChange in refs so the per-row callbacks
+  // can be referentially stable (which lets React.memo skip non-editing rows).
+  const scheduleRef = useRef(schedule);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { scheduleRef.current = schedule; }, [schedule]);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   const totalLabel = useMemo(() => totalRuntimeLabel(schedule), [schedule]);
 
@@ -91,84 +350,44 @@ export function ScheduleSection({
     setDesc('');
   }
 
-  function deleteItem(id: string) {
-    const item = schedule.find((s) => s.id === id);
+  const handlePatch = useCallback((id: string, patch: Partial<ScheduleItem>) => {
+    onChangeRef.current(scheduleRef.current.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }, []);
+
+  const handleDelete = useCallback((id: string) => {
+    const item = scheduleRef.current.find((s) => s.id === id);
     if (window.confirm(`Delete schedule item "${item?.description}"?`)) {
-      onChange(schedule.filter((s) => s.id !== id));
+      onChangeRef.current(scheduleRef.current.filter((s) => s.id !== id));
     }
-  }
+  }, []);
+
+  const handleMove = useCallback((idx: number, dir: -1 | 1) => {
+    const arr = [...scheduleRef.current];
+    const j = idx + dir;
+    if (j < 0 || j >= arr.length) return;
+    [arr[idx], arr[j]] = [arr[j], arr[idx]];
+    onChangeRef.current(arr);
+  }, []);
+
+  const handlePickMusic = useCallback(async (id: string): Promise<string | null> => {
+    const file = await pickFile('audio/*');
+    if (!file) return null;
+    const err = embedSizeError(file, 'audio file');
+    if (err) return err;
+    try {
+      const data = await readFileAsDataURL(file);
+      onChangeRef.current(scheduleRef.current.map((s) => (s.id === id ? { ...s, music: data, musicName: file.name } : s)));
+      return null;
+    } catch {
+      return 'Could not read that file. Please try again.';
+    }
+  }, []);
 
   function clearAll() {
     if (schedule.length === 0) return;
     if (window.confirm(`Delete all ${schedule.length} cues and start over? This can't be undone.`)) {
       onChange([]);
-      setEditId(null);
-      setMediaOpenId(null);
-      setMusicError(null);
     }
-  }
-
-  function startEdit(item: ScheduleItem) {
-    setEditId(item.id);
-    setEditTime(item.time);
-    setEditDesc(item.description);
-    setEditPerformer(item.performer ?? '');
-    setEditPerformerId(item.performerId ?? '');
-    setEditLength(item.durationMin != null ? String(item.durationMin) : '');
-  }
-
-  function saveEdit() {
-    if (!editDesc.trim() || !editId) return;
-    const lengthNum = editLength.trim() === '' ? undefined : Math.max(0, parseInt(editLength, 10) || 0);
-    onChange(
-      schedule.map((s) =>
-        s.id === editId
-          ? {
-              ...s,
-              time: editTime.trim(),
-              description: editDesc.trim(),
-              performer: editPerformer.trim() || undefined,
-              performerId: editPerformerId || undefined,
-              durationMin: lengthNum && lengthNum > 0 ? lengthNum : undefined,
-            }
-          : s,
-      ),
-    );
-    setEditId(null);
-  }
-
-  function updateItem(id: string, patch: Partial<ScheduleItem>) {
-    onChange(schedule.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-  }
-
-  async function handleCueMusic(id: string) {
-    const file = await pickFile('audio/*');
-    if (!file) return;
-    const err = embedSizeError(file, 'audio file');
-    if (err) { setMusicError(err); return; }
-    setMusicError(null);
-    try {
-      const data = await readFileAsDataURL(file);
-      updateItem(id, { music: data, musicName: file.name });
-    } catch {
-      setMusicError('Could not read that file. Please try again.');
-    }
-  }
-
-  // What music will actually play for a cue, in priority order.
-  function cueMusicLabel(item: ScheduleItem): string | null {
-    if (item.music) return item.musicName || 'Uploaded track';
-    const perf = item.performerId ? performers.find((p) => p.id === item.performerId) : null;
-    if (perf?.walkOnMusic) return `Walk-on · ${perf.walkOnMusicName || perf.name}`;
-    return null;
-  }
-
-  function move(idx: number, dir: -1 | 1) {
-    const j = idx + dir;
-    if (j < 0 || j >= schedule.length) return;
-    const arr = [...schedule];
-    [arr[idx], arr[j]] = [arr[j], arr[idx]];
-    onChange(arr);
   }
 
   function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -182,12 +401,10 @@ export function ScheduleSection({
     event.target.value = '';
   }
 
-  // Go to the editable cue builder, keeping any uploaded file as a reference.
   function goBuild() {
     setMode('build');
   }
 
-  // Remove the uploaded reference file; keep any cues and stay in the builder.
   function removeImage() {
     onImageChange(undefined);
     setMode('build');
@@ -314,225 +531,22 @@ export function ScheduleSection({
             <p className="section-empty">No cues yet. Use the bar above or import with AI.</p>
           ) : (
             <div className="cue-list">
-              {schedule.map((item, idx) => {
-                const dur = durationLabel(schedule, idx);
-                const isEditing = editId === item.id;
-                const musicLabel = cueMusicLabel(item);
-                const mediaOpen = mediaOpenId === item.id;
-                return (
-                  <div key={item.id} className="cue-row">
-                  <div className={`cue ${isEditing ? 'cue--editing' : ''}`}>
-                    <div className="cue__rail" />
-                    <div className="cue__handle" aria-hidden="true">
-                      <Icon name="drag" size={14} />
-                    </div>
-                    <div className="cue__time">
-                      {isEditing ? (
-                        <input
-                          className="cue__edit-input cue__edit-input--time"
-                          value={editTime}
-                          onChange={(e) => setEditTime(e.target.value)}
-                          aria-label="Edit time"
-                        />
-                      ) : (
-                        <>
-                          <span>{item.time || '—'}</span>
-                          {dur && <span className="cue__time-sub">{dur}</span>}
-                        </>
-                      )}
-                    </div>
-                    <div className="cue__body">
-                      {isEditing ? (
-                        <div className="cue__edit-fields">
-                          <input
-                            className="cue__edit-input"
-                            value={editDesc}
-                            onChange={(e) => setEditDesc(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') saveEdit();
-                              if (e.key === 'Escape') setEditId(null);
-                            }}
-                            autoFocus
-                            aria-label="Edit segment"
-                            placeholder="Segment"
-                          />
-                          <input
-                            className="cue__edit-input cue__edit-input--perf"
-                            value={editPerformer}
-                            onChange={(e) => setEditPerformer(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') saveEdit();
-                              if (e.key === 'Escape') setEditId(null);
-                            }}
-                            aria-label="Who's on stage"
-                            placeholder="On stage"
-                          />
-                          {performers.length > 0 && (
-                            <select
-                              className="section-field__select cue__edit-input--perfsel"
-                              value={editPerformerId}
-                              onChange={(e) => {
-                                const id = e.target.value;
-                                const perf = id ? performers.find((p) => p.id === id) : null;
-                                setEditPerformerId(id);
-                                if (perf) setEditPerformer(perf.name);
-                              }}
-                              aria-label="Attach a performer"
-                            >
-                              <option value="">Attach performer…</option>
-                              {performers.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}{p.walkOnMusic ? ' (walk-on)' : ''}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                          <input
-                            className="cue__edit-input cue__edit-input--len"
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={editLength}
-                            onChange={(e) => setEditLength(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') saveEdit();
-                              if (e.key === 'Escape') setEditId(null);
-                            }}
-                            aria-label="Segment length in minutes"
-                            placeholder="Min"
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          <p className="cue__title">
-                            {item.description}
-                            {item.performer && <span className="cue__perf">{item.performer}</span>}
-                          </p>
-                          {musicLabel && (
-                            <p className="cue__sub">
-                              <span className="cue__music-tag">
-                                <Icon name="music" size={11} /> {musicLabel}
-                                {item.musicDuration ? ` · ${item.musicDuration}s` : ''}
-                              </span>
-                            </p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    <div className="cue__menu" style={{ display: 'flex', gap: 2 }}>
-                      {isEditing ? (
-                        <>
-                          <button
-                            className="icon-btn icon-btn--ghost"
-                            onClick={saveEdit}
-                            aria-label="Save"
-                          >
-                            <Icon name="check" size={16} />
-                          </button>
-                          <button
-                            className="icon-btn icon-btn--ghost"
-                            onClick={() => setEditId(null)}
-                            aria-label="Cancel"
-                          >
-                            <Icon name="x" size={16} />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            className="icon-btn icon-btn--ghost"
-                            onClick={() => move(idx, -1)}
-                            disabled={idx === 0}
-                            aria-label="Move up"
-                            title="Move up"
-                          >
-                            <span aria-hidden style={{ fontSize: 14, fontWeight: 700 }}>↑</span>
-                          </button>
-                          <button
-                            className="icon-btn icon-btn--ghost"
-                            onClick={() => move(idx, 1)}
-                            disabled={idx === schedule.length - 1}
-                            aria-label="Move down"
-                            title="Move down"
-                          >
-                            <span aria-hidden style={{ fontSize: 14, fontWeight: 700 }}>↓</span>
-                          </button>
-                          <button
-                            className={`icon-btn icon-btn--ghost ${mediaOpen || musicLabel ? 'icon-btn--active' : ''}`}
-                            onClick={() => { setMusicError(null); setMediaOpenId(mediaOpen ? null : item.id); }}
-                            aria-label="Segment audio"
-                            title="Add segment audio (plays at the start of this cue)"
-                            style={musicLabel ? { color: 'var(--primary)' } : undefined}
-                          >
-                            <Icon name="music" size={14} />
-                          </button>
-                          <button
-                            className="icon-btn icon-btn--ghost"
-                            onClick={() => startEdit(item)}
-                            aria-label="Edit"
-                            title="Edit"
-                          >
-                            <Icon name="edit" size={14} />
-                          </button>
-                          <button
-                            className="icon-btn icon-btn--ghost"
-                            onClick={() => deleteItem(item.id)}
-                            aria-label="Delete"
-                            title="Delete"
-                            style={{ color: 'var(--danger)' }}
-                          >
-                            <Icon name="x" size={14} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {mediaOpen && !isEditing && (
-                    <div className="cue-media">
-                      <div className="cue-media__field">
-                        <label className="cue-media__label">Transition / intro music</label>
-                        {item.music ? (
-                          <div className="cue-media__music">
-                            <span className="cue-media__music-name"><Icon name="music" size={12} /> {item.musicName || 'Uploaded track'}</span>
-                            <button className="btn btn--ghost btn--sm" onClick={() => handleCueMusic(item.id)}>Replace</button>
-                            <button className="btn btn--ghost btn--sm" onClick={() => updateItem(item.id, { music: undefined, musicName: undefined })}>Remove</button>
-                          </div>
-                        ) : (
-                          <div className="cue-media__music">
-                            {cueMusicLabel(item) ? (
-                              <span className="cue-media__music-name">{cueMusicLabel(item)}</span>
-                            ) : (
-                              <span className="cue-media__hint">Uses the comic's walk-on, or upload a track.</span>
-                            )}
-                            <button className="btn btn--secondary btn--sm" onClick={() => handleCueMusic(item.id)}>Upload music</button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="cue-media__field cue-media__field--duration">
-                        <label className="cue-media__label">Play for (seconds)</label>
-                        <input
-                          className="section-field__input"
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={item.musicDuration ?? ''}
-                          onChange={(e) =>
-                            updateItem(item.id, {
-                              musicDuration: e.target.value === '' ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0),
-                            })
-                          }
-                          placeholder="full track"
-                        />
-                      </div>
-
-                      {musicError && <p className="cue-media__error">{musicError}</p>}
-                    </div>
-                  )}
-                  </div>
-                );
-              })}
+              {schedule.map((item, idx) => (
+                <CueRow
+                  key={item.id}
+                  item={item}
+                  idx={idx}
+                  isFirst={idx === 0}
+                  isLast={idx === schedule.length - 1}
+                  durationText={durationLabel(schedule, idx)}
+                  musicLabel={cueMusicLabelFor(item, performers)}
+                  performers={performers}
+                  onPatch={handlePatch}
+                  onDelete={handleDelete}
+                  onMove={handleMove}
+                  onPickMusic={handlePickMusic}
+                />
+              ))}
             </div>
           )}
 
