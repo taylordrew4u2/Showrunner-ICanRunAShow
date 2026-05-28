@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Vendor } from '../../types';
 import { VENDOR_CATEGORIES } from '../../types';
 import { generateId } from '../../utils/id';
+import { compressImage, pickFile } from '../../utils/media';
 
 interface VendorsSectionProps {
   vendors: Vendor[];
@@ -58,18 +59,15 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
     onChange(vendors.map((v) => (v.id === id ? { ...v, booked: !v.booked } : v)));
   }
 
-  function handlePhoto(id: string) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => onChange(vendors.map((v) => (v.id === id ? { ...v, photo: reader.result as string } : v)));
-      reader.readAsDataURL(file);
-    };
-    input.click();
+  async function handlePhoto(id: string) {
+    const file = await pickFile('image/*');
+    if (!file) return;
+    try {
+      const data = await compressImage(file);
+      onChange(vendors.map((v) => (v.id === id ? { ...v, photo: data } : v)));
+    } catch {
+      alert("Couldn't read that image. Try a different file.");
+    }
   }
 
   return (

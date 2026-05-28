@@ -38,6 +38,39 @@ export function readFileAsDataURL(file: File): Promise<string> {
 }
 
 /**
+ * Downscale and recompress an image file via canvas so a typical phone photo
+ * (often 5–10+ MB) ends up well under a megabyte. Returns a JPEG data URL.
+ */
+export async function compressImage(
+  file: File,
+  opts: { maxDim?: number; quality?: number } = {},
+): Promise<string> {
+  const maxDim = opts.maxDim ?? 1600;
+  const quality = opts.quality ?? 0.85;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('Could not decode image'));
+      el.src = url;
+    });
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas not supported');
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', quality);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
  * Open a native file picker and resolve with the chosen file (or null if
  * cancelled). The input is attached to the DOM before clicking — a detached
  * input.click() silently does nothing on iOS Safari and some mobile browsers,

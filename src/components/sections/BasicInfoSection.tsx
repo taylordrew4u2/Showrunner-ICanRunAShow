@@ -1,4 +1,5 @@
 import type { Show } from '../../types';
+import { compressImage, pickFile } from '../../utils/media';
 
 interface BasicInfoSectionProps {
   show: Show;
@@ -6,20 +7,15 @@ interface BasicInfoSectionProps {
 }
 
 export function BasicInfoSection({ show, onChange }: BasicInfoSectionProps) {
-  function handleFlyerUpload() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        onChange({ flyer: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    };
-    input.click();
+  async function handleFlyerUpload() {
+    const file = await pickFile('image/*');
+    if (!file) return;
+    try {
+      const data = await compressImage(file, { maxDim: 2000, quality: 0.88 });
+      onChange({ flyer: data });
+    } catch {
+      alert("Couldn't read that image. Try a different file.");
+    }
   }
 
   function removeFlyerUpload() {
