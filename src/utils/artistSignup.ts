@@ -17,7 +17,6 @@ export interface ArtistSignupPayload {
     signups?: boolean;
     payment?: boolean;
   };
-  phoneRequired?: boolean;
   lastUpdateMs: number;
 }
 

@@ -81,8 +81,8 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) { setFormError('Add your name.'); return; }
-    if (payload?.phoneRequired && !phone.trim()) {
-      setFormError('Phone is required so we can text you.');
+    if (!phone.trim()) {
+      setFormError('Phone is required so we can text you when you\'re up.');
       return;
     }
     setSubmitting(true);
@@ -221,9 +221,7 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
               </div>
             )}
             <div className="artist-signup__success-sub">
-              {submittedEntry.phone
-                ? "We'll text you when it's your turn."
-                : 'Hang nearby — we\'ll call your name when you\'re up.'}
+              We'll text you when it's your turn.
             </div>
           </div>
         ) : (
@@ -235,8 +233,8 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
                 <input className="artist-signup__input" value={name} onChange={(e) => setName(e.target.value)} placeholder="First and last" autoComplete="name" />
               </label>
               <label className="artist-signup__field artist-signup__field--full">
-                <span>Phone {payload.phoneRequired ? '' : '(optional)'}</span>
-                <input className="artist-signup__input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="So we can text you when you're up" autoComplete="tel" inputMode="tel" />
+                <span>Phone *</span>
+                <input className="artist-signup__input" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="So we can text you when you're up" autoComplete="tel" inputMode="tel" />
               </label>
               <label className="artist-signup__field">
                 <span>Image #</span>
@@ -305,7 +303,7 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
                         {s.color && <span className={`artist-signup__entry-tag artist-signup__entry-tag--${s.color}`}>
                           {s.color === 'black' ? 'Black' : 'Color'}
                         </span>}
-                        {s.completed && <span className="artist-signup__entry-tag artist-signup__entry-tag--done">Done</span>}
+                        {s.completed && <span className="artist-signup__entry-tag artist-signup__entry-tag--done">Paid</span>}
                       </div>
                     </div>
                     {!s.completed && <div className="artist-signup__entry-pos">#{i + 1}</div>}
