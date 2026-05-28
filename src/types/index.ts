@@ -216,6 +216,10 @@ export interface Show {
   todos?: TodoItem[];
   viewToken?: string; // public read-only viewer link token
   viewNote?: string; // optional note shown on the viewer page before the show starts
+  artistSignupToken?: string; // public sign-up sheet link token
+  artistFlashImage?: string; // flash sheet image (data URL)
+  artistPaymentLinks?: { cashApp?: string; venmo?: string; zelle?: string; other?: string };
+  artistScheduleVisible?: boolean; // show the schedule on the public sign-up page
   createdAt: string;
   updatedAt: string;
 }
