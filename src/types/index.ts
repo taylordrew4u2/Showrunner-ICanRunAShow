@@ -230,7 +230,6 @@ export interface Show {
     payment?: boolean;
   };
   artistHiddenCues?: string[]; // schedule item IDs to hide from public schedule
-  artistPhoneRequired?: boolean; // require phone on sign-up form
   artistNotifyTemplate?: string; // SMS template; supports {name} placeholder
   createdAt: string;
   updatedAt: string;
