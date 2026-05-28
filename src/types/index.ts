@@ -220,6 +220,18 @@ export interface Show {
   artistFlashImage?: string; // flash sheet image (data URL)
   artistPaymentLinks?: { cashApp?: string; venmo?: string; zelle?: string; other?: string };
   artistScheduleVisible?: boolean; // show the schedule on the public sign-up page
+  artistWelcomeMessage?: string; // intro shown at the top of the public page
+  artistPricingLabels?: { black?: string; color?: string }; // override "Black $60" / "Color $80"
+  artistSections?: {
+    schedule?: boolean;
+    flash?: boolean;
+    live?: boolean;
+    signups?: boolean;
+    payment?: boolean;
+  };
+  artistHiddenCues?: string[]; // schedule item IDs to hide from public schedule
+  artistPhoneRequired?: boolean; // require phone on sign-up form
+  artistNotifyTemplate?: string; // SMS template; supports {name} placeholder
   createdAt: string;
   updatedAt: string;
 }
