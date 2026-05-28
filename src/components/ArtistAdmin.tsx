@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Show } from '../types';
 import { generateId } from '../utils/id';
 import { compressImage, pickFile } from '../utils/media';
@@ -17,40 +17,90 @@ interface ArtistAdminProps {
   onClose: () => void;
 }
 
+interface Draft {
+  scheduleVisible: boolean;
+  flashImage: string;
+  welcomeMessage: string;
+  cashApp: string;
+  venmo: string;
+  zelle: string;
+  other: string;
+  blackLabel: string;
+  colorLabel: string;
+  showLive: boolean;
+  showSignups: boolean;
+  showFlash: boolean;
+  showPayment: boolean;
+  phoneRequired: boolean;
+  notifyTemplate: string;
+  hiddenCues: Set<string>;
+}
+
+const DEFAULT_BLACK_LABEL = 'Black — $60';
+const DEFAULT_COLOR_LABEL = 'Full color — $80';
+const DEFAULT_NOTIFY = "Hi {name}! You're up next — head over for your tattoo.";
+
 function buildPayload(show: Show): ArtistSignupPayload {
+  const hidden = new Set(show.artistHiddenCues ?? []);
   return {
     showName: show.name,
+    venueName: show.venueName,
     scheduleVisible: show.artistScheduleVisible ?? true,
-    schedule: show.schedule?.map((s) => ({
-      time: s.time || undefined,
-      description: s.description,
-      performer: s.performer || undefined,
-    })),
+    schedule: show.schedule
+      ?.filter((s) => !hidden.has(s.id))
+      .map((s) => ({
+        time: s.time || undefined,
+        description: s.description,
+        performer: s.performer || undefined,
+      })),
     flashImage: show.artistFlashImage,
     paymentLinks: show.artistPaymentLinks,
     liveToken: show.viewToken,
+    welcomeMessage: show.artistWelcomeMessage,
+    pricingLabels: show.artistPricingLabels,
+    sections: show.artistSections,
+    phoneRequired: show.artistPhoneRequired,
     lastUpdateMs: Date.now(),
   };
+}
+
+function buildNotifyHref(phone: string | undefined, name: string, template: string): string | undefined {
+  if (!phone) return undefined;
+  const message = template.replace(/\{name\}/g, name).trim() || DEFAULT_NOTIFY.replace('{name}', name);
+  const cleanPhone = phone.replace(/[^\d+]/g, '');
+  // Modern cross-platform: ?body= works on iOS 12+ and Android. RFC 5724.
+  return `sms:${cleanPhone}?body=${encodeURIComponent(message)}`;
 }
 
 export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
   const [signups, setSignups] = useState<ArtistSignupEntry[]>([]);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState({
+  const [saved, setSaved] = useState(false);
+
+  const [draft, setDraft] = useState<Draft>({
     scheduleVisible: show.artistScheduleVisible ?? true,
     flashImage: show.artistFlashImage ?? '',
+    welcomeMessage: show.artistWelcomeMessage ?? '',
     cashApp: show.artistPaymentLinks?.cashApp ?? '',
     venmo: show.artistPaymentLinks?.venmo ?? '',
     zelle: show.artistPaymentLinks?.zelle ?? '',
     other: show.artistPaymentLinks?.other ?? '',
+    blackLabel: show.artistPricingLabels?.black ?? DEFAULT_BLACK_LABEL,
+    colorLabel: show.artistPricingLabels?.color ?? DEFAULT_COLOR_LABEL,
+    showLive: show.artistSections?.live ?? true,
+    showSignups: show.artistSections?.signups ?? true,
+    showFlash: show.artistSections?.flash ?? true,
+    showPayment: show.artistSections?.payment ?? true,
+    phoneRequired: show.artistPhoneRequired ?? false,
+    notifyTemplate: show.artistNotifyTemplate ?? DEFAULT_NOTIFY,
+    hiddenCues: new Set(show.artistHiddenCues ?? []),
   });
 
   const url = show.artistSignupToken
     ? `${window.location.origin}/?artist=${show.artistSignupToken}`
     : null;
 
-  // Poll signups while the modal is open.
   useEffect(() => {
     if (!show.artistSignupToken) return;
     let alive = true;
@@ -65,6 +115,8 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     return () => { alive = false; window.clearInterval(id); };
   }, [show.artistSignupToken]);
 
+  const nextPending = useMemo(() => signups.find((s) => !s.completed), [signups]);
+
   async function handleUploadFlash() {
     const file = await pickFile('image/*');
     if (!file) return;
@@ -76,8 +128,17 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     }
   }
 
+  function toggleCue(id: string) {
+    setDraft((d) => {
+      const next = new Set(d.hiddenCues);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return { ...d, hiddenCues: next };
+    });
+  }
+
   async function handleSave() {
     setBusy(true);
+    setSaved(false);
     let token = show.artistSignupToken;
     const paymentLinks = {
       cashApp: draft.cashApp.trim() || undefined,
@@ -85,10 +146,25 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
       zelle: draft.zelle.trim() || undefined,
       other: draft.other.trim() || undefined,
     };
+    const pricingLabels = (draft.blackLabel.trim() !== DEFAULT_BLACK_LABEL || draft.colorLabel.trim() !== DEFAULT_COLOR_LABEL)
+      ? { black: draft.blackLabel.trim() || undefined, color: draft.colorLabel.trim() || undefined }
+      : undefined;
     const updates: Partial<Show> = {
       artistScheduleVisible: draft.scheduleVisible,
       artistFlashImage: draft.flashImage || undefined,
       artistPaymentLinks: paymentLinks,
+      artistWelcomeMessage: draft.welcomeMessage.trim() || undefined,
+      artistPricingLabels: pricingLabels,
+      artistSections: {
+        schedule: draft.scheduleVisible,
+        flash: draft.showFlash,
+        live: draft.showLive,
+        signups: draft.showSignups,
+        payment: draft.showPayment,
+      },
+      artistHiddenCues: Array.from(draft.hiddenCues),
+      artistPhoneRequired: draft.phoneRequired,
+      artistNotifyTemplate: draft.notifyTemplate.trim() === DEFAULT_NOTIFY ? undefined : draft.notifyTemplate.trim() || undefined,
     };
     if (!token) {
       token = generateId();
@@ -98,6 +174,8 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     const merged: Show = { ...show, ...updates };
     try {
       await publishArtistPayload(token, buildPayload(merged));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch { /* ignore */ }
     setBusy(false);
   }
@@ -123,11 +201,19 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     setSignups((prev) => prev.filter((s) => s.id !== id));
   }
 
-  function notifyHref(phone: string | undefined, name: string): string | undefined {
-    if (!phone) return undefined;
-    const body = encodeURIComponent(`Hi ${name}! You're up — head over for your tattoo.`);
-    return `sms:${phone}?&body=${body}`;
+  function handleNotifyNext() {
+    if (!nextPending) return;
+    const href = buildNotifyHref(nextPending.phone, nextPending.name, draft.notifyTemplate);
+    if (!href) {
+      alert(`${nextPending.name} doesn't have a phone number on file.`);
+      return;
+    }
+    window.location.href = href;
   }
+
+  const waitingCount = signups.filter((s) => !s.completed).length;
+  const doneCount = signups.length - waitingCount;
+  const cues = show.schedule ?? [];
 
   return (
     <div className="artist-admin-backdrop" onClick={onClose} role="dialog" aria-modal="true">
@@ -150,15 +236,97 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
             )}
           </section>
 
+          {nextPending && (
+            <section className="artist-admin__sec artist-admin__next-up">
+              <div>
+                <div className="artist-admin__next-label">Next up</div>
+                <div className="artist-admin__next-name">{nextPending.name}</div>
+                {nextPending.imageNumber != null && <span className="artist-admin__entry-tag">#{nextPending.imageNumber}</span>}
+                {nextPending.color && <span className="artist-admin__entry-tag">{nextPending.color === 'black' ? 'Black' : 'Color'}</span>}
+              </div>
+              <button className="btn btn--primary btn--sm" onClick={handleNotifyNext} disabled={!nextPending.phone}>
+                {nextPending.phone ? 'Text them' : 'No phone'}
+              </button>
+            </section>
+          )}
+
           <section className="artist-admin__sec">
-            <label className="artist-admin__check">
-              <input
-                type="checkbox"
-                checked={draft.scheduleVisible}
-                onChange={(e) => setDraft((d) => ({ ...d, scheduleVisible: e.target.checked }))}
-              />
-              Show the full schedule on the public page
-            </label>
+            <h3 className="artist-admin__h3">Welcome message</h3>
+            <textarea
+              className="section-field__input artist-admin__textarea"
+              rows={3}
+              placeholder="Shown at the top of the public page. Tell artists how it works, what to expect, etc."
+              value={draft.welcomeMessage}
+              onChange={(e) => setDraft((d) => ({ ...d, welcomeMessage: e.target.value }))}
+            />
+          </section>
+
+          <section className="artist-admin__sec">
+            <h3 className="artist-admin__h3">What viewers see</h3>
+            <div className="artist-admin__toggles">
+              <label className="artist-admin__check">
+                <input type="checkbox" checked={draft.showLive} onChange={(e) => setDraft((d) => ({ ...d, showLive: e.target.checked }))} />
+                Live on-stage / up-next
+              </label>
+              <label className="artist-admin__check">
+                <input type="checkbox" checked={draft.scheduleVisible} onChange={(e) => setDraft((d) => ({ ...d, scheduleVisible: e.target.checked }))} />
+                Full schedule
+              </label>
+              <label className="artist-admin__check">
+                <input type="checkbox" checked={draft.showFlash} onChange={(e) => setDraft((d) => ({ ...d, showFlash: e.target.checked }))} />
+                Flash sheet
+              </label>
+              <label className="artist-admin__check">
+                <input type="checkbox" checked={draft.showSignups} onChange={(e) => setDraft((d) => ({ ...d, showSignups: e.target.checked }))} />
+                Sign-up list
+              </label>
+              <label className="artist-admin__check">
+                <input type="checkbox" checked={draft.showPayment} onChange={(e) => setDraft((d) => ({ ...d, showPayment: e.target.checked }))} />
+                Payment links
+              </label>
+              <label className="artist-admin__check">
+                <input type="checkbox" checked={draft.phoneRequired} onChange={(e) => setDraft((d) => ({ ...d, phoneRequired: e.target.checked }))} />
+                Require phone on sign-up
+              </label>
+            </div>
+          </section>
+
+          {draft.scheduleVisible && cues.length > 0 && (
+            <section className="artist-admin__sec">
+              <h3 className="artist-admin__h3">Schedule items shown to public</h3>
+              <p className="artist-admin__hint">Uncheck any cues you want to hide from the public schedule.</p>
+              <ul className="artist-admin__cues">
+                {cues.map((c) => (
+                  <li key={c.id}>
+                    <label className="artist-admin__check">
+                      <input
+                        type="checkbox"
+                        checked={!draft.hiddenCues.has(c.id)}
+                        onChange={() => toggleCue(c.id)}
+                      />
+                      <span className="artist-admin__cue-time">{c.time || '—'}</span>
+                      <span className="artist-admin__cue-desc">{c.description || '(no description)'}</span>
+                      {c.performer && <span className="artist-admin__entry-tag">{c.performer}</span>}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <section className="artist-admin__sec">
+            <h3 className="artist-admin__h3">Pricing labels</h3>
+            <p className="artist-admin__hint">Override the default pricing the form shows.</p>
+            <div className="artist-admin__pay-grid">
+              <label><span>Black option</span>
+                <input className="section-field__input" value={draft.blackLabel}
+                  onChange={(e) => setDraft((d) => ({ ...d, blackLabel: e.target.value }))} placeholder={DEFAULT_BLACK_LABEL} />
+              </label>
+              <label><span>Color option</span>
+                <input className="section-field__input" value={draft.colorLabel}
+                  onChange={(e) => setDraft((d) => ({ ...d, colorLabel: e.target.value }))} placeholder={DEFAULT_COLOR_LABEL} />
+              </label>
+            </div>
           </section>
 
           <section className="artist-admin__sec">
@@ -195,32 +363,59 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
           </section>
 
           <section className="artist-admin__sec">
-            <h3 className="artist-admin__h3">Sign-ups ({signups.length})</h3>
+            <h3 className="artist-admin__h3">Notify text template</h3>
+            <p className="artist-admin__hint">Use <code>{'{name}'}</code> for the artist's name.</p>
+            <textarea
+              className="section-field__input artist-admin__textarea"
+              rows={2}
+              value={draft.notifyTemplate}
+              onChange={(e) => setDraft((d) => ({ ...d, notifyTemplate: e.target.value }))}
+              placeholder={DEFAULT_NOTIFY}
+            />
+          </section>
+
+          <section className="artist-admin__sec">
+            <div className="artist-admin__signup-head">
+              <h3 className="artist-admin__h3">Sign-ups</h3>
+              <span className="artist-admin__signup-count">
+                {waitingCount} waiting · {doneCount} done
+              </span>
+            </div>
             {signups.length === 0 ? (
               <p className="artist-admin__hint">No sign-ups yet.</p>
             ) : (
               <ol className="artist-admin__signups">
-                {signups.map((s) => (
-                  <li key={s.id} className={s.completed ? 'artist-admin__entry artist-admin__entry--done' : 'artist-admin__entry'}>
-                    <div className="artist-admin__entry-main">
-                      <span className="artist-admin__entry-name">{s.name}</span>
-                      {s.imageNumber != null && <span className="artist-admin__entry-tag">#{s.imageNumber}</span>}
-                      {s.color && <span className="artist-admin__entry-tag">{s.color === 'black' ? 'Black $60' : 'Color $80'}</span>}
-                      {s.phone && (
-                        <a className="artist-admin__entry-phone" href={`tel:${s.phone}`}>{s.phone}</a>
-                      )}
-                    </div>
-                    <div className="artist-admin__entry-actions">
-                      {s.phone && (
-                        <a className="btn btn--secondary btn--sm" href={notifyHref(s.phone, s.name)}>Notify ▸</a>
-                      )}
-                      <button className="btn btn--ghost btn--sm" onClick={() => handleToggleCompleted(s)}>
-                        {s.completed ? 'Undo' : 'Mark done'}
-                      </button>
-                      <button className="btn btn--ghost btn--sm" onClick={() => handleDelete(s.id)} title="Remove">×</button>
-                    </div>
-                  </li>
-                ))}
+                {signups.map((s, i) => {
+                  const isNext = !s.completed && s.id === nextPending?.id;
+                  return (
+                    <li key={s.id} className={[
+                      'artist-admin__entry',
+                      s.completed ? 'artist-admin__entry--done' : '',
+                      isNext ? 'artist-admin__entry--next' : '',
+                    ].filter(Boolean).join(' ')}>
+                      <div className="artist-admin__entry-main">
+                        <span className="artist-admin__entry-pos">{i + 1}</span>
+                        <span className="artist-admin__entry-name">{s.name}</span>
+                        {s.imageNumber != null && <span className="artist-admin__entry-tag">#{s.imageNumber}</span>}
+                        {s.color && <span className={`artist-admin__entry-tag artist-admin__entry-tag--${s.color}`}>
+                          {s.color === 'black' ? 'Black' : 'Color'}
+                        </span>}
+                        {s.phone && (
+                          <a className="artist-admin__entry-phone" href={`tel:${s.phone.replace(/[^\d+]/g, '')}`}>{s.phone}</a>
+                        )}
+                      </div>
+                      <div className="artist-admin__entry-actions">
+                        {s.phone && (
+                          <a className="btn btn--secondary btn--sm" href={buildNotifyHref(s.phone, s.name, draft.notifyTemplate)}>Text ▸</a>
+                        )}
+                        <button className="btn btn--ghost btn--sm" onClick={() => handleToggleCompleted(s)}>
+                          {s.completed ? 'Undo' : 'Mark done'}
+                        </button>
+                        <button className="btn btn--ghost btn--sm" onClick={() => handleDelete(s.id)} title="Remove">×</button>
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </section>
@@ -228,7 +423,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
 
         <footer className="artist-admin__footer">
           <button className="btn btn--primary" onClick={handleSave} disabled={busy}>
-            {busy ? 'Saving…' : show.artistSignupToken ? 'Save & publish' : 'Generate link & publish'}
+            {busy ? 'Saving…' : saved ? 'Saved ✓' : show.artistSignupToken ? 'Save & publish' : 'Generate link & publish'}
           </button>
           <button className="btn btn--ghost" onClick={onClose}>Close</button>
         </footer>

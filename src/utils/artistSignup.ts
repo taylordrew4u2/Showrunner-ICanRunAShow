@@ -2,11 +2,22 @@ import { getClient, ensureSchema } from './db';
 
 export interface ArtistSignupPayload {
   showName: string;
+  venueName?: string;
   scheduleVisible: boolean;
   schedule?: Array<{ time?: string; description: string; performer?: string }>;
   flashImage?: string;
   paymentLinks?: { cashApp?: string; venmo?: string; zelle?: string; other?: string };
   liveToken?: string; // so the page can also pull live on-stage/up-next from live_view
+  welcomeMessage?: string;
+  pricingLabels?: { black?: string; color?: string };
+  sections?: {
+    schedule?: boolean;
+    flash?: boolean;
+    live?: boolean;
+    signups?: boolean;
+    payment?: boolean;
+  };
+  phoneRequired?: boolean;
   lastUpdateMs: number;
 }
 
