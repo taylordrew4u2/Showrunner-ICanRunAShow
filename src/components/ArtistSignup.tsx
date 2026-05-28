@@ -45,7 +45,6 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
   const [scheduleZoom, setScheduleZoom] = useState(false);
 
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [imageNum, setImageNum] = useState('');
   const [color, setColor] = useState<'black' | 'color'>('black');
@@ -102,7 +101,6 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
       await createSignup(token, {
         id: entryId,
         name: name.trim(),
-        phone: phone.trim() || undefined,
         email: email.trim(),
         imageNumber: imageNum.trim() ? parseInt(imageNum, 10) : undefined,
         color,
@@ -111,7 +109,7 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
       setSignups(updated);
       const mine = updated.find((s) => s.id === entryId);
       setSubmittedEntry(mine ?? null);
-      setName(''); setPhone(''); setEmail(''); setImageNum(''); setColor('black');
+      setName(''); setEmail(''); setImageNum(''); setColor('black');
       setTimeout(() => setSubmittedEntry(null), 8000);
     } catch {
       setFormError("Couldn't submit. Please try again.");
@@ -290,10 +288,6 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
                     <span>Email *</span>
                     <input className="artist-signup__input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" inputMode="email" />
                     <span className="artist-signup__field-hint">We'll email you when you're up — please check your spam folder.</span>
-                  </label>
-                  <label className="artist-signup__field artist-signup__field--full">
-                    <span>Phone (optional)</span>
-                    <input className="artist-signup__input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="For backup contact" autoComplete="tel" inputMode="tel" />
                   </label>
                   <label className="artist-signup__field">
                     <span>Image #</span>
