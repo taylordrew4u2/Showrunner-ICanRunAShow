@@ -20,6 +20,7 @@ import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
 import { RolodexProfile } from './components/sections/RolodexProfile';
 import { LiveViewer } from './components/LiveViewer';
+import { ArtistSignup } from './components/ArtistSignup';
 import './App.css';
 
 type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex';
@@ -447,10 +448,15 @@ export default function App() {
   const completedCount = shows.filter((show) => show.status === 'completed').length;
   const totalSceneCount = shows.reduce((sum, show) => sum + (show.scenes?.length ?? 0), 0);
 
-  // Public read-only live viewer route — no auth required.
-  const viewToken = new URLSearchParams(window.location.search).get('view');
+  // Public read-only routes — no auth required.
+  const search = new URLSearchParams(window.location.search);
+  const viewToken = search.get('view');
   if (viewToken) {
     return <LiveViewer token={viewToken} />;
+  }
+  const artistToken = search.get('artist');
+  if (artistToken) {
+    return <ArtistSignup token={artistToken} />;
   }
 
   return (

@@ -1,0 +1,102 @@
+import { getClient, ensureSchema } from './db';
+
+export interface ArtistSignupPayload {
+  showName: string;
+  scheduleVisible: boolean;
+  schedule?: Array<{ time?: string; description: string; performer?: string }>;
+  flashImage?: string;
+  paymentLinks?: { cashApp?: string; venmo?: string; zelle?: string; other?: string };
+  liveToken?: string; // so the page can also pull live on-stage/up-next from live_view
+  lastUpdateMs: number;
+}
+
+export interface ArtistSignupEntry {
+  id: string;
+  name: string;
+  phone?: string; // present for admin queries; the public list strips it client-side
+  imageNumber?: number;
+  color?: 'black' | 'color';
+  completed: boolean;
+  createdAt: string;
+}
+
+export async function publishArtistPayload(token: string, payload: ArtistSignupPayload): Promise<void> {
+  await ensureSchema();
+  const db = getClient();
+  await db.execute({
+    sql: `INSERT INTO artist_signup (token, payload, updated_at) VALUES (?, ?, datetime('now'))
+          ON CONFLICT(token) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at`,
+    args: [token, JSON.stringify(payload)],
+  });
+}
+
+export async function fetchArtistPayload(token: string): Promise<ArtistSignupPayload | null> {
+  await ensureSchema();
+  const db = getClient();
+  const result = await db.execute({
+    sql: `SELECT payload FROM artist_signup WHERE token = ?`,
+    args: [token],
+  });
+  if (result.rows.length === 0) return null;
+  try {
+    return JSON.parse(result.rows[0][0] as string) as ArtistSignupPayload;
+  } catch {
+    return null;
+  }
+}
+
+export async function listSignups(token: string): Promise<ArtistSignupEntry[]> {
+  await ensureSchema();
+  const db = getClient();
+  const result = await db.execute({
+    sql: `SELECT id, name, phone, image_number, color, completed, created_at
+            FROM artist_signup_entries
+           WHERE token = ?
+           ORDER BY created_at ASC`,
+    args: [token],
+  });
+  return result.rows.map((row) => ({
+    id: String(row[0]),
+    name: String(row[1] ?? ''),
+    phone: row[2] != null ? String(row[2]) : undefined,
+    imageNumber: row[3] != null ? Number(row[3]) : undefined,
+    color: (row[4] === 'black' || row[4] === 'color' ? (row[4] as 'black' | 'color') : undefined),
+    completed: Number(row[5]) === 1,
+    createdAt: String(row[6] ?? ''),
+  }));
+}
+
+export async function createSignup(
+  token: string,
+  entry: { id: string; name: string; phone?: string; imageNumber?: number; color?: 'black' | 'color' },
+): Promise<void> {
+  await ensureSchema();
+  const db = getClient();
+  await db.execute({
+    sql: `INSERT INTO artist_signup_entries (id, token, name, phone, image_number, color)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [
+      entry.id,
+      token,
+      entry.name,
+      entry.phone ?? null,
+      entry.imageNumber ?? null,
+      entry.color ?? null,
+    ],
+  });
+}
+
+export async function setSignupCompleted(id: string, completed: boolean): Promise<void> {
+  await ensureSchema();
+  const db = getClient();
+  await db.execute({
+    sql: `UPDATE artist_signup_entries SET completed = ? WHERE id = ?`,
+    args: [completed ? 1 : 0, id],
+  });
+}
+
+export async function deleteSignup(id: string): Promise<void> {
+  await ensureSchema();
+  const db = getClient();
+  await db.execute({ sql: `DELETE FROM artist_signup_entries WHERE id = ?`, args: [id] });
+}

@@ -15,6 +15,7 @@ import { ShowRecapSection } from './sections/ShowRecapSection';
 import { FilesSection } from './sections/FilesSection';
 import { RunShow } from './RunShow';
 import { Modal } from './Modal';
+import { ArtistAdmin } from './ArtistAdmin';
 import { exportShowToPDF } from '../utils/pdfExport';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import './ShowDetail.css';
@@ -36,6 +37,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerNoteDraft, setViewerNoteDraft] = useState('');
   const [viewerCopied, setViewerCopied] = useState(false);
+  const [artistAdminOpen, setArtistAdminOpen] = useState(false);
   const [tempShowName, setTempShowName] = useState(show.name);
   const [tempVideoPerson, setTempVideoPerson] = useState(show.videoPerson || '');
   const [tempVideoPayment, setTempVideoPayment] = useState(show.videoPayment?.toString() || '');
@@ -433,6 +435,13 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
             Viewer link
           </button>
           <button
+            className="btn btn--secondary btn--sm"
+            onClick={() => setArtistAdminOpen(true)}
+            title="Artist sign-up admin"
+          >
+            Artist admin
+          </button>
+          <button
             className="show-detail__run-show"
             onClick={() => setRunShowOpen(true)}
             title="Run the live show"
@@ -760,6 +769,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           performers={show.performers}
           onClose={() => setRunShowOpen(false)}
         />
+      )}
+
+      {artistAdminOpen && (
+        <ArtistAdmin show={show} onChange={handleUpdate} onClose={() => setArtistAdminOpen(false)} />
       )}
 
       {viewerOpen && (
