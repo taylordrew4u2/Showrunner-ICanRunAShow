@@ -216,53 +216,67 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
   const cues = show.schedule ?? [];
 
   return (
-    <div className="artist-admin-backdrop" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="artist-admin" onClick={(e) => e.stopPropagation()}>
-        <header className="artist-admin__header">
-          <h2 className="artist-admin__title">Artist admin</h2>
-          <button className="artist-admin__close" onClick={onClose} aria-label="Close">×</button>
-        </header>
+    <div className="artist-page" role="dialog" aria-modal="true" aria-label="Artist admin">
+      <header className="artist-page__bar">
+        <button className="artist-page__back" onClick={onClose} aria-label="Back to show">
+          <span className="artist-page__back-arrow">‹</span> Back to show
+        </button>
+        <h1 className="artist-page__title">Artist admin</h1>
+        <div className="artist-page__bar-right">
+          {saved && <span className="artist-page__saved">Saved ✓</span>}
+          <button className="btn btn--primary btn--sm" onClick={handleSave} disabled={busy}>
+            {busy ? 'Saving…' : show.artistSignupToken ? 'Save & publish' : 'Generate link'}
+          </button>
+        </div>
+      </header>
 
-        <div className="artist-admin__body">
-          <section className="artist-admin__sec">
-            <h3 className="artist-admin__h3">Public sign-up link</h3>
+      <div className="artist-page__scroll">
+        <div className="artist-page__grid">
+          <section className="artist-card artist-card--link artist-page__col-full">
+            <h3 className="artist-card__title">Public sign-up link</h3>
             {url ? (
-              <div className="viewer-link-modal__url-row">
-                <input className="section-field__input" readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
-                <button className="btn btn--secondary btn--sm" onClick={handleCopy}>{copied ? 'Copied!' : 'Copy'}</button>
-              </div>
+              <>
+                <div className="viewer-link-modal__url-row">
+                  <input className="section-field__input" readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
+                  <button className="btn btn--secondary btn--sm" onClick={handleCopy}>{copied ? 'Copied!' : 'Copy'}</button>
+                </div>
+                <p className="artist-card__hint">Share this link with artists so they can sign up from their phone.</p>
+              </>
             ) : (
-              <p className="artist-admin__hint">Click <strong>Save & publish</strong> below to generate the link.</p>
+              <p className="artist-card__hint">Click <strong>Save & publish</strong> above to generate the link.</p>
             )}
           </section>
 
           {nextPending && (
-            <section className="artist-admin__sec artist-admin__next-up">
-              <div>
-                <div className="artist-admin__next-label">Next up</div>
-                <div className="artist-admin__next-name">{nextPending.name}</div>
-                {nextPending.imageNumber != null && <span className="artist-admin__entry-tag">#{nextPending.imageNumber}</span>}
-                {nextPending.color && <span className="artist-admin__entry-tag">{nextPending.color === 'black' ? 'Black' : 'Color'}</span>}
+            <section className="artist-card artist-card--next artist-page__col-full">
+              <div className="artist-card__next-info">
+                <div className="artist-card__next-label">Next up</div>
+                <div className="artist-card__next-name">{nextPending.name}</div>
+                <div className="artist-card__next-tags">
+                  {nextPending.imageNumber != null && <span className="artist-admin__entry-tag">#{nextPending.imageNumber}</span>}
+                  {nextPending.color && <span className={`artist-admin__entry-tag artist-admin__entry-tag--${nextPending.color}`}>{nextPending.color === 'black' ? 'Black' : 'Color'}</span>}
+                </div>
               </div>
-              <button className="btn btn--primary btn--sm" onClick={handleNotifyNext} disabled={!nextPending.phone}>
-                {nextPending.phone ? 'Text them' : 'No phone'}
+              <button className="btn btn--primary" onClick={handleNotifyNext} disabled={!nextPending.phone}>
+                {nextPending.phone ? 'Text them they\'re up' : 'No phone on file'}
               </button>
             </section>
           )}
 
-          <section className="artist-admin__sec">
-            <h3 className="artist-admin__h3">Welcome message</h3>
+          <section className="artist-card artist-page__col-full">
+            <h3 className="artist-card__title">Welcome message</h3>
+            <p className="artist-card__hint">Shown at the top of the public page.</p>
             <textarea
               className="section-field__input artist-admin__textarea"
               rows={3}
-              placeholder="Shown at the top of the public page. Tell artists how it works, what to expect, etc."
+              placeholder="Tell artists how it works, what to expect, etc."
               value={draft.welcomeMessage}
               onChange={(e) => setDraft((d) => ({ ...d, welcomeMessage: e.target.value }))}
             />
           </section>
 
-          <section className="artist-admin__sec">
-            <h3 className="artist-admin__h3">What viewers see</h3>
+          <section className="artist-card">
+            <h3 className="artist-card__title">What viewers see</h3>
             <div className="artist-admin__toggles">
               <label className="artist-admin__check">
                 <input type="checkbox" checked={draft.showLive} onChange={(e) => setDraft((d) => ({ ...d, showLive: e.target.checked }))} />
@@ -291,10 +305,25 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
             </div>
           </section>
 
+          <section className="artist-card">
+            <h3 className="artist-card__title">Pricing labels</h3>
+            <p className="artist-card__hint">Override the default pricing the form shows.</p>
+            <div className="artist-admin__pay-grid">
+              <label><span>Black option</span>
+                <input className="section-field__input" value={draft.blackLabel}
+                  onChange={(e) => setDraft((d) => ({ ...d, blackLabel: e.target.value }))} placeholder={DEFAULT_BLACK_LABEL} />
+              </label>
+              <label><span>Color option</span>
+                <input className="section-field__input" value={draft.colorLabel}
+                  onChange={(e) => setDraft((d) => ({ ...d, colorLabel: e.target.value }))} placeholder={DEFAULT_COLOR_LABEL} />
+              </label>
+            </div>
+          </section>
+
           {draft.scheduleVisible && cues.length > 0 && (
-            <section className="artist-admin__sec">
-              <h3 className="artist-admin__h3">Schedule items shown to public</h3>
-              <p className="artist-admin__hint">Uncheck any cues you want to hide from the public schedule.</p>
+            <section className="artist-card artist-page__col-full">
+              <h3 className="artist-card__title">Schedule items shown to public</h3>
+              <p className="artist-card__hint">Uncheck any cues you want to hide from the public schedule.</p>
               <ul className="artist-admin__cues">
                 {cues.map((c) => (
                   <li key={c.id}>
@@ -314,23 +343,8 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
             </section>
           )}
 
-          <section className="artist-admin__sec">
-            <h3 className="artist-admin__h3">Pricing labels</h3>
-            <p className="artist-admin__hint">Override the default pricing the form shows.</p>
-            <div className="artist-admin__pay-grid">
-              <label><span>Black option</span>
-                <input className="section-field__input" value={draft.blackLabel}
-                  onChange={(e) => setDraft((d) => ({ ...d, blackLabel: e.target.value }))} placeholder={DEFAULT_BLACK_LABEL} />
-              </label>
-              <label><span>Color option</span>
-                <input className="section-field__input" value={draft.colorLabel}
-                  onChange={(e) => setDraft((d) => ({ ...d, colorLabel: e.target.value }))} placeholder={DEFAULT_COLOR_LABEL} />
-              </label>
-            </div>
-          </section>
-
-          <section className="artist-admin__sec">
-            <h3 className="artist-admin__h3">Flash sheet image</h3>
+          <section className="artist-card artist-page__col-full">
+            <h3 className="artist-card__title">Flash sheet image</h3>
             {draft.flashImage ? (
               <div className="artist-admin__flash">
                 <img src={draft.flashImage} alt="Flash sheet" />
@@ -344,8 +358,8 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
             )}
           </section>
 
-          <section className="artist-admin__sec">
-            <h3 className="artist-admin__h3">Payment links</h3>
+          <section className="artist-card artist-page__col-full">
+            <h3 className="artist-card__title">Payment links</h3>
             <div className="artist-admin__pay-grid">
               <label><span>Cash App</span>
                 <input className="section-field__input" value={draft.cashApp} onChange={(e) => setDraft((d) => ({ ...d, cashApp: e.target.value }))} placeholder="https://cash.app/$handle" />
@@ -362,9 +376,9 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
             </div>
           </section>
 
-          <section className="artist-admin__sec">
-            <h3 className="artist-admin__h3">Notify text template</h3>
-            <p className="artist-admin__hint">Use <code>{'{name}'}</code> for the artist's name.</p>
+          <section className="artist-card artist-page__col-full">
+            <h3 className="artist-card__title">Notify text template</h3>
+            <p className="artist-card__hint">Use <code>{'{name}'}</code> for the artist's name.</p>
             <textarea
               className="section-field__input artist-admin__textarea"
               rows={2}
@@ -374,15 +388,15 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
             />
           </section>
 
-          <section className="artist-admin__sec">
+          <section className="artist-card artist-page__col-full">
             <div className="artist-admin__signup-head">
-              <h3 className="artist-admin__h3">Sign-ups</h3>
+              <h3 className="artist-card__title" style={{ margin: 0 }}>Sign-ups</h3>
               <span className="artist-admin__signup-count">
                 {waitingCount} waiting · {doneCount} done
               </span>
             </div>
             {signups.length === 0 ? (
-              <p className="artist-admin__hint">No sign-ups yet.</p>
+              <p className="artist-card__hint">No sign-ups yet. Share the link to start collecting.</p>
             ) : (
               <ol className="artist-admin__signups">
                 {signups.map((s, i) => {
@@ -420,14 +434,14 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
             )}
           </section>
         </div>
-
-        <footer className="artist-admin__footer">
-          <button className="btn btn--primary" onClick={handleSave} disabled={busy}>
-            {busy ? 'Saving…' : saved ? 'Saved ✓' : show.artistSignupToken ? 'Save & publish' : 'Generate link & publish'}
-          </button>
-          <button className="btn btn--ghost" onClick={onClose}>Close</button>
-        </footer>
       </div>
+
+      <footer className="artist-page__footer">
+        <button className="btn btn--ghost" onClick={onClose}>Back to show</button>
+        <button className="btn btn--primary" onClick={handleSave} disabled={busy}>
+          {busy ? 'Saving…' : saved ? 'Saved ✓' : show.artistSignupToken ? 'Save & publish' : 'Generate link & publish'}
+        </button>
+      </footer>
     </div>
   );
 }
