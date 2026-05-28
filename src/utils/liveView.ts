@@ -4,21 +4,23 @@ import { getClient, ensureSchema } from './db';
 // viewer ticks the timer locally between updates using lastUpdateMs.
 export interface LiveViewPayload {
   showName: string;
-  status: 'idle' | 'countdown' | 'running' | 'paused' | 'ended';
+  status: 'scheduled' | 'idle' | 'countdown' | 'running' | 'paused' | 'ended';
   countdown?: number; // pre-roll seconds when status === 'countdown'
-  segment: {
-    name: string;
+  startsAt?: string; // ISO date-time when the show is scheduled to start
+  note?: string; // optional admin note shown pre-show
+  segment?: {
+    name?: string;
     description?: string;
     photo?: string;
     credits?: string;
   };
-  next: {
+  next?: {
     name?: string;
     description?: string;
     photo?: string;
   };
-  totalSec: number;
-  remainingAtLastUpdate: number; // seconds left when this payload was written
+  totalSec?: number;
+  remainingAtLastUpdate?: number; // seconds left when this payload was written
   lastUpdateMs: number; // host wall-clock time of the write
 }
 

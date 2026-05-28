@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Host } from '../../types';
 import { generateId } from '../../utils/id';
+import { compressImage, pickFile } from '../../utils/media';
 
 interface HostsSectionProps {
   hosts: Host[];
@@ -45,20 +46,15 @@ export function HostsSection({ hosts, onChange }: HostsSectionProps) {
     setEditId(null);
   }
 
-  function handlePhoto(id: string) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        onChange(hosts.map((h) => (h.id === id ? { ...h, photo: reader.result as string } : h)));
-      };
-      reader.readAsDataURL(file);
-    };
-    input.click();
+  async function handlePhoto(id: string) {
+    const file = await pickFile('image/*');
+    if (!file) return;
+    try {
+      const data = await compressImage(file);
+      onChange(hosts.map((h) => (h.id === id ? { ...h, photo: data } : h)));
+    } catch {
+      alert("Couldn't read that image. Try a different file.");
+    }
   }
 
   return (

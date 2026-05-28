@@ -2329,3 +2329,18 @@
     border-radius: var(--radius-md);
   }
 }
+
+/* Viewer link modal */
+.viewer-link-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 4px 4px;
+  min-width: min(420px, 90vw);
+}
+.viewer-link-modal__title { margin: 0 0 4px; font-size: 1.05rem; font-weight: 800; }
+.viewer-link-modal__sub { margin: 0 0 8px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.45; }
+.viewer-link-modal__url-row { display: flex; gap: 8px; align-items: center; }
+.viewer-link-modal__url-row .section-field__input { flex: 1; font-family: ui-monospace, monospace; font-size: 0.78rem; }
+.viewer-link-modal__hint { margin: 4px 0 0; font-size: 0.8rem; color: var(--text-muted); }
+.viewer-link-modal__actions { display: flex; gap: 8px; margin-top: 14px; }
