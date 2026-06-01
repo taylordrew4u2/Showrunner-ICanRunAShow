@@ -5,3 +5,6 @@ dist-ssr
 .vercel
 .env
 .env*.local
+
+# TypeScript incremental build cache
+*.tsbuildinfo

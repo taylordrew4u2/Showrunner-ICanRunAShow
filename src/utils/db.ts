@@ -1,15 +1,24 @@
 import { createClient, type Client } from "@libsql/client";
 
 // ─── Turso Client (Vite web app) ─────────────────────────────────────────────
+// Credentials are read from build-time env vars (VITE_*). For local dev,
+// set them in .env.local — see .env.example for the required keys. Without
+// them, the app surfaces a clear error rather than connecting to a stub.
 
-const TURSO_DATABASE_URL = import.meta.env.VITE_TURSO_DATABASE_URL || "libsql://database-bistre-horizon-vercel-icfg-bcu7zzamdox9nbdpkugsrnzd.aws-us-east-1.turso.io";
-
-const TURSO_AUTH_TOKEN = import.meta.env.VITE_TURSO_AUTH_TOKEN || "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzIwNDYyMTYsImlkIjoiMDE5Yzk2MmYtNmEwMS03ODI3LTk3Y2QtNjFmYWY3ZGE1OGYyIiwicmlkIjoiM2JhMzVkZDItMWIwOS00ZjlkLWJkN2QtNmI4NzUwMzQzOThmIn0.8kRrdjTNeV1OTBxs8qCjg_STs4OwV_gMzWfusfpHSsaFya8txL1G7i8wJZsDeLoy78d1HoUxg0NdcosvAhWrAQ";
+const TURSO_DATABASE_URL = import.meta.env.VITE_TURSO_DATABASE_URL as string | undefined;
+const TURSO_AUTH_TOKEN = import.meta.env.VITE_TURSO_AUTH_TOKEN as string | undefined;
 
 let _client: Client | null = null;
 
 export function getClient(): Client {
   if (!_client) {
+    if (!TURSO_DATABASE_URL || !TURSO_AUTH_TOKEN) {
+      throw new Error(
+        "Turso credentials missing. Set VITE_TURSO_DATABASE_URL and " +
+          "VITE_TURSO_AUTH_TOKEN in your environment (.env.local for dev, " +
+          "Vercel env vars for production).",
+      );
+    }
     _client = createClient({
       url: TURSO_DATABASE_URL,
       authToken: TURSO_AUTH_TOKEN,
