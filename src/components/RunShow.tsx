@@ -243,13 +243,14 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
     setCountdown(PREROLL_SECONDS);
   }, [running, idx, countdown]);
 
-  // Run the countdown; at zero, the segment starts and its music fades in.
+  // Run the countdown; at zero, the segment starts. Music is started MANUALLY
+  // by the operator via the Play button so a flaky cue doesn't fail silently
+  // mid-show. Fade-in/out is still automatic via audioEngine.
   useEffect(() => {
     if (countdown === null || !running) return;
     if (countdown <= 0) {
       startedIdxRef.current = idx;
       setCountdown(null);
-      playCurrentMusicRef.current();
       return;
     }
     const t = window.setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
@@ -512,6 +513,10 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
             <div className="rs-cell__value">
               {next ? nextUpLabel(next.description, effDurations[idx + 1]) : 'End of show'}
             </div>
+            {nextName && <div className="rs-cell__sub">{nextName}</div>}
+            {nextPerformer?.credits && (
+              <div className="rs-cell__credits">{nextPerformer.credits}</div>
+            )}
           </div>
         </div>
 

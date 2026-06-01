@@ -1884,6 +1884,19 @@
   font-variant-numeric: tabular-nums;
 }
 .rs-cell__value--over { color: var(--rs-red); }
+.rs-cell__sub {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
+}
+.rs-cell__credits {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.3;
+}
 .rs-status--on-time { color: var(--rs-blue); }
 .rs-status--behind { color: var(--rs-red); }
 .rs-status--ahead { color: var(--rs-green); }
