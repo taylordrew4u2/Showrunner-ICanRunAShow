@@ -254,8 +254,15 @@ export async function loadEncryptedSettings(
 /**
  * Migrate old settings format to new format
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function migrateSettings(settings: any): AppSettings {
+type LegacySettings = Partial<AppSettings> & {
+  producerNames?: string;
+  producers?: AppSettings['producers'];
+  brandBudget?: number;
+  totalSpent?: number;
+  trash?: AppSettings['trash'];
+};
+
+function migrateSettings(settings: LegacySettings): AppSettings {
   // Handle old format with producerNames string
   if (settings.producerNames && !settings.producers) {
     const names = settings.producerNames

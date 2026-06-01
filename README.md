@@ -6,15 +6,11 @@ Show management software for live event coordinators — build lineups, import s
 
 [https://showrunner-theta.vercel.app](https://showrunner-theta.vercel.app)
 
-## Screenshots
-
-TODO: Add screenshots of the main user flow, dashboard/interface, and mobile view.
-
 ---
 
 ## Overview
 
-Showrunner is a full-stack production tool for comedians, promoters, and stage managers who run recurring live shows. It covers the full show lifecycle: building a lineup, coordinating staff, importing a schedule from a PDF or photo, and operating the show in a full-screen live mode with automated cue timing and walk-on music.
+Showrunner is a production tool for comedians, promoters, and stage managers who run recurring live shows. It covers the full show lifecycle: building a lineup, coordinating staff, importing a schedule from a PDF or photo, and operating the show in a full-screen live mode with cue timing and walk-on music.
 
 The target user is an independent promoter or stage manager who currently uses a mix of spreadsheets, notes apps, and Spotify. Showrunner puts all of that in one place and syncs it across devices.
 
@@ -30,28 +26,41 @@ Live show coordinators have no dedicated tool that spans pre-show planning and r
 
 Showrunner handles the full workflow in a single application:
 
-- Before the show: build the lineup, attach walk-on music and profile data to each performer, track the budget, coordinate staff and hosts, and export a PDF runsheet
-- Day of: upload a photo, PDF, or plain text to import the schedule automatically using AI
-- During the show: run a full-screen live mode with per-cue countdowns and automatic walk-on music cueing based on performer name matching in the schedule
+- **Before the show:** build the lineup, attach walk-on music and profile data to each performer, track the budget, coordinate staff and hosts, and export a PDF runsheet
+- **Day of:** upload a photo, PDF, or plain text to import the schedule automatically via AI (with OCR + regex fallback)
+- **During the show:** run a full-screen live mode with per-cue countdowns, manual walk-on music with automatic fade in/out, and live status broadcast to a public viewer URL
+- **Audience-facing:** a separate public sign-up link for tattoo artist queueing, with email notification when an artist is up
 
 ---
 
 ## Features
 
-- Create and manage multiple shows with status tracking (upcoming, in-progress, completed, cancelled)
-- Per-show lineup with performer profiles: photo, social media, credits, walk-on song title, artist, start timestamp, Spotify/YouTube link, audio file, and video
-- Global performer rolodex — save a performer once, reuse across shows; editing a rolodex entry syncs to all matching performers in all shows
-- AI schedule import via GPT-4o-mini Vision (images), PDF.js (PDFs), and a regex fallback for plain text — runs entirely in the browser
-- Full-screen live mode with per-cue countdown timers, progress bar, and keyboard navigation
-- Automatic walk-on music cueing: the current performer's audio player surfaces when their name appears in the active schedule cue
-- Budget tracker with expense categories
-- PDF runsheet export generated client-side
-- Per-show todo list and section deadlines
-- Drag-and-drop file uploads with MIME type validation for photo, audio, and video
-- Slide-in drawer for performer profile editing without leaving the lineup view
-- Persistent login via localStorage (stays logged in until explicit logout)
-- Installable as a PWA
-- Mobile app (React Native + Expo) and desktop app (Electron) share the same TypeScript types
+**Show building**
+- Multiple shows with status tracking (upcoming, in-progress, completed, cancelled)
+- Per-show lineup with performer profiles: photo, social media, credits, walk-on track, audio file, and video
+- Global performer rolodex — save a performer once, reuse across shows; edits sync to all matching performers
+- Vendors, staff, host, expenses, and per-section deadlines on each show
+
+**Schedule import**
+- AI schedule import via GPT-4o-mini Vision (images), PDF.js (PDFs), and a regex fallback for plain text — all in the browser
+- OCR fallback (Tesseract.js) when no OpenAI key is configured
+
+**Run show**
+- Full-screen live mode with per-cue countdown, 5-second pre-roll, drift indicator, and keyboard navigation
+- Manual music start/stop per cue; fade in/out is automatic via Web Audio
+- Public read-only viewer URL with live on-stage / up-next state
+- One-tap restart and per-cue duration adjustment
+
+**Artist sign-up (for tattoo / merch / etc. shows)**
+- Public sign-up link with hero card (live status or "starts at" countdown) + flash sheet + uploaded schedule image
+- Queue position shown on submit; sign-up list updates live
+- Admin panel with Queue / Sign-ups / Settings tabs, including a one-tap "Email 'you're up'" button (sends via Brevo from a dedicated address — no SMS from your personal number)
+
+**Platform**
+- PWA (installable, offline shell)
+- Client-side AES encryption with PBKDF2-derived keys — Turso stores only ciphertext
+- PDF runsheet export
+- Drag-and-drop file uploads with MIME validation
 
 ---
 
@@ -59,16 +68,14 @@ Showrunner handles the full workflow in a single application:
 
 - **Frontend:** React 19, TypeScript (strict mode)
 - **Build:** Vite 7, vite-plugin-pwa (Workbox)
-- **Mobile:** React Native, Expo SDK 54, Expo Router v4
-- **Desktop:** Electron 40
-- **Database:** Turso (libSQL — serverless SQLite edge)
-- **Encryption:** crypto-js (PBKDF2 key derivation, AES encryption)
-- **AI:** OpenAI GPT-4o-mini (text and vision)
+- **Database:** Turso (libSQL — serverless SQLite at the edge)
+- **Encryption:** crypto-js (PBKDF2 key derivation, AES)
+- **AI:** OpenAI GPT-4o-mini (vision + text); Tesseract.js fallback
 - **PDF:** PDF.js (pdfjs-dist) — client-side extraction
-- **Styling:** Custom CSS — design tokens, no CSS framework
-- **Hosting:** Vercel (web), EAS Build (mobile)
-- **Authentication:** Username/password — password-derived key used to encrypt stored data; no OAuth
-- **APIs/libraries:** @libsql/client, crypto-js, pdfjs-dist, workbox-window
+- **Email:** Brevo REST API via a Vercel Edge function (`/api/notify-artist`)
+- **Styling:** Custom CSS with a design-token system — no CSS framework
+- **Hosting:** Vercel (web + serverless functions)
+- **Auth:** Username/password — password-derived key encrypts stored data; no OAuth
 
 ---
 
@@ -76,39 +83,38 @@ Showrunner handles the full workflow in a single application:
 
 ```
 showrunner/
-├── src/                         # Web app (React + Vite)
+├── api/
+│   └── notify-artist.ts         # Vercel Edge function — sends "you're up" emails via Brevo
+├── src/
 │   ├── App.tsx                  # Root — auth, routing, global state
-│   ├── App.css                  # Design tokens + CSS layout system
+│   ├── App.css                  # Design tokens + layout system
 │   ├── types/index.ts           # All shared TypeScript types
 │   ├── components/
-│   │   ├── Login.tsx            # Auth screen
-│   │   ├── ShowCard.tsx         # Show grid tile
+│   │   ├── Login.tsx
+│   │   ├── ShowCard.tsx
 │   │   ├── ShowDetail.tsx       # Per-show management hub
-│   │   ├── LiveMode.tsx         # Full-screen show runner
+│   │   ├── RunShow.tsx          # Full-screen live mode
+│   │   ├── LiveViewer.tsx       # Public read-only viewer (?view=…)
+│   │   ├── ArtistSignup.tsx     # Public artist sign-up page (?artist=…)
+│   │   ├── ArtistAdmin.tsx      # Admin queue + settings page
 │   │   ├── Settings.tsx
 │   │   ├── Expenses.tsx
 │   │   └── sections/            # Per-section components inside ShowDetail
-│   │       ├── PerformersSection.tsx
-│   │       ├── PerformerProfile.tsx
-│   │       ├── RolodexProfile.tsx
-│   │       ├── ScheduleSection.tsx
-│   │       ├── ArtistsSection.tsx
-│   │       └── ...
 │   └── utils/
 │       ├── secure-storage.ts    # Encryption + Turso read/write
 │       ├── encryption.ts        # Key derivation and AES helpers
-│       ├── aiExtractor.ts       # OpenAI + PDF.js + regex pipeline
+│       ├── aiExtractor.ts       # OpenAI + PDF.js + OCR + regex pipeline
+│       ├── audioEngine.ts       # Web Audio wrapper with fade + preload
 │       ├── pdfExport.ts         # Client-side PDF generation
-│       └── db.ts                # Turso client
-├── app/                         # Mobile app (Expo Router)
-├── desktop/                     # Electron wrapper
-├── components/                  # Shared mobile components
-└── utils/                       # Shared mobile utilities
+│       ├── liveView.ts          # Live state pub/sub
+│       ├── artistSignup.ts      # Public sign-up data layer
+│       └── db.ts                # Turso client (env-only credentials)
+└── .github/workflows/ci.yml     # Lint + type-check + build on push/PR
 ```
 
 **App flow:**
 
-User signs in → password is used to derive an encryption key via PBKDF2 → all show data and settings are decrypted from Turso on load → user edits shows, performers, schedule → changes are encrypted and written back to Turso on a debounced interval → in live mode, schedule cues are matched against performer names to surface the correct walk-on music automatically.
+User signs in → password derives an encryption key via PBKDF2 → all show data and settings are decrypted from Turso on load → user edits shows, performers, schedule → changes are encrypted and written back to Turso on a debounced interval → in live mode, schedule cues drive a public read-only viewer URL and the per-cue music timing.
 
 ---
 
@@ -118,6 +124,7 @@ User signs in → password is used to derive an encryption key via PBKDF2 → al
 git clone https://github.com/taylordrew4u2/showrunner.git
 cd showrunner
 npm install
+cp .env.example .env.local   # fill in the values
 npm run dev
 ```
 
@@ -129,35 +136,39 @@ npm run build
 
 ### Environment Variables
 
+See `.env.example` for the full list. Required:
+
 ```env
 VITE_TURSO_DATABASE_URL=
 VITE_TURSO_AUTH_TOKEN=
-VITE_OPENAI_API_KEY=
+```
 
-# Artist sign-up email notifications (Brevo — free 300/day)
+Optional:
+
+```env
+VITE_OPENAI_API_KEY=          # AI schedule import; falls back to OCR + regex without it
+
+# Server-side, for /api/notify-artist
 BREVO_API_KEY=
 BREVO_SENDER_EMAIL=
 BREVO_SENDER_NAME=Showrunner
 ```
 
-`VITE_OPENAI_API_KEY` is optional. Without it, the AI schedule import falls back to regex parsing. The Turso variables are required for data persistence; the app will not load stored shows without them.
+The Turso variables are required for data persistence; the app surfaces a clear error if they are missing.
 
 #### Artist notification emails (free)
 
-The "You're up" button in Artist admin sends a real email via [Brevo](https://www.brevo.com) (formerly Sendinblue) — free tier allows 300 emails/day with no domain verification required.
+The "Email 'you're up'" button in Artist admin sends a real email via [Brevo](https://www.brevo.com) — free tier allows 300 emails/day with no domain verification required.
 
 One-time setup:
 
 1. Sign up at brevo.com → verify your email
-2. Settings → Senders & IP → add a sender email and click the verification link in your inbox (any email you own; Gmail works)
-3. Settings → SMTP & API → API Keys → Generate a new v3 API key
-4. In Vercel project settings → Environment Variables add:
-   - `BREVO_API_KEY` — the key from step 3
-   - `BREVO_SENDER_EMAIL` — the verified sender from step 2
-   - `BREVO_SENDER_NAME` — display name (e.g. your show name)
+2. Settings → Senders & IP → add a sender email and click the verification link
+3. Settings → SMTP & API → generate a v3 API key
+4. Add `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, and `BREVO_SENDER_NAME` to your Vercel project env vars
 5. Redeploy
 
-Without these, the Email button shows a clear error explaining what's missing.
+Without these, the Email button shows a clear inline error explaining what's missing.
 
 ---
 
@@ -166,142 +177,107 @@ Without these, the Email button shows a clear error explaining what's missing.
 1. Open the app and create an account (username + password)
 2. Create a show and fill in basic info (name, date, venue)
 3. Add performers to the lineup; upload walk-on music, photo, and profile data per performer
-4. In the Schedule section, import a schedule by uploading a PDF, image, or pasting text
-5. Use the PDF export to print a runsheet
-6. On show day, enter Live Mode — cues advance with countdown timers, and the walk-on music player for the current performer surfaces automatically
+4. In the Schedule section, import a schedule by uploading a PDF, image, or pasting text — or build it cue-by-cue
+5. (Optional) Generate the public viewer link and the artist sign-up link from the show detail page
+6. On show day, open Run Show — cues advance with countdown timers, music plays with fades, and the live state is broadcast to anyone with the viewer link
 
 ---
 
 ## What I Built
 
-- Designed and built the entire application from scratch, solo
-- Implemented the 3-column desktop layout using CSS Grid `grid-template-areas` with a responsive collapse to a bottom-nav mobile layout below 1024px — no layout library
-- Built the encryption and account system: password-derived AES keys via PBKDF2 (crypto-js), with all data encrypted before it reaches Turso
-- Built the AI schedule import pipeline: GPT-4o-mini Vision for images, PDF.js for multi-page PDFs, and a regex fallback for plain text — runs fully in the browser
-- Built the live mode performer name-matching algorithm that surfaces the correct walk-on audio player from the active schedule cue
-- Built the performer rolodex with cross-show sync: editing a rolodex entry propagates updated fields to matching performers in all existing shows
-- Implemented drag-and-drop file uploads with MIME validation for photo, audio, and video
-- Built the slide-in drawer pattern for performer profile editing with CSS keyframe animation
-- Implemented a show card expand animation using computed `transform-origin` from the clicked card's position
-- Set up the React Native + Expo mobile app and Electron desktop wrapper sharing types with the web app
-- Deployed to Vercel
+- Designed and built the application from scratch, solo
+- Implemented the responsive layout — 3-column desktop with CSS Grid `grid-template-areas`, collapsing to mobile below 1024px — no layout library
+- Built the encryption layer: password-derived AES keys via PBKDF2, all data encrypted before reaching Turso; per-show write is debounced 1s
+- Built the AI schedule import pipeline: GPT-4o-mini Vision for photos, PDF.js for multi-page PDFs, Tesseract.js OCR + regex fallback for plain text — runs fully in the browser
+- Built the Web Audio engine wrapper for cue music — single AudioContext unlocked on Start, fade-in / fade-out on every cue change, buffer preloading for the current and next cue, and context-resume retry to survive iOS Safari auto-suspension
+- Built the public read-only viewer URL and the artist sign-up flow (public sign-up form, admin queue with Mark-paid + Email button, Brevo edge function for notifications)
+- Built the performer rolodex with cross-show sync — editing a rolodex entry propagates to all matching performers
+- Set up the CI workflow (lint + type-check on every push/PR) and deployed to Vercel
 
 ---
 
 ## Technical Decisions
 
-**No CSS framework.** Every component is styled with hand-written CSS using a design token system (`--primary`, `--surface`, `--border`, etc.). This keeps the bundle small and gives full control over every interaction state and animation.
+**No CSS framework.** Every component is styled with hand-written CSS using a design token system. This keeps the bundle small and gives full control over every interaction state and animation.
 
 **Encryption in the client, not the server.** The server (Turso) stores only ciphertext. The password-derived key never leaves the device. This avoids the need to trust the database host with user data. The trade-off is that there is no password recovery — by design.
 
-**AI pipeline with fallback.** The schedule import works without an API key by falling back to regex matching for common time formats. This makes the feature usable offline or in environments where the OpenAI key is not configured.
+**AI pipeline with fallback.** Schedule import works without an API key by falling back to OCR + regex matching for common time formats. This makes the feature usable in environments where the OpenAI key is not configured or hits a rate limit.
 
-**Shared TypeScript types across targets.** The web, mobile, and desktop apps share a single set of TypeScript interfaces. This prevents data shape mismatches when adding or modifying fields.
+**Web Audio API for cue music.** HTMLAudioElement was unreliable across iOS Safari's autoplay rules after auto-advance / pre-roll. The Web Audio path unlocks a single AudioContext on the Start tap, preloads buffers, and explicitly resumes the context on every play — this is the only path that works reliably in the field.
 
-**Debounced auto-save.** Changes to shows are saved to Turso after a 1-second debounce rather than on every keystroke. This avoids hammering the database while keeping data loss risk low.
+**Email instead of SMS for artist notifications.** SMS from the admin's phone exposes their personal number; commercial SMS APIs are not free at any meaningful volume. The app uses email via Brevo's free tier (300/day, no domain verification needed), with a "check your spam folder" hint on the sign-up form and confirmation screen.
 
-**Rolodex as source of truth.** Rather than duplicating performer data across shows at creation time and leaving it to drift, editing a rolodex entry propagates updated fields (photo, social media, walk-on music, credits) to all matching performers in all shows at save time.
+**Debounced auto-save.** Changes to shows are saved to Turso after a 1-second debounce rather than on every keystroke. This avoids hammering the database while keeping data loss risk low. Each per-row form keeps an internal draft state so typing in one row doesn't re-render or re-save the rest of the lineup.
+
+**Rolodex as source of truth.** Rather than duplicating performer data at show-creation time and letting it drift, editing a rolodex entry propagates updated fields to all matching performers in all shows.
 
 ---
 
 ## Challenges Solved
 
-**Matching performers to schedule cues at runtime.**
-The live mode needed to surface the correct walk-on music player for the current cue without requiring the user to manually link performers to schedule entries. The solution: case-insensitive substring matching between the cue description and each performer's name. Only performers with uploaded walk-on audio are considered. This runs on every cue change and is fast enough for real-time use.
+**Cue music that must not fail on a live stage.**
+Music had to start crisply at every cue, including after auto-advance, on iOS Safari, after a 5-second silent pre-roll. The fix combined: a single AudioContext unlocked on the Start gesture; buffer preloading of the current and next cue's audio so `decodeAudioData` doesn't add latency; an explicit `ctx.resume()` before and after the (async) decode in `play()`; and a single retry 120ms later if the first play fails. After field testing where even this proved imperfect under unpredictable network conditions, the operator can now manually trigger Play / Stop per cue with fades still automatic.
 
 **Preventing data loss on save failure.**
-If the Turso write fails during auto-save, the in-memory state must not be overwritten by a subsequent load. The solution: a `dataLoaded` ref that is set after the initial load succeeds. The auto-save effect checks this ref before writing, so a failed load does not trigger a save that would wipe the database row.
+If the Turso write fails during auto-save, the in-memory state must not be overwritten by a subsequent load. Solution: a `dataLoaded` ref is set after the initial load succeeds; the auto-save effect checks this ref before writing, so a failed load doesn't trigger a save that would wipe the database row.
 
-**Accurate expand animation origin.**
-The show card expand animation needed to originate from the card that was clicked, not the center of the screen. The solution: on click, the card's `getBoundingClientRect()` is used to compute the card center as a percentage of the main content area, which is passed as a CSS custom property (`--expand-origin-x`, `--expand-origin-y`) to the detail view's `transform-origin`.
+**Per-row form edits without lagging the whole schedule.**
+The schedule editor lived in a single component and re-rendered every cue row on every keystroke in any cue's edit input, plus the music-duration field propagated each keystroke up to the App root. The fix extracted `CueRow` as `React.memo`'d with its own draft state and stable parent callbacks via refs — non-editing rows now skip re-render entirely.
+
+**Routing serverless functions alongside an SPA.**
+The original `vercel.json` rewrite used a negative-lookahead pattern that didn't actually exclude `/api/*` in practice — Vercel served `index.html` for the function path. Switched to an explicit two-rule form so the function gets the request.
 
 ---
 
 ## Testing
 
-Automated tests are not currently implemented.
-
-Manual testing should cover:
-
-- Main user flow (create show, add performers, import schedule, enter live mode)
-- Form validation (required fields, file type enforcement)
-- Error states (invalid login, failed save, missing API key)
-- Mobile/responsive layout
-- Data persistence across sessions and devices
+Automated tests are not currently implemented; manual verification covers the main flows. CI (GitHub Actions) runs lint + type-check + build on every push and PR.
 
 ---
 
 ## Security
 
-- Passwords are not stored; a PBKDF2-derived key is used for encryption and a separate hash is stored for authentication
-- All show data and settings are encrypted with AES (via crypto-js) before being written to Turso
-- Environment variables are used for all API keys and database credentials
-- The static salt used in key derivation (`encryption.ts`) is a known limitation — per-user random salts would improve security
-- No input sanitization beyond basic trimming is currently implemented
-- No rate limiting on the authentication endpoint
+- Passwords are never stored; a PBKDF2-derived key is used for encryption and a separate hash is stored for authentication
+- All show data and settings are encrypted with AES (crypto-js) before being written to Turso
+- All API keys and database credentials are loaded from environment variables — no fallback values in source
+- The static salt used in key derivation is a known limitation — per-user random salts would improve security
+- No rate limiting on authentication
 
 ---
 
 ## Accessibility
 
-Accessibility has not been formally reviewed.
-
-Basic considerations present in the codebase:
+Accessibility has not been formally reviewed. Basic considerations present:
 
 - Form inputs have associated labels
-- Interactive elements have minimum touch target sizes (44px)
-- Semantic HTML elements are used in most components
+- Interactive elements have minimum 44px touch targets
+- Semantic HTML elements throughout
 
-Accessibility review is a future improvement.
+A keyboard-navigation + ARIA audit is a future improvement.
 
 ---
 
 ## Known Limitations
 
-- The PBKDF2 implementation uses a static salt and 1000 iterations — adequate for a personal project but below current security recommendations for production use
-- No automated tests
+- PBKDF2 uses a static salt and 1000 iterations — adequate for a personal project but below current production recommendations
+- No automated tests beyond CI lint + type-check
 - No password recovery — losing the password means losing access to all data
-- The AI schedule import depends on an external API key (OpenAI); without it, only the regex fallback is available
-- Error handling is present but not comprehensive — some failure states surface as console errors rather than user-facing messages
-- The mobile app (Expo) and desktop app (Electron) share types with the web app but have not been maintained at the same level as the web build
-- No CI/CD pipeline beyond Vercel's automatic preview deployments
+- AI schedule import depends on an OpenAI key; without it, only the OCR + regex fallback runs
+- Error handling is present but not exhaustive — some failure states surface as console errors rather than user-facing messages
 
 ---
 
 ## Roadmap
 
-- Add per-user random salts and increase PBKDF2 iterations
+- Add per-user random salts and bump PBKDF2 iterations
 - Add automated tests (unit + integration)
-- Add comprehensive error handling and user-facing error messages
-- Improve accessibility (keyboard navigation audit, ARIA labels)
-- Add CI/CD workflow with lint and type-check on every PR
+- Accessibility audit (keyboard nav, ARIA, color contrast)
 - Add a LICENSE file
 - Add screenshots to this README
-- Harden the mobile and desktop builds to match web feature parity
 
 ---
 
 ## Status
 
-Active. The web app is deployed and functional. The mobile and desktop targets exist but are not the primary focus of current development.
-
----
-
-## License
-
-No license has been added yet.
-
----
-
-## Repository Notes
-
-**Suggested GitHub description:**
-> Show management app for live event coordinators — lineup building, AI schedule import, and real-time live mode with automated walk-on music cueing.
-
-**Suggested topics:**
-`react` `typescript` `vite` `pwa` `react-native` `expo` `electron` `turso` `libsql` `openai` `show-management` `live-events`
-
-**Files to review:**
-- `src/utils/encryption.ts` — static salt is a security limitation worth addressing before wider use
-- No `LICENSE` file exists — add one if the repo is public
-- No `.env.example` file exists — consider adding one so contributors know what variables are required
+Active and deployed in production. Built and refined alongside real live shows.
