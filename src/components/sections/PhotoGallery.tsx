@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { compressImage, pickFiles } from '../../utils/media';
 
 interface PhotoGalleryProps {
@@ -21,6 +21,20 @@ interface PhotoGalleryProps {
 export function PhotoGallery({ photos, name, onChange, locked = false }: PhotoGalleryProps) {
   const [photoDrag, setPhotoDrag] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Index of the photo shown full-size in the lightbox, or null when closed.
+  const [lightbox, setLightbox] = useState<number | null>(null);
+
+  // Arrow-key navigation / Escape-to-close while the lightbox is open.
+  useEffect(() => {
+    if (lightbox === null) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setLightbox(null);
+      else if (e.key === 'ArrowLeft') setLightbox(i => (i === null ? i : (i - 1 + photos.length) % photos.length));
+      else if (e.key === 'ArrowRight') setLightbox(i => (i === null ? i : (i + 1) % photos.length));
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox, photos.length]);
 
   function addPhotoFiles(files: File[]) {
     const images = files.filter(f => f.type.startsWith('image/'));
@@ -91,7 +105,12 @@ export function PhotoGallery({ photos, name, onChange, locked = false }: PhotoGa
         <div className="perf-profile__photo-gallery">
           {photos.map((src, i) => (
             <div key={i} className="perf-profile__photo-thumb">
-              <img src={src} alt={`${name} ${i + 1}`} className="perf-profile__photo-thumb-img" />
+              <img
+                src={src}
+                alt={`${name} ${i + 1}`}
+                className="perf-profile__photo-thumb-img"
+                onClick={() => setLightbox(i)}
+              />
               {i === 0 && photos.length > 1 && (
                 <span className="perf-profile__photo-cover-badge">Cover</span>
               )}
@@ -121,6 +140,54 @@ export function PhotoGallery({ photos, name, onChange, locked = false }: PhotoGa
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {lightbox !== null && photos[lightbox] && (
+        <div
+          className="photo-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo viewer"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            type="button"
+            className="photo-lightbox__close"
+            aria-label="Close photo viewer"
+            onClick={() => setLightbox(null)}
+          >
+            ×
+          </button>
+          {photos.length > 1 && (
+            <button
+              type="button"
+              className="photo-lightbox__nav photo-lightbox__nav--prev"
+              aria-label="Previous photo"
+              onClick={e => { e.stopPropagation(); setLightbox((lightbox - 1 + photos.length) % photos.length); }}
+            >
+              ‹
+            </button>
+          )}
+          <img
+            src={photos[lightbox]}
+            alt={`${name} ${lightbox + 1}`}
+            className="photo-lightbox__img"
+            onClick={e => e.stopPropagation()}
+          />
+          {photos.length > 1 && (
+            <button
+              type="button"
+              className="photo-lightbox__nav photo-lightbox__nav--next"
+              aria-label="Next photo"
+              onClick={e => { e.stopPropagation(); setLightbox((lightbox + 1) % photos.length); }}
+            >
+              ›
+            </button>
+          )}
+          {photos.length > 1 && (
+            <span className="photo-lightbox__counter">{lightbox + 1} / {photos.length}</span>
+          )}
         </div>
       )}
     </div>
