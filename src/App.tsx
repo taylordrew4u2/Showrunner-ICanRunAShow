@@ -258,6 +258,27 @@ export default function App() {
     setShowForm(false);
   }
 
+  function handleDuplicateShow(id: string) {
+    const original = shows.find((s) => s.id === id);
+    if (!original) return;
+    const now = new Date().toISOString();
+    const copy: Show = {
+      ...structuredClone(original),
+      id: generateId(),
+      name: `${original.name} (copy)`,
+      status: 'upcoming',
+      createdAt: now,
+      updatedAt: now,
+      date: '', // clear the date so the user picks a new one
+      // Drop anything tied to the original instance, not the template.
+      viewToken: undefined,
+      viewNote: undefined,
+      artistSignupToken: undefined,
+      recap: undefined,
+    };
+    setShows((prev) => [copy, ...prev]);
+  }
+
   function handleDeleteShow(id: string) {
     setShows((prev) => {
       const showToDelete = prev.find((s) => s.id === id);
@@ -706,6 +727,7 @@ export default function App() {
                         show={show}
                         onSelect={handleSelectShow}
                         onDelete={handleDeleteShow}
+                        onDuplicate={handleDuplicateShow}
                       />
                     ))}
                     {rolodexTile}

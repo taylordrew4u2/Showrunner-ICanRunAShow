@@ -5,6 +5,7 @@ interface ShowCardProps {
   show: Show;
   onSelect: (show: Show, e: React.MouseEvent) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
 }
 
 const STATUS_LABELS: Record<Show['status'], string> = {
@@ -14,7 +15,7 @@ const STATUS_LABELS: Record<Show['status'], string> = {
   cancelled: 'Cancelled',
 };
 
-export function ShowCard({ show, onSelect, onDelete }: ShowCardProps) {
+export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProps) {
   const sceneCount = show.scenes?.length ?? 0;
   const doneCount = show.scenes?.filter((s) => s.status === 'done').length ?? 0;
 
@@ -23,6 +24,11 @@ export function ShowCard({ show, onSelect, onDelete }: ShowCardProps) {
     if (window.confirm(`Delete show "${show.name}"? It will be moved to trash where you can recover it.`)) {
       onDelete(show.id);
     }
+  }
+
+  function handleDuplicate(e: React.MouseEvent) {
+    e.stopPropagation();
+    onDuplicate(show.id);
   }
 
   return (
@@ -50,6 +56,14 @@ export function ShowCard({ show, onSelect, onDelete }: ShowCardProps) {
           </span>
         </div>
       )}
+      <button
+        className="show-card__duplicate"
+        onClick={handleDuplicate}
+        aria-label="Duplicate show"
+        title="Duplicate show"
+      >
+        ⧉
+      </button>
       <button
         className="show-card__delete"
         onClick={handleDelete}

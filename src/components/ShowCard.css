@@ -148,10 +148,10 @@
   letter-spacing: -0.005em;
 }
 
-.show-card__delete {
+.show-card__delete,
+.show-card__duplicate {
   position: absolute;
   top: 10px;
-  right: 10px;
   min-width: 36px;
   min-height: 36px;
   background: transparent;
@@ -167,13 +167,23 @@
   justify-content: center;
 }
 
+.show-card__delete { right: 10px; }
+.show-card__duplicate { right: 50px; }
+
 .show-card__delete:hover {
   background: var(--primary-soft);
   border-color: var(--primary-soft-border);
   color: var(--primary);
 }
 
-.show-card__delete:active {
+.show-card__duplicate:hover {
+  background: var(--surface-strong);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.show-card__delete:active,
+.show-card__duplicate:active {
   transform: translateY(1px);
 }
 
