@@ -5,13 +5,6 @@
 
 import type { ScheduleItem } from "../types";
 import { generateId } from "./id";
-import * as pdfjsLib from "pdfjs-dist";
-
-// Set up PDF.js worker - use local version from node_modules
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
@@ -71,6 +64,13 @@ interface OpenAIResponse {
  * Extract text from PDF files using PDF.js
  */
 async function extractTextFromPDF(file: File): Promise<string> {
+  // Loaded on demand so pdfjs-dist (a large dependency) stays out of the main bundle.
+  const pdfjsLib = await import("pdfjs-dist");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url,
+  ).toString();
+
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   let fullText = "";
