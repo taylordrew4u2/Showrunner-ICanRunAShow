@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Show, ShowStatus } from '../types';
+import type { Show, ShowStatus, SectionKey } from '../types';
 import './ShowForm.css';
 
 interface ShowFormProps {
@@ -8,6 +8,18 @@ interface ShowFormProps {
   onCancel: () => void;
 }
 
+// Optional content blocks the user can choose to include when creating a show.
+// "Basic Info" is always present, so it isn't listed here.
+const SELECTABLE_BLOCKS: { key: SectionKey; label: string }[] = [
+  { key: 'performers', label: 'Performers' },
+  { key: 'artists', label: 'Artists' },
+  { key: 'schedule', label: 'Schedule' },
+  { key: 'dj', label: 'DJ Music' },
+  { key: 'staff', label: 'Staff' },
+  { key: 'vendors', label: 'Vendors' },
+  { key: 'files', label: 'Files' },
+];
+
 export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
   const [name, setName] = useState(initial?.name ?? '');
   const [date, setDate] = useState(initial?.date ?? '');
@@ -15,10 +27,26 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
   const [venueName, setVenueName] = useState(initial?.venueName ?? '');
   const [location, setLocation] = useState(initial?.location ?? '');
   const [status, setStatus] = useState<ShowStatus>(initial?.status ?? 'upcoming');
+  const [selectedBlocks, setSelectedBlocks] = useState<Set<SectionKey>>(() => {
+    const hidden = new Set(initial?.hiddenSections ?? []);
+    return new Set(SELECTABLE_BLOCKS.map(b => b.key).filter(k => !hidden.has(k)));
+  });
+
+  function toggleBlock(key: SectionKey) {
+    setSelectedBlocks(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !date.trim() || !time.trim() || !venueName.trim()) return;
+    const hiddenSections = SELECTABLE_BLOCKS
+      .map(b => b.key)
+      .filter(key => !selectedBlocks.has(key));
     onSave({
       name: name.trim(),
       date,
@@ -34,6 +62,7 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
       staff: initial?.staff ?? [],
       vendors: initial?.vendors ?? [],
       expenses: initial?.expenses ?? [],
+      hiddenSections,
     });
   }
 
@@ -110,6 +139,32 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
           <option value="cancelled">Cancelled</option>
         </select>
       </label>
+
+      <fieldset className="show-form__blocks">
+        <legend className="show-form__blocks-legend">Show Blocks</legend>
+        <p className="show-form__blocks-hint">
+          Choose which sections to include. You can always add or remove these later.
+        </p>
+        <div className="show-form__blocks-grid">
+          {SELECTABLE_BLOCKS.map(block => {
+            const checked = selectedBlocks.has(block.key);
+            return (
+              <label
+                key={block.key}
+                className={`show-form__block${checked ? ' show-form__block--on' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  className="show-form__block-checkbox"
+                  checked={checked}
+                  onChange={() => toggleBlock(block.key)}
+                />
+                <span>{block.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
 
       <div className="show-form__actions">
         <button type="button" className="btn btn--secondary" onClick={onCancel}>

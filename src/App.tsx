@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Show, AppSettings, PotentialComic } from './types';
+import type { Show, ShowStatus, AppSettings, PotentialComic } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
 import { 
@@ -51,6 +51,28 @@ export default function App() {
   const [newComicNotes, setNewComicNotes] = useState('');
   const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
   const [expandOrigin, setExpandOrigin] = useState({ x: 50, y: 30 });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | ShowStatus>('all');
+  const [sortBy, setSortBy] = useState<'added' | 'date-asc' | 'date-desc' | 'name'>(() => {
+    try {
+      const saved = localStorage.getItem('showrunner:showSort');
+      if (saved === 'added' || saved === 'date-asc' || saved === 'date-desc' || saved === 'name') {
+        return saved;
+      }
+    } catch {
+      /* ignore */
+    }
+    return 'added';
+  });
+
+  // Remember the sort preference so the shows list feels familiar each visit.
+  useEffect(() => {
+    try {
+      localStorage.setItem('showrunner:showSort', sortBy);
+    } catch {
+      /* ignore */
+    }
+  }, [sortBy]);
 
   // Restore session from localStorage on mount (persists until logout)
   useEffect(() => {
@@ -448,6 +470,43 @@ export default function App() {
   const completedCount = shows.filter((show) => show.status === 'completed').length;
   const totalSceneCount = shows.reduce((sum, show) => sum + (show.scenes?.length ?? 0), 0);
 
+  // Search + status filtering for the shows list.
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredShows = shows.filter((show) => {
+    if (statusFilter !== 'all' && show.status !== statusFilter) return false;
+    if (!normalizedQuery) return true;
+    return [show.name, show.venueName, show.location]
+      .some((field) => field?.toLowerCase().includes(normalizedQuery));
+  });
+  const isFiltering = statusFilter !== 'all' || normalizedQuery !== '';
+
+  // Sort the visible shows. Undated shows always sort to the end for date sorts.
+  const sortedShows = [...filteredShows].sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'date-asc':
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return a.date.localeCompare(b.date);
+      case 'date-desc':
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return b.date.localeCompare(a.date);
+      default:
+        return 0; // 'added' — preserve existing newest-first order
+    }
+  });
+
+  function toggleStatusFilter(status: ShowStatus) {
+    setStatusFilter((current) => (current === status ? 'all' : status));
+  }
+
+  function clearFilters() {
+    setStatusFilter('all');
+    setSearchQuery('');
+  }
+
   // Public read-only routes — no auth required.
   const search = new URLSearchParams(window.location.search);
   const viewToken = search.get('view');
@@ -542,24 +601,86 @@ export default function App() {
                     <h1 className="bento-tile__value">{shows.length}</h1>
                     <p className="bento-tile__meta">Total shows in your workspace</p>
                   </article>
-                  <article className="bento-tile">
+                  <button
+                    type="button"
+                    className={`bento-tile bento-tile--filter ${statusFilter === 'upcoming' ? 'bento-tile--active' : ''}`}
+                    onClick={() => toggleStatusFilter('upcoming')}
+                    aria-pressed={statusFilter === 'upcoming'}
+                  >
                     <p className="bento-tile__label">Upcoming</p>
                     <p className="bento-tile__value">{upcomingCount}</p>
-                  </article>
-                  <article className="bento-tile">
+                  </button>
+                  <button
+                    type="button"
+                    className={`bento-tile bento-tile--filter ${statusFilter === 'in-progress' ? 'bento-tile--active' : ''}`}
+                    onClick={() => toggleStatusFilter('in-progress')}
+                    aria-pressed={statusFilter === 'in-progress'}
+                  >
                     <p className="bento-tile__label">In progress</p>
                     <p className="bento-tile__value">{inProgressCount}</p>
-                  </article>
-                  <article className="bento-tile">
+                  </button>
+                  <button
+                    type="button"
+                    className={`bento-tile bento-tile--filter ${statusFilter === 'completed' ? 'bento-tile--active' : ''}`}
+                    onClick={() => toggleStatusFilter('completed')}
+                    aria-pressed={statusFilter === 'completed'}
+                  >
                     <p className="bento-tile__label">Completed</p>
                     <p className="bento-tile__value">{completedCount}</p>
-                  </article>
+                  </button>
                   <article className="bento-tile bento-tile--wide">
                     <p className="bento-tile__label">Total scenes</p>
                     <p className="bento-tile__value">{totalSceneCount}</p>
                     <p className="bento-tile__meta">Across all shows</p>
                   </article>
                 </section>
+
+                {shows.length > 0 && (
+                  <div className="shows-toolbar">
+                    <input
+                      className="shows-toolbar__search"
+                      type="search"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search shows by name, venue, or location…"
+                      aria-label="Search shows"
+                    />
+                    <div className="shows-toolbar__filters" role="group" aria-label="Filter shows by status">
+                      {([
+                        ['all', 'All'],
+                        ['upcoming', 'Upcoming'],
+                        ['in-progress', 'In progress'],
+                        ['completed', 'Completed'],
+                      ] as const).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className={`shows-chip ${statusFilter === value ? 'shows-chip--active' : ''}`}
+                          onClick={() => setStatusFilter(value)}
+                          aria-pressed={statusFilter === value}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <select
+                      className="shows-toolbar__sort"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                      aria-label="Sort shows"
+                    >
+                      <option value="added">Recently added</option>
+                      <option value="date-asc">Date (soonest)</option>
+                      <option value="date-desc">Date (latest)</option>
+                      <option value="name">Name (A–Z)</option>
+                    </select>
+                    {isFiltering && (
+                      <span className="shows-toolbar__count">
+                        {filteredShows.length} of {shows.length}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {shows.length === 0 ? (
                   <div className="shows-grid">
@@ -574,9 +695,16 @@ export default function App() {
                       <p className="rolodex-tile__count">{settings.potentialComics.length} comic{settings.potentialComics.length !== 1 ? 's' : ''}</p>
                     </div>
                   </div>
+                ) : filteredShows.length === 0 ? (
+                  <div className="shows-empty-filter">
+                    <p className="shows-empty-filter__text">No shows match your search.</p>
+                    <button className="btn btn--secondary btn--sm" onClick={clearFilters}>
+                      Clear filters
+                    </button>
+                  </div>
                 ) : (
                   <div className="shows-grid">
-                    {shows.map((show) => (
+                    {sortedShows.map((show) => (
                       <ShowCard
                         key={show.id}
                         show={show}
@@ -807,6 +935,16 @@ export default function App() {
                   }}
                 >
                   <span>New Show</span>
+                </button>
+                <button
+                  className="bottom-nav__dropdown-item"
+                  onClick={() => {
+                    setView('rolodex');
+                    setSelectedShow(null);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span>Rolodex</span>
                 </button>
                 <button
                   className="bottom-nav__dropdown-item"
