@@ -21,7 +21,8 @@ export interface Performer {
   walkOnMusicLink?: string; // YouTube or Spotify URL
   credits?: string;
   lockedIn?: boolean;
-  photo?: string; // file URI
+  photo?: string; // primary/cover photo (kept in sync with photos[0] for back-compat)
+  photos?: string[]; // all photos for this performer
   video?: string; // file URI
   videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
 }

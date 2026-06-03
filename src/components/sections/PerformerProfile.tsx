@@ -29,7 +29,57 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
 
   const locked = performer.lockedIn;
 
+  // All photos for this performer, falling back to the legacy single `photo` field.
+  const photos = performer.photos ?? (performer.photo ? [performer.photo] : []);
+
   function mark() { setDirty(true); }
+
+  // Persist the photo list, keeping `photo` in sync with the cover (photos[0])
+  // so existing consumers (list thumbnails, PDF export, Run Show, viewer) keep working.
+  function setPhotos(next: string[]) {
+    onChange({ ...performer, photos: next.length ? next : undefined, photo: next[0] });
+  }
+
+  function addPhotoFiles(files: File[]) {
+    const images = files.filter(f => f.type.startsWith('image/'));
+    if (!images.length) return;
+    setMediaError(null);
+    Promise.all(images.map(f => compressImage(f)))
+      .then(results => setPhotos([...photos, ...results]))
+      .catch(() => setMediaError('Could not read that file. Please try again.'));
+  }
+
+  function removePhotoAt(index: number) {
+    setPhotos(photos.filter((_, i) => i !== index));
+  }
+
+  function makeCover(index: number) {
+    if (index === 0) return;
+    const next = [photos[index], ...photos.filter((_, i) => i !== index)];
+    setPhotos(next);
+  }
+
+  function pickPhotos() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.style.position = 'fixed';
+    input.style.left = '-9999px';
+    input.onchange = () => {
+      const files = input.files ? Array.from(input.files) : [];
+      if (input.parentNode) input.parentNode.removeChild(input);
+      addPhotoFiles(files);
+    };
+    document.body.appendChild(input);
+    input.click();
+  }
+
+  function handlePhotoDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setPhotoDrag(false);
+    addPhotoFiles(Array.from(e.dataTransfer.files || []));
+  }
 
   function handleSave() {
     onChange({
@@ -234,12 +284,12 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
             onDragOver={e => e.preventDefault()}
             onDragEnter={() => !locked && setPhotoDrag(true)}
             onDragLeave={() => setPhotoDrag(false)}
-            onDrop={e => !locked && handleDrop(e, 'image/', 'photo', result => onChange({ ...performer, photo: result }), setPhotoDrag)}
-            onClick={() => !locked && pickFile('image/*', 'photo', result => onChange({ ...performer, photo: result }))}
+            onDrop={e => !locked && handlePhotoDrop(e)}
+            onClick={() => !locked && pickPhotos()}
           >
             <div className="perf-profile__avatar-wrap">
-              {performer.photo ? (
-                <img src={performer.photo} alt={performer.name} className="perf-profile__avatar" />
+              {photos[0] ? (
+                <img src={photos[0]} alt={performer.name} className="perf-profile__avatar" />
               ) : (
                 <div className="perf-profile__avatar-placeholder">
                   {performer.name.charAt(0).toUpperCase()}
@@ -248,18 +298,45 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
             </div>
             {!locked && (
               <p className="perf-profile__photo-hint">
-                {photoDrag ? 'Drop photo' : performer.photo ? 'Click or drag to update' : 'Click or drag to upload'}
+                {photoDrag ? 'Drop photos' : photos.length ? 'Click or drag to add more' : 'Click or drag to upload'}
               </p>
             )}
           </div>
           <p className="perf-profile__photo-name">{performer.name}</p>
-          {performer.photo && !locked && (
-            <button
-              className="perf-profile__photo-remove"
-              onClick={e => { e.stopPropagation(); onChange({ ...performer, photo: undefined }); }}
-            >
-              Remove photo
-            </button>
+
+          {photos.length > 0 && (
+            <div className="perf-profile__photo-gallery">
+              {photos.map((src, i) => (
+                <div key={i} className="perf-profile__photo-thumb">
+                  <img src={src} alt={`${performer.name} ${i + 1}`} className="perf-profile__photo-thumb-img" />
+                  {i === 0 && photos.length > 1 && (
+                    <span className="perf-profile__photo-cover-badge">Cover</span>
+                  )}
+                  {!locked && (
+                    <div className="perf-profile__photo-thumb-actions">
+                      {i !== 0 && (
+                        <button
+                          type="button"
+                          className="perf-profile__photo-thumb-btn"
+                          title="Make cover photo"
+                          onClick={e => { e.stopPropagation(); makeCover(i); }}
+                        >
+                          ★
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="perf-profile__photo-thumb-btn perf-profile__photo-thumb-btn--remove"
+                        title="Remove photo"
+                        onClick={e => { e.stopPropagation(); removePhotoAt(i); }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
