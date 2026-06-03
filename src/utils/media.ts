@@ -77,10 +77,21 @@ export async function compressImage(
  * which is why uploads could appear to "do nothing."
  */
 export function pickFile(accept: string): Promise<File | null> {
+  return pickFiles(accept, false).then((files) => files[0] ?? null);
+}
+
+/**
+ * Multi-select variant of {@link pickFile}. Resolves with all chosen files
+ * (empty array if the dialog is dismissed). Shares the mobile-safe pattern:
+ * the input is attached to the DOM before clicking, and cleaned up on refocus
+ * if `change` never fires.
+ */
+export function pickFiles(accept: string, multiple = true): Promise<File[]> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = accept;
+    input.multiple = multiple;
     input.style.position = 'fixed';
     input.style.left = '-9999px';
     input.style.opacity = '0';
@@ -92,9 +103,9 @@ export function pickFile(accept: string): Promise<File | null> {
 
     input.addEventListener('change', () => {
       settled = true;
-      const file = input.files && input.files[0] ? input.files[0] : null;
+      const files = input.files ? Array.from(input.files) : [];
       cleanup();
-      resolve(file);
+      resolve(files);
     });
 
     // If the dialog is dismissed without choosing, clean up on refocus.
@@ -103,7 +114,7 @@ export function pickFile(accept: string): Promise<File | null> {
       window.setTimeout(() => {
         if (!settled) {
           cleanup();
-          resolve(null);
+          resolve([]);
         }
       }, 500);
     };
