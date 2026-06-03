@@ -121,7 +121,8 @@ export interface PotentialComic {
   name: string;
   notes?: string;
   // Optional performer data saved from a show
-  photo?: string;
+  photo?: string; // primary/cover photo (kept in sync with photos[0])
+  photos?: string[]; // all photos for this comic
   socialMedia?: string;
   credits?: string;
   walkOnMusic?: string;

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
-import { compressImage, embedSizeError, pickFiles, readFileAsDataURL } from '../../utils/media';
+import { compressImage, embedSizeError, readFileAsDataURL } from '../../utils/media';
+import { PhotoGallery } from './PhotoGallery';
 import './PerformerProfile.css';
 
 interface PerformerProfileProps {
@@ -23,7 +24,6 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   const [dirty, setDirty] = useState(false);
   const [savedToRolodex, setSavedToRolodex] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
-  const [photoDrag, setPhotoDrag] = useState(false);
   const [audioDrag, setAudioDrag] = useState(false);
   const [videoDrag, setVideoDrag] = useState(false);
 
@@ -38,44 +38,6 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   // so existing consumers (list thumbnails, PDF export, Run Show, viewer) keep working.
   function setPhotos(next: string[]) {
     onChange({ ...performer, photos: next.length ? next : undefined, photo: next[0] });
-  }
-
-  function addPhotoFiles(files: File[]) {
-    const images = files.filter(f => f.type.startsWith('image/'));
-    if (!images.length) return;
-    setMediaError(null);
-    // Process independently so one unreadable image doesn't drop the rest.
-    Promise.allSettled(images.map(f => compressImage(f))).then(results => {
-      const ok = results
-        .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
-        .map(r => r.value);
-      if (ok.length) setPhotos([...photos, ...ok]);
-      if (ok.length < images.length) {
-        setMediaError(ok.length
-          ? 'Some photos couldn’t be read and were skipped.'
-          : 'Could not read that file. Please try again.');
-      }
-    });
-  }
-
-  function removePhotoAt(index: number) {
-    setPhotos(photos.filter((_, i) => i !== index));
-  }
-
-  function makeCover(index: number) {
-    if (index === 0) return;
-    const next = [photos[index], ...photos.filter((_, i) => i !== index)];
-    setPhotos(next);
-  }
-
-  function pickPhotos() {
-    pickFiles('image/*').then(addPhotoFiles);
-  }
-
-  function handlePhotoDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setPhotoDrag(false);
-    addPhotoFiles(Array.from(e.dataTransfer.files || []));
   }
 
   function handleSave() {
@@ -243,6 +205,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                     socialMedia: performer.socialMedia,
                     credits: performer.credits,
                     photo: performer.photo,
+                    photos: performer.photos,
                     walkOnMusic: performer.walkOnMusic,
                     walkOnMusicName: performer.walkOnMusicName,
                     walkOnMusicArtist: performer.walkOnMusicArtist,
@@ -274,70 +237,13 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
           </div>
         </div>
 
-        {/* Photo panel */}
-        <div className="perf-profile__photo-panel">
-          <div
-            className={`perf-profile__photo-drop${photoDrag ? ' perf-profile__photo-drop--active' : ''}${locked ? ' perf-profile__photo-drop--locked' : ''}`}
-            onDragOver={e => e.preventDefault()}
-            onDragEnter={() => !locked && setPhotoDrag(true)}
-            onDragLeave={() => setPhotoDrag(false)}
-            onDrop={e => !locked && handlePhotoDrop(e)}
-            onClick={() => !locked && pickPhotos()}
-          >
-            <div className="perf-profile__avatar-wrap">
-              {photos[0] ? (
-                <img src={photos[0]} alt={performer.name} className="perf-profile__avatar" />
-              ) : (
-                <div className="perf-profile__avatar-placeholder">
-                  {performer.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </div>
-            {!locked && (
-              <p className="perf-profile__photo-hint">
-                {photoDrag ? 'Drop photos' : photos.length ? 'Click or drag to add more' : 'Click or drag to upload'}
-              </p>
-            )}
-          </div>
-          <p className="perf-profile__photo-name">{performer.name}</p>
-
-          {photos.length > 0 && (
-            <div className="perf-profile__photo-gallery">
-              {photos.map((src, i) => (
-                <div key={i} className="perf-profile__photo-thumb">
-                  <img src={src} alt={`${performer.name} ${i + 1}`} className="perf-profile__photo-thumb-img" />
-                  {i === 0 && photos.length > 1 && (
-                    <span className="perf-profile__photo-cover-badge">Cover</span>
-                  )}
-                  {!locked && (
-                    <div className="perf-profile__photo-thumb-actions">
-                      {i !== 0 && (
-                        <button
-                          type="button"
-                          className="perf-profile__photo-thumb-btn"
-                          title="Make cover photo"
-                          aria-label={`Make photo ${i + 1} the cover`}
-                          onClick={e => { e.stopPropagation(); makeCover(i); }}
-                        >
-                          ★
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="perf-profile__photo-thumb-btn perf-profile__photo-thumb-btn--remove"
-                        title="Remove photo"
-                        aria-label={`Remove photo ${i + 1}`}
-                        onClick={e => { e.stopPropagation(); removePhotoAt(i); }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Photo gallery */}
+        <PhotoGallery
+          photos={photos}
+          name={performer.name}
+          locked={locked}
+          onChange={setPhotos}
+        />
       </div>
 
       {/* Media card */}
