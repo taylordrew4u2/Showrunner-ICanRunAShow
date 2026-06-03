@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { PotentialComic } from '../../types';
+import { PhotoGallery } from './PhotoGallery';
 import './PerformerProfile.css';
 
 interface RolodexProfileProps {
@@ -19,10 +20,17 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
   const [timestamp, setTimestamp] = useState(comic.walkOnMusicTimestamp || '');
   const [musicLink, setMusicLink] = useState(comic.walkOnMusicLink || '');
   const [dirty, setDirty] = useState(false);
-  const [photoDrag, setPhotoDrag] = useState(false);
   const [audioDrag, setAudioDrag] = useState(false);
 
+  // All photos for this comic, falling back to the legacy single `photo` field.
+  const photos = comic.photos ?? (comic.photo ? [comic.photo] : []);
+
   function mark() { setDirty(true); }
+
+  // Persist the photo list, keeping `photo` synced to the cover (photos[0]).
+  function setPhotos(next: string[]) {
+    onChange({ ...comic, photos: next.length ? next : undefined, photo: next[0] });
+  }
 
   function handleSave() {
     onChange({
@@ -174,39 +182,8 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
           </div>
         </div>
 
-        {/* Photo panel */}
-        <div className="perf-profile__photo-panel">
-          <div
-            className={`perf-profile__photo-drop${photoDrag ? ' perf-profile__photo-drop--active' : ''}`}
-            onDragOver={e => e.preventDefault()}
-            onDragEnter={() => setPhotoDrag(true)}
-            onDragLeave={() => setPhotoDrag(false)}
-            onDrop={e => handleDrop(e, 'image/', result => { onChange({ ...comic, photo: result }); }, setPhotoDrag)}
-            onClick={() => pickFile('image/*', result => onChange({ ...comic, photo: result }))}
-          >
-            <div className="perf-profile__avatar-wrap">
-              {comic.photo ? (
-                <img src={comic.photo} alt={comic.name} className="perf-profile__avatar" />
-              ) : (
-                <div className="perf-profile__avatar-placeholder">
-                  {comic.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </div>
-            <p className="perf-profile__photo-hint">
-              {photoDrag ? 'Drop photo' : comic.photo ? 'Click or drag to update' : 'Click or drag to upload'}
-            </p>
-          </div>
-          <p className="perf-profile__photo-name">{comic.name}</p>
-          {comic.photo && (
-            <button
-              className="perf-profile__photo-remove"
-              onClick={e => { e.stopPropagation(); onChange({ ...comic, photo: undefined }); }}
-            >
-              Remove photo
-            </button>
-          )}
-        </div>
+        {/* Photo gallery */}
+        <PhotoGallery photos={photos} name={comic.name} onChange={setPhotos} />
       </div>
 
       {/* Walk-on music */}
