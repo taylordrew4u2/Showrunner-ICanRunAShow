@@ -53,6 +53,26 @@ export default function App() {
   const [expandOrigin, setExpandOrigin] = useState({ x: 50, y: 30 });
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ShowStatus>('all');
+  const [sortBy, setSortBy] = useState<'added' | 'date-asc' | 'date-desc' | 'name'>(() => {
+    try {
+      const saved = localStorage.getItem('showrunner:showSort');
+      if (saved === 'added' || saved === 'date-asc' || saved === 'date-desc' || saved === 'name') {
+        return saved;
+      }
+    } catch {
+      /* ignore */
+    }
+    return 'added';
+  });
+
+  // Remember the sort preference so the shows list feels familiar each visit.
+  useEffect(() => {
+    try {
+      localStorage.setItem('showrunner:showSort', sortBy);
+    } catch {
+      /* ignore */
+    }
+  }, [sortBy]);
 
   // Restore session from localStorage on mount (persists until logout)
   useEffect(() => {
@@ -460,6 +480,24 @@ export default function App() {
   });
   const isFiltering = statusFilter !== 'all' || normalizedQuery !== '';
 
+  // Sort the visible shows. Undated shows always sort to the end for date sorts.
+  const sortedShows = [...filteredShows].sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'date-asc':
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return a.date.localeCompare(b.date);
+      case 'date-desc':
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return b.date.localeCompare(a.date);
+      default:
+        return 0; // 'added' — preserve existing newest-first order
+    }
+  });
+
   function toggleStatusFilter(status: ShowStatus) {
     setStatusFilter((current) => (current === status ? 'all' : status));
   }
@@ -625,6 +663,17 @@ export default function App() {
                         </button>
                       ))}
                     </div>
+                    <select
+                      className="shows-toolbar__sort"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                      aria-label="Sort shows"
+                    >
+                      <option value="added">Recently added</option>
+                      <option value="date-asc">Date (soonest)</option>
+                      <option value="date-desc">Date (latest)</option>
+                      <option value="name">Name (A–Z)</option>
+                    </select>
                     {isFiltering && (
                       <span className="shows-toolbar__count">
                         {filteredShows.length} of {shows.length}
@@ -655,7 +704,7 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="shows-grid">
-                    {filteredShows.map((show) => (
+                    {sortedShows.map((show) => (
                       <ShowCard
                         key={show.id}
                         show={show}
