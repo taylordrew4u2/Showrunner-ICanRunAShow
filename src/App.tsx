@@ -371,11 +371,9 @@ export default function App() {
         ...show,
         performers: show.performers.map(p => {
           if (p.name.toLowerCase() !== updated.name.toLowerCase()) return p;
-          const photo = updated.photo ?? p.photo;
-          // Keep the gallery's cover in sync when a synced photo replaces it.
-          const photos = p.photos && p.photos.length
-            ? [photo ?? p.photos[0], ...p.photos.slice(1)]
-            : p.photos;
+          // Prefer the comic's gallery; keep the cover (photo) synced to photos[0].
+          const photos = updated.photos ?? p.photos;
+          const photo = (photos && photos.length) ? photos[0] : (updated.photo ?? p.photo);
           return {
             ...p,
             photo,

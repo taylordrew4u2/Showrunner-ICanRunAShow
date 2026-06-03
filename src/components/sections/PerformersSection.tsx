@@ -33,6 +33,7 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
       socialMedia: comic.socialMedia,
       credits: comic.credits,
       photo: comic.photo,
+      photos: comic.photos,
       walkOnMusic: comic.walkOnMusic,
       walkOnMusicName: comic.walkOnMusicName,
       walkOnMusicArtist: comic.walkOnMusicArtist,
