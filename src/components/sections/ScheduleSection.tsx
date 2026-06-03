@@ -1,9 +1,14 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { embedSizeError, readFileAsDataURL, pickFile } from '../../utils/media';
 import { Icon } from '../Icon';
-import { AIImportFlow } from '../AIImportFlow';
+
+// Loaded on demand — pulls in the AI/OCR/PDF parsing deps only when the
+// import flow is actually opened, keeping them out of the main bundle.
+const AIImportFlow = lazy(() =>
+  import('../AIImportFlow').then((m) => ({ default: m.AIImportFlow })),
+);
 
 interface ScheduleSectionProps {
   schedule: ScheduleItem[];
@@ -632,11 +637,13 @@ export function ScheduleSection({
       )}
 
       {importOpen && (
-        <AIImportFlow
-          showName={showName || 'Show'}
-          onClose={() => setImportOpen(false)}
-          onApply={handleApplyImport}
-        />
+        <Suspense fallback={null}>
+          <AIImportFlow
+            showName={showName || 'Show'}
+            onClose={() => setImportOpen(false)}
+            onApply={handleApplyImport}
+          />
+        </Suspense>
       )}
     </div>
   );
