@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
-import { compressImage, embedSizeError, readFileAsDataURL } from '../../utils/media';
+import { compressImage, embedSizeError, pickFiles, readFileAsDataURL } from '../../utils/media';
 import './PerformerProfile.css';
 
 interface PerformerProfileProps {
@@ -44,9 +44,18 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
     const images = files.filter(f => f.type.startsWith('image/'));
     if (!images.length) return;
     setMediaError(null);
-    Promise.all(images.map(f => compressImage(f)))
-      .then(results => setPhotos([...photos, ...results]))
-      .catch(() => setMediaError('Could not read that file. Please try again.'));
+    // Process independently so one unreadable image doesn't drop the rest.
+    Promise.allSettled(images.map(f => compressImage(f))).then(results => {
+      const ok = results
+        .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+        .map(r => r.value);
+      if (ok.length) setPhotos([...photos, ...ok]);
+      if (ok.length < images.length) {
+        setMediaError(ok.length
+          ? 'Some photos couldn’t be read and were skipped.'
+          : 'Could not read that file. Please try again.');
+      }
+    });
   }
 
   function removePhotoAt(index: number) {
@@ -60,37 +69,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   }
 
   function pickPhotos() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.multiple = true;
-    input.style.position = 'fixed';
-    input.style.left = '-9999px';
-    let settled = false;
-
-    const cleanup = () => {
-      if (input.parentNode) input.parentNode.removeChild(input);
-    };
-
-    input.addEventListener('change', () => {
-      settled = true;
-      const files = input.files ? Array.from(input.files) : [];
-      cleanup();
-      addPhotoFiles(files);
-    });
-
-    // If the picker is dismissed without choosing (common on mobile), the
-    // `change` event never fires — clean up the detached input on refocus.
-    const onFocus = () => {
-      window.removeEventListener('focus', onFocus);
-      window.setTimeout(() => {
-        if (!settled) cleanup();
-      }, 500);
-    };
-    window.addEventListener('focus', onFocus);
-
-    document.body.appendChild(input);
-    input.click();
+    pickFiles('image/*').then(addPhotoFiles);
   }
 
   function handlePhotoDrop(e: React.DragEvent) {
