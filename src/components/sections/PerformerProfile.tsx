@@ -66,11 +66,29 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
     input.multiple = true;
     input.style.position = 'fixed';
     input.style.left = '-9999px';
-    input.onchange = () => {
-      const files = input.files ? Array.from(input.files) : [];
+    let settled = false;
+
+    const cleanup = () => {
       if (input.parentNode) input.parentNode.removeChild(input);
-      addPhotoFiles(files);
     };
+
+    input.addEventListener('change', () => {
+      settled = true;
+      const files = input.files ? Array.from(input.files) : [];
+      cleanup();
+      addPhotoFiles(files);
+    });
+
+    // If the picker is dismissed without choosing (common on mobile), the
+    // `change` event never fires — clean up the detached input on refocus.
+    const onFocus = () => {
+      window.removeEventListener('focus', onFocus);
+      window.setTimeout(() => {
+        if (!settled) cleanup();
+      }, 500);
+    };
+    window.addEventListener('focus', onFocus);
+
     document.body.appendChild(input);
     input.click();
   }
@@ -319,6 +337,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                           type="button"
                           className="perf-profile__photo-thumb-btn"
                           title="Make cover photo"
+                          aria-label={`Make photo ${i + 1} the cover`}
                           onClick={e => { e.stopPropagation(); makeCover(i); }}
                         >
                           ★
@@ -328,6 +347,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                         type="button"
                         className="perf-profile__photo-thumb-btn perf-profile__photo-thumb-btn--remove"
                         title="Remove photo"
+                        aria-label={`Remove photo ${i + 1}`}
                         onClick={e => { e.stopPropagation(); removePhotoAt(i); }}
                       >
                         ×
