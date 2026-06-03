@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { Show, ShowStatus, AppSettings, PotentialComic } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
+import { syncPerformerCover } from './utils/performer';
 import { 
   loadEncryptedShows, 
   saveEncryptedShows,
@@ -368,21 +369,26 @@ export default function App() {
     setShows(prev =>
       prev.map(show => ({
         ...show,
-        performers: show.performers.map(p =>
-          p.name.toLowerCase() === updated.name.toLowerCase()
-            ? {
-                ...p,
-                photo: updated.photo ?? p.photo,
-                socialMedia: updated.socialMedia ?? p.socialMedia,
-                credits: updated.credits ?? p.credits,
-                walkOnMusic: updated.walkOnMusic ?? p.walkOnMusic,
-                walkOnMusicName: updated.walkOnMusicName ?? p.walkOnMusicName,
-                walkOnMusicArtist: updated.walkOnMusicArtist ?? p.walkOnMusicArtist,
-                walkOnMusicTimestamp: updated.walkOnMusicTimestamp ?? p.walkOnMusicTimestamp,
-                walkOnMusicLink: updated.walkOnMusicLink ?? p.walkOnMusicLink,
-              }
-            : p
-        ),
+        performers: show.performers.map(p => {
+          if (p.name.toLowerCase() !== updated.name.toLowerCase()) return p;
+          const photo = updated.photo ?? p.photo;
+          // Keep the gallery's cover in sync when a synced photo replaces it.
+          const photos = p.photos && p.photos.length
+            ? [photo ?? p.photos[0], ...p.photos.slice(1)]
+            : p.photos;
+          return {
+            ...p,
+            photo,
+            photos,
+            socialMedia: updated.socialMedia ?? p.socialMedia,
+            credits: updated.credits ?? p.credits,
+            walkOnMusic: updated.walkOnMusic ?? p.walkOnMusic,
+            walkOnMusicName: updated.walkOnMusicName ?? p.walkOnMusicName,
+            walkOnMusicArtist: updated.walkOnMusicArtist ?? p.walkOnMusicArtist,
+            walkOnMusicTimestamp: updated.walkOnMusicTimestamp ?? p.walkOnMusicTimestamp,
+            walkOnMusicLink: updated.walkOnMusicLink ?? p.walkOnMusicLink,
+          };
+        }),
       }))
     );
   }
@@ -411,14 +417,8 @@ export default function App() {
           file: a.file,
           fileName: a.fileName
         })),
-        // Ensure all performers have their file fields preserved
-        performers: (updated.performers || []).map(p => ({
-          ...p,
-          walkOnMusic: p.walkOnMusic,
-          walkOnMusicName: p.walkOnMusicName,
-          photo: p.photo,
-          video: p.video
-        }))
+        // Normalize each performer so the legacy `photo` cover always matches photos[0].
+        performers: (updated.performers || []).map(syncPerformerCover)
       };
       const updatedShows = prev.map((s) => (s.id === safeUpdated.id ? safeUpdated : s));
       
@@ -486,10 +486,12 @@ export default function App() {
       case 'name':
         return a.name.localeCompare(b.name);
       case 'date-asc':
+        if (!a.date && !b.date) return 0;
         if (!a.date) return 1;
         if (!b.date) return -1;
         return a.date.localeCompare(b.date);
       case 'date-desc':
+        if (!a.date && !b.date) return 0;
         if (!a.date) return 1;
         if (!b.date) return -1;
         return b.date.localeCompare(a.date);
@@ -506,6 +508,21 @@ export default function App() {
     setStatusFilter('all');
     setSearchQuery('');
   }
+
+  // The three summary tiles that double as status filters.
+  const statusFilterTiles: { value: ShowStatus; label: string; count: number }[] = [
+    { value: 'upcoming', label: 'Upcoming', count: upcomingCount },
+    { value: 'in-progress', label: 'In progress', count: inProgressCount },
+    { value: 'completed', label: 'Completed', count: completedCount },
+  ];
+
+  const rolodexTile = (
+    <div className="show-card rolodex-tile" onClick={() => setView('rolodex')}>
+      <div className="rolodex-tile__icon"></div>
+      <h3 className="rolodex-tile__title">Comic Rolodex</h3>
+      <p className="rolodex-tile__count">{settings.potentialComics.length} comic{settings.potentialComics.length !== 1 ? 's' : ''}</p>
+    </div>
+  );
 
   // Public read-only routes — no auth required.
   const search = new URLSearchParams(window.location.search);
@@ -601,33 +618,18 @@ export default function App() {
                     <h1 className="bento-tile__value">{shows.length}</h1>
                     <p className="bento-tile__meta">Total shows in your workspace</p>
                   </article>
-                  <button
-                    type="button"
-                    className={`bento-tile bento-tile--filter ${statusFilter === 'upcoming' ? 'bento-tile--active' : ''}`}
-                    onClick={() => toggleStatusFilter('upcoming')}
-                    aria-pressed={statusFilter === 'upcoming'}
-                  >
-                    <p className="bento-tile__label">Upcoming</p>
-                    <p className="bento-tile__value">{upcomingCount}</p>
-                  </button>
-                  <button
-                    type="button"
-                    className={`bento-tile bento-tile--filter ${statusFilter === 'in-progress' ? 'bento-tile--active' : ''}`}
-                    onClick={() => toggleStatusFilter('in-progress')}
-                    aria-pressed={statusFilter === 'in-progress'}
-                  >
-                    <p className="bento-tile__label">In progress</p>
-                    <p className="bento-tile__value">{inProgressCount}</p>
-                  </button>
-                  <button
-                    type="button"
-                    className={`bento-tile bento-tile--filter ${statusFilter === 'completed' ? 'bento-tile--active' : ''}`}
-                    onClick={() => toggleStatusFilter('completed')}
-                    aria-pressed={statusFilter === 'completed'}
-                  >
-                    <p className="bento-tile__label">Completed</p>
-                    <p className="bento-tile__value">{completedCount}</p>
-                  </button>
+                  {statusFilterTiles.map(({ value, label, count }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`bento-tile bento-tile--filter ${statusFilter === value ? 'bento-tile--active' : ''}`}
+                      onClick={() => toggleStatusFilter(value)}
+                      aria-pressed={statusFilter === value}
+                    >
+                      <p className="bento-tile__label">{label}</p>
+                      <p className="bento-tile__value">{count}</p>
+                    </button>
+                  ))}
                   <article className="bento-tile bento-tile--wide">
                     <p className="bento-tile__label">Total scenes</p>
                     <p className="bento-tile__value">{totalSceneCount}</p>
@@ -689,11 +691,7 @@ export default function App() {
                       <h2>No shows yet</h2>
                       <p>Tap <strong>+ New Show</strong> to get started.</p>
                     </div>
-                    <div className="show-card rolodex-tile" onClick={() => setView('rolodex')}>
-                      <div className="rolodex-tile__icon"></div>
-                      <h3 className="rolodex-tile__title">Comic Rolodex</h3>
-                      <p className="rolodex-tile__count">{settings.potentialComics.length} comic{settings.potentialComics.length !== 1 ? 's' : ''}</p>
-                    </div>
+                    {rolodexTile}
                   </div>
                 ) : filteredShows.length === 0 ? (
                   <div className="shows-empty-filter">
@@ -712,11 +710,7 @@ export default function App() {
                         onDelete={handleDeleteShow}
                       />
                     ))}
-                    <div className="show-card rolodex-tile" onClick={() => setView('rolodex')}>
-                      <div className="rolodex-tile__icon"></div>
-                      <h3 className="rolodex-tile__title">Comic Rolodex</h3>
-                      <p className="rolodex-tile__count">{settings.potentialComics.length} comic{settings.potentialComics.length !== 1 ? 's' : ''}</p>
-                    </div>
+                    {rolodexTile}
                   </div>
                 )}
               </div>
