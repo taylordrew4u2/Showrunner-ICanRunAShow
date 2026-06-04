@@ -189,6 +189,33 @@ select.show-detail__status--select {
   border-color: var(--border);
 }
 
+/* ── Host slot ───────────────────────────────────────────────────────── */
+
+.show-detail__host {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0 4px;
+}
+
+.show-detail__host-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.show-detail__host-input {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.show-detail__host-pick {
+  flex: 0 0 auto;
+}
+
 .show-detail__meta {
   display: flex;
   gap: 18px;
@@ -227,139 +254,6 @@ select.show-detail__status--select {
   .show-detail__flyer {
     max-width: 100%;
   }
-}
-
-/* Video & Host Assignment Section */
-.show-detail__video-host {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
-}
-
-.show-detail__video-host--locked {
-  padding: 12px 20px;
-  background: var(--surface-strong);
-  border-color: var(--border-strong);
-}
-
-@media (max-width: 768px) {
-  .show-detail__video-host {
-    padding: 16px;
-  }
-
-  .show-detail__video-host--locked {
-    padding: 10px 16px;
-  }
-}
-
-.video-host-locked {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-@media (max-width: 768px) {
-  .video-host-locked {
-    gap: 12px;
-  }
-}
-
-.video-host-locked__item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.95rem;
-}
-
-@media (max-width: 768px) {
-  .video-host-locked__item {
-    font-size: 0.875rem;
-  }
-}
-
-.video-host-locked__label {
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.video-host-locked__value {
-  font-weight: 700;
-  color: var(--text);
-}
-
-.video-host-locked__payment {
-  background: var(--surface-strong);
-  color: #22c55e;
-  padding: 4px 10px;
-  border-radius: var(--radius-xs);
-  font-weight: 700;
-  font-size: 0.875rem;
-  border: 1px solid #22c55e;
-}
-
-.video-host-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.video-host-editor__title {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--text);
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-
-@media (max-width: 768px) {
-  .video-host-editor__title {
-    font-size: 1.05rem;
-  }
-}
-
-.video-host-editor__fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 16px;
-}
-
-@media (max-width: 1024px) {
-  .video-host-editor__fields {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .video-host-editor__fields {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-}
-
-.video-host-editor__field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.video-host-editor__field--narrow {
-  grid-column: span 1;
-}
-
-@media (max-width: 1024px) {
-  .video-host-editor__field--narrow {
-    grid-column: span 1;
-  }
-}
-
-.video-host-editor__actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
 }
 
 .show-detail__notes {
@@ -627,36 +521,6 @@ select.show-detail__status--select {
 @media (max-width: 768px) {
   .accordion-section__header-right {
     gap: 8px;
-  }
-}
-
-.accordion-section__lockin-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border: 1.5px solid #15803d;
-  border-radius: 999px;
-  background: #14532d30;
-  color: #22c55e;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  white-space: nowrap;
-}
-
-.accordion-section__lockin-btn:hover {
-  background: #22c55e;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
-}
-
-@media (max-width: 768px) {
-  .accordion-section__lockin-btn {
-    font-size: 0.82rem;
-    padding: 4px 10px;
   }
 }
 
@@ -1883,57 +1747,6 @@ select.show-detail__status--select {
   .section-field__input--time {
     max-width: 100%;
   }
-}
-
-/* ─── Completed Sections Bubbles ──────────────────────────────────────────── */
-
-.completed-sections {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.completed-sections__label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  margin-bottom: 10px;
-}
-
-.completed-sections__bubbles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.completed-bubble {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: #14532d30;
-  border: 1px solid #14532d;
-  border-radius: 999px;
-  padding: 5px 14px;
-  font-size: 0.8rem;
-  color: #22c55e;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.completed-bubble:hover {
-  background: #14532d50;
-  border-color: #15803d;
-}
-
-.completed-bubble__icon {
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.completed-bubble__title {
-  white-space: nowrap;
 }
 
 /* ─── Remove Section Button ───────────────────────────────────────────────── */

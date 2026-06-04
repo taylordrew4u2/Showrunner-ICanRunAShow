@@ -31,7 +31,6 @@ interface ShowDetailProps {
 export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }: ShowDetailProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [editingDeadline, setEditingDeadline] = useState<SectionKey | null>(null);
-  const [editingVideoHost, setEditingVideoHost] = useState(false);
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -39,9 +38,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const [viewerCopied, setViewerCopied] = useState(false);
   const [artistAdminOpen, setArtistAdminOpen] = useState(false);
   const [tempShowName, setTempShowName] = useState(show.name);
-  const [tempVideoPerson, setTempVideoPerson] = useState(show.videoPerson || '');
-  const [tempVideoPayment, setTempVideoPayment] = useState(show.videoPayment?.toString() || '');
-  const [tempSelectedHostId, setTempSelectedHostId] = useState(show.selectedHostId || '');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [lightMode, setLightMode] = useState<boolean>(() => {
     try {
@@ -143,15 +139,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     setEditingDeadline(null);
   }
 
-  function handleCompletionToggle(sectionKey: SectionKey) {
-    const updatedCompletions = {
-      ...show.completions,
-      [sectionKey]: !show.completions?.[sectionKey],
-    };
-    onUpdate({ ...show, completions: updatedCompletions });
-    triggerSaveIndicator();
-  }
-
   function handleHideSection(sectionKey: SectionKey) {
     const hidden = show.hiddenSections || [];
     if (!hidden.includes(sectionKey)) {
@@ -174,27 +161,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       newExpanded.add(sectionKey);
     }
     setExpandedSections(newExpanded);
-  }
-
-  function handleLockVideoHost() {
-    const videoPaymentNum = tempVideoPayment ? parseFloat(tempVideoPayment) : undefined;
-    
-    onUpdate({
-      ...show,
-      videoPerson: tempVideoPerson || undefined,
-      videoPayment: videoPaymentNum,
-      selectedHostId: tempSelectedHostId || undefined,
-    });
-    
-    triggerSaveIndicator();
-    setEditingVideoHost(false);
-  }
-
-  function handleEditVideoHost() {
-    setTempVideoPerson(show.videoPerson || '');
-    setTempVideoPayment(show.videoPayment?.toString() || '');
-    setTempSelectedHostId(show.selectedHostId || '');
-    setEditingVideoHost(true);
   }
 
   function handleSaveShowName() {
@@ -281,10 +247,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       triggerSaveIndicator();
     }
   }
-
-  const hostNames: Record<string, string> = { justin: 'Justin', taylor: 'Taylor' };
-  const selectedHostName = show.selectedHostId ? hostNames[show.selectedHostId] || show.selectedHostId : undefined;
-  const hasVideoHostInfo = show.videoPerson || show.selectedHostId;
 
   const sections = [
     {
@@ -518,95 +480,38 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         </div>
       )}
 
-      {/* Video & Host Assignment Section */}
-      <div className={`show-detail__video-host ${hasVideoHostInfo && !editingVideoHost ? 'show-detail__video-host--locked' : ''}`}>
-        {!editingVideoHost && hasVideoHostInfo ? (
-          // Locked/compact view
-          <div className="video-host-locked">
-            {show.videoPerson && (
-              <div className="video-host-locked__item">
-                <span className="video-host-locked__label">Video:</span>
-                <span className="video-host-locked__value">{show.videoPerson}</span>
-                {show.videoPayment && (
-                  <span className="video-host-locked__payment">${show.videoPayment.toFixed(2)}</span>
-                )}
-              </div>
-            )}
-            {selectedHostName && (
-              <div className="video-host-locked__item">
-                <span className="video-host-locked__label">Host:</span>
-                <span className="video-host-locked__value">{selectedHostName}</span>
-              </div>
-            )}
-            <button 
-              className="btn btn--ghost btn--sm"
-              onClick={handleEditVideoHost}
-            >
-              Edit
-            </button>
-          </div>
-        ) : (
-          // Edit view
-          <div className="video-host-editor">
-            <h3 className="video-host-editor__title">Video & Host Assignment</h3>
-            <div className="video-host-editor__fields">
-              <div className="video-host-editor__field">
-                <label className="section-field__label">Video Person</label>
-                <input
-                  type="text"
-                  className="section-field__input"
-                  placeholder="Enter video person name"
-                  value={tempVideoPerson}
-                  onChange={(e) => setTempVideoPerson(e.target.value)}
-                />
-              </div>
-              <div className="video-host-editor__field video-host-editor__field--narrow">
-                <label className="section-field__label">Video Payment ($)</label>
-                <input
-                  type="number"
-                  className="section-field__input"
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  value={tempVideoPayment}
-                  onChange={(e) => setTempVideoPayment(e.target.value)}
-                />
-              </div>
-              <div className="video-host-editor__field">
-                <label className="section-field__label">Select Host</label>
-                <select
-                  className="section-field__select"
-                  value={tempSelectedHostId}
-                  onChange={(e) => setTempSelectedHostId(e.target.value)}
-                >
-                  <option value="">-- Select a host --</option>
-                  <option value="justin">Justin</option>
-                  <option value="taylor">Taylor</option>
-                </select>
-              </div>
-            </div>
-            <div className="video-host-editor__actions">
-              <button 
-                className="btn btn--primary"
-                onClick={handleLockVideoHost}
-              >
-                Lock In
-              </button>
-              {hasVideoHostInfo && (
-                <button 
-                  className="btn btn--ghost"
-                  onClick={() => setEditingVideoHost(false)}
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </div>
+      {/* Host */}
+      <div className="show-detail__host">
+        <label className="show-detail__host-label" htmlFor="show-host-input">Host</label>
+        <input
+          id="show-host-input"
+          type="text"
+          className="section-field__input show-detail__host-input"
+          placeholder="Host name"
+          value={show.host || ''}
+          onChange={(e) => { onUpdate({ ...show, host: e.target.value || undefined }); triggerSaveIndicator(); }}
+        />
+        {show.performers.length > 0 && (
+          <select
+            className="section-field__select show-detail__host-pick"
+            value=""
+            onChange={(e) => {
+              if (!e.target.value) return;
+              onUpdate({ ...show, host: e.target.value });
+              triggerSaveIndicator();
+            }}
+            aria-label="Use a performer as host"
+          >
+            <option value="">Use a performer…</option>
+            {show.performers.map((p) => (
+              <option key={p.id} value={p.name}>{p.name}</option>
+            ))}
+          </select>
         )}
       </div>
 
       <div className="show-detail__sections-accordion">
-        {sections.filter((section) => !show.completions?.[section.sectionKey] && !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
+        {sections.filter((section) => !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
           const isExpanded = expandedSections.has(section.key);
           const isComplete = false;
           const spanClass = section.span === 2 ? ' accordion-section--span2' : '';
@@ -643,19 +548,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                       ×
                     </button>
                   )}
-                  {section.sectionKey && (
-                    <button
-                      className="accordion-section__lockin-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCompletionToggle(section.sectionKey!);
-                      }}
-                      title="Lock In"
-                    >
-                      Lock In
-                    </button>
-                  )}
-                  <button 
+                  <button
                     className={`accordion-section__expand-icon ${isExpanded ? 'accordion-section__expand-icon--expanded' : ''}`}
                     aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
                   >
@@ -731,25 +624,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           );
         })}
       </div>
-
-      {sections.some((section) => show.completions?.[section.sectionKey]) && (
-        <div className="completed-sections">
-          <p className="completed-sections__label">Locked In</p>
-          <div className="completed-sections__bubbles">
-            {sections.filter((section) => show.completions?.[section.sectionKey]).map((section) => (
-              <button
-                key={section.key}
-                className="completed-bubble"
-                onClick={() => handleCompletionToggle(section.sectionKey!)}
-                title={`Unlock "${section.title}"`}
-              >
-                <span className="completed-bubble__icon">✓</span>
-                <span className="completed-bubble__title">{section.title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {sections.some((section) => (show.hiddenSections || []).includes(section.sectionKey)) && (
         <div className="hidden-sections">
