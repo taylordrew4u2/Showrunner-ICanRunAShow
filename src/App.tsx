@@ -256,6 +256,9 @@ export default function App() {
     };
     setShows((prev) => [newShow, ...prev]);
     setShowForm(false);
+    // Drop the user straight into the new show so create → populate is continuous.
+    setSelectedShow(newShow);
+    setView('detail');
   }
 
   function handleDuplicateShow(id: string) {

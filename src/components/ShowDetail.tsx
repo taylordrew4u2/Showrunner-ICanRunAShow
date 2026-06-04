@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Show, Scene, AppSettings, SectionKey, TodoItem } from '../types';
+import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
 import { DeadlineIndicator } from './DeadlineIndicator';
@@ -59,8 +59,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     }
   }, [lightMode]);
 
-  // Check if the show date has passed
-  const isPastShow = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
+  // Show the recap once the show is done — either explicitly marked completed
+  // or its date has passed.
+  const datePassed = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
+  const isPastShow = datePassed || show.status === 'completed';
   
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
@@ -484,9 +486,21 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
               </button>
             </>
           )}
-          <span className={`show-detail__status show-detail__status--${show.status}`}>
-            {show.status.replace('-', ' ')}
-          </span>
+          <select
+            className={`show-detail__status show-detail__status--select show-detail__status--${show.status}`}
+            value={show.status}
+            onChange={(e) => {
+              onUpdate({ ...show, status: e.target.value as ShowStatus });
+              triggerSaveIndicator();
+            }}
+            aria-label="Show status"
+            title="Change show status"
+          >
+            <option value="upcoming">upcoming</option>
+            <option value="in-progress">in progress</option>
+            <option value="completed">completed</option>
+            <option value="cancelled">cancelled</option>
+          </select>
         </div>
         {(show.venueName || show.location || show.date || show.time) && (
           <div className="show-detail__meta">
@@ -767,6 +781,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           viewToken={show.viewToken}
           schedule={show.schedule}
           performers={show.performers}
+          onStart={() => {
+            if (show.status !== 'completed' && show.status !== 'in-progress') {
+              onUpdate({ ...show, status: 'in-progress' });
+            }
+          }}
+          onFinish={() => onUpdate({ ...show, status: 'completed' })}
           onClose={() => setRunShowOpen(false)}
         />
       )}
