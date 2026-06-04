@@ -87,7 +87,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   ${show.location ? `<div class="meta"><strong>Location:</strong> ${esc(show.location)}</div>` : ""}
   ${show.ticketLink ? `<div class="meta"><strong>Ticket Link:</strong> <a href="${esc(show.ticketLink)}">${esc(show.ticketLink)}</a></div>` : ""}
   ${show.status ? `<div class="meta"><strong>Status:</strong> ${esc(show.status)}</div>` : ""}
-  ${show.videoPerson ? `<div class="meta"><strong>Video Person:</strong> ${esc(show.videoPerson)}${show.videoPayment ? ` — Payment: ${formatCurrency(Number(show.videoPayment))}` : ""}</div>` : ""}
+  ${show.host ? `<div class="meta"><strong>Host:</strong> ${esc(show.host)}</div>` : ""}
 
   ${
     show.performers.length > 0
