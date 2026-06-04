@@ -212,9 +212,7 @@ export interface Show {
   deadlines?: SectionDeadlines;
   completions?: SectionCompletions;
   hiddenSections?: SectionKey[];
-  videoPerson?: string; // Name of video person
-  videoPayment?: number; // Amount to pay video person
-  selectedHostId?: string; // ID of the selected host
+  host?: string; // host name (free text, or set from a performer)
   todos?: TodoItem[];
   viewToken?: string; // public read-only viewer link token
   viewNote?: string; // optional note shown on the viewer page before the show starts
