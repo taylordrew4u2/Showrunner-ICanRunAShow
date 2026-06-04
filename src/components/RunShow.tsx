@@ -10,6 +10,8 @@ interface RunShowProps {
   viewToken?: string;
   schedule: ScheduleItem[];
   performers?: Performer[];
+  onStart?: () => void; // fired once when the show first starts (mark in-progress)
+  onFinish?: () => void; // fired when the operator ends the show (mark completed)
   onClose: () => void;
 }
 
@@ -91,7 +93,7 @@ function nextUpLabel(desc: string, durationSec: number): string {
   return `${desc} (${mins} min)`;
 }
 
-export function RunShow({ showName, viewToken, schedule, performers = [], onClose }: RunShowProps) {
+export function RunShow({ showName, viewToken, schedule, performers = [], onStart, onFinish, onClose }: RunShowProps) {
   const [idx, setIdx] = useState(0);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0); // within current cue
@@ -101,6 +103,27 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
   const [showCues, setShowCues] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null); // pre-roll seconds before a segment starts
   const startedIdxRef = useRef<number | null>(null); // idx whose pre-roll has completed
+  const notifiedStartRef = useRef(false); // whether onStart has fired this session
+
+  // Fire onStart the first time the show is started so it can be marked in-progress.
+  function notifyStart() {
+    if (notifiedStartRef.current) return;
+    notifiedStartRef.current = true;
+    onStart?.();
+  }
+
+  function toggleRunning() {
+    primeAudio();
+    if (!running) notifyStart();
+    setRunning((r) => !r);
+  }
+
+  function finishShow() {
+    if (!window.confirm('End the show and mark it completed?')) return;
+    audioEngine.stop({ fadeMs: FADE_MS });
+    onFinish?.();
+    onClose();
+  }
 
   const base = useMemo(() => baseDurations(schedule), [schedule]);
   const effDurations = useMemo(
@@ -365,6 +388,7 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
     // second time. The countdown-start effect picks this up.
     audioEngine.init();
     setRunning(true);
+    notifyStart();
   }
 
   // Unlock the Web Audio AudioContext within the Start gesture so that all
@@ -430,6 +454,9 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
         <div className="run-show__bar-actions">
           <button className="run-show__restart" onClick={restartShow} title="Restart show from the top">
             Restart show
+          </button>
+          <button className="run-show__finish" onClick={finishShow} title="End the show and mark it completed">
+            Finish show
           </button>
           <button className="run-show__close" onClick={onClose} aria-label="Close run show">
             <Icon name="x" size={18} />
@@ -530,7 +557,7 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onClos
               </button>
               <button
                 className="rs-btn rs-btn--start"
-                onClick={() => { primeAudio(); setRunning((r) => !r); }}
+                onClick={toggleRunning}
               >
                 {startLabel}
               </button>

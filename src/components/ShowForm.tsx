@@ -43,7 +43,8 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !date.trim() || !time.trim() || !venueName.trim()) return;
+    // Only name + date are required up front; venue/time can be filled in later.
+    if (!name.trim() || !date.trim()) return;
     const hiddenSections = SELECTABLE_BLOCKS
       .map(b => b.key)
       .filter(key => !selectedBlocks.has(key));
@@ -94,25 +95,23 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
       </label>
 
       <label className="show-form__label">
-        Time *
+        Time
         <input
           className="show-form__input"
           type="text"
           value={time}
           onChange={(e) => setTime(e.target.value)}
           placeholder="e.g. 8:00 PM"
-          required
         />
       </label>
 
       <label className="show-form__label">
-        Venue Name *
+        Venue Name
         <input
           className="show-form__input"
           value={venueName}
           onChange={(e) => setVenueName(e.target.value)}
           placeholder="Venue name"
-          required
         />
       </label>
 
