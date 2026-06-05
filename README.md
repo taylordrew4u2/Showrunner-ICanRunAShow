@@ -8,6 +8,20 @@ Show management software for live event coordinators — build lineups, import s
 
 ---
 
+## Screenshots
+
+_Add product screenshots to `docs/screenshots/` — see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md), then uncomment the block below._
+
+<!--
+<p align="center">
+  <img src="docs/screenshots/shows.png" width="80%" alt="Shows dashboard" /><br/>
+  <img src="docs/screenshots/show-detail.png" width="80%" alt="Show detail" /><br/>
+  <img src="docs/screenshots/run-show.png" width="80%" alt="Run Show live mode" />
+</p>
+-->
+
+---
+
 ## Overview
 
 Showrunner is a production tool for comedians, promoters, and stage managers who run recurring live shows. It covers the full show lifecycle: building a lineup, coordinating staff, importing a schedule from a PDF or photo, and operating the show in a full-screen live mode with cue timing and walk-on music.
@@ -232,7 +246,7 @@ The original `vercel.json` rewrite used a negative-lookahead pattern that didn't
 
 ## Testing
 
-Automated tests are not currently implemented; manual verification covers the main flows. CI (GitHub Actions) runs lint + type-check + build on every push and PR.
+Unit tests (Vitest) cover the pure logic: schedule text parsing, cue timing/formatting, performer cover-sync, encryption round-trip, and ID generation. Run them with `npm test`. CI (GitHub Actions) runs lint + type-check + build + tests on every push and PR. Component/E2E tests are not yet implemented; manual verification covers the UI flows.
 
 ---
 
@@ -261,7 +275,7 @@ A keyboard-navigation + ARIA audit is a future improvement.
 ## Known Limitations
 
 - PBKDF2 uses a static salt and 1000 iterations — adequate for a personal project but below current production recommendations
-- No automated tests beyond CI lint + type-check
+- Unit tests cover the core pure logic; no component or end-to-end tests yet
 - No password recovery — losing the password means losing access to all data
 - AI schedule import depends on an OpenAI key; without it, only the OCR + regex fallback runs
 - Error handling is present but not exhaustive — some failure states surface as console errors rather than user-facing messages
@@ -271,10 +285,15 @@ A keyboard-navigation + ARIA audit is a future improvement.
 ## Roadmap
 
 - Add per-user random salts and bump PBKDF2 iterations
-- Add automated tests (unit + integration)
+- Add component + end-to-end tests (unit tests are in place)
 - Accessibility audit (keyboard nav, ARIA, color contrast)
-- Add a LICENSE file
-- Add screenshots to this README
+- Add product screenshots to the README (scaffold in `docs/screenshots/`)
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 ---
 

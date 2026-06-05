@@ -2,6 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../types';
 import { audioEngine } from '../utils/audioEngine';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
+import {
+  DEFAULT_CUE_SECONDS,
+  MIN_CUE_SECONDS,
+  baseDurations,
+  fmtCountdown,
+  fmtOffset,
+  fmtShowTime,
+  nextUpLabel,
+} from '../utils/showTiming';
 import { Icon } from './Icon';
 
 interface RunShowProps {
@@ -15,83 +24,12 @@ interface RunShowProps {
   onClose: () => void;
 }
 
-const DEFAULT_CUE_SECONDS = 5 * 60;
-const MIN_CUE_SECONDS = 30;
 const DRIFT_TOLERANCE = 30; // seconds we still count as "On Time"
 const STEP_SECONDS = 2 * 60; // coarse +/- buttons
 const FINE_STEP_SECONDS = 30; // fine +/- buttons
 const PREROLL_SECONDS = 5; // flashing countdown before each segment
 const FADE_MS = 800; // audio fade in/out duration
 const WARNING_SECONDS = 60; // timer flashes red at/under this remaining
-
-function parseClockToMinutes(time: string | undefined): number | null {
-  if (!time) return null;
-  const m = time.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
-  if (!m) return null;
-  let h = parseInt(m[1], 10);
-  const mins = m[2] ? parseInt(m[2], 10) : 0;
-  const meridiem = m[3]?.toLowerCase();
-  if (meridiem === 'pm' && h < 12) h += 12;
-  if (meridiem === 'am' && h === 12) h = 0;
-  if (h > 23 || mins > 59) return null;
-  return h * 60 + mins;
-}
-
-// Pull an explicit duration out of a cue, e.g. "Host transition (1 min)" or "Intro 90 sec".
-function parseDurationSeconds(text: string | undefined): number | null {
-  if (!text) return null;
-  const min = text.match(/(\d+(?:\.\d+)?)\s*min/i);
-  if (min) return Math.round(parseFloat(min[1]) * 60);
-  const sec = text.match(/(\d+)\s*sec/i);
-  if (sec) return parseInt(sec[1], 10);
-  return null;
-}
-
-function baseDurations(schedule: ScheduleItem[]): number[] {
-  const clock = schedule.map((s) => parseClockToMinutes(s.time));
-  return schedule.map((s, i) => {
-    // An explicit per-segment length wins so Run Show matches what was set.
-    if (s.durationMin && s.durationMin > 0) return Math.max(MIN_CUE_SECONDS, s.durationMin * 60);
-    const cur = clock[i];
-    const next = clock[i + 1];
-    if (cur != null && next != null && next > cur) return (next - cur) * 60;
-    const fromText = parseDurationSeconds(s.description);
-    if (fromText != null) return Math.max(MIN_CUE_SECONDS, fromText);
-    return DEFAULT_CUE_SECONDS;
-  });
-}
-
-function pad(n: number): string {
-  return n.toString().padStart(2, '0');
-}
-
-// MM:SS, or H:MM:SS once we cross an hour. Used for the planned segment range.
-function fmtOffset(seconds: number): string {
-  const s = Math.max(0, Math.floor(seconds));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
-}
-
-// HH:MM:SS for the running show clock.
-function fmtShowTime(seconds: number): string {
-  const s = Math.max(0, Math.floor(seconds));
-  return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
-}
-
-// MM:SS countdown, negative once a cue runs over.
-function fmtCountdown(seconds: number): string {
-  const neg = seconds < 0;
-  const s = Math.abs(Math.floor(seconds));
-  return `${neg ? '-' : ''}${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
-}
-
-function nextUpLabel(desc: string, durationSec: number): string {
-  const mins = Math.max(1, Math.round(durationSec / 60));
-  if (/\d+\s*(min|sec)/i.test(desc)) return desc;
-  return `${desc} (${mins} min)`;
-}
 
 export function RunShow({ showName, viewToken, schedule, performers = [], onStart, onFinish, onClose }: RunShowProps) {
   const [idx, setIdx] = useState(0);
