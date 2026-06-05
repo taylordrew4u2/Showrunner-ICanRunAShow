@@ -4,7 +4,9 @@
 // runtime. The connection lives ONLY in server env vars; it never ships to the
 // browser. The app's data is encrypted client-side, so these tables only ever
 // hold opaque ciphertext blobs.
-import { createClient, type Client } from '@libsql/client';
+// `/web` = the fetch-based client (no Node-native deps) — works on Vercel's
+// edge runtime, the same client the app used from the browser.
+import { createClient, type Client } from '@libsql/client/web';
 
 const TURSO_DATABASE_URL = process.env.TURSO_DATABASE_URL;
 const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN;

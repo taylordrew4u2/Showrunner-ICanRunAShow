@@ -111,3 +111,5 @@ export default async function handler(req: Request): Promise<Response> {
     return handleError(err);
   }
 }
+
+export const config = { runtime: 'edge' };
