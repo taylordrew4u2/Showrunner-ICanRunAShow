@@ -9,11 +9,13 @@ import {
   deriveUserId,
   hashPassword,
 } from "./encryption";
-import { getClient, ensureSchema } from "./db";
+import { api, type ApiError } from "./api";
 
 /**
- * Secure storage that encrypts data and syncs with Turso backend
- * Uses password-derived keys for all users
+ * Secure storage. All data is encrypted in the browser (the password-derived
+ * key never leaves the device); the server API only ever stores/returns opaque
+ * ciphertext. The browser sends a derived userId + password hash for routing
+ * and authorization, never the raw password.
  */
 
 function normalizeUsername(username: string): string {
@@ -24,189 +26,74 @@ function getUserId(username: string): string {
   return deriveUserId(normalizeUsername(username));
 }
 
+// Auth headers for the per-user routes.
+function auth(username: string, password: string) {
+  return { authUserId: getUserId(username), authHash: hashPassword(password) };
+}
+
 /**
- * Create a new account
+ * Create a new account.
  */
 export async function createAccount(
   username: string,
   password: string,
 ): Promise<void> {
-  const userId = getUserId(username);
-  const passwordHash = hashPassword(password);
-
-  await ensureSchema();
-  const db = getClient();
-  const existing = await db.execute(`SELECT id FROM users WHERE id = ?`, [
-    userId,
-  ]);
-
-  if (existing.rows.length > 0) {
-    throw new Error("ACCOUNT_EXISTS");
+  try {
+    await api.post("/api/auth", {
+      action: "signup",
+      userId: getUserId(username),
+      passwordHash: hashPassword(password),
+    });
+  } catch (err) {
+    if ((err as ApiError).status === 409) throw new Error("ACCOUNT_EXISTS");
+    throw err;
   }
-
-  await db.execute({
-    sql: `
-      INSERT INTO users (id, password_hash)
-      VALUES (?, ?)
-    `,
-    args: [userId, passwordHash],
-  });
 }
 
 /**
- * Verify account credentials
+ * Verify account credentials.
  */
 export async function authenticateUser(
   username: string,
   password: string,
 ): Promise<boolean> {
-  const userId = getUserId(username);
-  const passwordHash = hashPassword(password);
-
-  await ensureSchema();
-  const db = getClient();
-  const result = await db.execute(
-    `SELECT password_hash FROM users WHERE id = ?`,
-    [userId],
-  );
-
-  if (result.rows.length === 0) {
-    return false;
-  }
-
-  const storedHash = result.rows[0][0] as string;
-  return storedHash === passwordHash;
+  const res = await api.post<{ ok: boolean }>("/api/auth", {
+    action: "login",
+    userId: getUserId(username),
+    passwordHash: hashPassword(password),
+  });
+  return res.ok;
 }
 
 /**
- * Load encrypted shows from backend and decrypt
+ * Load encrypted shows from the backend and decrypt them client-side.
  */
 export async function loadEncryptedShows(
   username: string,
   password: string,
 ): Promise<Show[]> {
-  const userId = getUserId(username);
-
-  await ensureSchema();
-  const db = getClient();
-  const result = await db.execute(
-    `SELECT encrypted_data FROM user_shows WHERE user_id = ? ORDER BY updated_at DESC`,
-    [userId],
+  const { shows } = await api.get<{ shows: { id: string; encryptedData: string }[] }>(
+    "/api/shows",
+    auth(username, password),
   );
-
-  // Derive the key once and reuse it for every row — PBKDF2 is deliberately
-  // slow, so re-deriving per show was the main first-load lag.
+  // Derive the key once and reuse it for every row — PBKDF2 is deliberately slow.
   const key = deriveKey(password);
-  return result.rows.map((row) => decryptWithKey<Show>(row[0] as string, key));
+  return shows.map((row) => decryptWithKey<Show>(row.encryptedData, key));
 }
 
 /**
- * Save shows to backend (encrypted)
- * Backs up existing data before overwriting so it can be recovered.
+ * Encrypt shows client-side and save them. The server handles backup + verify
+ * and refuses to wipe existing data with an empty array.
  */
 export async function saveEncryptedShows(
   shows: Show[],
   username: string,
   password: string,
 ): Promise<void> {
-  const userId = getUserId(username);
-
-  await ensureSchema();
-  const db = getClient();
-
-  // Count existing rows for this user
-  const existing = await db.execute(
-    `SELECT count(*) as cnt FROM user_shows WHERE user_id = ?`,
-    [userId],
-  );
-  const existingCount = Number(existing.rows[0][0]);
-
-  // Never wipe existing shows with an empty array
-  if (shows.length === 0 && existingCount > 0) {
-    console.warn(
-      `Skipping save: refusing to delete ${existingCount} existing show(s) with an empty array.`,
-    );
-    return;
-  }
-
-  // Backup current rows before deleting (keeps last 3 snapshots per show)
-  if (existingCount > 0) {
-    await db.execute({
-      sql: `INSERT INTO user_shows_backup (id, user_id, encrypted_data)
-            SELECT id, user_id, encrypted_data FROM user_shows WHERE user_id = ?`,
-      args: [userId],
-    });
-
-    // Prune old backups — keep only the 3 most recent per show
-    await db.execute({
-      sql: `DELETE FROM user_shows_backup
-            WHERE user_id = ? AND rowid NOT IN (
-              SELECT rowid FROM user_shows_backup
-              WHERE user_id = ?
-              ORDER BY backed_up_at DESC
-              LIMIT ? 
-            )`,
-      args: [userId, userId, String(existingCount * 3)],
-    });
-  }
-
-  const statements: Array<{ sql: string; args: string[] }> = [
-    { sql: `DELETE FROM user_shows WHERE user_id = ?`, args: [userId] },
-  ];
-
   // Derive the key once for the whole batch (PBKDF2 is slow).
   const key = deriveKey(password);
-  for (const show of shows) {
-    const encrypted = encryptWithKey(show, key);
-    statements.push({
-      sql: `INSERT INTO user_shows (id, user_id, encrypted_data) VALUES (?, ?, ?)`,
-      args: [show.id, userId, encrypted],
-    });
-  }
-
-  await db.batch(statements, "write");
-
-  // Verify the write succeeded — if row count doesn't match, restore from backup
-  const verification = await db.execute(
-    `SELECT count(*) as cnt FROM user_shows WHERE user_id = ?`,
-    [userId],
-  );
-  const savedCount = Number(verification.rows[0][0]);
-  if (savedCount !== shows.length) {
-    console.error(
-      `Save verification failed: expected ${shows.length} rows, found ${savedCount}. Restoring from backup.`,
-    );
-    await restoreFromBackup(userId);
-  }
-}
-
-/**
- * Restore shows from the most recent backup snapshot
- */
-async function restoreFromBackup(userId: string): Promise<void> {
-  const db = getClient();
-
-  // Get the most recent backup timestamp for this user
-  const latestBackup = await db.execute({
-    sql: `SELECT backed_up_at FROM user_shows_backup
-          WHERE user_id = ?
-          ORDER BY backed_up_at DESC LIMIT 1`,
-    args: [userId],
-  });
-  if (latestBackup.rows.length === 0) return;
-
-  const backedUpAt = latestBackup.rows[0][0] as string;
-
-  await db.batch([
-    { sql: `DELETE FROM user_shows WHERE user_id = ?`, args: [userId] },
-    {
-      sql: `INSERT INTO user_shows (id, user_id, encrypted_data)
-            SELECT id, user_id, encrypted_data
-            FROM user_shows_backup
-            WHERE user_id = ? AND backed_up_at = ?`,
-      args: [userId, backedUpAt],
-    },
-  ], "write");
+  const payload = shows.map((show) => ({ id: show.id, encryptedData: encryptWithKey(show, key) }));
+  await api.put("/api/shows", { shows: payload }, auth(username, password));
 }
 
 /**
@@ -225,28 +112,18 @@ export async function exportUserData(
 }
 
 /**
- * Load encrypted settings from backend
+ * Load encrypted settings from the backend.
  */
 export async function loadEncryptedSettings(
   username: string,
   password: string,
 ): Promise<AppSettings> {
-  const userId = getUserId(username);
-
-  await ensureSchema();
-  const db = getClient();
-  const result = await db.execute(
-    `SELECT encrypted_data FROM user_settings WHERE user_id = ?`,
-    [userId],
+  const { encryptedData } = await api.get<{ encryptedData: string | null }>(
+    "/api/settings",
+    auth(username, password),
   );
-
-  if (result.rows.length === 0) {
-    return DEFAULT_SETTINGS;
-  }
-
-  const encrypted = result.rows[0][0] as string;
-  const settings = decryptData<AppSettings>(encrypted, password);
-
+  if (!encryptedData) return DEFAULT_SETTINGS;
+  const settings = decryptData<AppSettings>(encryptedData, password);
   // Migrate old settings format
   return migrateSettings(settings);
 }
@@ -288,23 +165,13 @@ function migrateSettings(settings: LegacySettings): AppSettings {
 }
 
 /**
- * Save encrypted settings to backend
+ * Save encrypted settings to the backend.
  */
 export async function saveEncryptedSettings(
   settings: AppSettings,
   username: string,
   password: string,
 ): Promise<void> {
-  const userId = getUserId(username);
-
-  await ensureSchema();
-  const db = getClient();
-  const encrypted = encryptData(settings, password);
-  await db.execute(
-    `
-      INSERT OR REPLACE INTO user_settings (user_id, encrypted_data)
-      VALUES (?, ?)
-    `,
-    [userId, encrypted],
-  );
+  const encryptedData = encryptData(settings, password);
+  await api.put("/api/settings", { encryptedData }, auth(username, password));
 }

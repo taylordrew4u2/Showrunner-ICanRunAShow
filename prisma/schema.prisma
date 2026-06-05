@@ -1,0 +1,89 @@
+// Prisma schema for Showrunner.
+//
+// The app keeps ALL data encrypted client-side; these tables store opaque
+// ciphertext blobs (encrypted_data / payload) plus routing keys. Prisma is the
+// server-side query layer over Turso (libSQL) via @prisma/adapter-libsql.
+//
+// NOTE: the actual tables are created idempotently with raw `CREATE TABLE IF
+// NOT EXISTS` in api/_lib/db.ts (proven DDL, avoids migrate-on-Turso friction).
+// These models map onto those columns via @map / @@map.
+
+generator client {
+  provider      = "prisma-client-js"
+  // "native" for local dev; the rhel target matches Vercel's Node Lambda runtime.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db" // placeholder for `prisma generate`; runtime uses the libSQL adapter
+}
+
+model User {
+  id           String  @id
+  passwordHash String  @map("password_hash")
+  createdAt    String? @map("created_at")
+
+  @@map("users")
+}
+
+model UserShow {
+  id            String  @id
+  userId        String  @map("user_id")
+  encryptedData String  @map("encrypted_data")
+  createdAt     String? @map("created_at")
+  updatedAt     String? @map("updated_at")
+
+  @@index([userId])
+  @@map("user_shows")
+}
+
+model UserShowBackup {
+  id            String
+  userId        String  @map("user_id")
+  encryptedData String  @map("encrypted_data")
+  backedUpAt    String  @default("") @map("backed_up_at")
+
+  @@id([id, backedUpAt])
+  @@index([userId])
+  @@map("user_shows_backup")
+}
+
+model UserSettings {
+  userId        String  @id @map("user_id")
+  encryptedData String  @map("encrypted_data")
+  updatedAt     String? @map("updated_at")
+
+  @@map("user_settings")
+}
+
+model LiveView {
+  token     String  @id
+  payload   String
+  updatedAt String? @map("updated_at")
+
+  @@map("live_view")
+}
+
+model ArtistSignup {
+  token     String  @id
+  payload   String
+  updatedAt String? @map("updated_at")
+
+  @@map("artist_signup")
+}
+
+model ArtistSignupEntry {
+  id          String  @id
+  token       String
+  name        String
+  phone       String?
+  email       String?
+  imageNumber Int?    @map("image_number")
+  color       String?
+  completed   Int     @default(0)
+  createdAt   String? @map("created_at")
+
+  @@index([token])
+  @@map("artist_signup_entries")
+}

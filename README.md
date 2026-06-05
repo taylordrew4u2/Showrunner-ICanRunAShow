@@ -72,7 +72,7 @@ Showrunner handles the full workflow in a single application:
 
 **Platform**
 - PWA (installable, offline shell)
-- Client-side AES encryption with PBKDF2-derived keys — Turso stores only ciphertext
+- Client-side AES encryption with PBKDF2-derived keys — the server/DB only ever store ciphertext, and the database is reached through server API routes (the DB credential never ships to the browser)
 - PDF runsheet export
 - Drag-and-drop file uploads with MIME validation
 
@@ -82,7 +82,8 @@ Showrunner handles the full workflow in a single application:
 
 - **Frontend:** React 19, TypeScript (strict mode)
 - **Build:** Vite 7, vite-plugin-pwa (Workbox)
-- **Database:** Turso (libSQL — serverless SQLite at the edge)
+- **Database:** Turso (libSQL — serverless SQLite at the edge), accessed server-side via **Prisma** (`@prisma/adapter-libsql`)
+- **Server API:** Vercel serverless functions (Node) under `/api` — all DB reads/writes go through these, so no DB credential is exposed to the browser
 - **Encryption:** crypto-js (PBKDF2 key derivation, AES)
 - **AI:** OpenAI GPT-4o-mini (vision + text); Tesseract.js fallback
 - **PDF:** PDF.js (pdfjs-dist) — client-side extraction
@@ -115,20 +116,29 @@ showrunner/
 │   │   ├── Expenses.tsx
 │   │   └── sections/            # Per-section components inside ShowDetail
 │   └── utils/
-│       ├── secure-storage.ts    # Encryption + Turso read/write
-│       ├── encryption.ts        # Key derivation and AES helpers
+│       ├── secure-storage.ts    # Client-side encryption + calls to the API
+│       ├── encryption.ts        # Key derivation and AES helpers (browser)
+│       ├── api.ts               # fetch wrapper for the server API
 │       ├── aiExtractor.ts       # OpenAI + PDF.js + OCR + regex pipeline
 │       ├── audioEngine.ts       # Web Audio wrapper with fade + preload
 │       ├── pdfExport.ts         # Client-side PDF generation
-│       ├── liveView.ts          # Live state pub/sub
-│       ├── artistSignup.ts      # Public sign-up data layer
-│       └── db.ts                # Turso client (env-only credentials)
-└── .github/workflows/ci.yml     # Lint + type-check + build on push/PR
+│       ├── liveView.ts          # Live state pub/sub (via the API)
+│       └── artistSignup.ts      # Public sign-up data layer (via the API)
+├── api/
+│   ├── _lib/                    # Prisma client, schema bootstrap, auth, http (server-only)
+│   ├── auth.ts                  # signup / login
+│   ├── shows.ts                 # encrypted show blobs (load / save)
+│   ├── settings.ts             # encrypted settings blob
+│   ├── live.ts                  # live-viewer state
+│   ├── artist.ts / artist-entries.ts  # public sign-up payload + queue
+│   └── notify-artist.ts         # "you're up" emails via Brevo
+├── prisma/schema.prisma         # Models over the Turso (libSQL) schema
+└── .github/workflows/ci.yml     # Lint + tests + type-check + build on push/PR
 ```
 
 **App flow:**
 
-User signs in → password derives an encryption key via PBKDF2 → all show data and settings are decrypted from Turso on load → user edits shows, performers, schedule → changes are encrypted and written back to Turso on a debounced interval → in live mode, schedule cues drive a public read-only viewer URL and the per-cue music timing.
+User signs in → the browser derives the encryption key + a password hash via PBKDF2 (neither the raw password nor the key ever leaves the device) → it calls the `/api` routes (sending a derived user id + hash) which use Prisma to read the encrypted blobs from Turso → the browser decrypts them → edits are encrypted client-side and written back through the API on a debounced interval → in live mode, schedule cues drive a public read-only viewer URL and the per-cue music timing.
 
 ---
 
@@ -150,11 +160,11 @@ npm run build
 
 ### Environment Variables
 
-See `.env.example` for the full list. Required:
+See `.env.example` for the full list. Required (server-side — **no** `VITE_` prefix, so they never reach the browser bundle):
 
 ```env
-VITE_TURSO_DATABASE_URL=
-VITE_TURSO_AUTH_TOKEN=
+TURSO_DATABASE_URL=
+TURSO_AUTH_TOKEN=
 ```
 
 Optional:
@@ -255,6 +265,7 @@ Unit tests (Vitest) cover the pure logic: schedule text parsing, cue timing/form
 - Passwords are never stored; a PBKDF2-derived key is used for encryption and a separate hash is stored for authentication
 - All show data and settings are encrypted with AES (crypto-js) before being written to Turso
 - All API keys and database credentials are loaded from environment variables — no fallback values in source
+- The database is reached only through server-side API routes; the Turso credential is a server env var and is never included in the client bundle
 - The static salt used in key derivation is a known limitation — per-user random salts would improve security
 - No rate limiting on authentication
 
