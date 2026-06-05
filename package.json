@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
@@ -33,6 +34,7 @@
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.2",
     "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^3.2.6",
     "workbox-build": "^7.4.1"
   },
   "overrides": {
