@@ -36,11 +36,9 @@ export async function ensureSchema(): Promise<void> {
   const db = getClient();
   await db.batch([
     `CREATE TABLE IF NOT EXISTS users (
-       id             TEXT PRIMARY KEY,
-       password_hash  TEXT NOT NULL,
-       salt           TEXT,
-       kdf_iterations INTEGER,
-       created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+       id            TEXT PRIMARY KEY,
+       password_hash TEXT NOT NULL,
+       created_at    TEXT NOT NULL DEFAULT (datetime('now'))
      )`,
     `CREATE TABLE IF NOT EXISTS user_shows (
        id         TEXT PRIMARY KEY,
@@ -88,14 +86,6 @@ export async function ensureSchema(): Promise<void> {
   // Add email column for existing installs (no-op if it already exists).
   try {
     await db.execute(`ALTER TABLE artist_signup_entries ADD COLUMN email TEXT`);
-  } catch { /* column already exists */ }
-  // Per-user KDF columns for existing installs (no-op if they already exist).
-  // Existing rows keep NULL salt → the legacy key-derivation path applies.
-  try {
-    await db.execute(`ALTER TABLE users ADD COLUMN salt TEXT`);
-  } catch { /* column already exists */ }
-  try {
-    await db.execute(`ALTER TABLE users ADD COLUMN kdf_iterations INTEGER`);
   } catch { /* column already exists */ }
   _initialised = true;
 }

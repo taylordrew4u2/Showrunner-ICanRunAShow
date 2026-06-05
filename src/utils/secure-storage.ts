@@ -7,10 +7,7 @@ import {
   decryptWithKey,
   deriveKey,
   deriveUserId,
-  generateSalt,
   hashPassword,
-  NEW_KDF_ITERATIONS,
-  type KdfParams,
 } from "./encryption";
 import { getClient, ensureSchema } from "./db";
 
@@ -28,24 +25,6 @@ function getUserId(username: string): string {
 }
 
 /**
- * Look up a user's key-derivation params. Returns null for legacy accounts
- * (no stored salt), which signals the legacy derivation path so their existing
- * data still decrypts.
- */
-async function getKdfParams(userId: string): Promise<KdfParams | null> {
-  const db = getClient();
-  const result = await db.execute(
-    `SELECT salt, kdf_iterations FROM users WHERE id = ?`,
-    [userId],
-  );
-  if (result.rows.length === 0) return null;
-  const salt = result.rows[0][0] as string | null;
-  const iterations = result.rows[0][1] as number | bigint | null;
-  if (!salt || !iterations) return null;
-  return { salt, iterations: Number(iterations) };
-}
-
-/**
  * Create a new account
  */
 export async function createAccount(
@@ -53,10 +32,7 @@ export async function createAccount(
   password: string,
 ): Promise<void> {
   const userId = getUserId(username);
-  // New accounts get a per-user random salt + a high PBKDF2 iteration count.
-  const salt = generateSalt();
-  const iterations = NEW_KDF_ITERATIONS;
-  const passwordHash = hashPassword(password, salt);
+  const passwordHash = hashPassword(password);
 
   await ensureSchema();
   const db = getClient();
@@ -70,10 +46,10 @@ export async function createAccount(
 
   await db.execute({
     sql: `
-      INSERT INTO users (id, password_hash, salt, kdf_iterations)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO users (id, password_hash)
+      VALUES (?, ?)
     `,
-    args: [userId, passwordHash, salt, iterations],
+    args: [userId, passwordHash],
   });
 }
 
@@ -85,11 +61,12 @@ export async function authenticateUser(
   password: string,
 ): Promise<boolean> {
   const userId = getUserId(username);
+  const passwordHash = hashPassword(password);
 
   await ensureSchema();
   const db = getClient();
   const result = await db.execute(
-    `SELECT password_hash, salt FROM users WHERE id = ?`,
+    `SELECT password_hash FROM users WHERE id = ?`,
     [userId],
   );
 
@@ -98,10 +75,7 @@ export async function authenticateUser(
   }
 
   const storedHash = result.rows[0][0] as string;
-  const salt = result.rows[0][1] as string | null;
-  // Legacy accounts (no salt) hash against the app-wide salt.
-  const computed = salt ? hashPassword(password, salt) : hashPassword(password);
-  return storedHash === computed;
+  return storedHash === passwordHash;
 }
 
 /**
@@ -122,7 +96,7 @@ export async function loadEncryptedShows(
 
   // Derive the key once and reuse it for every row — PBKDF2 is deliberately
   // slow, so re-deriving per show was the main first-load lag.
-  const key = deriveKey(password, (await getKdfParams(userId)) ?? undefined);
+  const key = deriveKey(password);
   return result.rows.map((row) => decryptWithKey<Show>(row[0] as string, key));
 }
 
@@ -181,7 +155,7 @@ export async function saveEncryptedShows(
   ];
 
   // Derive the key once for the whole batch (PBKDF2 is slow).
-  const key = deriveKey(password, (await getKdfParams(userId)) ?? undefined);
+  const key = deriveKey(password);
   for (const show of shows) {
     const encrypted = encryptWithKey(show, key);
     statements.push({
@@ -271,7 +245,7 @@ export async function loadEncryptedSettings(
   }
 
   const encrypted = result.rows[0][0] as string;
-  const settings = decryptData<AppSettings>(encrypted, password, (await getKdfParams(userId)) ?? undefined);
+  const settings = decryptData<AppSettings>(encrypted, password);
 
   // Migrate old settings format
   return migrateSettings(settings);
@@ -325,7 +299,7 @@ export async function saveEncryptedSettings(
 
   await ensureSchema();
   const db = getClient();
-  const encrypted = encryptData(settings, password, (await getKdfParams(userId)) ?? undefined);
+  const encrypted = encryptData(settings, password);
   await db.execute(
     `
       INSERT OR REPLACE INTO user_settings (user_id, encrypted_data)
