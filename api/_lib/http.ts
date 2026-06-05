@@ -17,5 +17,10 @@ export function handleError(err: unknown): Response {
     return json({ error: 'server_not_configured', message: err.message }, 503);
   }
   console.error('API error:', err);
-  return json({ error: 'internal_error' }, 500);
+  // Surface the real error off production so previews are debuggable.
+  const detail =
+    process.env.VERCEL_ENV !== 'production' && err instanceof Error
+      ? { name: err.name, message: err.message }
+      : undefined;
+  return json({ error: 'internal_error', detail }, 500);
 }
