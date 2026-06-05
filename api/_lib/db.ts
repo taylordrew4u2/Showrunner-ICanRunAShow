@@ -1,10 +1,10 @@
-// Server-side database layer. Files under api/_lib are NOT turned into routes
-// (the leading underscore is excluded by Vercel). Prisma talks to Turso (libSQL)
-// using a connection that lives ONLY in server env vars — it never ships to the
+// Server-side database layer. Files under api/_lib are NOT routes (Vercel
+// excludes underscore-prefixed paths). Uses @libsql/client directly against
+// Turso — no ORM engine to bundle, which makes it reliable on Vercel's Node
+// runtime. The connection lives ONLY in server env vars; it never ships to the
 // browser. The app's data is encrypted client-side, so these tables only ever
 // hold opaque ciphertext blobs.
-import { PrismaClient } from '@prisma/client';
-import { PrismaLibSQL } from '@prisma/adapter-libsql';
+import { createClient, type Client } from '@libsql/client';
 
 const TURSO_DATABASE_URL = process.env.TURSO_DATABASE_URL;
 const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN;
@@ -24,22 +24,17 @@ export function isConfigured(): boolean {
 }
 
 // Reuse the client across warm invocations.
-let _prisma: PrismaClient | null = null;
+let _client: Client | null = null;
 
-export function getPrisma(): PrismaClient {
+export function getDb(): Client {
   if (!TURSO_DATABASE_URL) throw new ServerNotConfiguredError();
-  if (!_prisma) {
-    const adapter = new PrismaLibSQL({
-      url: TURSO_DATABASE_URL,
-      authToken: TURSO_AUTH_TOKEN,
-    });
-    _prisma = new PrismaClient({ adapter });
+  if (!_client) {
+    _client = createClient({ url: TURSO_DATABASE_URL, authToken: TURSO_AUTH_TOKEN });
   }
-  return _prisma;
+  return _client;
 }
 
-// Idempotent schema bootstrap — proven DDL, run once per warm instance. Using
-// raw `CREATE TABLE IF NOT EXISTS` avoids Prisma migrate friction against Turso.
+// Idempotent schema bootstrap — proven DDL, run once per warm instance.
 const DDL: string[] = [
   `CREATE TABLE IF NOT EXISTS users (
      id            TEXT PRIMARY KEY,
@@ -92,15 +87,14 @@ let _schemaReady: Promise<void> | null = null;
 
 export function ensureSchema(): Promise<void> {
   if (!_schemaReady) {
-    const prisma = getPrisma();
-    _schemaReady = (async () => {
-      for (const stmt of DDL) {
-        await prisma.$executeRawUnsafe(stmt);
-      }
-    })().catch((err) => {
-      _schemaReady = null; // allow a later retry on a fresh request
-      throw err;
-    });
+    const db = getDb();
+    _schemaReady = db
+      .batch(DDL, 'write')
+      .then(() => undefined)
+      .catch((err) => {
+        _schemaReady = null; // allow a later retry on a fresh request
+        throw err;
+      });
   }
   return _schemaReady;
 }

@@ -82,7 +82,7 @@ Showrunner handles the full workflow in a single application:
 
 - **Frontend:** React 19, TypeScript (strict mode)
 - **Build:** Vite 7, vite-plugin-pwa (Workbox)
-- **Database:** Turso (libSQL — serverless SQLite at the edge), accessed server-side via **Prisma** (`@prisma/adapter-libsql`)
+- **Database:** Turso (libSQL — serverless SQLite at the edge), accessed **server-side** via `@libsql/client`
 - **Server API:** Vercel serverless functions (Node) under `/api` — all DB reads/writes go through these, so no DB credential is exposed to the browser
 - **Encryption:** crypto-js (PBKDF2 key derivation, AES)
 - **AI:** OpenAI GPT-4o-mini (vision + text); Tesseract.js fallback
@@ -125,20 +125,19 @@ showrunner/
 │       ├── liveView.ts          # Live state pub/sub (via the API)
 │       └── artistSignup.ts      # Public sign-up data layer (via the API)
 ├── api/
-│   ├── _lib/                    # Prisma client, schema bootstrap, auth, http (server-only)
+│   ├── _lib/                    # libSQL client, schema bootstrap, auth, http (server-only)
 │   ├── auth.ts                  # signup / login
 │   ├── shows.ts                 # encrypted show blobs (load / save)
 │   ├── settings.ts             # encrypted settings blob
 │   ├── live.ts                  # live-viewer state
 │   ├── artist.ts / artist-entries.ts  # public sign-up payload + queue
 │   └── notify-artist.ts         # "you're up" emails via Brevo
-├── prisma/schema.prisma         # Models over the Turso (libSQL) schema
 └── .github/workflows/ci.yml     # Lint + tests + type-check + build on push/PR
 ```
 
 **App flow:**
 
-User signs in → the browser derives the encryption key + a password hash via PBKDF2 (neither the raw password nor the key ever leaves the device) → it calls the `/api` routes (sending a derived user id + hash) which use Prisma to read the encrypted blobs from Turso → the browser decrypts them → edits are encrypted client-side and written back through the API on a debounced interval → in live mode, schedule cues drive a public read-only viewer URL and the per-cue music timing.
+User signs in → the browser derives the encryption key + a password hash via PBKDF2 (neither the raw password nor the key ever leaves the device) → it calls the `/api` routes (sending a derived user id + hash) which read the encrypted blobs from Turso → the browser decrypts them → edits are encrypted client-side and written back through the API on a debounced interval → in live mode, schedule cues drive a public read-only viewer URL and the per-cue music timing.
 
 ---
 

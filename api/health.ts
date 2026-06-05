@@ -1,7 +1,7 @@
 // GET /api/health — diagnostic. Reports whether the DB env is configured and
 // whether a trivial query succeeds. Always 200 with a JSON report (no secrets),
 // so you can open it directly in the browser to check the connection.
-import { ensureSchema, getPrisma, isConfigured } from './_lib/db';
+import { ensureSchema, getDb, isConfigured } from './_lib/db';
 import { json } from './_lib/http';
 
 export default async function handler(): Promise<Response> {
@@ -10,8 +10,8 @@ export default async function handler(): Promise<Response> {
   }
   try {
     await ensureSchema();
-    const prisma = getPrisma();
-    await prisma.$queryRawUnsafe('SELECT 1');
+    const db = getDb();
+    await db.execute('SELECT 1');
     return json({ ok: true, configured: true, db: 'reachable' });
   } catch (err) {
     return json({

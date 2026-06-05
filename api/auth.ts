@@ -2,7 +2,7 @@
 // Body: { action: 'signup' | 'login', userId, passwordHash }
 // The browser derives userId and passwordHash; the raw password never reaches
 // the server.
-import { ensureSchema, getPrisma } from './_lib/db';
+import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson } from './_lib/http';
 
 interface AuthBody {
@@ -18,18 +18,25 @@ export default async function handler(req: Request): Promise<Response> {
     if (!userId || !passwordHash) return json({ error: 'bad_request' }, 400);
 
     await ensureSchema();
-    const prisma = getPrisma();
+    const db = getDb();
 
     if (action === 'signup') {
-      const existing = await prisma.user.findUnique({ where: { id: userId } });
-      if (existing) return json({ error: 'account_exists' }, 409);
-      await prisma.user.create({ data: { id: userId, passwordHash } });
+      const existing = await db.execute({ sql: `SELECT id FROM users WHERE id = ?`, args: [userId] });
+      if (existing.rows.length > 0) return json({ error: 'account_exists' }, 409);
+      await db.execute({
+        sql: `INSERT INTO users (id, password_hash) VALUES (?, ?)`,
+        args: [userId, passwordHash],
+      });
       return json({ ok: true });
     }
 
     if (action === 'login') {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      return json({ ok: !!user && user.passwordHash === passwordHash });
+      const result = await db.execute({
+        sql: `SELECT password_hash FROM users WHERE id = ?`,
+        args: [userId],
+      });
+      const ok = result.rows.length > 0 && String(result.rows[0][0]) === passwordHash;
+      return json({ ok });
     }
 
     return json({ error: 'bad_request' }, 400);
