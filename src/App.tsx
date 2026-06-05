@@ -3,6 +3,7 @@ import type { Show, ShowStatus, AppSettings, PotentialComic } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
 import { syncPerformerCover } from './utils/performer';
+import { ServerNotConfiguredError } from './utils/api';
 import { 
   loadEncryptedShows, 
   saveEncryptedShows,
@@ -189,7 +190,11 @@ export default function App() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
     } catch (error) {
       console.error('Sign in failed:', error);
-      setAuthError('Failed to sign in. Please try again.');
+      setAuthError(
+        error instanceof ServerNotConfiguredError
+          ? "The server isn't connected to the database yet. Check the deployment's environment variables."
+          : 'Failed to sign in. Please try again.',
+      );
     } finally {
       setAuthLoading(false);
     }
@@ -207,7 +212,11 @@ export default function App() {
     } catch (error) {
       console.error('Sign up failed:', error);
       const message = error instanceof Error ? error.message : '';
-      if (message === 'ACCOUNT_EXISTS') {
+      if (error instanceof ServerNotConfiguredError) {
+        setAuthError(
+          "The server isn't connected to the database yet. Check the deployment's environment variables.",
+        );
+      } else if (message === 'ACCOUNT_EXISTS') {
         setAuthError('Account already exists. Please sign in.');
       } else {
         setAuthError('Failed to create account. Please try again.');
