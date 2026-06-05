@@ -255,7 +255,7 @@ Unit tests (Vitest) cover the pure logic: schedule text parsing, cue timing/form
 - Passwords are never stored; a PBKDF2-derived key is used for encryption and a separate hash is stored for authentication
 - All show data and settings are encrypted with AES (crypto-js) before being written to Turso
 - All API keys and database credentials are loaded from environment variables — no fallback values in source
-- The static salt used in key derivation is a known limitation — per-user random salts would improve security
+- New accounts use a per-user random salt with 100,000 PBKDF2 iterations over SHA-256; accounts created before this change keep their original derivation for backward compatibility
 - No rate limiting on authentication
 
 ---
@@ -274,7 +274,7 @@ A keyboard-navigation + ARIA audit is a future improvement.
 
 ## Known Limitations
 
-- PBKDF2 uses a static salt and 1000 iterations — adequate for a personal project but below current production recommendations
+- Legacy accounts (created before per-user salts) still use the original static-salt / 1,000-iteration derivation until migrated
 - Unit tests cover the core pure logic; no component or end-to-end tests yet
 - No password recovery — losing the password means losing access to all data
 - AI schedule import depends on an OpenAI key; without it, only the OCR + regex fallback runs
@@ -284,7 +284,7 @@ A keyboard-navigation + ARIA audit is a future improvement.
 
 ## Roadmap
 
-- Add per-user random salts and bump PBKDF2 iterations
+- Migrate legacy accounts to per-user salts on next login (new accounts already use them)
 - Add component + end-to-end tests (unit tests are in place)
 - Accessibility audit (keyboard nav, ARIA, color contrast)
 - Add product screenshots to the README (scaffold in `docs/screenshots/`)
