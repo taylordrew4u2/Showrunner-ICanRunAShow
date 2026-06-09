@@ -1,10 +1,43 @@
-# Showrunner
+<div align="center">
 
-Show management software for live event coordinators — build lineups, import schedules, and run shows in real time.
+# 🎤 Showrunner
 
-## Live Demo
+**Show-management software for live-event coordinators — build the lineup, import the schedule, and run the show in real time.**
 
-[https://showrunner-theta.vercel.app](https://showrunner-theta.vercel.app)
+[**Live Demo →**](https://showrunner-theta.vercel.app)
+
+[![CI](https://github.com/taylordrew4u2/showrunner/actions/workflows/ci.yml/badge.svg)](https://github.com/taylordrew4u2/showrunner/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+&nbsp;
+![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)
+![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel&logoColor=white)
+
+</div>
+
+> One tool for the full live-show lifecycle: plan the lineup, attach walk-on music, import a printed schedule by photo, then operate the show in a full-screen live mode with per-cue countdowns — and broadcast the on-stage state to a public viewer link.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Problem](#problem)
+- [Solution](#solution)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [How to Run Locally](#how-to-run-locally)
+- [Usage](#usage)
+- [What I Built](#what-i-built)
+- [Technical Decisions](#technical-decisions)
+- [Challenges Solved](#challenges-solved)
+- [Testing](#testing)
+- [Security](#security)
+- [Accessibility](#accessibility)
+- [Known Limitations](#known-limitations)
+- [Roadmap](#roadmap)
+- [License](#license)
 
 ---
 
