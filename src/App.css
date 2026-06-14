@@ -1,23 +1,22 @@
 :root {
-  /* Cool, deep slate neutrals for a crisp high-tech feel. */
-  --bg: #0c0e13;
-  --surface: #161a21;
-  --surface-strong: #1e232c;
-  --text: #e9ecf3;
-  --text-muted: #8a91a4;
-  --text-soft: #565d70;
-  --border: #262c38;
-  --border-strong: #353c4b;
-  /* Vivid rose-red brand accent with a brighter highlight for gradients/glow. */
-  --primary: #f43f5e;
-  --primary-pressed: #e11d48;
-  --primary-bright: #fb7185;
-  --primary-soft: #2a1620;
-  --primary-soft-border: #4a2230;
-  --primary-glow: 0 8px 24px rgba(244, 63, 94, 0.35);
-  --danger: #f43f5e;
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.55);
+  /* Light, minimal base. Quiet neutrals with a single muted rose accent. */
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-strong: #eef0f4;
+  --text: #1a1d24;
+  --text-muted: #5c6470;
+  --text-soft: #8a93a1;
+  --border: #e6e9ee;
+  --border-strong: #d3d8e0;
+  --primary: #c84d5e;
+  --primary-pressed: #b13f50;
+  --primary-bright: #d76d7b;
+  --primary-soft: #f7e9eb;
+  --primary-soft-border: #edd2d6;
+  --primary-glow: none; /* minimal: flat, no glow */
+  --danger: #c84d5e;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.07);
   --app-bar-height: 56px;
   --bottom-nav-height: 68px;
 
@@ -29,64 +28,28 @@
   --radius-full: 999px;
 }
 
-/* ── Color schemes ───────────────────────────────────────────────────
-   Each overrides the color tokens above. Selected via data-theme on <html>.
-   The default "crimson" scheme is the base :root palette (no attribute). */
+/* ── Color scheme ────────────────────────────────────────────────────
+   A minimal pair: Light is the base :root palette (no attribute); Dark is the
+   single override, selected via data-theme="dark" on <html>. */
 
-[data-theme="indigo"] {
-  --bg: #0b0e14;
-  --surface: #151a23;
-  --surface-strong: #1c2330;
-  --text: #e8ebf2;
-  --text-muted: #8b93a7;
-  --text-soft: #565d70;
-  --border: #232b3a;
-  --border-strong: #323b4f;
-  --primary: #6366f1;
-  --primary-pressed: #4f46e5;
-  --primary-bright: #818cf8;
-  --primary-soft: #181b39;
-  --primary-soft-border: #2d2f5c;
-  --primary-glow: 0 8px 24px rgba(99, 102, 241, 0.4);
-  --danger: #f43f5e;
-}
-
-[data-theme="teal"] {
-  --bg: #0a0f12;
-  --surface: #121a1e;
-  --surface-strong: #18242a;
-  --text: #e6eeec;
-  --text-muted: #84a19b;
-  --text-soft: #51635f;
-  --border: #1d2b2f;
-  --border-strong: #2b3d41;
-  --primary: #14b8a6;
-  --primary-pressed: #0d9488;
-  --primary-bright: #2dd4bf;
-  --primary-soft: #0c2420;
-  --primary-soft-border: #15433b;
-  --primary-glow: 0 8px 24px rgba(20, 184, 166, 0.4);
-  --danger: #f43f5e;
-}
-
-[data-theme="light"] {
-  --bg: #f5f6f8;
-  --surface: #ffffff;
-  --surface-strong: #eef1f5;
-  --text: #14181f;
-  --text-muted: #5a6373;
-  --text-soft: #8a93a3;
-  --border: #e2e6ec;
-  --border-strong: #ced4de;
-  --primary: #e11d48;
-  --primary-pressed: #be123c;
-  --primary-bright: #f43f5e;
-  --primary-soft: #fde7ec;
-  --primary-soft-border: #f6c7d3;
-  --primary-glow: 0 8px 24px rgba(225, 29, 72, 0.22);
-  --danger: #e11d48;
-  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08);
-  --shadow-md: 0 10px 30px rgba(16, 24, 40, 0.12);
+[data-theme="dark"] {
+  --bg: #0e1116;
+  --surface: #161a21;
+  --surface-strong: #1e232c;
+  --text: #e7eaf0;
+  --text-muted: #8a91a0;
+  --text-soft: #5a6270;
+  --border: #262c36;
+  --border-strong: #353c48;
+  --primary: #dd7280;
+  --primary-pressed: #c85c6a;
+  --primary-bright: #e88f9b;
+  --primary-soft: #2a1b1f;
+  --primary-soft-border: #43282d;
+  --primary-glow: none;
+  --danger: #dd7280;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -530,14 +493,14 @@ button.bento-tile {
 .bento-tile--hero {
   grid-column: span 2;
   grid-row: span 2;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-pressed) 100%);
+  background: var(--primary);
   border-color: transparent;
   padding: 28px;
 }
 
 .bento-tile--hero:hover {
   border-color: transparent;
-  box-shadow: 0 12px 32px rgba(244, 63, 94, 0.4);
+  background: var(--primary-pressed);
 }
 
 .bento-tile--hero .bento-tile__label {
@@ -1005,18 +968,16 @@ button.bento-tile {
 }
 
 .btn--primary {
-  background: linear-gradient(135deg, var(--primary-bright) 0%, var(--primary) 60%, var(--primary-pressed) 100%);
+  background: var(--primary);
   color: #ffffff;
-  box-shadow: var(--primary-glow);
 }
 
 .btn--primary:hover:not(:disabled) {
-  box-shadow: 0 10px 30px rgba(244, 63, 94, 0.45);
+  background: var(--primary-pressed);
 }
 
 .btn--primary:active:not(:disabled) {
   background: var(--primary-pressed);
-  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.3);
 }
 
 .btn--secondary {
@@ -3987,4 +3948,46 @@ button.bento-tile {
   border-left: 6px solid var(--punk-red) !important;
   border-radius: 0 !important;
   color: var(--punk-white) !important;
+}
+
+/* ── Minimal: flatten the public viewer + sign-up pages ──────────────────
+   Strips the bold "punk" flourishes (Impact font, hard offset shadows, square
+   corners, 2px borders, skew, diagonal slashes) so the public pages match the
+   app's clean, flat style. Colors already follow the active theme. */
+.live-viewer, .live-viewer *,
+.artist-signup, .artist-signup * {
+  font-family: inherit !important;
+}
+.live-viewer::before,
+.artist-signup__hero::before,
+.artist-signup__hero::after {
+  display: none !important;
+}
+.live-viewer__pre-label,
+.artist-signup__hero-eyebrow,
+.artist-signup__hero {
+  transform: none !important;
+}
+.live-viewer__card,
+.live-viewer__note,
+.artist-signup__welcome,
+.artist-signup__live-card,
+.artist-signup__section,
+.artist-signup__signup-section,
+.artist-signup__success-card,
+.artist-signup__entry,
+.artist-signup__back,
+.artist-signup__back-btn,
+.artist-signup__subhead,
+.artist-signup__nav-btn,
+.artist-signup__seg-btn {
+  box-shadow: none !important;
+  border-radius: var(--radius-md) !important;
+  border-width: 1px !important;
+}
+.live-viewer__status,
+.live-viewer__pre-label,
+.artist-signup__hero-eyebrow,
+.artist-signup__entry-tag {
+  border-radius: var(--radius-full) !important;
 }

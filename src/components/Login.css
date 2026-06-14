@@ -140,21 +140,20 @@
 .login__button {
   min-height: 44px;
   padding: 10px 16px;
-  background: linear-gradient(135deg, var(--primary-bright, #fb7185) 0%, var(--primary, #f43f5e) 60%, var(--primary-pressed, #e11d48) 100%);
+  background: var(--primary, #c84d5e);
   color: #ffffff;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   font-size: 0.96rem;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: var(--primary-glow, 0 8px 24px rgba(244, 63, 94, 0.35));
+  transition: transform 0.15s ease, background-color 0.15s ease;
   letter-spacing: 0.01em;
   touch-action: manipulation;
 }
 
 .login__button:hover:not(:disabled) {
-  box-shadow: 0 10px 30px rgba(244, 63, 94, 0.45);
+  background: var(--primary-pressed, #b13f50);
 }
 
 .login__button:active:not(:disabled) {
