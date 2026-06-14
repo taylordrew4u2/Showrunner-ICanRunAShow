@@ -74,6 +74,15 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
     setSelectedId(null);
   }
 
+  // Reorder the lineup — the order shown here is the order the viewer link shows.
+  function movePerformer(index: number, dir: -1 | 1) {
+    const target = index + dir;
+    if (target < 0 || target >= performers.length) return;
+    const next = [...performers];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
+  }
+
   return (
     <div className="section-body">
       <div className="section-add-row">
@@ -181,6 +190,24 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
                 {p.credits && <span className="section-list-item__tag">{p.credits}</span>}
               </div>
               <div className="section-list-item__buttons">
+                <button
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => movePerformer(idx, -1)}
+                  disabled={idx === 0}
+                  aria-label={`Move ${p.name} up`}
+                  title="Move up"
+                >
+                  ↑
+                </button>
+                <button
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => movePerformer(idx, 1)}
+                  disabled={idx === performers.length - 1}
+                  aria-label={`Move ${p.name} down`}
+                  title="Move down"
+                >
+                  ↓
+                </button>
                 <button
                   className="btn btn--secondary btn--sm"
                   onClick={() => setSelectedId(p.id)}

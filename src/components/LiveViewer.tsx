@@ -108,6 +108,28 @@ export function LiveViewer({ token }: LiveViewerProps) {
           <div className="live-viewer__pre-when">Time TBA</div>
         )}
         {payload.note && <div className="live-viewer__note">{payload.note}</div>}
+        {payload.lineup && payload.lineup.length > 0 && (
+          <div className="live-viewer__lineup">
+            <div className="live-viewer__lineup-label">Lineup</div>
+            <ol className="live-viewer__lineup-list">
+              {payload.lineup.map((p, i) => (
+                <li key={i} className="live-viewer__lineup-item">
+                  {p.photo ? (
+                    <img src={p.photo} alt="" className="live-viewer__lineup-photo" />
+                  ) : (
+                    <div className="live-viewer__lineup-photo live-viewer__lineup-photo--placeholder">
+                      {(p.name || '·').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="live-viewer__lineup-info">
+                    <div className="live-viewer__lineup-name">{p.name}</div>
+                    {p.credits && <div className="live-viewer__lineup-credits">{p.credits}</div>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
       </div>
     );
   }
