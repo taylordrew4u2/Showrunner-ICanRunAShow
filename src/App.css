@@ -1,19 +1,23 @@
 :root {
-  --bg: #111318;
-  --surface: #1a1d24;
-  --surface-strong: #22262e;
-  --text: #e2e4ea;
-  --text-muted: #8a8fa8;
-  --text-soft: #555b6e;
-  --border: #2a2d38;
-  --border-strong: #363b4a;
-  --primary: #e05555;
-  --primary-pressed: #cc3c3c;
-  --primary-soft: #2a1515;
-  --primary-soft-border: #4a2020;
-  --danger: #e05555;
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+  /* Cool, deep slate neutrals for a crisp high-tech feel. */
+  --bg: #0c0e13;
+  --surface: #161a21;
+  --surface-strong: #1e232c;
+  --text: #e9ecf3;
+  --text-muted: #8a91a4;
+  --text-soft: #565d70;
+  --border: #262c38;
+  --border-strong: #353c4b;
+  /* Vivid rose-red brand accent with a brighter highlight for gradients/glow. */
+  --primary: #f43f5e;
+  --primary-pressed: #e11d48;
+  --primary-bright: #fb7185;
+  --primary-soft: #2a1620;
+  --primary-soft-border: #4a2230;
+  --primary-glow: 0 8px 24px rgba(244, 63, 94, 0.35);
+  --danger: #f43f5e;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.55);
   --app-bar-height: 56px;
   --bottom-nav-height: 68px;
 
@@ -473,7 +477,7 @@ button.bento-tile {
 
 .bento-tile--hero:hover {
   border-color: transparent;
-  box-shadow: 0 12px 32px rgba(224, 85, 85, 0.35);
+  box-shadow: 0 12px 32px rgba(244, 63, 94, 0.4);
 }
 
 .bento-tile--hero .bento-tile__label {
@@ -941,12 +945,18 @@ button.bento-tile {
 }
 
 .btn--primary {
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary-bright) 0%, var(--primary) 60%, var(--primary-pressed) 100%);
   color: #ffffff;
+  box-shadow: var(--primary-glow);
+}
+
+.btn--primary:hover:not(:disabled) {
+  box-shadow: 0 10px 30px rgba(244, 63, 94, 0.45);
 }
 
 .btn--primary:active:not(:disabled) {
   background: var(--primary-pressed);
+  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.3);
 }
 
 .btn--secondary {
