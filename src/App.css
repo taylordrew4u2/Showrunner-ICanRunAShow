@@ -29,6 +29,66 @@
   --radius-full: 999px;
 }
 
+/* ── Color schemes ───────────────────────────────────────────────────
+   Each overrides the color tokens above. Selected via data-theme on <html>.
+   The default "crimson" scheme is the base :root palette (no attribute). */
+
+[data-theme="indigo"] {
+  --bg: #0b0e14;
+  --surface: #151a23;
+  --surface-strong: #1c2330;
+  --text: #e8ebf2;
+  --text-muted: #8b93a7;
+  --text-soft: #565d70;
+  --border: #232b3a;
+  --border-strong: #323b4f;
+  --primary: #6366f1;
+  --primary-pressed: #4f46e5;
+  --primary-bright: #818cf8;
+  --primary-soft: #181b39;
+  --primary-soft-border: #2d2f5c;
+  --primary-glow: 0 8px 24px rgba(99, 102, 241, 0.4);
+  --danger: #f43f5e;
+}
+
+[data-theme="teal"] {
+  --bg: #0a0f12;
+  --surface: #121a1e;
+  --surface-strong: #18242a;
+  --text: #e6eeec;
+  --text-muted: #84a19b;
+  --text-soft: #51635f;
+  --border: #1d2b2f;
+  --border-strong: #2b3d41;
+  --primary: #14b8a6;
+  --primary-pressed: #0d9488;
+  --primary-bright: #2dd4bf;
+  --primary-soft: #0c2420;
+  --primary-soft-border: #15433b;
+  --primary-glow: 0 8px 24px rgba(20, 184, 166, 0.4);
+  --danger: #f43f5e;
+}
+
+[data-theme="light"] {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-strong: #eef1f5;
+  --text: #14181f;
+  --text-muted: #5a6373;
+  --text-soft: #8a93a3;
+  --border: #e2e6ec;
+  --border-strong: #ced4de;
+  --primary: #e11d48;
+  --primary-pressed: #be123c;
+  --primary-bright: #f43f5e;
+  --primary-soft: #fde7ec;
+  --primary-soft-border: #f6c7d3;
+  --primary-glow: 0 8px 24px rgba(225, 29, 72, 0.22);
+  --danger: #e11d48;
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08);
+  --shadow-md: 0 10px 30px rgba(16, 24, 40, 0.12);
+}
+
 * {
   box-sizing: border-box;
   min-width: 0;
