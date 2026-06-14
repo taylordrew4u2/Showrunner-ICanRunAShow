@@ -1,8 +1,10 @@
 import { api } from './api';
+import type { ColorScheme } from './theme';
 
 export interface ArtistSignupPayload {
   showName: string;
   venueName?: string;
+  theme?: ColorScheme; // producer's color scheme, so the public page matches the app
   scheduleVisible: boolean;
   schedule?: Array<{ time?: string; description: string; performer?: string }>;
   flashImage?: string;
