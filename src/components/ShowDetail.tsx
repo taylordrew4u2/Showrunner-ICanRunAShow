@@ -55,6 +55,18 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     }
   }, [lightMode]);
 
+  // Keep the public viewer's pre-show lineup current: whenever an upcoming show's
+  // lineup or details change, re-publish the scheduled payload (debounced). Skipped
+  // while running so it never clobbers the live on-stage state RunShow publishes.
+  useEffect(() => {
+    if (!show.viewToken || show.status !== 'upcoming' || runShowOpen) return;
+    const timeout = setTimeout(() => {
+      publishLiveView(show.viewToken!, buildScheduledPayload(show.viewNote)).catch(() => {});
+    }, 1000);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers]);
+
   // Show the recap once the show is done — either explicitly marked completed
   // or its date has passed.
   const datePassed = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
@@ -194,6 +206,26 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     return `${window.location.origin}/?view=${token}`;
   }
 
+  // The lineup the public viewer shows pre-show — performers in their list order.
+  function buildLineup(): LiveViewPayload['lineup'] {
+    return show.performers.map((p) => ({
+      name: p.name,
+      photo: p.photo ?? p.photos?.[0],
+      credits: p.credits,
+    }));
+  }
+
+  function buildScheduledPayload(note: string | undefined): LiveViewPayload {
+    return {
+      showName: show.name,
+      status: 'scheduled',
+      startsAt: buildStartsAtISO(),
+      note: note?.trim() || undefined,
+      lineup: buildLineup(),
+      lastUpdateMs: Date.now(),
+    };
+  }
+
   async function handleSaveViewer() {
     let token = show.viewToken;
     let updates: Partial<Show> = { viewNote: viewerNoteDraft.trim() || undefined };
@@ -203,16 +235,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     }
     onUpdate({ ...show, ...updates });
     triggerSaveIndicator();
-    // eslint-disable-next-line react-hooks/purity
-    const now = Date.now();
-    const payload: LiveViewPayload = {
-      showName: show.name,
-      status: 'scheduled',
-      startsAt: buildStartsAtISO(),
-      note: viewerNoteDraft.trim() || undefined,
-      lastUpdateMs: now,
-    };
-    try { await publishLiveView(token, payload); } catch { /* ignore */ }
+    try { await publishLiveView(token, buildScheduledPayload(viewerNoteDraft)); } catch { /* ignore */ }
   }
 
   function handleCopyViewer() {

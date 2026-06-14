@@ -2488,6 +2488,82 @@ button.bento-tile {
   white-space: pre-wrap;
 }
 
+.live-viewer__lineup {
+  width: 100%;
+  max-width: min(560px, 100%);
+  margin-top: 28px;
+}
+.live-viewer__lineup-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 12px;
+  text-align: center;
+}
+.live-viewer__lineup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  counter-reset: lineup;
+}
+.live-viewer__lineup-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  counter-increment: lineup;
+}
+.live-viewer__lineup-item::before {
+  content: counter(lineup);
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+}
+.live-viewer__lineup-photo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.live-viewer__lineup-photo--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+}
+.live-viewer__lineup-info {
+  min-width: 0;
+  text-align: left;
+}
+.live-viewer__lineup-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+}
+.live-viewer__lineup-credits {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
 /* ── Artist admin (full page) ────────────────────────────────────── */
 .artist-page {
   position: fixed;
