@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
 import { syncPerformerCover } from './utils/performer';
 import { ServerNotConfiguredError } from './utils/api';
+import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
 import { 
   loadEncryptedShows, 
   saveEncryptedShows,
@@ -39,6 +40,12 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [colorScheme, setColorScheme] = useState<ColorScheme>(() => loadColorScheme());
+
+  // Apply the chosen color scheme app-wide and persist it.
+  useEffect(() => {
+    applyColorScheme(colorScheme);
+  }, [colorScheme]);
 
   const [shows, setShows] = useState<Show[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -894,6 +901,8 @@ export default function App() {
                 onSave={handleSaveSettings}
                 onBack={handleBack}
                 saving={settingsSaving}
+                colorScheme={colorScheme}
+                onColorSchemeChange={setColorScheme}
                 onRecoverShow={handleRecoverShow}
                 onPermanentlyDelete={handlePermanentlyDeleteShow}
                 onExport={session ? async () => {

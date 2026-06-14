@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { AppSettings, Producer } from '../types';
 import { SHOW_TYPES } from '../types';
+import { COLOR_SCHEMES, type ColorScheme } from '../utils/theme';
 import { generateId } from '../utils/id';
 import './Settings.css';
 
@@ -9,12 +10,14 @@ interface SettingsProps {
   onSave: (settings: AppSettings) => void;
   onBack: () => void;
   saving?: boolean;
+  colorScheme?: ColorScheme;
+  onColorSchemeChange?: (scheme: ColorScheme) => void;
   onRecoverShow?: (trashItemId: string) => void;
   onPermanentlyDelete?: (trashItemId: string) => void;
   onExport?: () => Promise<void>;
 }
 
-export function Settings({ settings: initialSettings, onSave, onBack, saving = false, onExport }: SettingsProps) {
+export function Settings({ settings: initialSettings, onSave, onBack, saving = false, colorScheme, onColorSchemeChange, onExport }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
   const [newProducerName, setNewProducerName] = useState('');
   const [newProducerRole, setNewProducerRole] = useState('');
@@ -62,6 +65,36 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
     <div className="settings">
       <button className="btn btn--ghost" onClick={onBack}>← Back</button>
       <h2 className="settings__title">Settings</h2>
+
+      {onColorSchemeChange && (
+        <div className="settings__card">
+          <div className="section-field">
+            <span className="section-field__label">Color Scheme</span>
+            <p className="settings__hint">Pick the look that fits you. Applies across the whole app instantly.</p>
+            <div className="settings__themes">
+              {COLOR_SCHEMES.map((scheme) => (
+                <button
+                  key={scheme.id}
+                  type="button"
+                  className={`settings__theme ${colorScheme === scheme.id ? 'settings__theme--active' : ''}`}
+                  onClick={() => onColorSchemeChange(scheme.id)}
+                  aria-pressed={colorScheme === scheme.id}
+                  title={scheme.description}
+                >
+                  <span
+                    className="settings__theme-swatch"
+                    style={{ background: scheme.bg }}
+                    aria-hidden="true"
+                  >
+                    <span className="settings__theme-dot" style={{ background: scheme.swatch }} />
+                  </span>
+                  <span className="settings__theme-label">{scheme.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="settings__card">
         <label className="section-field">
