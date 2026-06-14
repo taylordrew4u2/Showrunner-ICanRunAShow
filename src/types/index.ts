@@ -254,6 +254,8 @@ export interface AppSettings {
   expenses: Expense[];
   showTypes: string[]; // kinds of shows this producer makes (set during onboarding)
   onboarded: boolean; // whether the account has completed the welcome onboarding
+  rolodexTermSingular?: string; // override for the Rolodex noun, e.g. "Comic" / "Queen"
+  rolodexTermPlural?: string; // override for the plural Rolodex noun
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { AppSettings, Producer } from '../types';
 import { SHOW_TYPES } from '../types';
 import { COLOR_SCHEMES, type ColorScheme } from '../utils/theme';
+import { defaultRolodexTerm } from '../utils/terminology';
 import { generateId } from '../utils/id';
 import './Settings.css';
 
@@ -123,6 +124,34 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
                 {type}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="section-field">
+          <span className="section-field__label">Rolodex Wording</span>
+          <p className="settings__hint">
+            What you call the people you book. Defaults to{' '}
+            <strong>{defaultRolodexTerm(settings.showTypes).singular} Rolodex</strong> based on your show types — override it here.
+          </p>
+          <div className="settings__term-grid">
+            <label className="settings__term-field">
+              <span className="settings__term-label">Singular</span>
+              <input
+                className="section-field__input"
+                value={settings.rolodexTermSingular ?? ''}
+                onChange={(e) => setSettings((s) => ({ ...s, rolodexTermSingular: e.target.value || undefined }))}
+                placeholder={defaultRolodexTerm(settings.showTypes).singular}
+              />
+            </label>
+            <label className="settings__term-field">
+              <span className="settings__term-label">Plural</span>
+              <input
+                className="section-field__input"
+                value={settings.rolodexTermPlural ?? ''}
+                onChange={(e) => setSettings((s) => ({ ...s, rolodexTermPlural: e.target.value || undefined }))}
+                placeholder={defaultRolodexTerm(settings.showTypes).plural}
+              />
+            </label>
           </div>
         </div>
 

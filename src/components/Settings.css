@@ -91,6 +91,26 @@
     gap: 8px;
 }
 
+.settings__term-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.settings__term-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.settings__term-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted, #667085);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
 .settings__themes {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
