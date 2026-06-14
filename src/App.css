@@ -3519,20 +3519,11 @@ button.bento-tile {
    ║  Black. White. Red. That's the whole palette.                     ║
    ╚══════════════════════════════════════════════════════════════════╝ */
 
-.artist-signup {
-  --punk-bg: #000;
-  --punk-surface: #0a0a0a;
-  --punk-surface-2: #141414;
-  --punk-white: #fff;
-  --punk-red: #e10600;
-  --punk-red-bright: #ff1a0d;
-  --punk-muted: #888;
-  --punk-border: #fff;
-}
-
-/* The live viewer follows the producer's chosen color scheme (light by default)
-   instead of a fixed palette, so design changes are reflected on the public link.
-   The bold viewer layout is kept; only the colors track the active theme. */
+/* The public pages (artist sign-up + live viewer) follow the producer's chosen
+   color scheme (light by default) instead of a fixed palette, so design changes
+   are reflected on the public links. The bold layout is kept; only the colors
+   track the active theme. */
+.artist-signup,
 .live-viewer {
   --punk-bg: var(--bg);
   --punk-surface: var(--surface);
@@ -3588,7 +3579,7 @@ button.bento-tile {
 .artist-signup__hero-eyebrow {
   display: inline-block !important;
   background: var(--punk-red);
-  color: var(--punk-white) !important;
+  color: #fff !important;
   padding: 4px 10px;
   font-size: 0.7rem !important;
   font-weight: 900 !important;
@@ -3924,9 +3915,9 @@ button.bento-tile {
   font-weight: 900 !important;
   letter-spacing: 0.16em !important;
 }
-.live-viewer__status--running { background: var(--punk-red) !important; color: var(--punk-white) !important; }
+.live-viewer__status--running { background: var(--punk-red) !important; color: #fff !important; }
 .live-viewer__status--paused { background: var(--punk-white) !important; color: var(--punk-bg) !important; }
-.live-viewer__status--countdown { background: var(--punk-red) !important; color: var(--punk-white) !important; }
+.live-viewer__status--countdown { background: var(--punk-red) !important; color: #fff !important; }
 .live-viewer__status--ended { background: var(--punk-muted) !important; color: var(--punk-bg) !important; }
 .live-viewer__timer {
   color: var(--punk-white) !important;
@@ -3971,7 +3962,7 @@ button.bento-tile {
 /* Pre-show punk */
 .live-viewer__pre-label {
   background: var(--punk-red);
-  color: var(--punk-white) !important;
+  color: #fff !important;
   padding: 4px 12px;
   letter-spacing: 0.18em !important;
   font-weight: 900 !important;
