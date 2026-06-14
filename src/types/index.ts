@@ -252,6 +252,8 @@ export interface AppSettings {
   trash: DeletedItem[];
   potentialComics: PotentialComic[];
   expenses: Expense[];
+  showTypes: string[]; // kinds of shows this producer makes (set during onboarding)
+  onboarded: boolean; // whether the account has completed the welcome onboarding
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -263,7 +265,27 @@ export const DEFAULT_SETTINGS: AppSettings = {
   trash: [],
   potentialComics: [],
   expenses: [],
+  showTypes: [],
+  onboarded: false,
 };
+
+// The kinds of shows a producer can run. Offered as multi-select chips during
+// onboarding and editable later in Settings.
+export const SHOW_TYPES: string[] = [
+  "Comedy",
+  "Open Mic",
+  "Improv",
+  "Music",
+  "Variety",
+  "Theater",
+  "Burlesque",
+  "Drag",
+  "Magic",
+  "Dance",
+  "Podcast / Live Recording",
+  "Corporate / Private Event",
+  "Other",
+];
 
 export const STAFF_ROLES: string[] = [
   "Videographer",

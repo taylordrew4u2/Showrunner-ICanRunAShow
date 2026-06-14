@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { AppSettings, Producer } from '../types';
+import { SHOW_TYPES } from '../types';
 import { generateId } from '../utils/id';
 import './Settings.css';
 
@@ -45,6 +46,18 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
     }));
   }
 
+  function toggleShowType(type: string) {
+    setSettings((s) => {
+      const current = s.showTypes ?? [];
+      return {
+        ...s,
+        showTypes: current.includes(type)
+          ? current.filter((t) => t !== type)
+          : [...current, type],
+      };
+    });
+  }
+
   return (
     <div className="settings">
       <button className="btn btn--ghost" onClick={onBack}>← Back</button>
@@ -60,6 +73,25 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
             placeholder="e.g. Show Producer"
           />
         </label>
+
+        <div className="section-field">
+          <span className="section-field__label">Show Types</span>
+          <p className="settings__hint">The kinds of shows you produce. Used to tailor your workspace.</p>
+          <div className="settings__show-types">
+            {/* Saved custom types (e.g. an "Other" value) that aren't in the preset list. */}
+            {Array.from(new Set([...SHOW_TYPES, ...(settings.showTypes ?? [])])).map((type) => (
+              <button
+                key={type}
+                type="button"
+                className={`settings__chip ${(settings.showTypes ?? []).includes(type) ? 'settings__chip--active' : ''}`}
+                onClick={() => toggleShowType(type)}
+                aria-pressed={(settings.showTypes ?? []).includes(type)}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="section-field">
           <span className="section-field__label">Producers</span>
