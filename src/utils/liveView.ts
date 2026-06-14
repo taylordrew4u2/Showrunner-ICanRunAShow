@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { ColorScheme } from './theme';
 
 // What viewers see. Kept small so we can push it cheaply on state changes; the
 // viewer ticks the timer locally between updates using lastUpdateMs.
@@ -8,6 +9,7 @@ export interface LiveViewPayload {
   countdown?: number; // pre-roll seconds when status === 'countdown'
   startsAt?: string; // ISO date-time when the show is scheduled to start
   note?: string; // optional admin note shown pre-show
+  theme?: ColorScheme; // producer's color scheme, so the public viewer matches the app
   lineup?: { name: string; photo?: string; credits?: string }[]; // performers in order — shown pre-show, esp. when there's no schedule
   segment?: {
     name?: string;

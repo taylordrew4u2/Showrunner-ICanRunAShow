@@ -13,10 +13,10 @@ export const COLOR_SCHEMES: {
   swatch: string; // accent color
   bg: string; // background color, for the swatch preview
 }[] = [
+  { id: 'light', label: 'Light', description: 'Bright · red accent', swatch: '#e11d48', bg: '#f5f6f8' },
   { id: 'crimson', label: 'Crimson', description: 'Dark · vivid red', swatch: '#f43f5e', bg: '#0c0e13' },
   { id: 'indigo', label: 'Indigo', description: 'Dark · electric indigo', swatch: '#6366f1', bg: '#0b0e14' },
   { id: 'teal', label: 'Teal', description: 'Dark · teal / emerald', swatch: '#14b8a6', bg: '#0a0f12' },
-  { id: 'light', label: 'Light', description: 'Bright · red accent', swatch: '#e11d48', bg: '#f5f6f8' },
 ];
 
 const STORAGE_KEY = 'showrunner:theme';
@@ -32,10 +32,11 @@ export function loadColorScheme(): ColorScheme {
   } catch {
     /* ignore */
   }
-  return 'crimson';
+  // Default to Light until the user picks something else.
+  return 'light';
 }
 
-export function applyColorScheme(scheme: ColorScheme): void {
+export function applyColorScheme(scheme: ColorScheme, persist = true): void {
   const root = document.documentElement;
   // Crimson is the base :root palette — no attribute needed.
   if (scheme === 'crimson') {
@@ -43,6 +44,7 @@ export function applyColorScheme(scheme: ColorScheme): void {
   } else {
     root.setAttribute('data-theme', scheme);
   }
+  if (!persist) return;
   try {
     localStorage.setItem(STORAGE_KEY, scheme);
   } catch {
