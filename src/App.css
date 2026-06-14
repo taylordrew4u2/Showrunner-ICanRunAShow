@@ -2355,8 +2355,8 @@ button.bento-tile {
 .live-viewer {
   position: fixed;
   inset: 0;
-  background: #06080c;
-  color: #fff;
+  background: var(--bg);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2370,7 +2370,7 @@ button.bento-tile {
   align-items: center;
   gap: 12px;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-muted);
 }
 .live-viewer__status {
   text-transform: uppercase;
@@ -2379,12 +2379,12 @@ button.bento-tile {
   font-size: 0.7rem;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-strong);
 }
-.live-viewer__status--running { color: #34d27b; background: rgba(52, 210, 123, 0.12); }
-.live-viewer__status--paused { color: #5b8cff; background: rgba(91, 140, 255, 0.12); }
-.live-viewer__status--countdown { color: #fff; background: rgba(255, 255, 255, 0.18); }
-.live-viewer__status--ended { color: rgba(255, 255, 255, 0.5); }
+.live-viewer__status--running { color: #16a34a; background: rgba(34, 197, 94, 0.14); }
+.live-viewer__status--paused { color: #4f7cff; background: rgba(79, 124, 255, 0.14); }
+.live-viewer__status--countdown { color: var(--text); background: var(--surface-strong); }
+.live-viewer__status--ended { color: var(--text-muted); }
 .live-viewer__timer {
   font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
@@ -2393,11 +2393,11 @@ button.bento-tile {
   line-height: 1;
   font-size: clamp(4rem, min(16vw, 22vh), 10rem);
 }
-.live-viewer__timer--over { color: #e05555; }
-.live-viewer__timer--warning { color: #e05555; animation: rs-timer-flash 1s ease-in-out infinite; }
+.live-viewer__timer--over { color: var(--danger); }
+.live-viewer__timer--warning { color: var(--danger); animation: rs-timer-flash 1s ease-in-out infinite; }
 .live-viewer__starting {
   font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-muted);
 }
 .live-viewer__cards {
   display: grid;
@@ -2406,8 +2406,8 @@ button.bento-tile {
   width: min(820px, 100%);
 }
 .live-viewer__card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 16px;
 }
@@ -2416,7 +2416,7 @@ button.bento-tile {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text-muted);
   margin-bottom: 10px;
 }
 .live-viewer__person { display: flex; align-items: center; gap: 12px; }
@@ -2425,15 +2425,15 @@ button.bento-tile {
   height: 64px;
   border-radius: 999px;
   object-fit: cover;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border);
   flex-shrink: 0;
 }
 .live-viewer__photo--placeholder {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.7);
+  background: var(--surface-strong);
+  color: var(--text-muted);
   font-size: 1.5rem;
   font-weight: 800;
 }
@@ -2445,13 +2445,13 @@ button.bento-tile {
 }
 .live-viewer__credits {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-muted);
   margin-top: 4px;
 }
 .live-viewer__show { font-weight: 700; }
 .live-viewer__message {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
 }
 @media (max-width: 640px) {
   .live-viewer__cards { grid-template-columns: 1fr; }
@@ -2464,27 +2464,27 @@ button.bento-tile {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 .live-viewer__pre-when {
   font-size: clamp(1.6rem, 5vw, 2.6rem);
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: #fff;
+  color: var(--text);
 }
 .live-viewer__pre-until {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-muted);
 }
 .live-viewer__note {
   max-width: min(640px, 100%);
   margin-top: 12px;
   padding: 14px 18px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface);
+  border: 1px solid var(--border);
   font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--text);
   white-space: pre-wrap;
 }
 
@@ -2498,7 +2498,7 @@ button.bento-tile {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-muted);
   margin-bottom: 12px;
   text-align: center;
 }
@@ -2517,8 +2517,8 @@ button.bento-tile {
   gap: 14px;
   padding: 10px 14px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface);
+  border: 1px solid var(--border);
   counter-increment: lineup;
 }
 .live-viewer__lineup-item::before {
@@ -2530,10 +2530,10 @@ button.bento-tile {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--primary-soft);
   font-size: 0.82rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--primary);
 }
 .live-viewer__lineup-photo {
   width: 44px;
@@ -2546,9 +2546,9 @@ button.bento-tile {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--surface-strong);
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-muted);
 }
 .live-viewer__lineup-info {
   min-width: 0;
@@ -2557,11 +2557,11 @@ button.bento-tile {
 .live-viewer__lineup-name {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
 }
 .live-viewer__lineup-credits {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
 }
 
 /* ── Artist admin (full page) ────────────────────────────────────── */
@@ -3519,8 +3519,7 @@ button.bento-tile {
    ║  Black. White. Red. That's the whole palette.                     ║
    ╚══════════════════════════════════════════════════════════════════╝ */
 
-.artist-signup,
-.live-viewer {
+.artist-signup {
   --punk-bg: #000;
   --punk-surface: #0a0a0a;
   --punk-surface-2: #141414;
@@ -3529,6 +3528,20 @@ button.bento-tile {
   --punk-red-bright: #ff1a0d;
   --punk-muted: #888;
   --punk-border: #fff;
+}
+
+/* The live viewer follows the producer's chosen color scheme (light by default)
+   instead of a fixed palette, so design changes are reflected on the public link.
+   The bold viewer layout is kept; only the colors track the active theme. */
+.live-viewer {
+  --punk-bg: var(--bg);
+  --punk-surface: var(--surface);
+  --punk-surface-2: var(--surface-strong);
+  --punk-white: var(--text);
+  --punk-red: var(--primary);
+  --punk-red-bright: var(--primary-bright);
+  --punk-muted: var(--text-muted);
+  --punk-border: var(--border);
 }
 
 /* ─── Public artist sign-up — punk ─── */

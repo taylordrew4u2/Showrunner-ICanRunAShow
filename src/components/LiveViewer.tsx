@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchLiveView, type LiveViewPayload } from '../utils/liveView';
+import { applyColorScheme } from '../utils/theme';
 
 interface LiveViewerProps {
   token: string;
@@ -48,6 +49,12 @@ export function LiveViewer({ token }: LiveViewerProps) {
       window.clearInterval(id);
     };
   }, [token]);
+
+  // Match the producer's color scheme on the public viewer (don't persist it to
+  // the visitor's device).
+  useEffect(() => {
+    if (payload?.theme) applyColorScheme(payload.theme, false);
+  }, [payload?.theme]);
 
   // Local tick so the timer counts down between server updates.
   useEffect(() => {

@@ -18,6 +18,7 @@ import { Modal } from './Modal';
 import { ArtistAdmin } from './ArtistAdmin';
 import { exportShowToPDF } from '../utils/pdfExport';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
+import { loadColorScheme } from '../utils/theme';
 import './ShowDetail.css';
 
 interface ShowDetailProps {
@@ -221,6 +222,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       status: 'scheduled',
       startsAt: buildStartsAtISO(),
       note: note?.trim() || undefined,
+      theme: loadColorScheme(),
       lineup: buildLineup(),
       lastUpdateMs: Date.now(),
     };
