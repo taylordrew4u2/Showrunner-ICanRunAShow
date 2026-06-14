@@ -1240,6 +1240,30 @@ select.show-detail__status--select {
   font-weight: 500;
 }
 
+.section-list-item__tag--link {
+  color: var(--primary);
+  text-decoration: none;
+  border: 1px solid var(--primary-soft-border);
+  background: var(--primary-soft);
+}
+
+.section-list-item__tag--link:hover {
+  text-decoration: underline;
+}
+
+.section-mass-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.section-mass-message__hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 .section-list-item__cost {
   font-weight: 700;
   color: var(--primary);

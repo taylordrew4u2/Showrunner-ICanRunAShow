@@ -457,6 +457,18 @@
   opacity: 0.8;
 }
 
+.perf-profile__inline-link {
+  align-self: flex-start;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.perf-profile__inline-link:hover {
+  text-decoration: underline;
+}
+
 /* ── Drop zones ────────────────────────────────────────────────────── */
 
 .perf-profile__dropzone {

@@ -1,29 +1,48 @@
 import { useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
+import { socialLink, bulkMailto, isEmail } from '../../utils/social';
 import { PerformerProfile } from './PerformerProfile';
 
 interface PerformersSectionProps {
   performers: Performer[];
   potentialComics?: PotentialComic[];
+  showName?: string;
   onSaveToRolodex?: (comic: PotentialComic) => void;
   onChange: (performers: Performer[]) => void;
 }
 
-export function PerformersSection({ performers, potentialComics = [], onSaveToRolodex, onChange }: PerformersSectionProps) {
+export function PerformersSection({ performers, potentialComics = [], showName, onSaveToRolodex, onChange }: PerformersSectionProps) {
   const [name, setName] = useState('');
   const [instagram, setInstagram] = useState('');
+  const [email, setEmail] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showRolodex, setShowRolodex] = useState(false);
 
   const selectedPerformer = performers.find(p => p.id === selectedId) ?? null;
 
+  // Booked performers with a usable email, for the "Email all" action.
+  const emailablePerformers = performers.filter(p => isEmail(p.email));
+  const mailAllHref = bulkMailto(
+    emailablePerformers.map(p => p.email),
+    {
+      subject: showName ? `${showName} — confirmation` : 'Show confirmation',
+      body: `Hi everyone,\n\nConfirming your spot${showName ? ` for ${showName}` : ''}. Details below — please reply to confirm you're good to go.\n\nThanks!`,
+    },
+  );
+
   function addPerformer() {
     if (!name.trim()) return;
-    const p: Performer = { id: generateId(), name: name.trim(), socialMedia: instagram.trim() || undefined };
+    const p: Performer = {
+      id: generateId(),
+      name: name.trim(),
+      socialMedia: instagram.trim() || undefined,
+      email: email.trim() || undefined,
+    };
     onChange([...performers, p]);
     setName('');
     setInstagram('');
+    setEmail('');
   }
 
   function addFromRolodex(comic: PotentialComic) {
@@ -31,6 +50,7 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
       id: generateId(),
       name: comic.name,
       socialMedia: comic.socialMedia,
+      email: comic.email,
       credits: comic.credits,
       photo: comic.photo,
       photos: comic.photos,
@@ -71,6 +91,14 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
           placeholder="@instagram"
         />
+        <input
+          className="section-field__input"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
+          placeholder="email (optional)"
+        />
         <button className="btn btn--primary btn--sm" onClick={addPerformer}>Add</button>
         {potentialComics.length > 0 && (
           <button
@@ -81,6 +109,15 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
           </button>
         )}
       </div>
+
+      {mailAllHref && (
+        <div className="section-mass-message">
+          <a className="btn btn--secondary btn--sm" href={mailAllHref}>
+            ✉ Email all performers ({emailablePerformers.length})
+          </a>
+          <span className="section-mass-message__hint">Opens your mail app with everyone BCC'd.</span>
+        </div>
+      )}
 
       {showRolodex && (
         <div className="section-rolodex-picker">
@@ -112,7 +149,30 @@ export function PerformersSection({ performers, potentialComics = [], onSaveToRo
                 <span className="section-list-item__order">{idx + 1}</span>
                 {p.lockedIn && <span className="section-list-item__lock-badge">Locked</span>}
                 <span className="section-list-item__name">{p.name}</span>
-                {p.socialMedia && <span className="section-list-item__tag">{p.socialMedia}</span>}
+                {p.socialMedia && (
+                  socialLink(p.socialMedia) ? (
+                    <a
+                      className="section-list-item__tag section-list-item__tag--link"
+                      href={socialLink(p.socialMedia)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {p.socialMedia}
+                    </a>
+                  ) : (
+                    <span className="section-list-item__tag">{p.socialMedia}</span>
+                  )
+                )}
+                {p.email && (
+                  <a
+                    className="section-list-item__tag section-list-item__tag--link"
+                    href={`mailto:${p.email}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {p.email}
+                  </a>
+                )}
                 {(p.walkOnMusicName || p.walkOnMusicArtist) && (
                   <span className="section-list-item__tag">
                     {[p.walkOnMusicName, p.walkOnMusicArtist].filter(Boolean).join(' — ')}{p.walkOnMusicTimestamp ? ` @ ${p.walkOnMusicTimestamp}` : ''}
