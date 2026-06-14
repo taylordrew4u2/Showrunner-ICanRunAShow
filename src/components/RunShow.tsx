@@ -27,7 +27,6 @@ interface RunShowProps {
 const DRIFT_TOLERANCE = 30; // seconds we still count as "On Time"
 const STEP_SECONDS = 2 * 60; // coarse +/- buttons
 const FINE_STEP_SECONDS = 30; // fine +/- buttons
-const PREROLL_SECONDS = 5; // flashing countdown before each segment
 const FADE_MS = 800; // audio fade in/out duration
 const WARNING_SECONDS = 60; // timer flashes red at/under this remaining
 
@@ -39,8 +38,6 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
   const [adjust, setAdjust] = useState<Record<number, number>>({});
   const [muted, setMuted] = useState(false);
   const [showCues, setShowCues] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null); // pre-roll seconds before a segment starts
-  const startedIdxRef = useRef<number | null>(null); // idx whose pre-roll has completed
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
 
   // Fire onStart the first time the show is started so it can be marked in-progress.
@@ -145,24 +142,24 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
   const nextPerformer = useMemo<Performer | null>(() => resolveCuePerformer(next), [next, resolveCuePerformer]);
   const nextName = nextPerformer?.name || next?.performer || '';
 
-  // Tick the clocks while running — but not during a pre-roll countdown.
+  // Tick the clocks while running.
   useEffect(() => {
-    if (!running || countdown !== null) return;
+    if (!running) return;
     const t = window.setInterval(() => {
       setElapsed((e) => e + 1);
       setShowElapsed((e) => e + 1);
     }, 1000);
     return () => window.clearInterval(t);
-  }, [running, countdown]);
+  }, [running]);
 
   // Auto-advance to the next cue when this segment's timer reaches zero.
   useEffect(() => {
-    if (!running || countdown !== null || isLast) return;
+    if (!running || isLast) return;
     if (elapsed >= totalSec) {
       setIdx((i) => Math.min(schedule.length - 1, i + 1));
       setElapsed(0);
     }
-  }, [running, countdown, elapsed, totalSec, isLast, schedule.length]);
+  }, [running, elapsed, totalSec, isLast, schedule.length]);
 
   // ── Audio (Web Audio engine) ─────────────────────────────────────────────
   // Stop any current playback (with fade) when leaving a segment.
@@ -197,31 +194,6 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
     });
   };
 
-  // Start a flashing pre-roll countdown when entering a segment while running.
-  useEffect(() => {
-    if (!running || countdown !== null) return;
-    if (startedIdxRef.current === idx) return;
-    setCountdown(PREROLL_SECONDS);
-  }, [running, idx, countdown]);
-
-  // Run the countdown; at zero, the segment starts. Music is started MANUALLY
-  // by the operator via the Play button so a flaky cue doesn't fail silently
-  // mid-show. Fade-in/out is still automatic via audioEngine.
-  useEffect(() => {
-    if (countdown === null || !running) return;
-    if (countdown <= 0) {
-      startedIdxRef.current = idx;
-      setCountdown(null);
-      return;
-    }
-    const t = window.setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
-    return () => window.clearTimeout(t);
-  }, [countdown, running, idx]);
-
-  function skipCountdown() {
-    if (countdown !== null) setCountdown(0);
-  }
-
   // Keep mute state in sync with the engine.
   useEffect(() => {
     audioEngine.setMuted(muted);
@@ -238,11 +210,10 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
   useEffect(() => {
     if (!viewToken) return;
     const status: LiveViewPayload['status'] =
-      countdown !== null ? 'countdown' : running ? 'running' : (showElapsed > 0 || idx > 0 ? 'paused' : 'idle');
+      running ? 'running' : (showElapsed > 0 || idx > 0 ? 'paused' : 'idle');
     const payload: LiveViewPayload = {
       showName,
       status,
-      countdown: countdown ?? undefined,
       segment: {
         name: onStageName,
         description: current?.description,
@@ -260,7 +231,7 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
     };
     publishLiveView(viewToken, payload).catch(() => { /* swallow */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewToken, idx, running, countdown, totalSec, showName]);
+  }, [viewToken, idx, running, totalSec, showName]);
 
   // On Run Show close, mark the live view ended so viewers see the final state.
   useEffect(() => () => {
@@ -318,8 +289,6 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
     setShowElapsed(0);
     setAdjust({});
     setShowCues(false);
-    setCountdown(null);
-    startedIdxRef.current = null;
     audioEngine.stop({ fadeMs: FADE_MS });
     // Re-unlock the AudioContext within this gesture (idempotent), then
     // kick the show off again so the user doesn't have to press Start a
@@ -585,17 +554,6 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
           </div>
         )}
       </div>
-
-      {countdown !== null && countdown > 0 && (
-        <div className="rs-countdown" onClick={skipCountdown} role="button" aria-label="Skip countdown">
-          <div className="rs-countdown__num" key={countdown}>{countdown}</div>
-          <div className="rs-countdown__label">
-            Starting{current?.description ? `: ${current.description}` : ''}
-            {currentMusic ? ' · music' : ''}
-          </div>
-          <div className="rs-countdown__hint">tap to skip</div>
-        </div>
-      )}
 
     </div>
   );
