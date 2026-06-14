@@ -78,6 +78,42 @@
     font-size: 0.9rem;
 }
 
+.settings__hint {
+    margin: 0 0 4px;
+    color: var(--text-muted, #667085);
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+
+.settings__show-types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.settings__chip {
+    padding: 8px 14px;
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 999px;
+    background: var(--surface-strong, #f7f9fc);
+    color: var(--text);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+    touch-action: manipulation;
+}
+
+.settings__chip:hover {
+    border-color: var(--border-strong, #d0d5dd);
+}
+
+.settings__chip--active {
+    background: var(--primary, #DC2626);
+    border-color: var(--primary, #DC2626);
+    color: #ffffff;
+}
+
 .settings__producer-row {
     display: flex;
     align-items: center;

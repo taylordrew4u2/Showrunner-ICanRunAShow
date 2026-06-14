@@ -1,0 +1,204 @@
+.onboarding {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: calc(env(safe-area-inset-top) + 22px) 16px calc(env(safe-area-inset-bottom) + 22px);
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 100% at 100% -10%, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0) 58%),
+    radial-gradient(110% 120% at -10% 110%, rgba(16, 24, 40, 0.25) 0%, rgba(16, 24, 40, 0) 55%),
+    linear-gradient(180deg, var(--bg) 0%, #0d1017 100%);
+}
+
+.onboarding__container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  padding: 28px 24px;
+  max-width: 520px;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.onboarding__progress {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.onboarding__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong, #444);
+  transition: background-color 0.2s ease, width 0.2s ease;
+}
+
+.onboarding__dot--active {
+  width: 24px;
+  border-radius: 4px;
+  background: var(--primary, #DC2626);
+}
+
+.onboarding__step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+}
+
+.onboarding__wordmark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.onboarding__wordmark-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--primary, #DC2626);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+  flex-shrink: 0;
+}
+
+.onboarding__wordmark-text {
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text, #000000);
+}
+
+.onboarding__title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0;
+}
+
+.onboarding__subtitle {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.55;
+}
+
+.onboarding__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.onboarding__chip {
+  padding: 9px 16px;
+  border: 1px solid var(--border, #E5E5E5);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  touch-action: manipulation;
+}
+
+.onboarding__chip:hover {
+  border-color: var(--border-strong);
+}
+
+.onboarding__chip:active {
+  transform: translateY(1px);
+}
+
+.onboarding__chip--active {
+  background: var(--primary, #DC2626);
+  border-color: var(--primary, #DC2626);
+  color: #ffffff;
+}
+
+.onboarding__input {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #E5E5E5);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--surface-strong);
+  color: var(--text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.onboarding__input:focus {
+  outline: none;
+  border-color: var(--primary, #DC2626);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.onboarding__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.onboarding__actions .onboarding__button {
+  flex: 1;
+}
+
+.onboarding__button {
+  min-height: 44px;
+  padding: 10px 16px;
+  background: var(--primary, #DC2626);
+  color: #ffffff;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 0.96rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  letter-spacing: 0.01em;
+  touch-action: manipulation;
+}
+
+.onboarding__button:hover:not(:disabled) {
+  background: var(--primary-pressed, #B91C1C);
+}
+
+.onboarding__button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.onboarding__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.onboarding__button--secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.onboarding__button--secondary:hover:not(:disabled) {
+  background: var(--surface-strong);
+  border-color: var(--border-strong);
+}
+
+@media (min-width: 640px) {
+  .onboarding__container {
+    padding: 38px 34px;
+  }
+}

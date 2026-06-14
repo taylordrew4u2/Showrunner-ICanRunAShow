@@ -160,6 +160,10 @@ function migrateSettings(settings: LegacySettings): AppSettings {
   if (typeof settings.totalSpent !== "number") settings.totalSpent = 0;
   if (!Array.isArray(settings.trash)) settings.trash = [];
   if (!Array.isArray(settings.potentialComics)) settings.potentialComics = [];
+  if (!Array.isArray(settings.showTypes)) settings.showTypes = [];
+  // Settings that already exist on the server belong to an established account —
+  // don't force these users through onboarding, only brand-new signups.
+  if (typeof settings.onboarded !== "boolean") settings.onboarded = true;
 
   return settings as AppSettings;
 }

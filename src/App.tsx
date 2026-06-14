@@ -14,6 +14,7 @@ import {
   authenticateUser,
 } from './utils/secure-storage';
 import { Login } from './components/Login';
+import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
 import { ShowCard } from './components/ShowCard';
 import { ShowForm } from './components/ShowForm';
@@ -45,6 +46,7 @@ export default function App() {
   const dataLoaded = useRef(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [onboardingSaving, setOnboardingSaving] = useState(false);
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -236,6 +238,28 @@ export default function App() {
     setSelectedShow(null);
     setShowForm(false);
     setAuthError('');
+  }
+
+  async function handleCompleteOnboarding(data: { brandName: string; showTypes: string[] }) {
+    if (!session) return;
+    setOnboardingSaving(true);
+    // Merge onto whatever loaded for this account so we never clobber existing data.
+    const updatedSettings: AppSettings = {
+      ...settings,
+      brandName: data.brandName || settings.brandName,
+      showTypes: data.showTypes,
+      onboarded: true,
+    };
+    try {
+      await saveEncryptedSettings(updatedSettings, session.username, session.password);
+      setSettings(updatedSettings);
+    } catch (error) {
+      console.error('Failed to save onboarding:', error);
+      // Mark onboarded locally so a save hiccup doesn't trap the user on this screen.
+      setSettings(updatedSettings);
+    } finally {
+      setOnboardingSaving(false);
+    }
   }
 
   async function handleSaveSettings(updatedSettings: AppSettings) {
@@ -574,6 +598,12 @@ export default function App() {
           onSignUp={handleSignUp}
           loading={authLoading}
           errorMessage={authError}
+        />
+      ) : !loadingData && !settings.onboarded ? (
+        <Onboarding
+          username={session.username}
+          onComplete={handleCompleteOnboarding}
+          saving={onboardingSaving}
         />
       ) : (
         <div className="app">
