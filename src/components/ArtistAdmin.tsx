@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Show } from '../types';
 import { generateId } from '../utils/id';
 import { compressImage, pickFile } from '../utils/media';
+import { loadColorScheme } from '../utils/theme';
 import {
   publishArtistPayload,
   listSignups,
@@ -48,6 +49,7 @@ function buildPayload(show: Show): ArtistSignupPayload {
   return {
     showName: show.name,
     venueName: show.venueName,
+    theme: loadColorScheme(),
     scheduleVisible: show.artistScheduleVisible ?? true,
     schedule: show.schedule
       ?.filter((s) => !hidden.has(s.id))

@@ -7,6 +7,7 @@ import {
   type ArtistSignupEntry,
 } from '../utils/artistSignup';
 import { fetchLiveView, type LiveViewPayload } from '../utils/liveView';
+import { applyColorScheme } from '../utils/theme';
 import { generateId } from '../utils/id';
 
 interface ArtistSignupProps {
@@ -51,6 +52,11 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submittedEntry, setSubmittedEntry] = useState<ArtistSignupEntry | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Match the producer's color scheme (don't persist to the visitor's device).
+  useEffect(() => {
+    if (payload?.theme) applyColorScheme(payload.theme, false);
+  }, [payload?.theme]);
 
   useEffect(() => {
     let alive = true;
