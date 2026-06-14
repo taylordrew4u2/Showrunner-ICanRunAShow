@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../types';
 import { audioEngine } from '../utils/audioEngine';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
+import { loadColorScheme } from '../utils/theme';
 import {
   DEFAULT_CUE_SECONDS,
   MIN_CUE_SECONDS,
@@ -214,6 +215,7 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
     const payload: LiveViewPayload = {
       showName,
       status,
+      theme: loadColorScheme(),
       segment: {
         name: onStageName,
         description: current?.description,
@@ -239,6 +241,7 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
     const payload: LiveViewPayload = {
       showName,
       status: 'ended',
+      theme: loadColorScheme(),
       segment: {
         name: onStageName,
         description: current?.description,
