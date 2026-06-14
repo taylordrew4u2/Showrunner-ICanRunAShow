@@ -14,6 +14,7 @@ export interface Performer {
   id: string;
   name: string;
   socialMedia?: string;
+  email?: string; // contact email — used for booking confirmations / mass messages
   walkOnMusic?: string; // file URI
   walkOnMusicName?: string;
   walkOnMusicArtist?: string;
@@ -124,6 +125,8 @@ export interface PotentialComic {
   photo?: string; // primary/cover photo (kept in sync with photos[0])
   photos?: string[]; // all photos for this comic
   socialMedia?: string;
+  email?: string; // contact email
+
   credits?: string;
   walkOnMusic?: string;
   walkOnMusicName?: string;
@@ -254,6 +257,8 @@ export interface AppSettings {
   expenses: Expense[];
   showTypes: string[]; // kinds of shows this producer makes (set during onboarding)
   onboarded: boolean; // whether the account has completed the welcome onboarding
+  rolodexTermSingular?: string; // override for the Rolodex noun, e.g. "Comic" / "Queen"
+  rolodexTermPlural?: string; // override for the plural Rolodex noun
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {

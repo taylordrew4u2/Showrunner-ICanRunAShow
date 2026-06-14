@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
 import { compressImage, embedSizeError, readFileAsDataURL } from '../../utils/media';
+import { socialLink } from '../../utils/social';
 import { PhotoGallery } from './PhotoGallery';
 import './PerformerProfile.css';
 
@@ -16,6 +17,7 @@ interface PerformerProfileProps {
 export function PerformerProfile({ performer, onBack, onChange, onDelete, onSaveToRolodex }: PerformerProfileProps) {
   const [name, setName] = useState(performer.name);
   const [socialMedia, setSocialMedia] = useState(performer.socialMedia || '');
+  const [email, setEmail] = useState(performer.email || '');
   const [credits, setCredits] = useState(performer.credits || '');
   const [songName, setSongName] = useState(performer.walkOnMusicName || '');
   const [songArtist, setSongArtist] = useState(performer.walkOnMusicArtist || '');
@@ -45,6 +47,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
       ...performer,
       name: name.trim() || performer.name,
       socialMedia: socialMedia.trim() || undefined,
+      email: email.trim() || undefined,
       credits: credits.trim() || undefined,
       walkOnMusicName: songName.trim() || undefined,
       walkOnMusicArtist: songArtist.trim() || undefined,
@@ -122,7 +125,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               />
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Social Media</label>
+              <label className="perf-profile__label">Instagram / Social</label>
               <input
                 className="perf-profile__input"
                 value={socialMedia}
@@ -130,6 +133,32 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 placeholder="@username"
                 disabled={locked}
               />
+              {socialLink(socialMedia) && (
+                <a
+                  href={socialLink(socialMedia)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="perf-profile__inline-link"
+                >
+                  Open profile ↗
+                </a>
+              )}
+            </div>
+            <div className="perf-profile__field">
+              <label className="perf-profile__label">Email</label>
+              <input
+                className="perf-profile__input"
+                type="email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); mark(); }}
+                placeholder="name@email.com"
+                disabled={locked}
+              />
+              {email.trim() && (
+                <a href={`mailto:${email.trim()}`} className="perf-profile__inline-link">
+                  Send email ↗
+                </a>
+              )}
             </div>
             <div className="perf-profile__field perf-profile__field--full">
               <label className="perf-profile__label">Credits / Intro Notes</label>
@@ -203,6 +232,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                     id: generateId(),
                     name: performer.name,
                     socialMedia: performer.socialMedia,
+                    email: performer.email,
                     credits: performer.credits,
                     photo: performer.photo,
                     photos: performer.photos,

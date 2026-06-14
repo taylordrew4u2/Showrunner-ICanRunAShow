@@ -4,6 +4,8 @@ import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
 import { syncPerformerCover } from './utils/performer';
 import { ServerNotConfiguredError } from './utils/api';
+import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
+import { getRolodexTerm } from './utils/terminology';
 import { 
   loadEncryptedShows, 
   saveEncryptedShows,
@@ -39,6 +41,12 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [colorScheme, setColorScheme] = useState<ColorScheme>(() => loadColorScheme());
+
+  // Apply the chosen color scheme app-wide and persist it.
+  useEffect(() => {
+    applyColorScheme(colorScheme);
+  }, [colorScheme]);
 
   const [shows, setShows] = useState<Show[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -571,11 +579,15 @@ export default function App() {
     { value: 'completed', label: 'Completed', count: completedCount },
   ];
 
+  // What this producer calls the people in their Rolodex (Comics, Queens, …),
+  // derived from their show types and overridable in Settings.
+  const rolodexTerm = getRolodexTerm(settings);
+
   const rolodexTile = (
     <div className="show-card rolodex-tile" onClick={() => setView('rolodex')}>
       <div className="rolodex-tile__icon"></div>
-      <h3 className="rolodex-tile__title">Comic Rolodex</h3>
-      <p className="rolodex-tile__count">{settings.potentialComics.length} comic{settings.potentialComics.length !== 1 ? 's' : ''}</p>
+      <h3 className="rolodex-tile__title">{rolodexTerm.singular} Rolodex</h3>
+      <p className="rolodex-tile__count">{settings.potentialComics.length} {(settings.potentialComics.length === 1 ? rolodexTerm.singular : rolodexTerm.plural).toLowerCase()}</p>
     </div>
   );
 
@@ -806,16 +818,16 @@ export default function App() {
               <div className="rolodex-page">
                 <div className="rolodex-page__topbar">
                   <button className="btn btn--ghost" onClick={handleBack}>← Back</button>
-                  <h2 className="rolodex-page__title">Comic Rolodex</h2>
+                  <h2 className="rolodex-page__title">{rolodexTerm.singular} Rolodex</h2>
                 </div>
-                <p className="rolodex-page__subtitle">Keep a running list of comics you want to book next.</p>
+                <p className="rolodex-page__subtitle">Keep a running list of {rolodexTerm.plural.toLowerCase()} you want to book next.</p>
 
                 <div className="rolodex__form">
                   <input
                     className="rolodex__input"
                     value={newComicName}
                     onChange={(e) => setNewComicName(e.target.value)}
-                    placeholder="Comic name"
+                    placeholder={`${rolodexTerm.singular} name`}
                   />
                   <input
                     className="rolodex__input"
@@ -834,7 +846,7 @@ export default function App() {
                 </div>
 
                 {settings.potentialComics.length === 0 ? (
-                  <p className="rolodex__empty">No comics saved yet.</p>
+                  <p className="rolodex__empty">No {rolodexTerm.plural.toLowerCase()} saved yet.</p>
                 ) : (
                   <div className="rolodex__list">
                     {settings.potentialComics.map((comic) => (
@@ -894,6 +906,8 @@ export default function App() {
                 onSave={handleSaveSettings}
                 onBack={handleBack}
                 saving={settingsSaving}
+                colorScheme={colorScheme}
+                onColorSchemeChange={setColorScheme}
                 onRecoverShow={handleRecoverShow}
                 onPermanentlyDelete={handlePermanentlyDeleteShow}
                 onExport={session ? async () => {

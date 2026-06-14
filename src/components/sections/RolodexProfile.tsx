@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { PotentialComic } from '../../types';
+import { socialLink } from '../../utils/social';
 import { PhotoGallery } from './PhotoGallery';
 import './PerformerProfile.css';
 
@@ -14,6 +15,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
   const [name, setName] = useState(comic.name);
   const [notes, setNotes] = useState(comic.notes || '');
   const [socialMedia, setSocialMedia] = useState(comic.socialMedia || '');
+  const [email, setEmail] = useState(comic.email || '');
   const [credits, setCredits] = useState(comic.credits || '');
   const [songName, setSongName] = useState(comic.walkOnMusicName || '');
   const [songArtist, setSongArtist] = useState(comic.walkOnMusicArtist || '');
@@ -38,6 +40,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
       name: name.trim() || comic.name,
       notes: notes.trim() || undefined,
       socialMedia: socialMedia.trim() || undefined,
+      email: email.trim() || undefined,
       credits: credits.trim() || undefined,
       walkOnMusicName: songName.trim() || undefined,
       walkOnMusicArtist: songArtist.trim() || undefined,
@@ -100,13 +103,38 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
               />
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Social Media</label>
+              <label className="perf-profile__label">Instagram / Social</label>
               <input
                 className="perf-profile__input"
                 value={socialMedia}
                 onChange={e => { setSocialMedia(e.target.value); mark(); }}
                 placeholder="@username"
               />
+              {socialLink(socialMedia) && (
+                <a
+                  href={socialLink(socialMedia)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="perf-profile__inline-link"
+                >
+                  Open profile ↗
+                </a>
+              )}
+            </div>
+            <div className="perf-profile__field">
+              <label className="perf-profile__label">Email</label>
+              <input
+                className="perf-profile__input"
+                type="email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); mark(); }}
+                placeholder="name@email.com"
+              />
+              {email.trim() && (
+                <a href={`mailto:${email.trim()}`} className="perf-profile__inline-link">
+                  Send email ↗
+                </a>
+              )}
             </div>
             <div className="perf-profile__field">
               <label className="perf-profile__label">Credits</label>

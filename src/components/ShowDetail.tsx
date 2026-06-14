@@ -276,6 +276,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       content: <PerformersSection
         performers={show.performers}
         potentialComics={settings.potentialComics}
+        showName={show.name}
         onSaveToRolodex={onSaveToRolodex}
         onChange={(performers) => handleUpdate({ performers })}
       />,
