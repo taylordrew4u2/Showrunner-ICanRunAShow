@@ -59,7 +59,15 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   // or its date has passed.
   const datePassed = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
   const isPastShow = datePassed || show.status === 'completed';
-  
+
+  // The Artist admin tool only makes sense for shows that use artists. If the
+  // producer has removed the Artists section, hide its admin entry point too —
+  // unless a public sign-up link was already generated, so existing queues stay
+  // reachable.
+  const artistsHidden = (show.hiddenSections || []).includes('artists');
+  const showArtistAdmin = !artistsHidden || !!show.artistSignupToken;
+
+
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
   }
@@ -398,13 +406,15 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           >
             Viewer link
           </button>
-          <button
-            className="btn btn--secondary btn--sm"
-            onClick={() => setArtistAdminOpen(true)}
-            title="Artist sign-up admin"
-          >
-            Artist admin
-          </button>
+          {showArtistAdmin && (
+            <button
+              className="btn btn--secondary btn--sm"
+              onClick={() => setArtistAdminOpen(true)}
+              title="Artist sign-up admin"
+            >
+              Artist admin
+            </button>
+          )}
           <button
             className="show-detail__run-show"
             onClick={() => setRunShowOpen(true)}
