@@ -82,9 +82,17 @@ Showrunner handles the full workflow in a single application:
 
 ## Features
 
+**Personalization**
+- First-run onboarding — name your brand and pick the kinds of shows you produce (comedy, drag, music, variety, …)
+- Show-type-aware wording — the Rolodex adapts to what you book (Comic Rolodex, Queen Rolodex, Artist Rolodex, …), with an editable override in Settings
+- Selectable color schemes — Crimson, Indigo, Teal, and Light; the choice persists across visits and applies app-wide
+- Per-show customizable sections — hide the sections you don't use (e.g. removing Artists also hides the Artist admin)
+
 **Show building**
 - Multiple shows with status tracking (upcoming, in-progress, completed, cancelled)
-- Per-show lineup with performer profiles: photo, social media, credits, walk-on track, audio file, and video
+- Per-show lineup with performer profiles: photo, social media, email, credits, walk-on track, audio file, and video
+- Clickable contacts — social handles link straight to the profile (bare handles resolve to Instagram); one tap to email a performer
+- "Email all performers" — opens your mail app with the lineup BCC'd and a pre-filled confirmation, for quick booking confirmations
 - Global performer rolodex — save a performer once, reuse across shows; edits sync to all matching performers
 - Vendors, staff, host, expenses, and per-section deadlines on each show
 
@@ -156,7 +164,10 @@ showrunner/
 │       ├── audioEngine.ts       # Web Audio wrapper with fade + preload
 │       ├── pdfExport.ts         # Client-side PDF generation
 │       ├── liveView.ts          # Live state pub/sub (via the API)
-│       └── artistSignup.ts      # Public sign-up data layer (via the API)
+│       ├── artistSignup.ts      # Public sign-up data layer (via the API)
+│       ├── theme.ts             # Color-scheme tokens + persistence
+│       ├── terminology.ts       # Show-type-aware Rolodex wording
+│       └── social.ts            # Social-handle links + bulk mailto helpers
 ├── api/
 │   ├── _lib/                    # libSQL client, schema bootstrap, auth, http (server-only)
 │   ├── auth.ts                  # signup / login
