@@ -1066,15 +1066,19 @@ select.show-detail__status--select {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  margin-left: auto;
 }
 
 .section-list-item__body {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 1;
+  /* Keep a readable minimum so the buttons wrap below instead of crushing the
+     name/tags into a sliver. Caps at 100% so it never overflows a tiny panel. */
+  flex: 1 1 240px;
   flex-wrap: wrap;
-  min-width: 0;
+  min-width: min(200px, 100%);
 }
 
 .section-list-item__photo {
@@ -1217,9 +1221,7 @@ select.show-detail__status--select {
   color: var(--text);
   font-size: 0.95rem;
   letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .section-list-item__subtext {
