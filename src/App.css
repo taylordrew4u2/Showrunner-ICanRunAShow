@@ -145,6 +145,18 @@
   gap: 2px;
 }
 
+.sidebar__context-label {
+  margin: 12px 12px 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sidebar__footer {
   display: flex;
   flex-direction: column;

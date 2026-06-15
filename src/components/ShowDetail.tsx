@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
@@ -29,7 +29,14 @@ interface ShowDetailProps {
   onSaveToRolodex?: (comic: import('../types').PotentialComic) => void;
 }
 
-export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }: ShowDetailProps) {
+// Lets the sidebar trigger this show's actions from outside the component.
+export interface ShowDetailHandle {
+  openRunShow: () => void;
+  openViewer: () => void;
+  openArtistAdmin: () => void;
+}
+
+export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }, ref) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [editingDeadline, setEditingDeadline] = useState<SectionKey | null>(null);
   const [editingShowName, setEditingShowName] = useState(false);
@@ -80,6 +87,19 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const artistsHidden = (show.hiddenSections || []).includes('artists');
   const showArtistAdmin = !artistsHidden || !!show.artistSignupToken;
 
+  function openViewer() {
+    setViewerNoteDraft(show.viewNote ?? '');
+    setViewerCopied(false);
+    setViewerOpen(true);
+  }
+
+  // Expose this show's actions so the sidebar can trigger them.
+  useImperativeHandle(ref, () => ({
+    openRunShow: () => setRunShowOpen(true),
+    openViewer,
+    openArtistAdmin: () => setArtistAdminOpen(true),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [show.viewNote]);
 
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
@@ -423,11 +443,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           </button>
           <button
             className="btn btn--secondary btn--sm"
-            onClick={() => {
-              setViewerNoteDraft(show.viewNote ?? '');
-              setViewerCopied(false);
-              setViewerOpen(true);
-            }}
+            onClick={openViewer}
             title="Public read-only viewer link"
           >
             Viewer link
@@ -754,4 +770,4 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       )}
     </div>
   );
-}
+});
