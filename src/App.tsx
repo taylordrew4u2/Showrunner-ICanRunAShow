@@ -20,7 +20,8 @@ import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
 import { ShowCard } from './components/ShowCard';
 import { ShowForm } from './components/ShowForm';
-import { ShowDetail } from './components/ShowDetail';
+import { ShowDetail, type ShowDetailHandle } from './components/ShowDetail';
+import { exportShowToPDF } from './utils/pdfExport';
 import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
 import { RolodexProfile } from './components/sections/RolodexProfile';
@@ -52,6 +53,7 @@ export default function App() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(false);
   const dataLoaded = useRef(false);
+  const showDetailRef = useRef<ShowDetailHandle>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [onboardingSaving, setOnboardingSaving] = useState(false);
@@ -644,30 +646,56 @@ export default function App() {
               <span className="sidebar__brand-name">Showrunner</span>
             </div>
             <div className="sidebar__nav-list">
-              <button
-                className={`sidebar__item ${(view === 'list' || view === 'detail') ? 'sidebar__item--active' : ''}`}
-                onClick={handleBack}
-              >
-                <span>Shows</span>
-              </button>
-              <button
-                className="sidebar__item"
-                onClick={() => setShowForm(true)}
-              >
-                <span>New Show</span>
-              </button>
-              <button
-                className={`sidebar__item ${view === 'rolodex' ? 'sidebar__item--active' : ''}`}
-                onClick={() => { setView('rolodex'); setSelectedShow(null); }}
-              >
-                <span>Rolodex</span>
-              </button>
-              <button
-                className={`sidebar__item ${view === 'expenses' ? 'sidebar__item--active' : ''}`}
-                onClick={() => { setView('expenses'); setSelectedShow(null); }}
-              >
-                <span>Expenses</span>
-              </button>
+              {view === 'detail' && selectedShow ? (
+                /* Context actions for the show that's open. */
+                <>
+                  <button className="sidebar__item" onClick={handleBack}>
+                    <span>← All shows</span>
+                  </button>
+                  <p className="sidebar__context-label">{selectedShow.name}</p>
+                  <button className="sidebar__item" onClick={() => showDetailRef.current?.openRunShow()}>
+                    <span>Run Show</span>
+                  </button>
+                  <button className="sidebar__item" onClick={() => showDetailRef.current?.openViewer()}>
+                    <span>Viewer link</span>
+                  </button>
+                  {(!(selectedShow.hiddenSections || []).includes('artists') || !!selectedShow.artistSignupToken) && (
+                    <button className="sidebar__item" onClick={() => showDetailRef.current?.openArtistAdmin()}>
+                      <span>Artist admin</span>
+                    </button>
+                  )}
+                  <button className="sidebar__item" onClick={() => exportShowToPDF(selectedShow, settings)}>
+                    <span>Export PDF</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    className={`sidebar__item ${view === 'list' ? 'sidebar__item--active' : ''}`}
+                    onClick={handleBack}
+                  >
+                    <span>Shows</span>
+                  </button>
+                  <button
+                    className="sidebar__item"
+                    onClick={() => setShowForm(true)}
+                  >
+                    <span>New Show</span>
+                  </button>
+                  <button
+                    className={`sidebar__item ${view === 'rolodex' ? 'sidebar__item--active' : ''}`}
+                    onClick={() => { setView('rolodex'); setSelectedShow(null); }}
+                  >
+                    <span>{rolodexTerm.singular} Rolodex</span>
+                  </button>
+                  <button
+                    className={`sidebar__item ${view === 'expenses' ? 'sidebar__item--active' : ''}`}
+                    onClick={() => { setView('expenses'); setSelectedShow(null); }}
+                  >
+                    <span>Expenses</span>
+                  </button>
+                </>
+              )}
             </div>
             <div className="sidebar__footer">
               <button
@@ -797,6 +825,7 @@ export default function App() {
                 style={{ '--expand-origin-x': `${expandOrigin.x}%`, '--expand-origin-y': `${expandOrigin.y}%` } as React.CSSProperties}
               >
                 <ShowDetail
+                  ref={showDetailRef}
                   show={selectedShow}
                   settings={settings}
                   onBack={handleBack}
