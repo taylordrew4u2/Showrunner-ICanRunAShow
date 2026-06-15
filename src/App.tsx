@@ -1017,6 +1017,38 @@ export default function App() {
             </button>
             {menuOpen && (
               <div className="bottom-nav__dropdown">
+                {view === 'detail' && selectedShow && (
+                  <>
+                    <p className="bottom-nav__dropdown-label">{selectedShow.name}</p>
+                    <button
+                      className="bottom-nav__dropdown-item"
+                      onClick={() => { showDetailRef.current?.openRunShow(); setMenuOpen(false); }}
+                    >
+                      <span>Run Show</span>
+                    </button>
+                    <button
+                      className="bottom-nav__dropdown-item"
+                      onClick={() => { showDetailRef.current?.openViewer(); setMenuOpen(false); }}
+                    >
+                      <span>Viewer link</span>
+                    </button>
+                    {(!(selectedShow.hiddenSections || []).includes('artists') || !!selectedShow.artistSignupToken) && (
+                      <button
+                        className="bottom-nav__dropdown-item"
+                        onClick={() => { showDetailRef.current?.openArtistAdmin(); setMenuOpen(false); }}
+                      >
+                        <span>Artist admin</span>
+                      </button>
+                    )}
+                    <button
+                      className="bottom-nav__dropdown-item"
+                      onClick={() => { exportShowToPDF(selectedShow, settings); setMenuOpen(false); }}
+                    >
+                      <span>Export PDF</span>
+                    </button>
+                    <div className="bottom-nav__dropdown-divider" />
+                  </>
+                )}
                 <button
                   className="bottom-nav__dropdown-item"
                   onClick={() => {
@@ -1043,7 +1075,7 @@ export default function App() {
                     setMenuOpen(false);
                   }}
                 >
-                  <span>Rolodex</span>
+                  <span>{rolodexTerm.singular} Rolodex</span>
                 </button>
                 <button
                   className="bottom-nav__dropdown-item"
