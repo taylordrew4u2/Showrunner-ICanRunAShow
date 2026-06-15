@@ -1105,6 +1105,26 @@ button.bento-tile {
   background: var(--surface-strong);
 }
 
+.bottom-nav__dropdown-label {
+  margin: 0;
+  padding: 12px 16px 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+.bottom-nav__dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
 .bottom-nav__label {
   font-size: 0.8rem;
   font-weight: 700;
