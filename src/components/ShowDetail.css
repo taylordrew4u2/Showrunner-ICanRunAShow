@@ -21,6 +21,19 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Secondary actions sit inline on desktop; the wrapper is transparent to layout. */
+.show-detail__topbar-secondary {
+  display: contents;
+}
+
+@media (max-width: 768px) {
+  /* On mobile these actions live in the bottom menu, so keep the bar uncluttered. */
+  .show-detail__topbar-secondary {
+    display: none;
+  }
 }
 
 /* Prominent "Run Show" action — always visible when a show is open */

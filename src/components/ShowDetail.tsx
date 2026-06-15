@@ -438,25 +438,28 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
           >
             {lightMode ? 'Dark' : 'Light'}
           </button>
-          <button className="btn btn--secondary btn--sm" onClick={() => exportShowToPDF(show, settings)}>
-            Export PDF
-          </button>
-          <button
-            className="btn btn--secondary btn--sm"
-            onClick={openViewer}
-            title="Public read-only viewer link"
-          >
-            Viewer link
-          </button>
-          {showArtistAdmin && (
+          {/* Secondary actions — hidden on mobile, where they live in the menu. */}
+          <div className="show-detail__topbar-secondary">
+            <button className="btn btn--secondary btn--sm" onClick={() => exportShowToPDF(show, settings)}>
+              Export PDF
+            </button>
             <button
               className="btn btn--secondary btn--sm"
-              onClick={() => setArtistAdminOpen(true)}
-              title="Artist sign-up admin"
+              onClick={openViewer}
+              title="Public read-only viewer link"
             >
-              Artist admin
+              Viewer link
             </button>
-          )}
+            {showArtistAdmin && (
+              <button
+                className="btn btn--secondary btn--sm"
+                onClick={() => setArtistAdminOpen(true)}
+                title="Artist sign-up admin"
+              >
+                Artist admin
+              </button>
+            )}
+          </div>
           <button
             className="show-detail__run-show"
             onClick={() => setRunShowOpen(true)}
