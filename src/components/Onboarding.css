@@ -72,9 +72,9 @@
 }
 
 .onboarding__wordmark-text {
-  font-size: 1.55rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--text, #000000);
 }
 
