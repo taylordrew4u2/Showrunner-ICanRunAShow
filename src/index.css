@@ -31,7 +31,7 @@ html {
 
 body {
   margin: 0;
-  background: var(--bg, #f5f6f8);
+  background: var(--backdrop, #e7e9ee);
   color: var(--text, #14181f);
   min-height: 100dvh;
   width: 100%;
