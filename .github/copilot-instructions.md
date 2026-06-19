@@ -1,8 +1,8 @@
-# Copilot Instructions for Showrunner
+# Copilot Instructions for I Can Run A Show
 
 ## Project Overview
 
-Showrunner is a live-show organizer app. It exists as **two separate apps** sharing one repository and one `package.json`:
+I Can Run A Show is a live-show organizer app. It exists as **two separate apps** sharing one repository and one `package.json`:
 
 | App | Directory | Runtime | Storage |
 |-----|-----------|---------|---------|

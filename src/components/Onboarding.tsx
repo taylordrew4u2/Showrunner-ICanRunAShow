@@ -56,11 +56,11 @@ export function Onboarding({ username, onComplete, saving = false }: OnboardingP
           <div className="onboarding__step">
             <div className="onboarding__wordmark">
               <span className="onboarding__wordmark-dot" />
-              <span className="onboarding__wordmark-text">Showrunner</span>
+              <span className="onboarding__wordmark-text">I Can Run A Show</span>
             </div>
             <h1 className="onboarding__title">Welcome, @{username} 👋</h1>
             <p className="onboarding__subtitle">
-              Let's set up your workspace. A couple of quick questions so Showrunner
+              Let's set up your workspace. A couple of quick questions so the app
               fits the kind of shows you produce.
             </p>
             <button
@@ -126,7 +126,7 @@ export function Onboarding({ username, onComplete, saving = false }: OnboardingP
           <div className="onboarding__step">
             <h1 className="onboarding__title">Name your brand</h1>
             <p className="onboarding__subtitle">
-              This is how your production company or show series appears across Showrunner.
+              This is how your production company or show series appears across the app.
             </p>
 
             <input
