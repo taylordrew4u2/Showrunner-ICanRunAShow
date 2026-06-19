@@ -643,7 +643,7 @@ export default function App() {
           <nav className="sidebar" aria-label="Primary navigation">
             <div className="sidebar__brand">
               <span className="sidebar__brand-dot" />
-              <span className="sidebar__brand-name">Showrunner</span>
+              <span className="sidebar__brand-name">I Can Run A Show</span>
             </div>
             <div className="sidebar__nav-list">
               {view === 'detail' && selectedShow ? (
@@ -715,7 +715,7 @@ export default function App() {
               <div className="shows-list">
                 <section className="bento-strip" aria-label="Show summary">
                   <article className="bento-tile bento-tile--hero">
-                    <p className="bento-tile__label">Showrunner</p>
+                    <p className="bento-tile__label">I Can Run A Show</p>
                     <h1 className="bento-tile__value">{shows.length}</h1>
                     <p className="bento-tile__meta">Total shows in your workspace</p>
                   </article>

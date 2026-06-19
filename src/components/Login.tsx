@@ -54,7 +54,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
         <div className="login__header">
           <div className="login__wordmark">
             <span className="login__wordmark-dot" />
-            <span className="login__wordmark-text">Showrunner</span>
+            <span className="login__wordmark-text">I Can Run A Show</span>
           </div>
           <p className="login__tagline">Professional show management for live events</p>
           <p className="login__subtitle">

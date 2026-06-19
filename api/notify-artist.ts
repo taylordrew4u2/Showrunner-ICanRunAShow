@@ -6,7 +6,7 @@
 // Environment variables (set these in the Vercel project settings):
 //   BREVO_API_KEY      — your Brevo v3 API key
 //   BREVO_SENDER_EMAIL — the verified sender email (e.g. you@gmail.com)
-//   BREVO_SENDER_NAME  — display name (e.g. "Showrunner")
+//   BREVO_SENDER_NAME  — display name (e.g. "I Can Run A Show")
 
 interface NotifyBody {
   name?: string;
@@ -25,7 +25,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
-  const senderName = process.env.BREVO_SENDER_NAME || 'Showrunner';
+  const senderName = process.env.BREVO_SENDER_NAME || 'I Can Run A Show';
   if (!apiKey || !senderEmail) {
     return Response.json(
       { ok: false, error: 'Email is not configured yet. Add BREVO_API_KEY and BREVO_SENDER_EMAIL in Vercel env vars.' },
