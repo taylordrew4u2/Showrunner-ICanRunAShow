@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icons/*.png'],
       manifest: {
-        name: 'Showrunner',
-        short_name: 'Showrunner',
+        name: 'I Can Run A Show',
+        short_name: 'Run A Show',
         description: 'Organize your show',
         theme_color: '#f7f8fa',
         background_color: '#f7f8fa',

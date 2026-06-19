@@ -1,10 +1,10 @@
 <div align="center">
 
-# 🎤 Showrunner
+# 🎤 I Can Run A Show
 
 **Show-management software for live-event coordinators — build the lineup, import the schedule, and run the show in real time.**
 
-[**Live Demo →**](https://showrunner-theta.vercel.app)
+[**Live Demo →**](https://icanrunashow.com)
 
 [![CI](https://github.com/taylordrew4u2/showrunner/actions/workflows/ci.yml/badge.svg)](https://github.com/taylordrew4u2/showrunner/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -57,9 +57,9 @@ _Add product screenshots to `docs/screenshots/` — see [docs/screenshots/CAPTUR
 
 ## Overview
 
-Showrunner is a production tool for comedians, promoters, and stage managers who run recurring live shows. It covers the full show lifecycle: building a lineup, coordinating staff, importing a schedule from a PDF or photo, and operating the show in a full-screen live mode with cue timing and walk-on music.
+I Can Run A Show is a production tool for comedians, promoters, and stage managers who run recurring live shows. It covers the full show lifecycle: building a lineup, coordinating staff, importing a schedule from a PDF or photo, and operating the show in a full-screen live mode with cue timing and walk-on music.
 
-The target user is an independent promoter or stage manager who currently uses a mix of spreadsheets, notes apps, and Spotify. Showrunner puts all of that in one place and syncs it across devices.
+The target user is an independent promoter or stage manager who currently uses a mix of spreadsheets, notes apps, and Spotify. I Can Run A Show puts all of that in one place and syncs it across devices.
 
 ---
 
@@ -71,7 +71,7 @@ Live show coordinators have no dedicated tool that spans pre-show planning and r
 
 ## Solution
 
-Showrunner handles the full workflow in a single application:
+I Can Run A Show handles the full workflow in a single application:
 
 - **Before the show:** build the lineup, attach walk-on music and profile data to each performer, track the budget, coordinate staff and hosts, and export a PDF runsheet
 - **Day of:** upload a photo, PDF, or plain text to import the schedule automatically via AI (with OCR + regex fallback)
@@ -85,7 +85,7 @@ Showrunner handles the full workflow in a single application:
 **Personalization**
 - First-run onboarding — name your brand and pick the kinds of shows you produce (comedy, drag, music, variety, …)
 - Show-type-aware wording — the Rolodex adapts to what you book (Comic Rolodex, Queen Rolodex, Artist Rolodex, …), with an editable override in Settings
-- Selectable color schemes — Crimson, Indigo, Teal, and Light; the choice persists across visits and applies app-wide
+- Selectable color schemes — Light and Dark; the choice persists across visits and applies app-wide, including the public viewer + sign-up pages
 - Per-show customizable sections — hide the sections you don't use (e.g. removing Artists also hides the Artist admin)
 
 **Show building**
@@ -101,7 +101,7 @@ Showrunner handles the full workflow in a single application:
 - OCR fallback (Tesseract.js) when no OpenAI key is configured
 
 **Run show**
-- Full-screen live mode with per-cue countdown, 5-second pre-roll, drift indicator, and keyboard navigation
+- Full-screen live mode with per-cue countdown, drift indicator, and keyboard navigation
 - Manual music start/stop per cue; fade in/out is automatic via Web Audio
 - Public read-only viewer URL with live on-stage / up-next state
 - One-tap restart and per-cue duration adjustment
@@ -218,7 +218,7 @@ VITE_OPENAI_API_KEY=          # AI schedule import; falls back to OCR + regex wi
 # Server-side, for /api/notify-artist
 BREVO_API_KEY=
 BREVO_SENDER_EMAIL=
-BREVO_SENDER_NAME=Showrunner
+BREVO_SENDER_NAME=I Can Run A Show
 ```
 
 The Turso variables are required for data persistence; the app surfaces a clear error if they are missing.
