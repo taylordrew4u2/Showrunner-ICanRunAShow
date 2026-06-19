@@ -11,7 +11,7 @@
 &nbsp;
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
 ![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel&logoColor=white)
 
@@ -122,7 +122,7 @@ I Can Run A Show handles the full workflow in a single application:
 ## Tech Stack
 
 - **Frontend:** React 19, TypeScript (strict mode)
-- **Build:** Vite 7, vite-plugin-pwa (Workbox)
+- **Build:** Vite 8, vite-plugin-pwa (Workbox)
 - **Database:** Turso (libSQL — serverless SQLite at the edge), accessed **server-side** via `@libsql/client`
 - **Server API:** Vercel serverless functions (Node) under `/api` — all DB reads/writes go through these, so no DB credential is exposed to the browser
 - **Encryption:** crypto-js (PBKDF2 key derivation, AES)
@@ -253,7 +253,7 @@ Without these, the Email button shows a clear inline error explaining what's mis
 ## What I Built
 
 - Designed and built the application from scratch, solo
-- Implemented the responsive layout — 3-column desktop with CSS Grid `grid-template-areas`, collapsing to mobile below 1024px — no layout library
+- Designed the layout phone-first — a single centered app-style column at every width with a bottom navigation, so it reads as a native phone app on desktop too — no layout library
 - Built the encryption layer: password-derived AES keys via PBKDF2, all data encrypted before reaching Turso; per-show write is debounced 1s
 - Built the AI schedule import pipeline: GPT-4o-mini Vision for photos, PDF.js for multi-page PDFs, Tesseract.js OCR + regex fallback for plain text — runs fully in the browser
 - Built the Web Audio engine wrapper for cue music — single AudioContext unlocked on Start, fade-in / fade-out on every cue change, buffer preloading for the current and next cue, and context-resume retry to survive iOS Safari auto-suspension
@@ -265,7 +265,9 @@ Without these, the Email button shows a clear inline error explaining what's mis
 
 ## Technical Decisions
 
-**No CSS framework.** Every component is styled with hand-written CSS using a design token system. This keeps the bundle small and gives full control over every interaction state and animation.
+**No CSS framework.** Every component is styled with hand-written CSS using a design token system. This keeps the bundle small and gives full control over every interaction state and animation. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer/sign-up links — are just a `data-theme` swap.
+
+**Phone-first, one column everywhere.** Rather than maintain separate desktop and mobile layouts, the app renders as a single centered column (capped width) at every screen size, with a bottom navigation. On a desktop it reads as a focused native phone app instead of a sprawling multi-pane dashboard.
 
 **Encryption in the client, not the server.** The server (Turso) stores only ciphertext. The password-derived key never leaves the device. This avoids the need to trust the database host with user data. The trade-off is that there is no password recovery — by design.
 
