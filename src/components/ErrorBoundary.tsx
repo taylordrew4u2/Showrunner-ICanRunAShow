@@ -32,7 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: '100vh',
+          minHeight: '100dvh',
           padding: 32,
           textAlign: 'center',
           background: '#1a1a2e',
