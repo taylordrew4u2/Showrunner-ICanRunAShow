@@ -2082,7 +2082,7 @@ select.show-detail__status--select {
 }
 .receipt-lightbox__img {
   max-width: 90vw;
-  max-height: 85vh;
+  max-height: 85dvh;
   border-radius: var(--radius-sm);
   object-fit: contain;
   box-shadow: 0 8px 40px rgba(0,0,0,0.5);
