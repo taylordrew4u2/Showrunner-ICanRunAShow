@@ -58,7 +58,7 @@ export function Onboarding({ username, onComplete, saving = false }: OnboardingP
               <span className="onboarding__wordmark-dot" />
               <span className="onboarding__wordmark-text">I Can Run A Show</span>
             </div>
-            <h1 className="onboarding__title">Welcome, @{username} 👋</h1>
+            <h1 className="onboarding__title">Welcome, @{username}</h1>
             <p className="onboarding__subtitle">
               Let's set up your workspace. A couple of quick questions so the app
               fits the kind of shows you produce.

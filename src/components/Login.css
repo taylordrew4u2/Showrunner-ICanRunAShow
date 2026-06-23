@@ -128,6 +128,14 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.landing__highlight-icon {
+  color: var(--primary);
+  flex-shrink: 0;
 }
 
 .landing__hero-actions {
@@ -310,6 +318,15 @@
   line-height: 1.55;
   margin: 0;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.login__note-icon {
+  color: var(--primary);
+  flex-shrink: 0;
 }
 
 /* ── Shared section headings ──────────────────────────────────────── */
@@ -353,8 +370,15 @@
 }
 
 .landing__feature-icon {
-  font-size: 1.8rem;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--primary-soft-border);
   margin-bottom: 14px;
 }
 
