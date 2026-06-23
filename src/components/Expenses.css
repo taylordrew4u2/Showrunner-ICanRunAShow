@@ -117,7 +117,7 @@
 
 .expenses-page .receipt-lightbox__img {
     max-width: 90vw;
-    max-height: 80vh;
+    max-height: 80dvh;
     border-radius: 8px;
     object-fit: contain;
 }

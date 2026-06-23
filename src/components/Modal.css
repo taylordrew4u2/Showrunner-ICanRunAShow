@@ -28,7 +28,7 @@
   padding: 32px;
   width: 100%;
   max-width: 560px;
-  max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
   box-shadow: var(--shadow-md);
   animation: slideUp 0.3s ease-out;
@@ -54,7 +54,7 @@
 
   .modal-box {
     max-width: 100%;
-    max-height: 92vh;
+    max-height: 92dvh;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
   }

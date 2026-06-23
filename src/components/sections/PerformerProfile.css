@@ -245,7 +245,7 @@
 
 .photo-lightbox__img {
   max-width: 92vw;
-  max-height: 88vh;
+  max-height: 88dvh;
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);

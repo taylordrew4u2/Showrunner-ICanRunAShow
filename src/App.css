@@ -1488,7 +1488,7 @@ button.bento-tile {
   max-width: 640px;
   border-radius: 22px 22px 0 0;
   padding: 14px 16px calc(24px + env(safe-area-inset-bottom));
-  max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
   animation: sheetUp 0.25s ease;
 }

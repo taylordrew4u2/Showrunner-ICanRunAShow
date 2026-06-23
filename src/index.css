@@ -42,3 +42,56 @@ body {
 #root {
   min-height: 100dvh;
 }
+
+/* ── Native-app feel on touch devices ─────────────────────────────────
+   The app should never need a pinch-zoom. These rules remove the common
+   triggers and rough edges so it behaves like a installed iOS app. */
+
+/* Media never forces horizontal overflow (a top reason to pinch out). */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* iOS Safari auto-zooms when a focused field's text is < 16px. Some dense
+   controls are intentionally smaller than 1rem, so guarantee a 16px floor on
+   every form field for touch (coarse) pointers — this is the single biggest
+   cause of unwanted zoom-on-tap. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    /* !important so this floor wins over the many per-component font sizes —
+       any field under 16px would otherwise trigger iOS zoom-on-focus. */
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* Kill the 300ms double-tap-to-zoom gesture app-wide while leaving normal
+   scrolling and panning intact. */
+html {
+  touch-action: manipulation;
+}
+
+/* Stop the rubber-band scroll from chaining to the browser/page chrome, which
+   is what makes a web app feel "webby" rather than native. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/* Smooth momentum scrolling inside any scrollable region. */
+body {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* UI chrome shouldn't show the long-press text/callout menu like a webpage.
+   Content text (paragraphs, inputs) stays selectable. */
+button,
+.btn,
+[role='button'] {
+  -webkit-touch-callout: none;
+}
