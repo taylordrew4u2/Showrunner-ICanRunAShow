@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icon, type IconName } from './Icon';
 import './Login.css';
 
 interface LoginProps {
@@ -8,27 +9,34 @@ interface LoginProps {
   errorMessage?: string;
 }
 
-const FEATURES = [
+const FEATURES: { icon: IconName; title: string; text: string }[] = [
   {
-    icon: '🎤',
+    icon: 'mic',
     title: 'Build the lineup',
     text: 'Order performers, attach walk-on music, and keep every cue in one place.',
   },
   {
-    icon: '📸',
+    icon: 'camera',
     title: 'Import by photo',
     text: 'Snap a printed run-of-show and let it parse the schedule for you.',
   },
   {
-    icon: '⏱️',
+    icon: 'clock',
     title: 'Run it live',
     text: 'Full-screen live mode with per-cue countdowns keeps the night on time.',
   },
   {
-    icon: '🔗',
+    icon: 'live',
     title: 'Share a viewer link',
     text: 'Broadcast the on-stage state to your team with a public link — no login.',
   },
+];
+
+const HIGHLIGHTS: { icon: IconName; label: string }[] = [
+  { icon: 'mic', label: 'Lineups & walk-on music' },
+  { icon: 'camera', label: 'Photo & PDF schedule import' },
+  { icon: 'clock', label: 'Live mode with cue timing' },
+  { icon: 'lock', label: 'Encrypted, private by default' },
 ];
 
 const STEPS = [
@@ -105,15 +113,17 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
           </p>
 
           <ul className="landing__highlights">
-            <li>🎤 Lineups &amp; walk-on music</li>
-            <li>📸 Photo &amp; PDF schedule import</li>
-            <li>⏱️ Live mode with cue timing</li>
-            <li>🔒 Encrypted, private by default</li>
+            {HIGHLIGHTS.map((h) => (
+              <li key={h.label}>
+                <Icon name={h.icon} size={17} className="landing__highlight-icon" />
+                {h.label}
+              </li>
+            ))}
           </ul>
 
           <div className="landing__hero-actions">
             <button type="button" className="landing__cta" onClick={scrollToAuth}>
-              Get started — it's free
+              Get started
             </button>
             <span className="landing__cta-note">Installable as an app · works offline</span>
           </div>
@@ -177,7 +187,10 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
             </form>
 
             <div className="login__footer">
-              <p className="login__note">💾 Your data is encrypted and saved under your account.</p>
+              <p className="login__note">
+                <Icon name="lock" size={14} className="login__note-icon" />
+                Your data is encrypted and saved under your account.
+              </p>
             </div>
           </div>
         </div>
@@ -188,7 +201,9 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
         <div className="landing__feature-grid">
           {FEATURES.map((f) => (
             <article key={f.title} className="landing__feature">
-              <span className="landing__feature-icon" aria-hidden="true">{f.icon}</span>
+              <span className="landing__feature-icon" aria-hidden="true">
+                <Icon name={f.icon} size={22} />
+              </span>
               <h3 className="landing__feature-title">{f.title}</h3>
               <p className="landing__feature-text">{f.text}</p>
             </article>
