@@ -150,21 +150,46 @@ export default function App() {
     loadData();
   }, [session]);
 
+  // Always points at the latest shows so an in-flight save can re-persist any
+  // edits that landed while it was running.
+  const latestShowsRef = useRef(shows);
+  useEffect(() => {
+    latestShowsRef.current = shows;
+  }, [shows]);
+  // Guards against overlapping saves. The server replaces all rows per request,
+  // so two concurrent saves can race and an older one can clobber a newer one.
+  const savingRef = useRef(false);
+
   // Save shows when changed
   useEffect(() => {
     if (!session || !dataLoaded.current) return;
     const currentSession = session;
 
-    const timeout = setTimeout(async () => {
-      try {
-        await saveEncryptedShows(shows, currentSession.username, currentSession.password);
-        setSaveError(null);
-      } catch (error) {
-        console.error('Failed to save shows:', error);
-        setSaveError(
-          "Couldn't save your latest changes. This is usually caused by an uploaded file (often a video) being too large. Try removing it or using a link instead — your other edits are safe.",
-        );
-      }
+    const timeout = setTimeout(() => {
+      // A save is already running; it will pick up the latest shows before it
+      // finishes, so we don't need to start a second one.
+      if (savingRef.current) return;
+
+      void (async () => {
+        savingRef.current = true;
+        try {
+          // Re-save until the data stops changing mid-flight, so the last edit
+          // always wins and is never lost to an overlapping request.
+          let saved: Show[] | null = null;
+          while (latestShowsRef.current !== saved) {
+            saved = latestShowsRef.current;
+            await saveEncryptedShows(saved, currentSession.username, currentSession.password);
+          }
+          setSaveError(null);
+        } catch (error) {
+          console.error('Failed to save shows:', error);
+          setSaveError(
+            "Couldn't save your latest changes. This is usually caused by an uploaded file (often a video) being too large. Try removing it or using a link instead — your other edits are safe.",
+          );
+        } finally {
+          savingRef.current = false;
+        }
+      })();
     }, 1000); // Debounce saves
 
     return () => clearTimeout(timeout);

@@ -82,6 +82,15 @@ export async function loadEncryptedShows(
 }
 
 /**
+ * Per-show ciphertext cache. AES over a show with embedded media is expensive
+ * and runs on the main thread, so we avoid re-encrypting shows that haven't
+ * changed. The app updates state immutably, so an unchanged show keeps the same
+ * object reference and hits this cache; only edited shows are re-encrypted.
+ * A WeakMap lets dropped shows be garbage-collected automatically.
+ */
+const showCipherCache = new WeakMap<Show, { key: string; cipher: string }>();
+
+/**
  * Encrypt shows client-side and save them. The server handles backup + verify
  * and refuses to wipe existing data with an empty array.
  */
@@ -92,7 +101,15 @@ export async function saveEncryptedShows(
 ): Promise<void> {
   // Derive the key once for the whole batch (PBKDF2 is slow).
   const key = deriveKey(password);
-  const payload = shows.map((show) => ({ id: show.id, encryptedData: encryptWithKey(show, key) }));
+  const payload = shows.map((show) => {
+    const cached = showCipherCache.get(show);
+    if (cached && cached.key === key) {
+      return { id: show.id, encryptedData: cached.cipher };
+    }
+    const cipher = encryptWithKey(show, key);
+    showCipherCache.set(show, { key, cipher });
+    return { id: show.id, encryptedData: cipher };
+  });
   await api.put("/api/shows", { shows: payload }, auth(username, password));
 }
 
