@@ -155,7 +155,7 @@
   padding: 14px 28px;
   cursor: pointer;
   box-shadow: 0 8px 24px var(--primary-soft);
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition: transform 0.08s ease, background-color 0.15s ease;
   touch-action: manipulation;
 }
 
@@ -164,7 +164,7 @@
 }
 
 .landing__cta:active {
-  transform: translateY(1px);
+  transform: scale(0.96);
 }
 
 .landing__cta-note {
@@ -285,7 +285,7 @@
 }
 
 .login__button:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: scale(0.97);
 }
 
 .login__button:disabled {
