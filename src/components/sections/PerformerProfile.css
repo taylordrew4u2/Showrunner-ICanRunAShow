@@ -319,7 +319,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #fff;
+  color: var(--on-primary);
   background: var(--primary);
 }
 

@@ -54,7 +54,7 @@
 .deadline-indicator--passed {
   background: var(--primary);
   border-color: var(--primary-pressed);
-  color: #fff;
+  color: var(--on-primary);
   animation: pulse 2s ease-in-out infinite;
 }
 

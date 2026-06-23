@@ -12,9 +12,15 @@ export const COLOR_SCHEMES: {
   swatch: string; // accent color
   bg: string; // background color, for the swatch preview
 }[] = [
-  { id: 'light', label: 'Light', description: 'Bright, minimal', swatch: '#c84d5e', bg: '#f7f8fa' },
-  { id: 'dark', label: 'Dark', description: 'Dim, minimal', swatch: '#dd7280', bg: '#0e1116' },
+  { id: 'dark', label: 'Dark', description: 'Operations console', swatch: '#b89243', bg: '#0c0d10' },
+  { id: 'light', label: 'Light', description: 'Editorial', swatch: '#8a6a1f', bg: '#f6f4ef' },
 ];
+
+/** The browser/PWA chrome color for each scheme (matches --bg). */
+const THEME_COLORS: Record<ColorScheme, string> = {
+  dark: '#0c0d10',
+  light: '#f6f4ef',
+};
 
 const STORAGE_KEY = 'showrunner:theme';
 
@@ -29,8 +35,8 @@ export function loadColorScheme(): ColorScheme {
   } catch {
     /* ignore */
   }
-  // Default to Light until the user picks something else.
-  return 'light';
+  // Default to the signature Dark "control room" look until the user changes it.
+  return 'dark';
 }
 
 export function applyColorScheme(scheme: ColorScheme, persist = true): void {
@@ -41,6 +47,9 @@ export function applyColorScheme(scheme: ColorScheme, persist = true): void {
   } else {
     root.removeAttribute('data-theme');
   }
+  // Keep the browser/PWA chrome (status bar, address bar) in step with the theme.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', THEME_COLORS[scheme]);
   if (!persist) return;
   try {
     localStorage.setItem(STORAGE_KEY, scheme);
