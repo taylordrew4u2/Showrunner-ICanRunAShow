@@ -5,6 +5,7 @@ import { generateId } from './utils/id';
 import { syncPerformerCover } from './utils/performer';
 import { ServerNotConfiguredError } from './utils/api';
 import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
+import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
 import { 
   loadEncryptedShows, 
@@ -48,6 +49,22 @@ export default function App() {
   useEffect(() => {
     applyColorScheme(colorScheme);
   }, [colorScheme]);
+
+  // Light haptic on every control tap (Android only — iOS web has no haptics
+  // API). One delegated touch listener covers the whole app.
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (e.pointerType !== 'touch') return;
+      const target = e.target as HTMLElement | null;
+      const control = target?.closest('button, .btn, [role="button"]');
+      if (!control) return;
+      if ((control as HTMLButtonElement).disabled) return;
+      if (control.getAttribute('aria-disabled') === 'true') return;
+      vibrateTap(10);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, []);
 
   const [shows, setShows] = useState<Show[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);

@@ -435,7 +435,7 @@ export function ScheduleSection({
             <span className="schedule-choice__desc">Create the show run manually</span>
           </button>
           <button className="schedule-choice__option" onClick={() => setImportOpen(true)}>
-            <span className="schedule-choice__icon">✨</span>
+            <span className="schedule-choice__icon"><Icon name="sparkle" size={20} /></span>
             <span className="schedule-choice__label">Import with AI</span>
             <span className="schedule-choice__desc">Photo, PDF, or paste — AI extracts cues</span>
           </button>

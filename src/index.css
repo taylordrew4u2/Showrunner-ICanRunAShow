@@ -70,28 +70,18 @@ canvas {
   }
 }
 
-/* Kill the 300ms double-tap-to-zoom gesture app-wide while leaving normal
-   scrolling and panning intact. */
-html {
-  touch-action: manipulation;
-}
-
-/* Stop the rubber-band scroll from chaining to the browser/page chrome, which
-   is what makes a web app feel "webby" rather than native. */
-html,
-body {
-  overscroll-behavior: none;
-}
-
-/* Smooth momentum scrolling inside any scrollable region. */
+/* Smooth momentum scrolling. */
 body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* UI chrome shouldn't show the long-press text/callout menu like a webpage.
-   Content text (paragraphs, inputs) stays selectable. */
+/* Kill the 300ms double-tap-to-zoom on controls and suppress the long-press
+   callout menu — scoped to interactive elements only. Applying touch-action or
+   overscroll-behavior to the root <html> breaks page scrolling in iOS Safari /
+   standalone PWAs, so we never touch the document scroller. */
 button,
 .btn,
 [role='button'] {
+  touch-action: manipulation;
   -webkit-touch-callout: none;
 }
