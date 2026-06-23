@@ -12,13 +12,13 @@ export const COLOR_SCHEMES: {
   swatch: string; // accent color
   bg: string; // background color, for the swatch preview
 }[] = [
-  { id: 'dark', label: 'Dark', description: 'Control room', swatch: '#f5a623', bg: '#0b0d12' },
-  { id: 'light', label: 'Light', description: 'Playbill', swatch: '#9a6400', bg: '#f6f4ef' },
+  { id: 'dark', label: 'Dark', description: 'Operations console', swatch: '#b89243', bg: '#0c0d10' },
+  { id: 'light', label: 'Light', description: 'Editorial', swatch: '#8a6a1f', bg: '#f6f4ef' },
 ];
 
 /** The browser/PWA chrome color for each scheme (matches --bg). */
 const THEME_COLORS: Record<ColorScheme, string> = {
-  dark: '#0b0d12',
+  dark: '#0c0d10',
   light: '#f6f4ef',
 };
 

@@ -1,22 +1,22 @@
 :root {
-  /* "Control room" daylight palette — warm playbill paper with a broadcast
-     gold accent. The deep dark theme is the signature look (see below). */
+  /* Professional "operations console" — restrained editorial neutrals with a
+     muted brass accent. The deep dark theme is the signature look (see below). */
   --bg: #f6f4ef;
   --backdrop: #e6e2d8; /* page behind the phone-app column */
   --surface: #ffffff;
   --surface-strong: #efece4;
   --text: #16181d;
-  --text-muted: #5b5852;
-  --text-soft: #8a877e;
+  --text-muted: #5c5950;
+  --text-soft: #8b887e;
   --border: #e7e2d7;
   --border-strong: #d3cdbe;
-  --primary: #9a6400; /* deep gold — legible as text and on light fills */
-  --primary-pressed: #7e5200;
-  --primary-bright: #c08515;
-  --primary-soft: #fbf1da;
-  --primary-soft-border: #f0dcac;
+  --primary: #8a6a1f; /* deep brass — restrained, legible as text and on fills */
+  --primary-pressed: #6f5417;
+  --primary-bright: #b89243;
+  --primary-soft: #f6efdc;
+  --primary-soft-border: #ead7a6;
   --on-primary: #ffffff; /* text/icons sitting on a --primary fill */
-  --danger: #d3455b;
+  --danger: #c64559;
   --success: #1f9d57;
   --shadow-sm: 0 1px 2px rgba(20, 16, 8, 0.06);
   --shadow-md: 0 6px 20px rgba(20, 16, 8, 0.10);
@@ -35,30 +35,30 @@
    A minimal pair: Light is the base :root palette (no attribute); Dark is the
    single override, selected via data-theme="dark" on <html>.
 
-   Dark is the signature "operations" look: a near-black, high-contrast,
-   broadcast control-room surface with a glowing amber/gold "on-air" accent —
-   Bloomberg terminal meets Hollywood marquee. */
+   Dark is the signature "operations console" look: a near-black, high-contrast
+   surface with a restrained, premium brass accent — editorial and professional,
+   not flashy. */
 
 [data-theme="dark"] {
-  --bg: #0b0d12;
-  --backdrop: #050608;
-  --surface: #14171f;
-  --surface-strong: #1c2029;
-  --text: #f4f2ec;
-  --text-muted: #969ba6;
-  --text-soft: #646b78;
-  --border: #242833;
-  --border-strong: #373d4a;
-  --primary: #f5a623; /* broadcast amber/gold — glows on near-black */
-  --primary-pressed: #d98e16;
-  --primary-bright: #ffbe4d;
-  --primary-soft: #2a2010;
-  --primary-soft-border: #4a3a18;
-  --on-primary: #181203; /* near-black text on the bright amber fill */
-  --danger: #ff5a5f;
-  --success: #2ee08a;
+  --bg: #0c0d10;
+  --backdrop: #060708;
+  --surface: #15171c;
+  --surface-strong: #1d2027;
+  --text: #efece4;
+  --text-muted: #9a968d;
+  --text-soft: #65625a;
+  --border: #24262d;
+  --border-strong: #353841;
+  --primary: #b89243; /* muted brass — premium and restrained on near-black */
+  --primary-pressed: #9d7a32;
+  --primary-bright: #d4ad57;
+  --primary-soft: #201b10;
+  --primary-soft-border: #44391f;
+  --on-primary: #15110a; /* near-black text on the brass fill */
+  --danger: #db5b6b;
+  --success: #3fb583;
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 14px 36px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 14px 36px rgba(0, 0, 0, 0.55);
 }
 
 * {
