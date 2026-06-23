@@ -1,23 +1,25 @@
 :root {
-  /* Professional slate neutrals with a refined indigo accent. */
-  --bg: #f6f7f9;
-  --backdrop: #e7e9ee; /* page behind the phone-app column */
+  /* Professional "operations console" — restrained editorial neutrals with a
+     muted brass accent. The deep dark theme is the signature look (see below). */
+  --bg: #f6f4ef;
+  --backdrop: #e6e2d8; /* page behind the phone-app column */
   --surface: #ffffff;
-  --surface-strong: #eef1f5;
-  --text: #1a1f29;
-  --text-muted: #5b6472;
-  --text-soft: #8b94a3;
-  --border: #e4e8ed;
-  --border-strong: #cfd5de;
-  --primary: #3a55c8;
-  --primary-pressed: #2f46a6;
-  --primary-bright: #5e76dc;
-  --primary-soft: #eceffb;
-  --primary-soft-border: #d3dbf4;
-  --danger: #d3455b;
+  --surface-strong: #efece4;
+  --text: #16181d;
+  --text-muted: #5c5950;
+  --text-soft: #8b887e;
+  --border: #e7e2d7;
+  --border-strong: #d3cdbe;
+  --primary: #8a6a1f; /* deep brass — restrained, legible as text and on fills */
+  --primary-pressed: #6f5417;
+  --primary-bright: #b89243;
+  --primary-soft: #f6efdc;
+  --primary-soft-border: #ead7a6;
+  --on-primary: #ffffff; /* text/icons sitting on a --primary fill */
+  --danger: #c64559;
   --success: #1f9d57;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.07);
+  --shadow-sm: 0 1px 2px rgba(20, 16, 8, 0.06);
+  --shadow-md: 0 6px 20px rgba(20, 16, 8, 0.10);
   --app-bar-height: 56px;
   --bottom-nav-height: 68px;
 
@@ -31,27 +33,32 @@
 
 /* ── Color scheme ────────────────────────────────────────────────────
    A minimal pair: Light is the base :root palette (no attribute); Dark is the
-   single override, selected via data-theme="dark" on <html>. */
+   single override, selected via data-theme="dark" on <html>.
+
+   Dark is the signature "operations console" look: a near-black, high-contrast
+   surface with a restrained, premium brass accent — editorial and professional,
+   not flashy. */
 
 [data-theme="dark"] {
-  --bg: #0e1016;
-  --backdrop: #07080b;
-  --surface: #161922;
-  --surface-strong: #1d212c;
-  --text: #e6e9f0;
-  --text-muted: #8b93a3;
-  --text-soft: #5a6273;
-  --border: #252b36;
-  --border-strong: #353c49;
-  --primary: #6678e0;
-  --primary-pressed: #5562c4;
-  --primary-bright: #8694e8;
-  --primary-soft: #1a1d33;
-  --primary-soft-border: #2e3358;
-  --danger: #e0596f;
-  --success: #2bb673;
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --bg: #0c0d10;
+  --backdrop: #060708;
+  --surface: #15171c;
+  --surface-strong: #1d2027;
+  --text: #efece4;
+  --text-muted: #9a968d;
+  --text-soft: #65625a;
+  --border: #24262d;
+  --border-strong: #353841;
+  --primary: #b89243; /* muted brass — premium and restrained on near-black */
+  --primary-pressed: #9d7a32;
+  --primary-bright: #d4ad57;
+  --primary-soft: #201b10;
+  --primary-soft-border: #44391f;
+  --on-primary: #15110a; /* near-black text on the brass fill */
+  --danger: #db5b6b;
+  --success: #3fb583;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 14px 36px rgba(0, 0, 0, 0.55);
 }
 
 * {
@@ -442,7 +449,7 @@ button.bento-tile {
 .shows-chip--active {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .shows-toolbar__count {
@@ -719,7 +726,7 @@ button.bento-tile {
 
 .btn--primary {
   background: var(--primary);
-  color: #ffffff;
+  color: var(--on-primary);
 }
 
 .btn--primary:hover:not(:disabled) {
@@ -778,7 +785,7 @@ button.bento-tile {
   border: 0;
   border-radius: var(--radius-md);
   background: var(--primary);
-  color: #ffffff;
+  color: var(--on-primary);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -952,7 +959,7 @@ button.bento-tile {
   color: var(--text);
 }
 .icon-btn--ghost { background: transparent; border-color: transparent; }
-.icon-btn--primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.icon-btn--primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
 
 .pill {
   display: inline-flex;
@@ -1187,7 +1194,7 @@ button.bento-tile {
   border: 0;
   border-radius: var(--radius-sm);
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1394,7 +1401,7 @@ button.bento-tile {
 .review-row--checked .review-row__check {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 .review-row__time { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 0.82rem; min-width: 64px; padding-top: 2px; }
 .review-row__desc { font-size: 0.85rem; line-height: 1.35; }
@@ -2387,7 +2394,7 @@ button.bento-tile {
   font-size: 0.72rem;
   font-weight: 800;
 }
-.artist-page__tab--active .artist-page__tab-badge { background: var(--primary); color: #fff; }
+.artist-page__tab--active .artist-page__tab-badge { background: var(--primary); color: var(--on-primary); }
 
 /* Queue tab */
 .artist-queue__counts {
@@ -2903,13 +2910,13 @@ button.bento-tile {
 .artist-signup__seg-btn:hover { background: var(--surface-strong); }
 .artist-signup__seg-btn--active {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 .artist-signup__seg-btn--active:hover { background: var(--primary); }
 .artist-signup__submit {
   grid-column: 1 / -1;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   border: 0;
   border-radius: 12px;
   padding: 14px 16px;
@@ -2967,13 +2974,13 @@ button.bento-tile {
 }
 .artist-signup__entry--mine .artist-signup__entry-avatar {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 .artist-signup__entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .artist-signup__entry-name { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
 .artist-signup__entry-you {
   font-size: 0.65rem; padding: 1px 6px; border-radius: 999px;
-  background: var(--primary); color: #fff; font-weight: 800; letter-spacing: 0.04em;
+  background: var(--primary); color: var(--on-primary); font-weight: 800; letter-spacing: 0.04em;
 }
 .artist-signup__entry-tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .artist-signup__entry-tag {
@@ -3092,7 +3099,7 @@ button.bento-tile {
 .artist-signup__nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .artist-signup__nav-btn--primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   border-color: var(--primary);
 }
 .artist-signup__nav-btn--primary:not(:disabled):hover { background: var(--primary); filter: brightness(1.08); }
@@ -3193,7 +3200,7 @@ button.bento-tile {
 .artist-signup__nav-btn--primary {
   background: var(--punk-red) !important;
   border-color: var(--punk-white) !important;
-  color: var(--punk-white) !important;
+  color: var(--on-primary) !important;
   box-shadow: 4px 4px 0 var(--punk-white);
 }
 .artist-signup__nav-btn--primary:not(:disabled):hover {
@@ -3313,7 +3320,7 @@ button.bento-tile {
 .artist-signup__hero-eyebrow {
   display: inline-block !important;
   background: var(--punk-red);
-  color: #fff !important;
+  color: var(--on-primary) !important;
   padding: 4px 10px;
   font-size: 0.7rem !important;
   font-weight: 900 !important;
@@ -3649,9 +3656,9 @@ button.bento-tile {
   font-weight: 900 !important;
   letter-spacing: 0.16em !important;
 }
-.live-viewer__status--running { background: var(--punk-red) !important; color: #fff !important; }
+.live-viewer__status--running { background: var(--punk-red) !important; color: var(--on-primary) !important; }
 .live-viewer__status--paused { background: var(--punk-white) !important; color: var(--punk-bg) !important; }
-.live-viewer__status--countdown { background: var(--punk-red) !important; color: #fff !important; }
+.live-viewer__status--countdown { background: var(--punk-red) !important; color: var(--on-primary) !important; }
 .live-viewer__status--ended { background: var(--punk-muted) !important; color: var(--punk-bg) !important; }
 .live-viewer__timer {
   color: var(--punk-white) !important;
@@ -3696,7 +3703,7 @@ button.bento-tile {
 /* Pre-show punk */
 .live-viewer__pre-label {
   background: var(--punk-red);
-  color: #fff !important;
+  color: var(--on-primary) !important;
   padding: 4px 12px;
   letter-spacing: 0.18em !important;
   font-weight: 900 !important;

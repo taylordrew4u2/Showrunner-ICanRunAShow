@@ -187,7 +187,7 @@
 .settings__chip--active {
     background: var(--primary, #DC2626);
     border-color: var(--primary, #DC2626);
-    color: #ffffff;
+    color: var(--on-primary);
 }
 
 .settings__producer-row {
