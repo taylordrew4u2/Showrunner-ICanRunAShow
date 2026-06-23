@@ -125,7 +125,7 @@
 .onboarding__chip--active {
   background: var(--primary, #DC2626);
   border-color: var(--primary, #DC2626);
-  color: #ffffff;
+  color: var(--on-primary);
 }
 
 .onboarding__input {
@@ -160,7 +160,7 @@
   min-height: 44px;
   padding: 10px 16px;
   background: var(--primary, #c84d5e);
-  color: #ffffff;
+  color: var(--on-primary);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   font-size: 0.96rem;

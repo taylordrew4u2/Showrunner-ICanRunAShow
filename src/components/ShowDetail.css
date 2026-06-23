@@ -1904,7 +1904,7 @@ select.show-detail__status--select {
   border: 1px solid transparent;
   border-radius: var(--radius-xs);
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   font-size: 0.85rem;
   font-weight: 600;
   font-family: inherit;
