@@ -43,15 +43,13 @@
 
 ## Screenshots
 
-Try it live at **[icanrunashow.com](https://icanrunashow.com)**. Static shots are generated with `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)) and render here once committed to `docs/screenshots/`.
+Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These are generated with `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)).
 
-<!-- Uncomment once docs/screenshots/*.png are committed:
 <p align="center">
-  <img src="docs/screenshots/shows.png" width="80%" alt="Shows dashboard" /><br/>
-  <img src="docs/screenshots/show-detail.png" width="80%" alt="Show detail" /><br/>
-  <img src="docs/screenshots/run-show.png" width="80%" alt="Run Show live mode" />
+  <img src="docs/screenshots/shows.png" width="32%" alt="Shows dashboard" />
+  <img src="docs/screenshots/show-detail.png" width="32%" alt="Show detail" />
+  <img src="docs/screenshots/run-show.png" width="32%" alt="Run Show live mode" />
 </p>
--->
 
 ---
 

@@ -32,50 +32,59 @@ const HEADLESS = process.env.HEADLESS !== 'false';
 const log = (...a) => console.log('•', ...a);
 
 async function shot(page, name) {
+  await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
   await page.waitForTimeout(500); // let any transition settle
   const path = `${OUT_DIR}/${name}.png`;
   await page.screenshot({ path });
   log(`captured ${path}`);
 }
 
-/** Sign in; if the credentials don't exist yet, create the account + onboard. */
+/** Run the first-run onboarding wizard if it's showing. */
+async function onboardIfPresent(page) {
+  const getStarted = page.getByRole('button', { name: 'Get started' });
+  if (!(await getStarted.count())) return;
+  log('completing onboarding');
+  await getStarted.click();
+  await page.getByRole('button', { name: /^Comedy$/ }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByPlaceholder(/Late Night Laughs/).fill('Late Night Laughs');
+  await page.getByRole('button', { name: 'Finish' }).click();
+}
+
+/** Sign in; create the account first if the credentials don't exist yet. Either
+ *  path may land on the onboarding wizard, which we then complete. */
 async function signInOrUp(page) {
   await page.goto(APP_URL, { waitUntil: 'networkidle' });
 
-  // Already signed in (restored session)?
-  if (await page.getByRole('button', { name: 'Menu' }).count()) return;
+  const inApp = page.getByRole('button', { name: 'Menu' });
+  const onboarding = page.getByRole('button', { name: 'Get started' });
+
+  if (await inApp.count()) return; // restored session
 
   await page.getByPlaceholder('Enter username').fill(USER);
   await page.getByPlaceholder('Enter your password').fill(PASS);
   await page.getByRole('button', { name: /^Sign In$/ }).click();
 
-  // Either we're in, or the credentials are invalid → switch to sign-up.
-  const inApp = page.getByRole('button', { name: 'Menu' });
+  // Wait for one of: app shell, onboarding, or a login error.
   const err = page.locator('.login__error');
   await Promise.race([
     inApp.waitFor({ timeout: 8000 }).catch(() => {}),
+    onboarding.waitFor({ timeout: 8000 }).catch(() => {}),
     err.waitFor({ timeout: 8000 }).catch(() => {}),
   ]);
 
-  if (await inApp.count()) {
-    log('signed in to existing account');
-    return;
+  if (!(await inApp.count()) && !(await onboarding.count())) {
+    log('account not found — creating it');
+    await page.getByRole('button', { name: /New here\? Create Account/ }).click();
+    await page.getByPlaceholder('Enter username').fill(USER);
+    await page.getByPlaceholder('Enter your password').fill(PASS);
+    await page.getByRole('button', { name: /^Create Account$/ }).click();
+    await onboarding.waitFor({ timeout: 10000 }).catch(() => {});
   }
 
-  log('account not found — creating it');
-  await page.getByRole('button', { name: /New here\? Create Account/ }).click();
-  await page.getByPlaceholder('Enter username').fill(USER);
-  await page.getByPlaceholder('Enter your password').fill(PASS);
-  await page.getByRole('button', { name: /^Create Account$/ }).click();
-
-  // Onboarding wizard.
-  await page.getByRole('button', { name: 'Get started' }).click({ timeout: 8000 });
-  await page.getByRole('button', { name: /^Comedy$/ }).click();
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await page.getByPlaceholder(/Late Night Laughs/).fill('Late Night Laughs');
-  await page.getByRole('button', { name: 'Finish' }).click();
-  await page.getByRole('button', { name: 'Menu' }).waitFor({ timeout: 10000 });
-  log('account created + onboarded');
+  await onboardIfPresent(page);
+  await inApp.waitFor({ timeout: 12000 });
+  log('signed in');
 }
 
 async function openNewShowForm(page) {
@@ -134,10 +143,7 @@ async function seedShow(page) {
     await page.waitForTimeout(150);
   }
 
-  // Collapse the open sections so the detail shot reads as an overview.
-  await expandSection(page, 'Schedule');
-  await expandSection(page, 'Performers');
-  await page.locator('.show-detail').evaluate((el) => el.scrollTo(0, 0));
+  await page.evaluate(() => window.scrollTo(0, 0));
 }
 
 async function captureRunShow(page) {
