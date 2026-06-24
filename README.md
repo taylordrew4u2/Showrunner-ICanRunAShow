@@ -43,9 +43,9 @@
 
 ## Screenshots
 
-_Add product screenshots to `docs/screenshots/` — see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md), then uncomment the block below._
+Try it live at **[icanrunashow.com](https://icanrunashow.com)**. Static shots are generated with `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)) and render here once committed to `docs/screenshots/`.
 
-<!--
+<!-- Uncomment once docs/screenshots/*.png are committed:
 <p align="center">
   <img src="docs/screenshots/shows.png" width="80%" alt="Shows dashboard" /><br/>
   <img src="docs/screenshots/show-detail.png" width="80%" alt="Show detail" /><br/>
@@ -343,7 +343,6 @@ A keyboard-navigation + ARIA audit is a future improvement.
 - Add per-user random salts and bump PBKDF2 iterations
 - Add component + end-to-end tests (unit tests are in place)
 - Accessibility audit (keyboard nav, ARIA, color contrast)
-- Add product screenshots to the README (scaffold in `docs/screenshots/`)
 
 ---
 
