@@ -8,7 +8,8 @@
     "build": "node scripts/check-env.mjs && tsc -b && tsc -p tsconfig.api.json && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "screenshots": "node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",

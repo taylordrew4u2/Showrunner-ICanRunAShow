@@ -24,3 +24,27 @@ Tips:
 - The filenames above are what the README's commented `<img>` block expects —
   once `shows.png`, `show-detail.png`, and `run-show.png` are here, just remove
   the `<!-- -->` around that block.
+
+## Automated capture
+
+`scripts/capture-screenshots.mjs` drives the app with Playwright: it logs in
+(creating the account + onboarding if it doesn't exist), seeds a demo show with
+performers and a run-of-show when the workspace is empty, then captures the
+screens at phone width into this folder.
+
+**Locally:**
+
+```bash
+npm i -D playwright && npx playwright install chromium
+DEMO_USER=demo DEMO_PASS=demo1234 APP_URL=https://icanrunashow.com npm run screenshots
+```
+
+Use a **throwaway demo account** — never a real one (the seed step assumes it can
+populate an empty workspace). Set `HEADLESS=false` to watch it run.
+
+**Via GitHub Actions:** add repo secrets `DEMO_USER` and `DEMO_PASS`, then run the
+**Capture screenshots** workflow (Actions tab → Run workflow). It captures the
+shots, uploads them as an artifact, and pushes them to a `chore/screenshots-*`
+branch you can open a PR from.
+
+After the PNGs land here, uncomment the `<img>` block in the main README.
