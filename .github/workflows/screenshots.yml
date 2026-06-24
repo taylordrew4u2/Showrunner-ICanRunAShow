@@ -1,0 +1,60 @@
+name: Capture screenshots
+
+# Manually-triggered automated screenshot capture. Set two repo secrets first:
+#   DEMO_USER, DEMO_PASS  — a throwaway demo account (NOT a real one; the run may
+#                           seed it with a demo show).
+# Then: Actions → "Capture screenshots" → Run workflow. It captures the screens
+# and pushes them to a branch you can open a PR from.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: Target app URL
+        required: false
+        default: https://icanrunashow.com
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm i -D playwright
+          npx playwright install --with-deps chromium
+
+      - name: Capture screenshots
+        env:
+          APP_URL: ${{ github.event.inputs.app_url }}
+          DEMO_USER: ${{ secrets.DEMO_USER }}
+          DEMO_PASS: ${{ secrets.DEMO_PASS }}
+        run: node scripts/capture-screenshots.mjs
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: docs/screenshots/*.png
+
+      - name: Commit to a branch
+        run: |
+          if [ -z "$(git status --porcelain docs/screenshots)" ]; then
+            echo "No screenshot changes to commit."; exit 0
+          fi
+          BRANCH="chore/screenshots-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add docs/screenshots/*.png
+          git commit -m "chore: add captured product screenshots"
+          git push origin "$BRANCH"
+          echo "Open a PR: ${{ github.server_url }}/${{ github.repository }}/pull/new/$BRANCH" >> "$GITHUB_STEP_SUMMARY"
