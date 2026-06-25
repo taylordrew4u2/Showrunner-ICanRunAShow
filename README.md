@@ -50,6 +50,9 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These are gener
   <img src="docs/screenshots/show-detail.png" width="32%" alt="Show detail" />
   <img src="docs/screenshots/run-show.png" width="32%" alt="Run Show live mode" />
 </p>
+<p align="center">
+  <sub><b>Shows dashboard</b> — at-a-glance status tiles &nbsp;·&nbsp; <b>Show detail</b> — the section accordion &nbsp;·&nbsp; <b>Run Show</b> — full-screen live mode with cue timers</sub>
+</p>
 
 ---
 
@@ -180,6 +183,33 @@ showrunner/
 **App flow:**
 
 User signs in → the browser derives the encryption key + a password hash via PBKDF2 (neither the raw password nor the key ever leaves the device) → it calls the `/api` routes (sending a derived user id + hash) which read the encrypted blobs from Turso → the browser decrypts them → edits are encrypted client-side and written back through the API on a debounced interval → in live mode, schedule cues drive a public read-only viewer URL and the per-cue music timing.
+
+```mermaid
+flowchart LR
+    subgraph Browser["🔒 Browser (all crypto here)"]
+        UI["React app"]
+        Key["PBKDF2 key + hash<br/>(never leave device)"]
+        UI <--> Key
+    end
+
+    subgraph Edge["Vercel Edge / Serverless (/api)"]
+        Auth["/api/auth"]
+        Data["/api/shows · /api/settings"]
+        Live["/api/live · /api/artist"]
+    end
+
+    DB[("Turso<br/>libSQL · ciphertext only")]
+    Viewer["📺 Public viewer link<br/>(?view=…)"]
+    Signup["✍️ Artist sign-up<br/>(?artist=…)"]
+
+    UI -- "encrypt → ciphertext" --> Data
+    UI -- "user id + hash" --> Auth
+    Data <--> DB
+    Auth <--> DB
+    UI -- "Run Show publishes live state" --> Live
+    Live --> Viewer
+    Live --> Signup
+```
 
 ---
 
