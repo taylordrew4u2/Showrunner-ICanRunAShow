@@ -55,10 +55,28 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These are gener
 <p align="center">
   <img src="docs/screenshots/shows.png" width="32%" alt="Shows dashboard" />
   <img src="docs/screenshots/show-detail.png" width="32%" alt="Show detail" />
-  <img src="docs/screenshots/run-show.png" width="32%" alt="Run Show live mode" />
+  <img src="docs/screenshots/schedule.png" width="32%" alt="Run-of-show builder" />
 </p>
 <p align="center">
-  <sub><b>Shows dashboard</b> — at-a-glance status tiles &nbsp;·&nbsp; <b>Show detail</b> — the section accordion &nbsp;·&nbsp; <b>Run Show</b> — full-screen live mode with cue timers</sub>
+  <sub><b>Shows dashboard</b> — status tiles &amp; filters &nbsp;·&nbsp; <b>Show detail</b> — the section accordion &nbsp;·&nbsp; <b>Run-of-show</b> — build the cue list (or import by AI)</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/performer-profile.png" width="32%" alt="Performer profile" />
+  <img src="docs/screenshots/rolodex.png" width="32%" alt="Comic Rolodex" />
+  <img src="docs/screenshots/settings.png" width="32%" alt="Settings — personalization" />
+</p>
+<p align="center">
+  <sub><b>Performer profile</b> — clickable Instagram + email &nbsp;·&nbsp; <b>Rolodex</b> — wording adapts to your show types &nbsp;·&nbsp; <b>Settings</b> — theme, show types &amp; terminology</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/run-show.png" width="32%" alt="Run Show live mode" />
+  <img src="docs/screenshots/viewer.png" width="32%" alt="Public viewer link" />
+  <img src="docs/screenshots/artist-signup.png" width="32%" alt="Public artist sign-up" />
+</p>
+<p align="center">
+  <sub><b>Run Show</b> — full-screen live mode &nbsp;·&nbsp; <b>Public viewer</b> — live lineup / on-stage link &nbsp;·&nbsp; <b>Artist sign-up</b> — public walk-up queue</sub>
 </p>
 
 ---
