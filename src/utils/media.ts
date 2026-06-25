@@ -2,10 +2,10 @@
 // gets written to the backend in a single request. Large files (especially
 // video) blow past the request/row size limit and make the whole save fail, so
 // we cap the size of anything embedded and steer large videos to a link field.
-export const MAX_EMBED_BYTES = 8 * 1024 * 1024; // 8 MB — images / generic / video (steer big video to links)
-export const MAX_AUDIO_EMBED_BYTES = 30 * 1024 * 1024; // 30 MB — music tracks run larger
+const MAX_EMBED_BYTES = 8 * 1024 * 1024; // 8 MB — images / generic / video (steer big video to links)
+const MAX_AUDIO_EMBED_BYTES = 30 * 1024 * 1024; // 30 MB — music tracks run larger
 
-export function formatBytes(bytes: number): string {
+function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
