@@ -6,7 +6,7 @@
 
 [**Live Demo →**](https://icanrunashow.com)
 
-[![CI](https://github.com/taylordrew4u2/showrunner/actions/workflows/ci.yml/badge.svg)](https://github.com/taylordrew4u2/showrunner/actions/workflows/ci.yml)
+[![CI](https://github.com/taylordrew4u2/Showrunner-ICanRunAShow/actions/workflows/ci.yml/badge.svg)](https://github.com/taylordrew4u2/Showrunner-ICanRunAShow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 &nbsp;
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
@@ -44,6 +44,13 @@
 ## Screenshots
 
 Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These are generated with `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)).
+
+<p align="center">
+  <img src="docs/screenshots/run-show.gif" width="280" alt="Run Show live mode — animated demo" />
+</p>
+<p align="center">
+  <sub><b>Run Show</b> live mode — per-cue countdown, on-time drift, and advancing through cues</sub>
+</p>
 
 <p align="center">
   <img src="docs/screenshots/shows.png" width="32%" alt="Shows dashboard" />
@@ -216,8 +223,8 @@ flowchart LR
 ## How to Run Locally
 
 ```bash
-git clone https://github.com/taylordrew4u2/showrunner.git
-cd showrunner
+git clone https://github.com/taylordrew4u2/Showrunner-ICanRunAShow.git
+cd Showrunner-ICanRunAShow
 npm install
 cp .env.example .env.local   # fill in the values
 npm run dev
