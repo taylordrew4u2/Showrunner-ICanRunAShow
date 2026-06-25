@@ -24,14 +24,6 @@ export function socialLink(value?: string): string | null {
   return `https://instagram.com/${encodeURIComponent(handle)}`;
 }
 
-/** A tidy @handle for display when the value is a bare handle (URLs pass through). */
-export function socialLabel(value?: string): string {
-  const v = (value ?? '').trim();
-  if (!v) return '';
-  if (/^https?:\/\//i.test(v) || /\.[a-z]{2,}\//i.test(v)) return v;
-  return v.startsWith('@') ? v : `@${v}`;
-}
-
 /** Loose email validation — enough to decide whether to offer a mail action. */
 export function isEmail(value?: string): boolean {
   if (!value) return false;
