@@ -123,8 +123,8 @@ I Can Run A Show handles the full workflow in a single application:
 - Vendors, staff, host, expenses, and per-section deadlines on each show
 
 **Schedule import**
-- AI schedule import via GPT-4o-mini Vision (images), PDF.js (PDFs), and a regex fallback for plain text — all in the browser
-- OCR fallback (Tesseract.js) when no OpenAI key is configured
+- AI schedule import via GPT-4o-mini Vision (images) and text — routed through a server-side proxy so the OpenAI key never ships in the bundle; PDF.js (PDFs) and the regex parser run in the browser
+- On-device OCR fallback (Tesseract.js) + local parsing when the server has no OpenAI key configured
 
 **Run show**
 - Full-screen live mode with per-cue countdown, drift indicator, and keyboard navigation
@@ -152,7 +152,7 @@ I Can Run A Show handles the full workflow in a single application:
 - **Database:** Turso (libSQL — serverless SQLite at the edge), accessed **server-side** via `@libsql/client`
 - **Server API:** Vercel serverless functions (Node) under `/api` — all DB reads/writes go through these, so no DB credential is exposed to the browser
 - **Encryption:** crypto-js (PBKDF2 key derivation, AES)
-- **AI:** OpenAI GPT-4o-mini (vision + text); Tesseract.js fallback
+- **AI:** OpenAI GPT-4o-mini (vision + text) via a server-side proxy; Tesseract.js OCR fallback
 - **PDF:** PDF.js (pdfjs-dist) — client-side extraction
 - **Email:** Brevo REST API via a Vercel Edge function (`/api/notify-artist`)
 - **Styling:** Custom CSS with a design-token system — no CSS framework
@@ -186,7 +186,7 @@ showrunner/
 │       ├── secure-storage.ts    # Client-side encryption + calls to the API
 │       ├── encryption.ts        # Key derivation and AES helpers (browser)
 │       ├── api.ts               # fetch wrapper for the server API
-│       ├── aiExtractor.ts       # OpenAI + PDF.js + OCR + regex pipeline
+│       ├── aiExtractor.ts       # AI proxy call + PDF.js + OCR + regex pipeline
 │       ├── audioEngine.ts       # Web Audio wrapper with fade + preload
 │       ├── pdfExport.ts         # Client-side PDF generation
 │       ├── liveView.ts          # Live state pub/sub (via the API)
@@ -195,12 +195,13 @@ showrunner/
 │       ├── terminology.ts       # Show-type-aware Rolodex wording
 │       └── social.ts            # Social-handle links + bulk mailto helpers
 ├── api/
-│   ├── _lib/                    # libSQL client, schema bootstrap, auth, http (server-only)
-│   ├── auth.ts                  # signup / login
+│   ├── _lib/                    # libSQL client, schema, auth, credentials (slow-hash), rate-limit, http (server-only)
+│   ├── auth.ts                  # signup / login (salted slow-hash, rate-limited)
 │   ├── shows.ts                 # encrypted show blobs (load / save)
 │   ├── settings.ts             # encrypted settings blob
 │   ├── live.ts                  # live-viewer state
 │   ├── artist.ts / artist-entries.ts  # public sign-up payload + queue
+│   ├── ai-extract.ts            # server-side OpenAI proxy (key never in the bundle)
 │   └── notify-artist.ts         # "you're up" emails via Brevo
 └── .github/workflows/ci.yml     # Lint + tests + type-check + build on push/PR
 ```
@@ -263,12 +264,12 @@ TURSO_DATABASE_URL=
 TURSO_AUTH_TOKEN=
 ```
 
-Optional:
+Optional (all server-side — **no** `VITE_` prefix):
 
 ```env
-VITE_OPENAI_API_KEY=          # AI schedule import; falls back to OCR + regex without it
+OPENAI_API_KEY=               # AI schedule import via /api/ai-extract; falls back to OCR + regex without it
 
-# Server-side, for /api/notify-artist
+# For /api/notify-artist
 BREVO_API_KEY=
 BREVO_SENDER_EMAIL=
 BREVO_SENDER_NAME=I Can Run A Show
@@ -308,7 +309,7 @@ Without these, the Email button shows a clear inline error explaining what's mis
 - Designed and built the application from scratch, solo
 - Designed the layout phone-first — a single centered app-style column at every width with a bottom navigation, so it reads as a native phone app on desktop too — no layout library
 - Built the encryption layer: password-derived AES keys via PBKDF2, all data encrypted before reaching Turso; per-show write is debounced 1s
-- Built the AI schedule import pipeline: GPT-4o-mini Vision for photos, PDF.js for multi-page PDFs, Tesseract.js OCR + regex fallback for plain text — runs fully in the browser
+- Built the AI schedule import pipeline: GPT-4o-mini Vision for photos (via a server-side proxy so the key stays off the client), PDF.js for multi-page PDFs in the browser, and a Tesseract.js OCR + regex fallback for plain text
 - Built the Web Audio engine wrapper for cue music — single AudioContext unlocked on Start, fade-in / fade-out on every cue change, buffer preloading for the current and next cue, and context-resume retry to survive iOS Safari auto-suspension
 - Built the public read-only viewer URL and the artist sign-up flow (public sign-up form, admin queue with Mark-paid + Email button, Brevo edge function for notifications)
 - Built the performer rolodex with cross-show sync — editing a rolodex entry propagates to all matching performers
