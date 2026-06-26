@@ -60,10 +60,10 @@ export async function createSignup(
   await api.post('/api/artist-entries', { token, entry });
 }
 
-export async function setSignupCompleted(id: string, completed: boolean): Promise<void> {
-  await api.patch('/api/artist-entries', { id, completed });
+export async function setSignupCompleted(token: string, id: string, completed: boolean): Promise<void> {
+  await api.patch('/api/artist-entries', { token, id, completed });
 }
 
-export async function deleteSignup(id: string): Promise<void> {
-  await api.del(`/api/artist-entries?id=${encodeURIComponent(id)}`);
+export async function deleteSignup(token: string, id: string): Promise<void> {
+  await api.del(`/api/artist-entries?token=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}`);
 }

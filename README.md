@@ -364,8 +364,10 @@ Unit tests (Vitest) cover the pure logic: schedule text parsing, cue timing/form
 - All show data and settings are encrypted with AES (crypto-js) before being written to Turso
 - All API keys and database credentials are loaded from environment variables — no fallback values in source
 - The database is reached only through server-side API routes; the Turso credential is a server env var and is never included in the client bundle
-- The static salt used in key derivation is a known limitation — per-user random salts would improve security
-- No rate limiting on authentication
+- The stored auth credential is a per-user salted, slow PBKDF2 hash (the client hash is never stored verbatim), compared in constant time, with legacy rows upgraded transparently on next login
+- Authentication is rate-limited (per-account fixed window); public upsert routes cap payload size; sign-up queue mutations are scoped to the show token
+- The optional OpenAI extractor runs behind a server proxy, so the key stays in the server environment and never ships in the client bundle
+- The encryption KDF uses SHA-256 at 100k iterations; reaching the OWASP 600k target needs migrating from pure-JS crypto-js to native WebCrypto/Argon2 (a tracked follow-up)
 
 ---
 
@@ -383,7 +385,7 @@ A keyboard-navigation + ARIA audit is a future improvement.
 
 ## Known Limitations
 
-- PBKDF2 uses a static salt and 1000 iterations — adequate for a personal project but below current production recommendations
+- The encryption-key KDF still uses a static (non-per-user) salt and, capped by pure-JS crypto-js, 100k iterations rather than the OWASP-recommended 600k — improving both needs a move to native WebCrypto/Argon2
 - Unit tests cover the core pure logic; no component or end-to-end tests yet
 - No password recovery — losing the password means losing access to all data
 - AI schedule import depends on an OpenAI key; without it, only the OCR + regex fallback runs
@@ -393,7 +395,7 @@ A keyboard-navigation + ARIA audit is a future improvement.
 
 ## Roadmap
 
-- Add per-user random salts and bump PBKDF2 iterations
+- Migrate the encryption KDF to native WebCrypto/Argon2 (per-user random salt, OWASP-grade iterations)
 - Add component + end-to-end tests (unit tests are in place)
 - Accessibility audit (keyboard nav, ARIA, color contrast)
 

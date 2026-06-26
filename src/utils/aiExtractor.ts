@@ -1,25 +1,27 @@
 /**
- * AI-powered document parser for extracting show schedule data
- * Uses OpenAI API to intelligently parse various document formats including PDFs and images
+ * AI-powered document parser for extracting show schedule data.
+ * Calls the server-side proxy (/api/ai-extract), which holds the OpenAI key —
+ * the key never ships in the client bundle. When the server has no key
+ * configured the proxy returns 503 and every path falls back to on-device OCR /
+ * deterministic local parsing.
  */
 
 import type { ScheduleItem } from "../types";
 import { generateId } from "./id";
+import { api } from "./api";
 
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+interface AIScheduleRow {
+  time?: string;
+  description?: string;
+  performer?: string;
+}
 
-const SCHEDULE_SYSTEM_PROMPT = `You are a run-of-show schedule extractor. Extract each line/row as a JSON array item with these fields:
-- time: string (start time, e.g. "7:00 PM", "19:00"; "" if none)
-- description: string (the segment / what happens — e.g. "Opening set", "Host intro", "Intermission")
-- performer: string (who is on stage for that segment — a person/act name; "" if it's not a performance, like doors/intermission)
-
-Separate the performer's name from the segment when both are present (e.g. "8:00 Maya — opening set" → performer "Maya", description "opening set").
-Return ONLY a valid JSON array, no markdown. Example:
-[
-  {"time": "7:30 PM", "description": "Doors open", "performer": ""},
-  {"time": "8:00 PM", "description": "Opening set", "performer": "Maya"}
-]
-If no schedule data is found, return []`;
+/** Call the server proxy; returns mapped items (throws on any failure so callers can fall back). */
+async function extractViaProxy(body: { mode: "text"; text: string } | { mode: "image"; image: string }): Promise<ScheduleItem[]> {
+  const { items } = await api.post<{ items: AIScheduleRow[] }>("/api/ai-extract", body);
+  if (!Array.isArray(items)) throw new Error("AI returned invalid format (not an array)");
+  return items.map(mapAIItem);
+}
 
 function mapAIItem(item: {
   time?: string;
@@ -32,32 +34,6 @@ function mapAIItem(item: {
     description: item.description || "",
     performer: item.performer || undefined,
   };
-}
-
-interface OpenAIMessageText {
-  role: "system" | "user";
-  content: string;
-}
-
-interface OpenAIMessageVision {
-  role: "user";
-  content: Array<{
-    type: "text" | "image_url";
-    text?: string;
-    image_url?: {
-      url: string;
-    };
-  }>;
-}
-
-type OpenAIMessage = OpenAIMessageText | OpenAIMessageVision;
-
-interface OpenAIResponse {
-  choices: Array<{
-    message: {
-      content: string;
-    };
-  }>;
 }
 
 /**
@@ -144,142 +120,18 @@ async function extractTextFromFile(file: File): Promise<string> {
 }
 
 /**
- * Use OpenAI Vision to extract schedule items from an image
+ * Use AI vision (via the server proxy) to extract schedule items from an image.
  */
 async function extractScheduleFromImage(file: File): Promise<ScheduleItem[]> {
-  if (!OPENAI_API_KEY) {
-    throw new Error(
-      "OpenAI API key not configured. Please add VITE_OPENAI_API_KEY to your .env.local file.",
-    );
-  }
-
   const base64Image = await fileToBase64(file);
-
-  const systemPrompt = SCHEDULE_SYSTEM_PROMPT;
-
-  const messages: OpenAIMessage[] = [
-    { role: "system", content: systemPrompt },
-    {
-      role: "user",
-      content: [
-        {
-          type: "text",
-          text: "Extract all schedule items from this image:",
-        },
-        {
-          type: "image_url",
-          image_url: {
-            url: base64Image,
-          },
-        },
-      ],
-    },
-  ];
-
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini", // Vision-capable model
-        messages,
-        temperature: 0.1,
-        max_tokens: 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        `OpenAI API error: ${response.status} - ${JSON.stringify(errorData)}`,
-      );
-    }
-
-    const data: OpenAIResponse = await response.json();
-    const content = data.choices[0]?.message?.content || "[]";
-
-    const parsedData = JSON.parse(content);
-
-    if (!Array.isArray(parsedData)) {
-      throw new Error("AI returned invalid format (not an array)");
-    }
-
-    return parsedData.map(mapAIItem);
-  } catch (error) {
-    console.error("AI vision extraction error:", error);
-    if (error instanceof Error) {
-      throw new Error(
-        `Failed to extract schedule from image: ${error.message}`,
-      );
-    }
-    throw new Error("Failed to extract schedule data from image");
-  }
+  return extractViaProxy({ mode: "image", image: base64Image });
 }
 
 /**
- * Use OpenAI to extract schedule items from text
+ * Use AI (via the server proxy) to extract schedule items from text.
  */
 async function extractScheduleWithAI(text: string): Promise<ScheduleItem[]> {
-  if (!OPENAI_API_KEY) {
-    throw new Error(
-      "OpenAI API key not configured. Please add VITE_OPENAI_API_KEY to your .env.local file.",
-    );
-  }
-
-  const systemPrompt = SCHEDULE_SYSTEM_PROMPT;
-
-  const messages: OpenAIMessage[] = [
-    { role: "system", content: systemPrompt },
-    {
-      role: "user",
-      content: `Extract schedule items from this text:\n\n${text}`,
-    },
-  ];
-
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini", // Using the smaller, faster model
-        messages,
-        temperature: 0.1, // Low temperature for consistent extraction
-        max_tokens: 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        `OpenAI API error: ${response.status} - ${JSON.stringify(errorData)}`,
-      );
-    }
-
-    const data: OpenAIResponse = await response.json();
-    const content = data.choices[0]?.message?.content || "[]";
-
-    // Parse the AI response
-    const parsedData = JSON.parse(content);
-
-    if (!Array.isArray(parsedData)) {
-      throw new Error("AI returned invalid format (not an array)");
-    }
-
-    // Convert to ScheduleItem format with generated IDs
-    return parsedData.map(mapAIItem);
-  } catch (error) {
-    console.error("AI extraction error:", error);
-    if (error instanceof Error) {
-      throw new Error(`Failed to extract schedule data: ${error.message}`);
-    }
-    throw new Error("Failed to extract schedule data from AI");
-  }
+  return extractViaProxy({ mode: "text", text });
 }
 
 /**
@@ -297,21 +149,20 @@ async function ocrImage(file: File): Promise<string> {
  *
  * Every path is foolproof without AI: text/PDF fall back to deterministic local
  * parsing, and images fall back to on-device OCR (Tesseract) + local parsing.
- * AI is used first only when a key is configured and working.
+ * AI is attempted first via the server proxy; if the server has no key
+ * configured (503) or the call fails, we transparently fall back.
  */
 export async function importScheduleFromFile(
   file: File,
 ): Promise<ScheduleItem[]> {
-  // Images: try AI vision first (if available), then on-device OCR.
+  // Images: try AI vision first, then on-device OCR.
   if (isImageFile(file)) {
-    if (OPENAI_API_KEY) {
-      try {
-        const aiItems = await extractScheduleFromImage(file);
-        if (aiItems.length > 0) return aiItems;
-      } catch (error) {
-        // No quota / network / API error — fall through to OCR.
-        console.warn("AI vision failed, falling back to OCR:", error);
-      }
+    try {
+      const aiItems = await extractScheduleFromImage(file);
+      if (aiItems.length > 0) return aiItems;
+    } catch (error) {
+      // AI unavailable (no key / quota / network) — fall through to OCR.
+      console.warn("AI vision failed, falling back to OCR:", error);
     }
 
     let ocrText = "";
@@ -334,14 +185,12 @@ export async function importScheduleFromFile(
     throw new Error("File is empty or contains no readable text.");
   }
 
-  if (OPENAI_API_KEY) {
-    try {
-      const aiItems = await extractScheduleWithAI(text);
-      if (aiItems.length > 0) return aiItems;
-    } catch (error) {
-      // AI failed (network/quota/etc.) — fall through to local parsing.
-      console.warn("AI extraction failed, falling back to local parsing:", error);
-    }
+  try {
+    const aiItems = await extractScheduleWithAI(text);
+    if (aiItems.length > 0) return aiItems;
+  } catch (error) {
+    // AI unavailable (no key / quota / network) — fall through to local parsing.
+    console.warn("AI extraction failed, falling back to local parsing:", error);
   }
 
   const manualItems = parseScheduleManually(text);
