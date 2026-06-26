@@ -931,8 +931,7 @@ export default function App() {
               <span className="bottom-nav__icon">☰</span>
               <span className="bottom-nav__label">Menu</span>
             </button>
-            {menuOpen && (
-              <div className="bottom-nav__dropdown">
+            <div className={`bottom-nav__dropdown${menuOpen ? '' : ' bottom-nav__dropdown--hidden'}`}>
                 {view === 'detail' && selectedShow && (
                   <>
                     <p className="bottom-nav__dropdown-label">{selectedShow.name}</p>
@@ -1022,8 +1021,7 @@ export default function App() {
                 >
                   <span>Logout</span>
                 </button>
-              </div>
-            )}
+            </div>
           </nav>
 
           {showForm && (

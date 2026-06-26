@@ -3772,3 +3772,156 @@ button.bento-tile {
 .artist-signup__entry-tag {
   border-radius: var(--radius-full) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DESKTOP LAYOUT — sidebar navigation + wider content grid
+   On screens ≥ 900 px the app expands from a phone column into a two-
+   column layout: a sticky sidebar nav on the left and a wider main area
+   on the right.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Always render the dropdown; CSS controls visibility on each breakpoint. */
+.bottom-nav__dropdown--hidden {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  :root {
+    --sidebar-width: 210px;
+    --desktop-max: 1160px;
+  }
+
+  /* ── App shell ─────────────────────────────────────────────────────── */
+  .app {
+    max-width: var(--desktop-max);
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    grid-template-rows: 1fr;
+    align-items: start;
+    border-radius: var(--radius-lg);
+    overflow: visible;
+    box-shadow: 0 0 0 1px var(--border), var(--shadow-md);
+  }
+
+  /* ── Main content area ─────────────────────────────────────────────── */
+  .app-main {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 28px 28px 48px;
+    min-height: 100dvh;
+  }
+
+  /* ── Sidebar nav (was bottom nav) ──────────────────────────────────── */
+  .bottom-nav {
+    grid-column: 1;
+    grid-row: 1;
+    /* Un-fix from mobile positioning */
+    position: sticky;
+    top: 0;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    max-width: none;
+    width: auto;
+    height: 100dvh;
+    /* Vertical layout */
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 20px 10px 20px;
+    /* Borders — right-only divider */
+    border-top: none;
+    border-bottom: none;
+    border-left: none;
+    border-right: 1px solid var(--border);
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    overflow-y: auto;
+  }
+
+  /* Show a branded label at the top of the sidebar */
+  .bottom-nav::before {
+    content: 'I Can Run A Show';
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 4px 10px 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 10px;
+  }
+
+  /* Hide the hamburger button */
+  .bottom-nav__menu-btn {
+    display: none;
+  }
+
+  /* Dropdown is always visible as a sidebar menu */
+  .bottom-nav__dropdown,
+  .bottom-nav__dropdown--hidden {
+    display: flex !important;
+    flex-direction: column;
+    gap: 2px;
+    position: static;
+    transform: none;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    min-width: auto;
+    width: 100%;
+    animation: none;
+  }
+
+  .bottom-nav__dropdown-item {
+    border-radius: var(--radius-md);
+    padding: 9px 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+
+  .bottom-nav__dropdown-item:not(:last-child) {
+    border-bottom: none;
+  }
+
+  .bottom-nav__dropdown-item:hover {
+    background: var(--surface-strong);
+  }
+
+  .bottom-nav__dropdown-label {
+    padding: 14px 10px 4px;
+    font-size: 0.68rem;
+  }
+
+  .bottom-nav__dropdown-divider {
+    margin: 6px 0;
+  }
+
+  /* Hide bento stat tiles on desktop — they're designed for mobile */
+  .bento-strip {
+    display: none;
+  }
+
+  /* ── Shows grid — 3 columns ────────────────────────────────────────── */
+  .shows-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* First-child override (mobile made it span 2 cols) — reset on desktop */
+  .shows-grid > :first-child {
+    grid-column: auto;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --desktop-max: 1360px;
+    --sidebar-width: 220px;
+  }
+
+  .shows-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
