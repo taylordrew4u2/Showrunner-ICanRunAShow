@@ -2,7 +2,11 @@
 //   GET  ?token=…           → { payload | null }
 //   POST { token, payload } → upsert
 import { ensureSchema, getDb } from './_lib/db';
-import { handleError, json, readJson } from './_lib/http';
+import { exceedsSize, handleError, json, readJson, tooLarge } from './_lib/http';
+
+// The signup payload can embed base64 flash/schedule images, so allow more
+// headroom than the live route while still bounding an anonymous POST.
+const MAX_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
 export default async function handler(req: Request): Promise<Response> {
   try {
@@ -26,6 +30,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (req.method === 'POST') {
       const { token, payload } = await readJson<{ token: string; payload: unknown }>(req);
       if (!token) return json({ error: 'bad_request' }, 400);
+      if (exceedsSize(payload, MAX_PAYLOAD_BYTES)) return tooLarge();
       await db.execute({
         sql: `INSERT INTO artist_signup (token, payload, updated_at) VALUES (?, ?, datetime('now'))
               ON CONFLICT(token) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at`,

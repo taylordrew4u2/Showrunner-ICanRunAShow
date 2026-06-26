@@ -1,10 +1,15 @@
 // /api/artist-entries — public artist sign-up queue entries, keyed by token.
-//   GET    ?token=…          → { entries: [...] }
-//   POST   { token, entry }  → create
-//   PATCH  { id, completed } → mark complete/incomplete
-//   DELETE ?id=…             → remove
+//   GET    ?token=…                 → { entries: [...] }
+//   POST   { token, entry }         → create
+//   PATCH  { token, id, completed } → mark complete/incomplete
+//   DELETE ?token=…&id=…            → remove
+// Mutations are scoped to the token (knowing an entry id alone isn't enough to
+// tamper with someone else's queue).
 import { ensureSchema, getDb } from './_lib/db';
-import { handleError, json, readJson } from './_lib/http';
+import { exceedsSize, handleError, json, readJson, tooLarge } from './_lib/http';
+
+// A single sign-up is a few short fields — no images — so keep this tight.
+const MAX_ENTRY_BYTES = 16 * 1024;
 
 interface NewEntry {
   id: string;
@@ -44,6 +49,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (req.method === 'POST') {
       const { token, entry } = await readJson<{ token: string; entry: NewEntry }>(req);
       if (!token || !entry?.id || !entry?.name) return json({ error: 'bad_request' }, 400);
+      if (exceedsSize(entry, MAX_ENTRY_BYTES)) return tooLarge();
       await db.execute({
         sql: `INSERT INTO artist_signup_entries (id, token, name, phone, email, image_number, color)
               VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -61,19 +67,24 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     if (req.method === 'PATCH') {
-      const { id, completed } = await readJson<{ id: string; completed: boolean }>(req);
-      if (!id) return json({ error: 'bad_request' }, 400);
+      const { token, id, completed } = await readJson<{ token: string; id: string; completed: boolean }>(req);
+      if (!token || !id) return json({ error: 'bad_request' }, 400);
       await db.execute({
-        sql: `UPDATE artist_signup_entries SET completed = ? WHERE id = ?`,
-        args: [completed ? 1 : 0, id],
+        sql: `UPDATE artist_signup_entries SET completed = ? WHERE id = ? AND token = ?`,
+        args: [completed ? 1 : 0, id, token],
       });
       return json({ ok: true });
     }
 
     if (req.method === 'DELETE') {
-      const id = new URL(req.url).searchParams.get('id');
-      if (!id) return json({ error: 'bad_request' }, 400);
-      await db.execute({ sql: `DELETE FROM artist_signup_entries WHERE id = ?`, args: [id] });
+      const url = new URL(req.url);
+      const id = url.searchParams.get('id');
+      const token = url.searchParams.get('token');
+      if (!token || !id) return json({ error: 'bad_request' }, 400);
+      await db.execute({
+        sql: `DELETE FROM artist_signup_entries WHERE id = ? AND token = ?`,
+        args: [id, token],
+      });
       return json({ ok: true });
     }
 

@@ -271,13 +271,17 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
   }
 
   async function handleMarkPaid(entry: ArtistSignupEntry) {
-    await setSignupCompleted(entry.id, !entry.completed);
+    const token = show.artistSignupToken;
+    if (!token) return;
+    await setSignupCompleted(token, entry.id, !entry.completed);
     setSignups((prev) => prev.map((s) => (s.id === entry.id ? { ...s, completed: !s.completed } : s)));
   }
 
   async function handleDelete(id: string) {
+    const token = show.artistSignupToken;
+    if (!token) return;
     if (!window.confirm('Remove this sign-up?')) return;
-    await deleteSignup(id);
+    await deleteSignup(token, id);
     setSignups((prev) => prev.filter((s) => s.id !== id));
   }
 
