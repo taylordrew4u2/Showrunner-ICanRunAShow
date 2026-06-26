@@ -4,8 +4,9 @@ import {
   encryptData,
   encryptWithKey,
   decryptData,
-  decryptWithKey,
+  decryptWithKeys,
   deriveKey,
+  deriveKeys,
   deriveUserId,
   hashPassword,
 } from "./encryption";
@@ -76,9 +77,11 @@ export async function loadEncryptedShows(
     "/api/shows",
     auth(username, password),
   );
-  // Derive the key once and reuse it for every row — PBKDF2 is deliberately slow.
-  const key = deriveKey(password);
-  return shows.map((row) => decryptWithKey<Show>(row.encryptedData, key));
+  // Derive the keys once and reuse them for every row — PBKDF2 is deliberately
+  // slow. decryptWithKeys tries the current key, then the legacy key, so shows
+  // saved before the KDF upgrade still decrypt (and re-encrypt on next save).
+  const keys = deriveKeys(password);
+  return shows.map((row) => decryptWithKeys<Show>(row.encryptedData, keys));
 }
 
 /**

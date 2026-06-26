@@ -41,7 +41,14 @@ const DDL: string[] = [
   `CREATE TABLE IF NOT EXISTS users (
      id            TEXT PRIMARY KEY,
      password_hash TEXT NOT NULL,
+     auth_salt     TEXT,
+     auth_version  INTEGER NOT NULL DEFAULT 1,
      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+   )`,
+  `CREATE TABLE IF NOT EXISTS rate_limit (
+     bucket       TEXT PRIMARY KEY,
+     count        INTEGER NOT NULL DEFAULT 0,
+     window_start TEXT NOT NULL DEFAULT (datetime('now'))
    )`,
   `CREATE TABLE IF NOT EXISTS user_shows (
      id         TEXT PRIMARY KEY,
@@ -85,6 +92,25 @@ const DDL: string[] = [
    )`,
 ];
 
+// Columns added after the original `users` table shipped. CREATE TABLE IF NOT
+// EXISTS won't add them to an existing table, so ALTER each in — ignoring the
+// "duplicate column" error when it's already there (SQLite has no idempotent
+// ADD COLUMN). Existing rows keep auth_version = 1 and upgrade on next login.
+const MIGRATIONS: string[] = [
+  `ALTER TABLE users ADD COLUMN auth_salt TEXT`,
+  `ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 1`,
+];
+
+async function runMigrations(db: Client): Promise<void> {
+  for (const sql of MIGRATIONS) {
+    try {
+      await db.execute(sql);
+    } catch (err) {
+      if (!/duplicate column/i.test(String(err))) throw err;
+    }
+  }
+}
+
 let _schemaReady: Promise<void> | null = null;
 
 export function ensureSchema(): Promise<void> {
@@ -92,7 +118,7 @@ export function ensureSchema(): Promise<void> {
     const db = getDb();
     _schemaReady = db
       .batch(DDL, 'write')
-      .then(() => undefined)
+      .then(() => runMigrations(db))
       .catch((err) => {
         _schemaReady = null; // allow a later retry on a fresh request
         throw err;
