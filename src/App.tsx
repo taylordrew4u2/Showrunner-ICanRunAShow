@@ -575,7 +575,7 @@ export default function App() {
   const upcomingCount = shows.filter((show) => show.status === 'upcoming').length;
   const inProgressCount = shows.filter((show) => show.status === 'in-progress').length;
   const completedCount = shows.filter((show) => show.status === 'completed').length;
-  const totalSceneCount = shows.reduce((sum, show) => sum + (show.scenes?.length ?? 0), 0);
+  // totalSceneCount retained for future use
 
   // Search + status filtering for the shows list.
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -607,21 +607,13 @@ export default function App() {
     }
   });
 
-  function toggleStatusFilter(status: ShowStatus) {
-    setStatusFilter((current) => (current === status ? 'all' : status));
-  }
-
   function clearFilters() {
     setStatusFilter('all');
     setSearchQuery('');
   }
 
-  // The three summary tiles that double as status filters.
-  const statusFilterTiles: { value: ShowStatus; label: string; count: number }[] = [
-    { value: 'upcoming', label: 'Upcoming', count: upcomingCount },
-    { value: 'in-progress', label: 'In progress', count: inProgressCount },
-    { value: 'completed', label: 'Completed', count: completedCount },
-  ];
+  // Counts retained for potential future use
+  const _statusCounts = { upcomingCount, inProgressCount, completedCount }; void _statusCounts;
 
   // What this producer calls the people in their Rolodex (Comics, Queens, …),
   // derived from their show types and overridable in Settings.
@@ -688,31 +680,6 @@ export default function App() {
                   <h1 className="shows-list__title">Shows</h1>
                   <button className="btn btn--primary btn--sm shows-list__new-btn" onClick={() => setShowForm(true)}>+ New Show</button>
                 </div>
-                <section className="bento-strip" aria-label="Show summary">
-                  <article className="bento-tile bento-tile--hero">
-                    <p className="bento-tile__label">I Can Run A Show</p>
-                    <h1 className="bento-tile__value">{shows.length}</h1>
-                    <p className="bento-tile__meta">Total shows in your workspace</p>
-                  </article>
-                  {statusFilterTiles.map(({ value, label, count }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={`bento-tile bento-tile--filter ${statusFilter === value ? 'bento-tile--active' : ''}`}
-                      onClick={() => toggleStatusFilter(value)}
-                      aria-pressed={statusFilter === value}
-                    >
-                      <p className="bento-tile__label">{label}</p>
-                      <p className="bento-tile__value">{count}</p>
-                    </button>
-                  ))}
-                  <article className="bento-tile bento-tile--wide">
-                    <p className="bento-tile__label">Total scenes</p>
-                    <p className="bento-tile__value">{totalSceneCount}</p>
-                    <p className="bento-tile__meta">Across all shows</p>
-                  </article>
-                </section>
-
                 {shows.length > 0 && (
                   <div className="shows-toolbar">
                     <input
@@ -720,43 +687,45 @@ export default function App() {
                       type="search"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search shows by name, venue, or location…"
+                      placeholder="Search shows…"
                       aria-label="Search shows"
                     />
-                    <div className="shows-toolbar__filters" role="group" aria-label="Filter shows by status">
-                      {([
-                        ['all', 'All'],
-                        ['upcoming', 'Upcoming'],
-                        ['in-progress', 'In progress'],
-                        ['completed', 'Completed'],
-                      ] as const).map(([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          className={`shows-chip ${statusFilter === value ? 'shows-chip--active' : ''}`}
-                          onClick={() => setStatusFilter(value)}
-                          aria-pressed={statusFilter === value}
-                        >
-                          {label}
-                        </button>
-                      ))}
+                    <div className="shows-toolbar__row2">
+                      <div className="shows-toolbar__filters" role="group" aria-label="Filter by status">
+                        {([
+                          ['all', 'All'],
+                          ['upcoming', 'Upcoming'],
+                          ['in-progress', 'In progress'],
+                          ['completed', 'Completed'],
+                        ] as const).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            className={`shows-chip ${statusFilter === value ? 'shows-chip--active' : ''}`}
+                            onClick={() => setStatusFilter(value)}
+                            aria-pressed={statusFilter === value}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <select
+                        className="shows-toolbar__sort"
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                        aria-label="Sort shows"
+                      >
+                        <option value="added">Recent</option>
+                        <option value="date-asc">Soonest</option>
+                        <option value="date-desc">Latest</option>
+                        <option value="name">A–Z</option>
+                      </select>
+                      {isFiltering && (
+                        <span className="shows-toolbar__count">
+                          {filteredShows.length} of {shows.length}
+                        </span>
+                      )}
                     </div>
-                    <select
-                      className="shows-toolbar__sort"
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                      aria-label="Sort shows"
-                    >
-                      <option value="added">Recently added</option>
-                      <option value="date-asc">Date (soonest)</option>
-                      <option value="date-desc">Date (latest)</option>
-                      <option value="name">Name (A–Z)</option>
-                    </select>
-                    {isFiltering && (
-                      <span className="shows-toolbar__count">
-                        {filteredShows.length} of {shows.length}
-                      </span>
-                    )}
                   </div>
                 )}
 

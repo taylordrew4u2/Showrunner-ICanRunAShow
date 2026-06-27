@@ -394,19 +394,17 @@ button.bento-tile {
   flex-shrink: 0;
 }
 
-/* ── Shows Toolbar (search + status filters) ─────────────────────────── */
+/* ── Shows Toolbar ───────────────────────────────────────────────────── */
 
 .shows-toolbar {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .shows-toolbar__search {
-  flex: 1 1 240px;
-  min-width: 0;
+  width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -427,10 +425,18 @@ button.bento-tile {
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
-.shows-toolbar__filters {
+.shows-toolbar__row2 {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.shows-toolbar__filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
 }
 
 .shows-toolbar__sort {
