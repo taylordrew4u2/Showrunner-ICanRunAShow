@@ -684,6 +684,10 @@ export default function App() {
           <main className="app-main">
             {view === 'list' && (
               <div className="shows-list">
+                <div className="shows-list__header">
+                  <h1 className="shows-list__title">Shows</h1>
+                  <button className="btn btn--primary btn--sm shows-list__new-btn" onClick={() => setShowForm(true)}>+ New Show</button>
+                </div>
                 <section className="bento-strip" aria-label="Show summary">
                   <article className="bento-tile bento-tile--hero">
                     <p className="bento-tile__label">I Can Run A Show</p>
@@ -923,104 +927,96 @@ export default function App() {
           </main>
 
           <nav className="bottom-nav" aria-label="Primary navigation">
+            {/* Brand wordmark — visible in desktop sidebar */}
+            <div className="bottom-nav__brand">
+              <span className="bottom-nav__brand-dot" />
+              <span className="bottom-nav__brand-text">I Can Run A Show</span>
+            </div>
+
+            {/* Show context — desktop sidebar only, when viewing a show */}
+            {view === 'detail' && selectedShow && (
+              <div className="bottom-nav__show-ctx">
+                <p className="bottom-nav__show-ctx-name">{selectedShow.name}</p>
+                <button className="bottom-nav__ctx-item" onClick={() => showDetailRef.current?.openRunShow()}>▶ Run Show</button>
+                <button className="bottom-nav__ctx-item" onClick={() => showDetailRef.current?.openViewer()}>Viewer link</button>
+                {(!(selectedShow.hiddenSections || []).includes('artists') || !!selectedShow.artistSignupToken) && (
+                  <button className="bottom-nav__ctx-item" onClick={() => showDetailRef.current?.openArtistAdmin()}>Artist admin</button>
+                )}
+                <button className="bottom-nav__ctx-item" onClick={() => exportShowToPDF(selectedShow, settings)}>Export PDF</button>
+              </div>
+            )}
+
+            {/* Primary nav items */}
+            <div className="bottom-nav__items">
+              <button
+                className={`bottom-nav__item${view === 'list' || view === 'detail' ? ' bottom-nav__item--active' : ''}`}
+                onClick={() => { handleBack(); setMenuOpen(false); }}
+              >
+                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1zm0 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1zm0 5a1 1 0 011-1h8a1 1 0 010 2H3a1 1 0 01-1-1z"/></svg>
+                <span>Shows</span>
+              </button>
+              <button
+                className="bottom-nav__item bottom-nav__item--new"
+                onClick={() => { setShowForm(true); setMenuOpen(false); }}
+              >
+                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/></svg>
+                <span>New Show</span>
+              </button>
+              <button
+                className={`bottom-nav__item${view === 'rolodex' ? ' bottom-nav__item--active' : ''}`}
+                onClick={() => { setView('rolodex'); setSelectedShow(null); setMenuOpen(false); }}
+              >
+                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+                <span>{rolodexTerm.singular} Rolodex</span>
+              </button>
+              <button
+                className={`bottom-nav__item${view === 'expenses' ? ' bottom-nav__item--active' : ''}`}
+                onClick={() => { setView('expenses'); setSelectedShow(null); setMenuOpen(false); }}
+              >
+                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd"/></svg>
+                <span>Expenses</span>
+              </button>
+            </div>
+
+            {/* Bottom of sidebar: settings + logout */}
+            <div className="bottom-nav__footer">
+              <button
+                className={`bottom-nav__item${view === 'settings' ? ' bottom-nav__item--active' : ''}`}
+                onClick={() => { setView('settings'); setSelectedShow(null); setMenuOpen(false); }}
+              >
+                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd"/></svg>
+                <span>Settings</span>
+              </button>
+              <button className="bottom-nav__item bottom-nav__item--logout" onClick={() => { handleLogout(); setMenuOpen(false); }}>
+                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd"/></svg>
+                <span>Logout</span>
+              </button>
+            </div>
+
+            {/* Mobile-only: hamburger for overflow/contextual actions */}
             <button
               className="bottom-nav__menu-btn"
               onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Menu"
+              aria-label="More options"
+              aria-expanded={menuOpen}
             >
-              <span className="bottom-nav__icon">☰</span>
-              <span className="bottom-nav__label">Menu</span>
+              <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20" aria-hidden="true"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg>
             </button>
             <div className={`bottom-nav__dropdown${menuOpen ? '' : ' bottom-nav__dropdown--hidden'}`}>
-                {view === 'detail' && selectedShow && (
-                  <>
-                    <p className="bottom-nav__dropdown-label">{selectedShow.name}</p>
-                    <button
-                      className="bottom-nav__dropdown-item"
-                      onClick={() => { showDetailRef.current?.openRunShow(); setMenuOpen(false); }}
-                    >
-                      <span>Run Show</span>
-                    </button>
-                    <button
-                      className="bottom-nav__dropdown-item"
-                      onClick={() => { showDetailRef.current?.openViewer(); setMenuOpen(false); }}
-                    >
-                      <span>Viewer link</span>
-                    </button>
-                    {(!(selectedShow.hiddenSections || []).includes('artists') || !!selectedShow.artistSignupToken) && (
-                      <button
-                        className="bottom-nav__dropdown-item"
-                        onClick={() => { showDetailRef.current?.openArtistAdmin(); setMenuOpen(false); }}
-                      >
-                        <span>Artist admin</span>
-                      </button>
-                    )}
-                    <button
-                      className="bottom-nav__dropdown-item"
-                      onClick={() => { exportShowToPDF(selectedShow, settings); setMenuOpen(false); }}
-                    >
-                      <span>Export PDF</span>
-                    </button>
-                    <div className="bottom-nav__dropdown-divider" />
-                  </>
-                )}
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    handleBack();
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span>Shows</span>
-                </button>
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    setShowForm(true);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span>New Show</span>
-                </button>
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    setView('rolodex');
-                    setSelectedShow(null);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span>{rolodexTerm.singular} Rolodex</span>
-                </button>
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    setView('expenses');
-                    setSelectedShow(null);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span>Expenses</span>
-                </button>
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    setView('settings');
-                    setSelectedShow(null);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span>Settings</span>
-                </button>
-                <button
-                  className="bottom-nav__dropdown-item"
-                  onClick={() => {
-                    handleLogout();
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span>Logout</span>
-                </button>
+              {view === 'detail' && selectedShow && (
+                <>
+                  <p className="bottom-nav__dropdown-label">{selectedShow.name}</p>
+                  <button className="bottom-nav__dropdown-item" onClick={() => { showDetailRef.current?.openRunShow(); setMenuOpen(false); }}>▶ Run Show</button>
+                  <button className="bottom-nav__dropdown-item" onClick={() => { showDetailRef.current?.openViewer(); setMenuOpen(false); }}>Viewer link</button>
+                  {(!(selectedShow.hiddenSections || []).includes('artists') || !!selectedShow.artistSignupToken) && (
+                    <button className="bottom-nav__dropdown-item" onClick={() => { showDetailRef.current?.openArtistAdmin(); setMenuOpen(false); }}>Artist admin</button>
+                  )}
+                  <button className="bottom-nav__dropdown-item" onClick={() => { exportShowToPDF(selectedShow, settings); setMenuOpen(false); }}>Export PDF</button>
+                  <div className="bottom-nav__dropdown-divider" />
+                </>
+              )}
+              <button className="bottom-nav__dropdown-item" onClick={() => { setView('settings'); setSelectedShow(null); setMenuOpen(false); }}>Settings</button>
+              <button className="bottom-nav__dropdown-item" onClick={() => { handleLogout(); setMenuOpen(false); }}>Logout</button>
             </div>
           </nav>
 
