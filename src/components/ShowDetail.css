@@ -1195,6 +1195,10 @@ select.show-detail__status--select {
   touch-action: manipulation;
 }
 
+@media (hover: none) {
+  .media-grid__remove { opacity: 1; }
+}
+
 @media (hover: hover) {
   .media-grid__tile:hover .media-grid__remove {
     opacity: 1;
@@ -2022,6 +2026,7 @@ select.show-detail__status--select {
   letter-spacing: 0.08em;
   margin-bottom: 12px;
 }
+[data-theme="dark"] .budget-card__title { color: #4ade80; }
 .budget-card__grid {
   display: flex;
   gap: 20px;
