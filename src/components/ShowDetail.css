@@ -22,18 +22,21 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
 }
 
-/* Secondary actions sit inline on desktop; the wrapper is transparent to layout. */
-.show-detail__topbar-secondary {
-  display: contents;
-}
-
-@media (max-width: 768px) {
-  /* On mobile these actions live in the bottom menu, so keep the bar uncluttered. */
-  .show-detail__topbar-secondary {
+/* On desktop the sidebar "Shows" link acts as Back, so hide the duplicate. */
+@media (min-width: 900px) {
+  .show-detail__back-btn {
     display: none;
   }
+}
+
+/* Secondary actions hidden everywhere — they live in the sidebar (desktop) or bottom menu (mobile). */
+.show-detail__topbar-secondary {
+  display: none;
 }
 
 /* Prominent "Run Show" action — always visible when a show is open */
@@ -73,7 +76,7 @@
 
 .show-detail__save-indicator {
   position: fixed;
-  bottom: 80px;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%) translateY(16px);
   font-size: 0.95rem;
@@ -130,8 +133,9 @@
 .show-detail__header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
+  margin-top: 8px;
 }
 
 .show-detail__title {
@@ -208,19 +212,24 @@ select.show-detail__status--select {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 16px 0 4px;
+  padding: 12px 14px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-top: 8px;
 }
 
 .show-detail__host-label {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .show-detail__host-input {
-  flex: 1 1 200px;
+  flex: 1 1 160px;
   min-width: 0;
 }
 
@@ -556,16 +565,27 @@ select.show-detail__status--select {
 }
 
 .accordion-section__deadline-bar {
-  padding: 12px 20px;
-  background: var(--surface-strong);
+  padding: 8px 20px;
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
+}
+
+.accordion-section:hover .accordion-section__deadline-bar,
+.accordion-section:focus-within .accordion-section__deadline-bar {
+  opacity: 1;
+}
+
+/* Always fully visible when a deadline is already set or being edited */
+.accordion-section__deadline-bar:has(.accordion-section__deadline-display),
+.accordion-section__deadline-bar:has(.accordion-section__deadline-editor) {
+  opacity: 1;
 }
 
 .accordion-section--complete .accordion-section__deadline-bar {
-  background: rgba(34, 197, 94, 0.06);
   border-top-color: #14532d;
 }
 
@@ -1809,6 +1829,18 @@ select.show-detail__status--select {
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  opacity: 0;
+}
+
+.accordion-section:hover .accordion-section__remove-btn,
+.accordion-section:focus-within .accordion-section__remove-btn {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .accordion-section__remove-btn {
+    opacity: 1;
+  }
 }
 
 .accordion-section__remove-btn:hover {
@@ -2160,11 +2192,23 @@ select.show-detail__status--select {
 
 /* ─── Theme Toggle Button ────────────────────────────────────────────────── */
 .show-detail__theme-toggle {
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s ease;
+}
+
+.show-detail__theme-toggle:hover {
+  background: var(--surface-strong);
 }
 
 /* ─── Light Mode Override ─────────────────────────────────────────────────
