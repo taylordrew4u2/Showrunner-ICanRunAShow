@@ -417,11 +417,11 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
     <div className={`show-detail${lightMode ? ' show-detail--light' : ''}`}>
       <div className="show-detail__hero">
         <div className="show-detail__topbar">
-          <button className="btn btn--ghost" onClick={onBack}>← Back</button>
+          <button className="btn btn--ghost show-detail__back-btn" onClick={onBack}>← Back</button>
           <div className="show-detail__save-indicator-container">
             {saveStatus === 'saving' && (
               <span className="show-detail__save-indicator show-detail__save-indicator--saving">
-                Saving...
+                Saving…
               </span>
             )}
             {saveStatus === 'saved' && (
@@ -431,14 +431,14 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
             )}
           </div>
           <button
-            className="btn btn--ghost btn--sm show-detail__theme-toggle"
+            className="show-detail__theme-toggle"
             onClick={() => setLightMode((v) => !v)}
             title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
             aria-pressed={lightMode}
           >
-            {lightMode ? 'Dark' : 'Light'}
+            {lightMode ? '🌙' : '☀️'}
           </button>
-          {/* Secondary actions — hidden on mobile, where they live in the menu. */}
+          {/* Secondary actions — hidden on mobile (bottom menu) and desktop (sidebar). */}
           <div className="show-detail__topbar-secondary">
             <button className="btn btn--secondary btn--sm" onClick={() => exportShowToPDF(show, settings)}>
               Export PDF
