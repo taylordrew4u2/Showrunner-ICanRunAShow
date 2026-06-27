@@ -151,9 +151,9 @@
 .show-card__delete,
 .show-card__duplicate {
   position: absolute;
-  top: 10px;
-  min-width: 36px;
-  min-height: 36px;
+  top: 8px;
+  min-width: 44px;
+  min-height: 44px;
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;

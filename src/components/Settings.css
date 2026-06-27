@@ -272,6 +272,7 @@
     .settings__save {
         width: auto;
         align-self: flex-start;
+    }
 
     .settings__trash-section {
         margin-top: 8px;
@@ -333,6 +334,5 @@
     .settings__trash-actions {
         display: flex;
         gap: 8px;
-    }
     }
 }
