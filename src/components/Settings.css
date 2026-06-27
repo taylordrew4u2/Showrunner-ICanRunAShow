@@ -95,6 +95,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
+    align-items: start;
 }
 
 .settings__term-field {
@@ -153,6 +154,11 @@
     height: 44px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border, #e4e7ec);
+}
+
+.settings__theme:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .settings__theme-dot {
@@ -335,4 +341,13 @@
         display: flex;
         gap: 8px;
     }
+}
+
+[data-theme="dark"] .settings__trash-section {
+    background: rgba(220, 38, 38, 0.08);
+    border-color: rgba(220, 38, 38, 0.2);
+}
+
+[data-theme="dark"] .settings__trash-item {
+    border-color: rgba(220, 38, 38, 0.15);
 }

@@ -140,6 +140,10 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.onboarding__input::placeholder {
+  color: var(--text-soft, #9ca3af);
+}
+
 .onboarding__input:focus {
   outline: none;
   border-color: var(--primary, #DC2626);
