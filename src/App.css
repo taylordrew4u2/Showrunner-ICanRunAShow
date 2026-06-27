@@ -376,6 +376,24 @@ button.bento-tile {
   }
 }
 
+/* ── Shows list page header ──────────────────────────────────────────── */
+
+.shows-list__header {
+  display: none; /* hidden on mobile; bento-strip takes this role */
+}
+
+.shows-list__title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin: 0;
+}
+
+.shows-list__new-btn {
+  flex-shrink: 0;
+}
+
 /* ── Shows Toolbar (search + status filters) ─────────────────────────── */
 
 .shows-toolbar {
@@ -767,6 +785,29 @@ button.bento-tile {
   font-size: 0.87rem;
 }
 
+/* ── Bottom nav / Sidebar nav ────────────────────────────────────────── */
+
+/* Brand wordmark — only visible in desktop sidebar */
+.bottom-nav__brand {
+  display: none;
+}
+
+/* Show context section — only visible in desktop sidebar */
+.bottom-nav__show-ctx {
+  display: none;
+}
+
+/* Core nav items container — mobile tab bar */
+.bottom-nav__items {
+  display: contents; /* on mobile, items go directly into the nav flex row */
+}
+
+/* Nav footer (settings/logout) — hidden on mobile */
+.bottom-nav__footer {
+  display: none;
+}
+
+/* Mobile nav: fixed tab bar at bottom */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -783,57 +824,94 @@ button.bento-tile {
   border-right: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-around;
+  gap: 2px;
 }
 
-.bottom-nav__menu-btn {
-  min-height: 52px;
-  min-width: 120px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--primary);
-  color: var(--on-primary);
+/* Tab items (mobile) */
+.bottom-nav__item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  font-size: 0.8rem;
-  font-weight: 700;
+  gap: 3px;
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 0.68rem;
+  font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
-  transition: transform 0.1s ease, background-color 0.15s ease;
-  box-shadow: var(--shadow-sm);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease, background-color 0.15s ease;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  letter-spacing: 0.01em;
+}
+
+.bottom-nav__item--active {
+  color: var(--primary);
+}
+
+.bottom-nav__item--new {
+  color: var(--on-primary);
+  background: var(--primary);
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
+}
+
+.bottom-nav__item--logout {
+  color: var(--text-muted);
+}
+
+.bottom-nav__item-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.bottom-nav__item:active {
+  opacity: 0.7;
+}
+
+/* "More" button — mobile only */
+.bottom-nav__menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 0.15s ease;
 }
 
 .bottom-nav__menu-btn:active {
-  transform: scale(0.95);
+  background: var(--surface-strong);
 }
 
+/* Mobile overflow dropdown */
 .bottom-nav__dropdown {
   position: absolute;
   bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+  right: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   overflow: hidden;
   min-width: 200px;
-  animation: slideUp 0.2s ease;
+  animation: slideUp 0.18s ease;
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .bottom-nav__dropdown-item {
@@ -841,11 +919,11 @@ button.bento-tile {
   border: 0;
   background: transparent;
   color: var(--text);
-  padding: 14px 16px;
+  padding: 13px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 0.95rem;
+  font-size: 0.93rem;
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
@@ -863,7 +941,7 @@ button.bento-tile {
 
 .bottom-nav__dropdown-label {
   margin: 0;
-  padding: 12px 16px 6px;
+  padding: 10px 16px 4px;
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -878,24 +956,26 @@ button.bento-tile {
 .bottom-nav__dropdown-divider {
   height: 1px;
   background: var(--border);
-  margin: 4px 0;
-}
-
-.bottom-nav__label {
-  font-size: 0.8rem;
-  font-weight: 700;
+  margin: 2px 0;
 }
 
 @media (hover: hover) {
-
   .btn--secondary:hover:not(:disabled),
   .btn--ghost:hover:not(:disabled),
   .app-header__icon-btn:hover {
     background: var(--surface-strong);
   }
 
-  .btn--primary:hover:not(:disabled),
-  .bottom-nav__menu-btn:hover {
+  .btn--primary:hover:not(:disabled) {
+    background: var(--primary-pressed);
+  }
+
+  .bottom-nav__item:hover:not(.bottom-nav__item--new) {
+    color: var(--text);
+    background: var(--surface-strong);
+  }
+
+  .bottom-nav__item--new:hover {
     background: var(--primary-pressed);
   }
 
@@ -3793,123 +3873,240 @@ button.bento-tile {
   display: none;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   DESKTOP LAYOUT  ≥ 900px
+   ═══════════════════════════════════════════════════════════════════════ */
 @media (min-width: 900px) {
   :root {
-    --sidebar-width: 210px;
-    --desktop-max: 1160px;
+    --sidebar-width: 224px;
+    --desktop-max: 1200px;
   }
 
-  /* ── App shell ─────────────────────────────────────────────────────── */
+  /* ── Page background ───────────────────────────────────────────────── */
+  body {
+    background: var(--backdrop, #e6e2d8);
+  }
+
+  /* ── App shell: sidebar + content grid ────────────────────────────── */
   .app {
     max-width: var(--desktop-max);
+    min-height: 100dvh;
+    max-height: 100dvh;
     display: grid;
     grid-template-columns: var(--sidebar-width) 1fr;
     grid-template-rows: 1fr;
-    align-items: start;
+    align-items: stretch;
     border-radius: var(--radius-lg);
-    overflow: visible;
-    box-shadow: 0 0 0 1px var(--border), var(--shadow-md);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--border), 0 24px 60px rgba(20,16,8,0.18);
+    border-left: none;
+    border-right: none;
   }
 
   /* ── Main content area ─────────────────────────────────────────────── */
   .app-main {
     grid-column: 2;
     grid-row: 1;
-    padding: 28px 28px 48px;
+    padding: 32px 32px 48px;
     min-height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
   }
 
-  /* ── Sidebar nav (was bottom nav) ──────────────────────────────────── */
+  /* ── Sidebar ────────────────────────────────────────────────────────── */
   .bottom-nav {
     grid-column: 1;
     grid-row: 1;
-    /* Un-fix from mobile positioning */
     position: sticky;
     top: 0;
     left: auto;
     bottom: auto;
     transform: none;
     max-width: none;
-    width: auto;
+    width: var(--sidebar-width);
     height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
     /* Vertical layout */
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
-    padding: 20px 10px 20px;
-    /* Borders — right-only divider */
+    padding: 0;
+    gap: 0;
+    /* Borders */
     border-top: none;
     border-bottom: none;
     border-left: none;
     border-right: 1px solid var(--border);
-    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
-    overflow-y: auto;
+    border-radius: 0;
+    background: var(--surface);
   }
 
-  /* Show a branded label at the top of the sidebar */
-  .bottom-nav::before {
-    content: 'I Can Run A Show';
-    display: block;
+  /* Brand wordmark */
+  .bottom-nav__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+    flex-shrink: 0;
+  }
+
+  .bottom-nav__brand-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+    flex-shrink: 0;
+  }
+
+  .bottom-nav__brand-text {
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  /* Show context block */
+  .bottom-nav__show-ctx {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 8px 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  .bottom-nav__show-ctx-name {
     font-size: 0.7rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--text-muted);
-    padding: 4px 10px 16px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 10px;
+    color: var(--text-soft);
+    padding: 4px 8px 6px;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  /* Hide the hamburger button */
+  .bottom-nav__ctx-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 7px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    text-align: left;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+
+  .bottom-nav__ctx-item:hover {
+    background: var(--surface-strong);
+    color: var(--text);
+  }
+
+  /* Primary nav items — vertical list in sidebar */
+  .bottom-nav__items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 8px;
+    flex: 1;
+  }
+
+  .bottom-nav__item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 9px 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    min-height: 40px;
+    min-width: auto;
+    letter-spacing: 0;
+  }
+
+  .bottom-nav__item-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .bottom-nav__item--active {
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+
+  .bottom-nav__item--active .bottom-nav__item-icon {
+    opacity: 1;
+  }
+
+  .bottom-nav__item--new {
+    background: var(--primary);
+    color: var(--on-primary);
+    border-radius: var(--radius-md);
+    padding: 9px 10px;
+    margin-bottom: 4px;
+  }
+
+  .bottom-nav__item--new .bottom-nav__item-icon {
+    opacity: 1;
+  }
+
+  .bottom-nav__item:hover:not(.bottom-nav__item--active):not(.bottom-nav__item--new) {
+    background: var(--surface-strong);
+    color: var(--text);
+  }
+
+  /* Footer: settings + logout */
+  .bottom-nav__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 8px 16px;
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+    flex-shrink: 0;
+  }
+
+  .bottom-nav__item--logout {
+    color: var(--text-soft);
+    font-size: 0.85rem;
+  }
+
+  /* Hide mobile-only elements on desktop */
   .bottom-nav__menu-btn {
     display: none;
   }
 
-  /* Dropdown is always visible as a sidebar menu */
   .bottom-nav__dropdown,
   .bottom-nav__dropdown--hidden {
-    display: flex !important;
-    flex-direction: column;
-    gap: 2px;
-    position: static;
-    transform: none;
-    box-shadow: none;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    min-width: auto;
-    width: 100%;
-    animation: none;
+    display: none !important;
   }
 
-  .bottom-nav__dropdown-item {
-    border-radius: var(--radius-md);
-    padding: 9px 12px;
-    font-size: 0.88rem;
-    font-weight: 600;
-    transition: background-color 0.12s ease, color 0.12s ease;
-  }
-
-  .bottom-nav__dropdown-item:not(:last-child) {
-    border-bottom: none;
-  }
-
-  .bottom-nav__dropdown-item:hover {
-    background: var(--surface-strong);
-  }
-
-  .bottom-nav__dropdown-label {
-    padding: 14px 10px 4px;
-    font-size: 0.68rem;
-  }
-
-  .bottom-nav__dropdown-divider {
-    margin: 6px 0;
-  }
-
-  /* Hide bento stat tiles on desktop — they're designed for mobile */
+  /* ── Bento strip — hidden on desktop ──────────────────────────────── */
   .bento-strip {
     display: none;
+  }
+
+  /* ── Shows list header ─────────────────────────────────────────────── */
+  .shows-list__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
   }
 
   /* ── Shows grid — 3 columns ────────────────────────────────────────── */
@@ -3917,19 +4114,30 @@ button.bento-tile {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  /* First-child override (mobile made it span 2 cols) — reset on desktop */
   .shows-grid > :first-child {
     grid-column: auto;
   }
+
+  /* ── Show toolbar ──────────────────────────────────────────────────── */
+  .shows-toolbar {
+    margin-bottom: 20px;
+  }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   WIDE DESKTOP  ≥ 1280px
+   ═══════════════════════════════════════════════════════════════════════ */
 @media (min-width: 1280px) {
   :root {
-    --desktop-max: 1360px;
-    --sidebar-width: 220px;
+    --desktop-max: 1400px;
+    --sidebar-width: 240px;
   }
 
   .shows-grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .app-main {
+    padding: 36px 40px 56px;
   }
 }
