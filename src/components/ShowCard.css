@@ -111,6 +111,17 @@
   border: 1px solid var(--border);
 }
 
+[data-theme="dark"] .show-card__status--upcoming {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+[data-theme="dark"] .show-card__status--in-progress {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text);
+}
+
 .show-card__venue,
 .show-card__date {
   font-size: 0.88rem;

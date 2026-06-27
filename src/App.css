@@ -419,7 +419,7 @@ button.bento-tile {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 9px 12px;
+  padding: 10px 13px;
   color: var(--text);
   font-size: 0.85rem;
   font-weight: 600;
@@ -1484,6 +1484,8 @@ button.bento-tile {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
   z-index: 80;
   display: flex;
   align-items: flex-end;
