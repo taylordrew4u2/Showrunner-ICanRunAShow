@@ -572,9 +572,6 @@ export default function App() {
     setSelectedShow(null);
   }
 
-  const upcomingCount = shows.filter((show) => show.status === 'upcoming').length;
-  const inProgressCount = shows.filter((show) => show.status === 'in-progress').length;
-  const completedCount = shows.filter((show) => show.status === 'completed').length;
   // totalSceneCount retained for future use
 
   // Search + status filtering for the shows list.
@@ -612,8 +609,6 @@ export default function App() {
     setSearchQuery('');
   }
 
-  // Counts retained for potential future use
-  const _statusCounts = { upcomingCount, inProgressCount, completedCount }; void _statusCounts;
 
   // What this producer calls the people in their Rolodex (Comics, Queens, …),
   // derived from their show types and overridable in Settings.
@@ -702,7 +697,7 @@ export default function App() {
                             key={value}
                             type="button"
                             className={`shows-chip ${statusFilter === value ? 'shows-chip--active' : ''}`}
-                            onClick={() => setStatusFilter(value)}
+                            onClick={() => setStatusFilter((cur) => (cur === value ? 'all' : value))}
                             aria-pressed={statusFilter === value}
                           >
                             {label}
