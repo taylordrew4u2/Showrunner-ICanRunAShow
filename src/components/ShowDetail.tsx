@@ -472,6 +472,7 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
         <div className="show-detail__header">
           {editingShowName ? (
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1 }}>
+              <h1 className="show-detail__title" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>{tempShowName || show.name}</h1>
               <input
                 className="section-field__input"
                 value={tempShowName}
@@ -725,9 +726,9 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       )}
 
       {viewerOpen && (
-        <Modal onClose={() => setViewerOpen(false)}>
+        <Modal onClose={() => setViewerOpen(false)} labelledBy="viewer-link-modal-title">
           <div className="viewer-link-modal">
-            <h2 className="viewer-link-modal__title">Public viewer link</h2>
+            <h2 id="viewer-link-modal-title" className="viewer-link-modal__title">Public viewer link</h2>
             <p className="viewer-link-modal__sub">
               A read-only page anyone with the link can open — shows the timer, who's on stage,
               and who's coming up next. Until the show goes live, it shows the start time and
