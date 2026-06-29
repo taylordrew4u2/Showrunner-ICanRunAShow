@@ -41,7 +41,7 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
       onClick={e => onSelect(show, e)}
     >
       <div className="show-card__header">
-        <h3 className="show-card__title">{show.name}</h3>
+        <h2 className="show-card__title">{show.name}</h2>
         <div className="show-card__actions">
           <button
             className="show-card__action-btn"

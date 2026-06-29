@@ -102,7 +102,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
     <div className="expenses-page">
       <div className="expenses-page__topbar">
         <button className="btn btn--ghost" onClick={onBack}>← Back</button>
-        <h2 className="expenses-page__title">Expenses</h2>
+        <h1 className="expenses-page__title">Expenses</h1>
       </div>
 
       {brandBudget > 0 && (
@@ -128,7 +128,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
       )}
 
       <div className="expenses-page__add">
-        <h3 className="expenses-page__add-title">Add Expense</h3>
+        <h2 className="expenses-page__add-title">Add Expense</h2>
         <div className="section-add-grid">
           <select
             className="section-field__select"

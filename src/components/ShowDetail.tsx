@@ -493,7 +493,7 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
             </div>
           ) : (
             <>
-              <h2 className="show-detail__title">{show.name}</h2>
+              <h1 className="show-detail__title">{show.name}</h1>
               <button
                 className="btn btn--ghost btn--sm"
                 onClick={handleEditShowName}
@@ -583,7 +583,7 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
               >
                 <div className="accordion-section__header-left">
                   <div className="accordion-section__title-row">
-                    <h3 className="accordion-section__title">{section.title}</h3>
+                    <h2 className="accordion-section__title">{section.title}</h2>
                     {typeof section.count === 'number' && (
                       <span className="accordion-section__count">{section.count}</span>
                     )}
@@ -727,7 +727,7 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       {viewerOpen && (
         <Modal onClose={() => setViewerOpen(false)}>
           <div className="viewer-link-modal">
-            <h3 className="viewer-link-modal__title">Public viewer link</h3>
+            <h2 className="viewer-link-modal__title">Public viewer link</h2>
             <p className="viewer-link-modal__sub">
               A read-only page anyone with the link can open — shows the timer, who's on stage,
               and who's coming up next. Until the show goes live, it shows the start time and

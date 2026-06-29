@@ -65,7 +65,7 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
   return (
     <div className="settings">
       <button className="btn btn--ghost" onClick={onBack}>← Back</button>
-      <h2 className="settings__title">Settings</h2>
+      <h1 className="settings__title">Settings</h1>
 
       {onColorSchemeChange && (
         <div className="settings__card">

@@ -107,7 +107,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
         {locked && <span className="pill pill--red pill--dot">Locked In</span>}
       </div>
 
-      <h2 className="perf-profile__heading">Performer Profile</h2>
+      <h3 className="perf-profile__heading">Performer Profile</h3>
 
       {/* Main card: fields + photo */}
       <div className="perf-profile__card">
