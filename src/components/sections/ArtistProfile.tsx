@@ -86,7 +86,7 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
         {locked && <span className="pill pill--red pill--dot">Locked In</span>}
       </div>
 
-      <h2 className="perf-profile__heading">Artist Profile</h2>
+      <h3 className="perf-profile__heading">Artist Profile</h3>
 
       {/* Main card: fields + photo */}
       <div className="perf-profile__card">

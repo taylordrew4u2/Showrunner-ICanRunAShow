@@ -289,7 +289,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     if (!show.artistSignupToken) {
       return (
         <div className="artist-card artist-page__col-full">
-          <h3 className="artist-card__title">No sign-up link yet</h3>
+          <h2 className="artist-card__title">No sign-up link yet</h2>
           <p className="artist-card__hint">Go to <strong>Settings</strong> and tap <strong>Save & publish</strong> to generate your public sign-up link.</p>
         </div>
       );
@@ -381,7 +381,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
 
         {onDeck.length > 0 && (
           <section className="artist-card artist-page__col-full">
-            <h3 className="artist-card__title">On deck</h3>
+            <h2 className="artist-card__title">On deck</h2>
             <ol className="artist-queue__deck">
               {onDeck.map((s, i) => (
                 <li key={s.id} className="artist-queue__deck-item">
@@ -418,7 +418,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
         )}
 
         <section className="artist-card artist-page__col-full">
-          <h3 className="artist-card__title">Public sign-up link</h3>
+          <h2 className="artist-card__title">Public sign-up link</h2>
           <div className="viewer-link-modal__url-row">
             <input className="section-field__input" readOnly value={url ?? ''} onFocus={(e) => e.currentTarget.select()} />
             <button className="btn btn--secondary btn--sm" onClick={handleCopy}>{copied ? 'Copied!' : 'Copy'}</button>
@@ -432,7 +432,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     return (
       <section className="artist-card artist-page__col-full">
         <div className="artist-admin__signup-head">
-          <h3 className="artist-card__title" style={{ margin: 0 }}>All sign-ups</h3>
+          <h2 className="artist-card__title" style={{ margin: 0 }}>All sign-ups</h2>
           <span className="artist-admin__signup-count">
             {pending.length} waiting · {paid.length} paid
           </span>
@@ -490,7 +490,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     return (
       <>
         <section className="artist-card artist-page__col-full">
-          <h3 className="artist-card__title">Welcome message</h3>
+          <h2 className="artist-card__title">Welcome message</h2>
           <p className="artist-card__hint">Shown at the top of the public page.</p>
           <textarea
             className="section-field__input artist-admin__textarea"
@@ -502,7 +502,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
         </section>
 
         <section className="artist-card artist-page__col-full">
-          <h3 className="artist-card__title">What viewers see</h3>
+          <h2 className="artist-card__title">What viewers see</h2>
           <div className="artist-admin__toggles">
             <label className="artist-admin__check">
               <input type="checkbox" checked={draft.showLive} onChange={(e) => setDraft((d) => ({ ...d, showLive: e.target.checked }))} />
@@ -528,7 +528,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
         </section>
 
         <section className="artist-card">
-          <h3 className="artist-card__title">Pricing labels</h3>
+          <h2 className="artist-card__title">Pricing labels</h2>
           <p className="artist-card__hint">Override the default pricing the form shows.</p>
           <div className="artist-admin__pay-grid">
             <label><span>Black option</span>
@@ -544,7 +544,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
 
         {draft.scheduleVisible && cues.length > 0 && (
           <section className="artist-card artist-page__col-full">
-            <h3 className="artist-card__title">Schedule items shown to public</h3>
+            <h2 className="artist-card__title">Schedule items shown to public</h2>
             <p className="artist-card__hint">Uncheck any cues you want to hide from the public schedule.</p>
             <ul className="artist-admin__cues">
               {cues.map((c) => (
@@ -566,7 +566,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
         )}
 
         <section className="artist-card artist-page__col-full">
-          <h3 className="artist-card__title">Flash sheet image</h3>
+          <h2 className="artist-card__title">Flash sheet image</h2>
           {draft.flashImage ? (
             <div className="artist-admin__flash">
               <img src={draft.flashImage} alt="Flash sheet" />
@@ -581,7 +581,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
         </section>
 
         <section className="artist-card artist-page__col-full">
-          <h3 className="artist-card__title">Tonight's schedule image</h3>
+          <h2 className="artist-card__title">Tonight's schedule image</h2>
           <p className="artist-card__hint">Shown when artists tap "Tonight's schedule" on the public page. Upload your show run as an image.</p>
           {draft.scheduleImage ? (
             <div className="artist-admin__flash">
@@ -597,7 +597,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
         </section>
 
         <section className="artist-card artist-page__col-full">
-          <h3 className="artist-card__title">Payment links</h3>
+          <h2 className="artist-card__title">Payment links</h2>
           <div className="artist-admin__pay-grid">
             <label><span>Cash App</span>
               <input className="section-field__input" value={draft.cashApp} onChange={(e) => setDraft((d) => ({ ...d, cashApp: e.target.value }))} placeholder="https://cash.app/$handle" />
@@ -615,7 +615,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
         </section>
 
         <section className="artist-card artist-page__col-full">
-          <h3 className="artist-card__title">Notification email template</h3>
+          <h2 className="artist-card__title">Notification email template</h2>
           <p className="artist-card__hint">Use <code>{'{name}'}</code> for the artist's name.</p>
           <textarea
             className="section-field__input artist-admin__textarea"

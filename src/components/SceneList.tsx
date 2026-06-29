@@ -47,7 +47,7 @@ export function SceneList({ scenes, onChange }: SceneListProps) {
 
   return (
     <div className="scene-list">
-      <h3 className="scene-list__heading">Scenes & Segments</h3>
+      <h2 className="scene-list__heading">Scenes & Segments</h2>
 
       <div className="scene-list__add">
         <input
