@@ -622,7 +622,7 @@ export default function App() {
   const rolodexTile = (
     <div className="show-card rolodex-tile" onClick={() => setView('rolodex')}>
       <div className="rolodex-tile__icon"></div>
-      <h3 className="rolodex-tile__title">{rolodexTerm.singular} Rolodex</h3>
+      <h2 className="rolodex-tile__title">{rolodexTerm.singular} Rolodex</h2>
       <p className="rolodex-tile__count">{settings.potentialComics.length} {(settings.potentialComics.length === 1 ? rolodexTerm.singular : rolodexTerm.plural).toLowerCase()}</p>
     </div>
   );
@@ -791,7 +791,7 @@ export default function App() {
               <div className="rolodex-page">
                 <div className="rolodex-page__topbar">
                   <button className="btn btn--ghost" onClick={handleBack}>← Back</button>
-                  <h2 className="rolodex-page__title">{rolodexTerm.singular} Rolodex</h2>
+                  <h1 className="rolodex-page__title">{rolodexTerm.singular} Rolodex</h1>
                 </div>
                 <p className="rolodex-page__subtitle">Keep a running list of {rolodexTerm.plural.toLowerCase()} you want to book next.</p>
 
