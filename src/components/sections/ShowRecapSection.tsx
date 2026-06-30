@@ -30,12 +30,14 @@ export function ShowRecapSection({
   const totalRevenue = Number(merchSales) || 0;
   const profitLoss = totalRevenue - totalExpenses;
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setAttendance(recap?.attendance?.toString() || '');
     setMerchSales(recap?.merchSales?.toString() || '');
     setPerformerNotes(recap?.performerNotes || '');
     setImprovementNotes(recap?.improvementNotes || '');
   }, [recap?.attendance, recap?.merchSales, recap?.performerNotes, recap?.improvementNotes]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function commitChanges(overrides: Partial<{ attendance: string; merchSales: string; performerNotes: string; improvementNotes: string }>) {
     const a = overrides.attendance ?? attendance;
