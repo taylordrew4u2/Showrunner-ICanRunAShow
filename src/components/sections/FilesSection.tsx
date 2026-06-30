@@ -89,7 +89,7 @@ export function FilesSection({ files, onChange }: FilesSectionProps) {
                 <audio controls preload="none"><source src={file.fileData} type={file.fileType} /></audio>
               </div>
             ) : (
-              <div className="media-grid__file-icon" onClick={() => downloadFile(file)} style={{ cursor: 'pointer' }}>File</div>
+              <button className="media-grid__file-icon" onClick={() => downloadFile(file)} aria-label={`Download ${file.name}`}>File</button>
             )}
             <span className="media-grid__label" title={file.name}>
               {file.name}

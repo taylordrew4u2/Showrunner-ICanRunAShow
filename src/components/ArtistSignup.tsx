@@ -5,6 +5,8 @@ import {
   listSignups,
   type ArtistSignupPayload,
   type ArtistSignupEntry,
+  DEFAULT_BLACK_LABEL,
+  DEFAULT_COLOR_LABEL,
 } from '../utils/artistSignup';
 import { fetchLiveView, type LiveViewPayload } from '../utils/liveView';
 import { applyColorScheme } from '../utils/theme';
@@ -16,8 +18,6 @@ interface ArtistSignupProps {
 
 type View = 'home' | 'signup' | 'schedule';
 
-const DEFAULT_BLACK_LABEL = 'Black — $60';
-const DEFAULT_COLOR_LABEL = 'Full color — $80';
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);

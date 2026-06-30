@@ -151,7 +151,17 @@ export default function App() {
           }
         }
 
-        setShows(migratedShows);
+        // Auto-correct: a show still marked 'upcoming' whose date has passed
+        // should be 'completed'. Only touch 'upcoming' — leave 'in-progress'
+        // and 'cancelled' alone since those are intentional manual states.
+        const today = new Date().toISOString().split('T')[0];
+        const autoStatusShows = migratedShows.map((show) =>
+          show.status === 'upcoming' && show.date && show.date < today
+            ? { ...show, status: 'completed' as const }
+            : show
+        );
+
+        setShows(autoStatusShows);
         setSettings(migratedSettings);
         dataLoaded.current = true;
       } catch (error) {
