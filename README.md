@@ -155,7 +155,8 @@ I Can Run A Show handles the full workflow in a single application:
 - **AI:** OpenAI GPT-4o-mini (vision + text) via a server-side proxy; Tesseract.js OCR fallback
 - **PDF:** PDF.js (pdfjs-dist) — client-side extraction
 - **Email:** Brevo REST API via a Vercel Edge function (`/api/notify-artist`)
-- **Styling:** Custom CSS with a design-token system — no CSS framework
+- **Typography:** Inter (Google Fonts) — loaded via `preconnect` with `font-display: swap` fallback
+- **Styling:** Custom CSS with a comprehensive design-token system — no CSS framework
 - **Hosting:** Vercel (web + serverless functions)
 - **Auth:** Username/password — password-derived key encrypts stored data; no OAuth
 
@@ -319,7 +320,7 @@ Without these, the Email button shows a clear inline error explaining what's mis
 
 ## Technical Decisions
 
-**No CSS framework.** Every component is styled with hand-written CSS using a design token system. This keeps the bundle small and gives full control over every interaction state and animation. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer/sign-up links — are just a `data-theme` swap.
+**No CSS framework.** Every component is styled with hand-written CSS using a comprehensive design token system. Tokens cover type scale (`--text-*`), spacing (`--space-*`), z-index layers (`--z-*`), transition timing (`--duration-*`, `--ease-*`), and a radius scale (`--radius-sm` → `--radius-full`). This keeps the bundle small and gives full control over every interaction state and animation. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer/sign-up links — are just a `data-theme` swap.
 
 **Phone-first, one column everywhere.** Rather than maintain separate desktop and mobile layouts, the app renders as a single centered column (capped width) at every screen size, with a bottom navigation. On a desktop it reads as a focused native phone app instead of a sprawling multi-pane dashboard.
 
@@ -374,13 +375,15 @@ Unit tests (Vitest) cover the pure logic: schedule text parsing, cue timing/form
 
 ## Accessibility
 
-Accessibility has not been formally reviewed. Basic considerations present:
-
 - Form inputs have associated labels
-- Interactive elements have minimum 44px touch targets
+- Interactive elements have minimum 44px touch targets on touch devices
 - Semantic HTML elements throughout
+- `focus-visible` rings on all buttons and interactive controls (`:focus-visible` outline, not `:focus`, so they only appear on keyboard nav)
+- Keyboard navigation on show cards (Enter/Space to open, arrow keys between actions)
+- ARIA labels on icon-only buttons and dropzone targets
+- iOS auto-zoom prevention — all form fields are ≥ 16px on coarse-pointer devices
 
-A keyboard-navigation + ARIA audit is a future improvement.
+A full keyboard-navigation + ARIA + color-contrast audit is a future improvement.
 
 ---
 
@@ -398,7 +401,7 @@ A keyboard-navigation + ARIA audit is a future improvement.
 
 - Migrate the encryption KDF to native WebCrypto/Argon2 (per-user random salt, OWASP-grade iterations)
 - Add component + end-to-end tests (unit tests are in place)
-- Accessibility audit (keyboard nav, ARIA, color contrast)
+- Full accessibility audit (complete ARIA coverage, color contrast, screen-reader testing)
 
 ---
 
