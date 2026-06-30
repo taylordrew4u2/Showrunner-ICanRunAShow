@@ -395,36 +395,6 @@ export default function App() {
     });
   }
 
-  function handleRecoverShow(trashItemId: string) {
-    const trashItem = (settings.trash || []).find((item) => item.id === trashItemId);
-    if (!trashItem || trashItem.type !== 'show') return;
-
-    // Add show back to list
-    setShows((prev) => [trashItem.data, ...prev]);
-
-    // Remove from trash
-    const updatedSettings = {
-      ...settings,
-      trash: (settings.trash || []).filter((item) => item.id !== trashItemId),
-    };
-    setSettings(updatedSettings);
-
-    if (session) {
-      saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
-    }
-  }
-
-  function handlePermanentlyDeleteShow(trashItemId: string) {
-    const updatedSettings = {
-      ...settings,
-      trash: (settings.trash || []).filter((item) => item.id !== trashItemId),
-    };
-    setSettings(updatedSettings);
-
-    if (session) {
-      saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
-    }
-  }
 
   function handleAddPotentialComic() {
     const trimmedName = newComicName.trim();
@@ -828,8 +798,6 @@ export default function App() {
                 saving={settingsSaving}
                 colorScheme={colorScheme}
                 onColorSchemeChange={setColorScheme}
-                onRecoverShow={handleRecoverShow}
-                onPermanentlyDelete={handlePermanentlyDeleteShow}
                 onExport={session ? async () => {
                   const url = await exportUserData(session.username, session.password);
                   const a = document.createElement('a');

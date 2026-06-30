@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import './Modal.css';
 
 interface ModalProps {
@@ -8,6 +8,22 @@ interface ModalProps {
 }
 
 export function Modal({ onClose, children, labelledBy }: ModalProps) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement as HTMLElement;
+
+    const focusable = boxRef.current?.querySelector<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    (focusable ?? boxRef.current)?.focus();
+
+    return () => {
+      previousFocusRef.current?.focus();
+    };
+  }, []);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
@@ -18,7 +34,15 @@ export function Modal({ onClose, children, labelledBy }: ModalProps) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby={labelledBy} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={boxRef}
+        className="modal-box"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>

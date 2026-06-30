@@ -47,9 +47,7 @@ export function FilesSection({ files, onChange }: FilesSectionProps) {
 
   function deleteFile(id: string) {
     const file = files.find((f) => f.id === id);
-    // Double confirmation to prevent accidental deletion
-    if (window.confirm(`Delete "${file?.name}"? This cannot be undone.`) &&
-        window.confirm(`Final confirmation: This will permanently delete "${file?.name}". Are you sure?`)) {
+    if (window.confirm(`Delete "${file?.name}"? This cannot be undone.`)) {
       onChange(files.filter((f) => f.id !== id));
     }
   }
@@ -70,6 +68,7 @@ export function FilesSection({ files, onChange }: FilesSectionProps) {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Notes (optional)"
+          aria-label="File notes"
         />
         <button className="btn btn--primary btn--sm" onClick={handleFileUpload}>
           Upload Files

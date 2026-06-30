@@ -92,6 +92,7 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
           placeholder="Performer name"
+          aria-label="Performer name"
         />
         <input
           className="section-field__input"
@@ -99,6 +100,7 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
           onChange={(e) => setInstagram(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
           placeholder="@instagram"
+          aria-label="Instagram handle"
         />
         <input
           className="section-field__input"
@@ -107,6 +109,7 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
           placeholder="email (optional)"
+          aria-label="Email address"
         />
         <button className="btn btn--primary btn--sm" onClick={addPerformer}>Add</button>
         {potentialComics.length > 0 && (
