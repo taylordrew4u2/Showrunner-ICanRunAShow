@@ -373,12 +373,6 @@ export default function App() {
       
       const updatedShows = prev.filter((s) => s.id !== id);
       
-      // Recalculate totalSpent across remaining shows
-      const totalSpent = updatedShows.reduce((sum, show) => {
-        const showTotal = show.expenses.reduce((expSum, exp) => expSum + exp.cost, 0);
-        return sum + showTotal;
-      }, 0);
-      
       // Move to trash instead of permanent deletion
       const deletedItem = {
         id: generateId(),
@@ -387,9 +381,8 @@ export default function App() {
         deletedAt: new Date().toISOString(),
       };
       
-      const updatedSettings = { 
-        ...settings, 
-        totalSpent,
+      const updatedSettings = {
+        ...settings,
         trash: [deletedItem, ...(settings.trash || [])],
       };
       setSettings(updatedSettings);
@@ -527,19 +520,6 @@ export default function App() {
         performers: (updated.performers || []).map(syncPerformerCover)
       };
       const updatedShows = prev.map((s) => (s.id === safeUpdated.id ? safeUpdated : s));
-      
-      // Recalculate totalSpent across all shows
-      const totalSpent = updatedShows.reduce((sum, show) => {
-        const showTotal = show.expenses.reduce((expSum, exp) => expSum + exp.cost, 0);
-        return sum + showTotal;
-      }, 0);
-      
-      // Update settings with new totalSpent
-      if (settings.totalSpent !== totalSpent && session) {
-        const updatedSettings = { ...settings, totalSpent };
-        setSettings(updatedSettings);
-        saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
-      }
       
       return updatedShows;
     });

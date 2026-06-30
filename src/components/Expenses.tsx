@@ -29,11 +29,9 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
   const editReceiptInputRef = useRef<HTMLInputElement>(null);
 
   const brandBudget = settings.brandBudget || 0;
-  const totalSpent = settings.totalSpent || 0;
-  const remaining = brandBudget - totalSpent;
-
   const expenses = settings.expenses || [];
   const displayTotal = expenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+  const remaining = brandBudget - displayTotal;
 
   function readImageFile(file: File, onDone: (dataUrl: string) => void) {
     const reader = new FileReader();
@@ -115,7 +113,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
             </div>
             <div className="budget-card__item">
               <div className="budget-card__label">Total Spent (All Shows)</div>
-              <div className="budget-card__value budget-card__value--spent">${totalSpent.toFixed(2)}</div>
+              <div className="budget-card__value budget-card__value--spent">${displayTotal.toFixed(2)}</div>
             </div>
             <div className="budget-card__item">
               <div className="budget-card__label">Remaining</div>
