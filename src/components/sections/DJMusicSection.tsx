@@ -76,7 +76,7 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `DJ-List-${show.name.replace(/\s+/g, '-')}.txt`;
+    a.download = `DJ-List-${show.name.replace(/[/\\:*?"<>|]+/g, '').replace(/\s+/g, '-')}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   }
