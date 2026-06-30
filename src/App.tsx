@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Show, ShowStatus, AppSettings, PotentialComic } from './types';
+import type { Show, AppSettings, PotentialComic } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
 import { syncPerformerCover } from './utils/performer';
@@ -83,7 +83,6 @@ export default function App() {
   const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
   const [expandOrigin, setExpandOrigin] = useState({ x: 50, y: 30 });
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | ShowStatus>('all');
   const [sortBy, setSortBy] = useState<'added' | 'date-asc' | 'date-desc' | 'name'>(() => {
     try {
       const saved = localStorage.getItem('showrunner:showSort');
@@ -577,12 +576,11 @@ export default function App() {
   // Search + status filtering for the shows list.
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredShows = shows.filter((show) => {
-    if (statusFilter !== 'all' && show.status !== statusFilter) return false;
     if (!normalizedQuery) return true;
     return [show.name, show.venueName, show.location]
       .some((field) => field?.toLowerCase().includes(normalizedQuery));
   });
-  const isFiltering = statusFilter !== 'all' || normalizedQuery !== '';
+
 
   // Sort the visible shows. Undated shows always sort to the end for date sorts.
   const sortedShows = [...filteredShows].sort((a, b) => {
@@ -605,7 +603,6 @@ export default function App() {
   });
 
   function clearFilters() {
-    setStatusFilter('all');
     setSearchQuery('');
   }
 
@@ -685,42 +682,17 @@ export default function App() {
                       placeholder="Search shows…"
                       aria-label="Search shows"
                     />
-                    <div className="shows-toolbar__row2">
-                      <div className="shows-toolbar__filters" role="group" aria-label="Filter by status">
-                        {([
-                          ['all', 'All'],
-                          ['upcoming', 'Upcoming'],
-                          ['in-progress', 'In progress'],
-                          ['completed', 'Completed'],
-                        ] as const).map(([value, label]) => (
-                          <button
-                            key={value}
-                            type="button"
-                            className={`shows-chip ${statusFilter === value ? 'shows-chip--active' : ''}`}
-                            onClick={() => setStatusFilter((cur) => (cur === value ? 'all' : value))}
-                            aria-pressed={statusFilter === value}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                      <select
-                        className="shows-toolbar__sort"
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                        aria-label="Sort shows"
-                      >
-                        <option value="added">Recent</option>
-                        <option value="date-asc">Soonest</option>
-                        <option value="date-desc">Latest</option>
-                        <option value="name">A–Z</option>
-                      </select>
-                      {isFiltering && (
-                        <span className="shows-toolbar__count">
-                          {filteredShows.length} of {shows.length}
-                        </span>
-                      )}
-                    </div>
+                    <select
+                      className="shows-toolbar__sort"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                      aria-label="Sort shows"
+                    >
+                      <option value="added">Recent</option>
+                      <option value="date-asc">Soonest</option>
+                      <option value="date-desc">Latest</option>
+                      <option value="name">A–Z</option>
+                    </select>
                   </div>
                 )}
 
