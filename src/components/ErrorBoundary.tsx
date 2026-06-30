@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
+import './ErrorBoundary.css';
 
 interface Props {
   children: ReactNode;
@@ -27,38 +28,13 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100dvh',
-          padding: 32,
-          textAlign: 'center',
-          background: '#1a1a2e',
-          color: '#e0e0e0',
-          fontFamily: 'system-ui, sans-serif',
-        }}>
-          <h1 style={{ fontSize: 28, marginBottom: 12 }}>Something went wrong</h1>
-          <p style={{ color: '#9CA3AF', marginBottom: 24, maxWidth: 420 }}>
+        <div className="error-boundary">
+          <h1 className="error-boundary__heading">Something went wrong</h1>
+          <p className="error-boundary__message">
             Don't worry — your data is safe. Try refreshing the page.
           </p>
-          <p style={{ color: '#6B7280', fontSize: 13, marginBottom: 24, fontFamily: 'monospace', maxWidth: 500, wordBreak: 'break-word' }}>
-            {this.state.error?.message}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              background: '#6B46C1',
-              color: '#fff',
-              border: 'none',
-              padding: '12px 32px',
-              borderRadius: 8,
-              fontSize: 16,
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
-          >
+          <p className="error-boundary__detail">{this.state.error?.message}</p>
+          <button className="error-boundary__reload" onClick={() => window.location.reload()}>
             Reload App
           </button>
         </div>

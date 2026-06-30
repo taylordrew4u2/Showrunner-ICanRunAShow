@@ -13,8 +13,6 @@ interface SettingsProps {
   saving?: boolean;
   colorScheme?: ColorScheme;
   onColorSchemeChange?: (scheme: ColorScheme) => void;
-  onRecoverShow?: (trashItemId: string) => void;
-  onPermanentlyDelete?: (trashItemId: string) => void;
   onExport?: () => Promise<void>;
 }
 
@@ -22,6 +20,9 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
   const [newProducerName, setNewProducerName] = useState('');
   const [newProducerRole, setNewProducerRole] = useState('');
+
+  const totalSpent = (settings.expenses || []).reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+  const remaining = (settings.brandBudget || 0) - totalSpent;
 
   useEffect(() => {
     setSettings(initialSettings);
@@ -206,7 +207,7 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
             step="0.01"
           />
           <small className="settings__budget-hint">
-            Total spent across all shows: ${settings.totalSpent.toFixed(2)} | Remaining: ${(settings.brandBudget - settings.totalSpent).toFixed(2)}
+            Total spent: ${totalSpent.toFixed(2)} | Remaining: ${remaining.toFixed(2)}
           </small>
         </label>
 
@@ -227,11 +228,7 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
       </button>
 
       {onExport && (
-        <button
-          className="btn btn--secondary settings__save"
-          onClick={onExport}
-          style={{ marginTop: 8 }}
-        >
+        <button className="btn btn--secondary settings__save" onClick={onExport}>
           Export Backup (JSON)
         </button>
       )}
