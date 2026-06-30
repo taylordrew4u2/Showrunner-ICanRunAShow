@@ -10,20 +10,28 @@ interface ExpensesProps {
   onUpdateSettings: (settings: AppSettings) => void;
 }
 
+interface ExpenseDraft {
+  category: string;
+  itemName: string;
+  cost: string;
+  date: string;
+  notes: string;
+  receiptPhoto: string | undefined;
+}
+
+const EMPTY_DRAFT: ExpenseDraft = {
+  category: EXPENSE_CATEGORIES[0],
+  itemName: '',
+  cost: '',
+  date: '',
+  notes: '',
+  receiptPhoto: undefined,
+};
+
 export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) {
-  const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
-  const [itemName, setItemName] = useState('');
-  const [cost, setCost] = useState('');
-  const [date, setDate] = useState('');
-  const [notes, setNotes] = useState('');
+  const [addDraft, setAddDraft] = useState<ExpenseDraft>(EMPTY_DRAFT);
   const [editId, setEditId] = useState<string | null>(null);
-  const [editCategory, setEditCategory] = useState('');
-  const [editItemName, setEditItemName] = useState('');
-  const [editCost, setEditCost] = useState('');
-  const [editDate, setEditDate] = useState('');
-  const [editNotes, setEditNotes] = useState('');
-  const [editReceiptPhoto, setEditReceiptPhoto] = useState<string | undefined>(undefined);
-  const [receiptPhoto, setReceiptPhoto] = useState<string | undefined>(undefined);
+  const [editDraft, setEditDraft] = useState<ExpenseDraft>(EMPTY_DRAFT);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const addReceiptInputRef = useRef<HTMLInputElement>(null);
   const editReceiptInputRef = useRef<HTMLInputElement>(null);
@@ -40,22 +48,18 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
   }
 
   function addExpense() {
-    if (!itemName.trim() || !cost) return;
+    if (!addDraft.itemName.trim() || !addDraft.cost) return;
     const expense: Expense = {
       id: generateId(),
-      category,
-      itemName: itemName.trim(),
-      cost: Number(cost) || 0,
-      date: date || undefined,
-      notes: notes.trim() || undefined,
-      receiptPhoto: receiptPhoto || undefined,
+      category: addDraft.category,
+      itemName: addDraft.itemName.trim(),
+      cost: Number(addDraft.cost) || 0,
+      date: addDraft.date || undefined,
+      notes: addDraft.notes.trim() || undefined,
+      receiptPhoto: addDraft.receiptPhoto,
     };
     onUpdateSettings({ ...settings, expenses: [...expenses, expense] });
-    setItemName('');
-    setCost('');
-    setDate('');
-    setNotes('');
-    setReceiptPhoto(undefined);
+    setAddDraft(EMPTY_DRAFT);
   }
 
   function deleteExpense(expenseId: string) {
@@ -67,28 +71,30 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
 
   function startEdit(e: Expense) {
     setEditId(e.id);
-    setEditCategory(e.category);
-    setEditItemName(e.itemName);
-    setEditCost(String(e.cost));
-    setEditDate(e.date ?? '');
-    setEditNotes(e.notes ?? '');
-    setEditReceiptPhoto(e.receiptPhoto);
+    setEditDraft({
+      category: e.category,
+      itemName: e.itemName,
+      cost: String(e.cost),
+      date: e.date ?? '',
+      notes: e.notes ?? '',
+      receiptPhoto: e.receiptPhoto,
+    });
   }
 
   function saveEdit() {
-    if (!editItemName.trim() || !editId) return;
+    if (!editDraft.itemName.trim() || !editId) return;
     onUpdateSettings({
       ...settings,
       expenses: expenses.map((e) =>
         e.id === editId
           ? {
               ...e,
-              category: editCategory,
-              itemName: editItemName.trim(),
-              cost: Number(editCost) || 0,
-              date: editDate || undefined,
-              notes: editNotes.trim() || undefined,
-              receiptPhoto: editReceiptPhoto || undefined,
+              category: editDraft.category,
+              itemName: editDraft.itemName.trim(),
+              cost: Number(editDraft.cost) || 0,
+              date: editDraft.date || undefined,
+              notes: editDraft.notes.trim() || undefined,
+              receiptPhoto: editDraft.receiptPhoto || undefined,
             }
           : e
       ),
@@ -130,8 +136,8 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
         <div className="section-add-grid">
           <select
             className="section-field__select"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            value={addDraft.category}
+            onChange={(e) => setAddDraft(d => ({ ...d, category: e.target.value }))}
           >
             {EXPENSE_CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
@@ -139,28 +145,28 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
           </select>
           <input
             className="section-field__input"
-            value={itemName}
-            onChange={(e) => setItemName(e.target.value)}
+            value={addDraft.itemName}
+            onChange={(e) => setAddDraft(d => ({ ...d, itemName: e.target.value }))}
             placeholder="Item or service name"
           />
           <input
             className="section-field__input"
             type="number"
             step="0.01"
-            value={cost}
-            onChange={(e) => setCost(e.target.value)}
+            value={addDraft.cost}
+            onChange={(e) => setAddDraft(d => ({ ...d, cost: e.target.value }))}
             placeholder="Cost ($)"
           />
           <input
             className="section-field__input"
             type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
+            value={addDraft.date}
+            onChange={(e) => setAddDraft(d => ({ ...d, date: e.target.value }))}
           />
           <input
             className="section-field__input"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            value={addDraft.notes}
+            onChange={(e) => setAddDraft(d => ({ ...d, notes: e.target.value }))}
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addExpense())}
             placeholder="Notes (optional)"
           />
@@ -171,23 +177,23 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
             style={{ display: 'none' }}
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) readImageFile(file, setReceiptPhoto);
+              if (file) readImageFile(file, (url) => setAddDraft(d => ({ ...d, receiptPhoto: url })));
               e.target.value = '';
             }}
           />
           <button
             className="btn btn--ghost btn--sm"
-            title={receiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
+            title={addDraft.receiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
             onClick={() => addReceiptInputRef.current?.click()}
           >
             Receipt
           </button>
-          {receiptPhoto && (
+          {addDraft.receiptPhoto && (
             <img
-              src={receiptPhoto}
+              src={addDraft.receiptPhoto}
               alt="receipt preview"
               className="receipt-thumb receipt-thumb--inline"
-              onClick={() => setLightboxSrc(receiptPhoto)}
+              onClick={() => setLightboxSrc(addDraft.receiptPhoto!)}
               title="Click to view full size"
             />
           )}
@@ -203,13 +209,13 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
             <div className="section-list-item__body">
               {editId === e.id ? (
                 <div className="section-edit-row">
-                  <select className="section-field__select" value={editCategory} onChange={(ev) => setEditCategory(ev.target.value)}>
+                  <select className="section-field__select" value={editDraft.category} onChange={(ev) => setEditDraft(d => ({ ...d, category: ev.target.value }))}>
                     {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
-                  <input className="section-field__input" value={editItemName} onChange={(ev) => setEditItemName(ev.target.value)} placeholder="Item" />
-                  <input className="section-field__input" type="number" step="0.01" value={editCost} onChange={(ev) => setEditCost(ev.target.value)} placeholder="Cost" />
-                  <input className="section-field__input" type="date" value={editDate} onChange={(ev) => setEditDate(ev.target.value)} />
-                  <input className="section-field__input" value={editNotes} onChange={(ev) => setEditNotes(ev.target.value)} placeholder="Notes" />
+                  <input className="section-field__input" value={editDraft.itemName} onChange={(ev) => setEditDraft(d => ({ ...d, itemName: ev.target.value }))} placeholder="Item" />
+                  <input className="section-field__input" type="number" step="0.01" value={editDraft.cost} onChange={(ev) => setEditDraft(d => ({ ...d, cost: ev.target.value }))} placeholder="Cost" />
+                  <input className="section-field__input" type="date" value={editDraft.date} onChange={(ev) => setEditDraft(d => ({ ...d, date: ev.target.value }))} />
+                  <input className="section-field__input" value={editDraft.notes} onChange={(ev) => setEditDraft(d => ({ ...d, notes: ev.target.value }))} placeholder="Notes" />
                   <input
                     ref={editReceiptInputRef}
                     type="file"
@@ -217,23 +223,23 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
                     style={{ display: 'none' }}
                     onChange={(ev) => {
                       const file = ev.target.files?.[0];
-                      if (file) readImageFile(file, setEditReceiptPhoto);
+                      if (file) readImageFile(file, (url) => setEditDraft(d => ({ ...d, receiptPhoto: url })));
                       ev.target.value = '';
                     }}
                   />
                   <button
                     className="btn btn--ghost btn--sm"
-                    title={editReceiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
+                    title={editDraft.receiptPhoto ? 'Receipt attached — click to replace' : 'Attach receipt photo'}
                     onClick={() => editReceiptInputRef.current?.click()}
                   >
                     Receipt
                   </button>
-                  {editReceiptPhoto && (
+                  {editDraft.receiptPhoto && (
                     <img
-                      src={editReceiptPhoto}
+                      src={editDraft.receiptPhoto}
                       alt="receipt preview"
                       className="receipt-thumb receipt-thumb--inline"
-                      onClick={() => setLightboxSrc(editReceiptPhoto)}
+                      onClick={() => setLightboxSrc(editDraft.receiptPhoto!)}
                       title="Click to view full size"
                     />
                   )}
@@ -249,10 +255,10 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
                   {e.notes && <span className="section-list-item__tag">{e.notes}</span>}
                   {e.receiptPhoto && (
                     <button
-                      className="btn btn--ghost btn--sm receipt-thumb-btn"
+                      className="receipt-thumb-btn"
                       onClick={() => setLightboxSrc(e.receiptPhoto!)}
                       title="View receipt"
-                      style={{ padding: 0, border: 'none', background: 'none' }}
+                      aria-label="View receipt photo"
                     >
                       <img src={e.receiptPhoto} className="receipt-thumb" alt="receipt" />
                     </button>

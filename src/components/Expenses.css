@@ -101,6 +101,10 @@
 
 .expenses-page .receipt-thumb-btn {
     flex-shrink: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
 }
 
 .expenses-page .receipt-lightbox {

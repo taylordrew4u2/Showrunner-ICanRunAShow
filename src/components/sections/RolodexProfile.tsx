@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { PotentialComic } from '../../types';
+import { readFileAsDataURL } from '../../utils/media';
 import { socialLink } from '../../utils/social';
 import { PhotoGallery } from './PhotoGallery';
 import './PerformerProfile.css';
@@ -50,12 +51,6 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
     setDirty(false);
   }
 
-  function readFile(file: File, onLoad: (result: string, file: File) => void) {
-    const reader = new FileReader();
-    reader.onload = () => onLoad(reader.result as string, file);
-    reader.readAsDataURL(file);
-  }
-
   function pickFile(accept: string, onLoad: (result: string, file: File) => void) {
     const input = document.createElement('input');
     input.type = 'file';
@@ -63,7 +58,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      readFile(file, onLoad);
+      readFileAsDataURL(file).then(result => onLoad(result, file));
     };
     input.click();
   }
@@ -78,7 +73,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
     setDrag(false);
     const file = e.dataTransfer.files?.[0];
     if (!file || !file.type.startsWith(mimePrefix)) return;
-    readFile(file, onLoad);
+    readFileAsDataURL(file).then(result => onLoad(result, file));
   }
 
   return (
@@ -217,7 +212,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
       {/* Walk-on music */}
       <div className="perf-profile__card perf-profile__card--media">
         <p className="perf-profile__section-label">Walk-On Music File</p>
-        <div className="perf-profile__media-tile" style={{ border: 'none', padding: 0, background: 'none' }}>
+        <div className="perf-profile__media-tile perf-profile__media-tile--bare">
           {(comic.walkOnMusicName || comic.walkOnMusicArtist) && (
             <p className="perf-profile__song-info">
               {[comic.walkOnMusicName, comic.walkOnMusicArtist].filter(Boolean).join(' — ')}
@@ -260,6 +255,9 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
           ) : (
             <div
               className={`perf-profile__dropzone${audioDrag ? ' perf-profile__dropzone--active' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-label="Upload walk-on audio file"
               onDragOver={e => e.preventDefault()}
               onDragEnter={() => setAudioDrag(true)}
               onDragLeave={() => setAudioDrag(false)}
@@ -271,6 +269,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
                 onChange({ ...comic, walkOnMusic: result, walkOnMusicName: file.name });
                 setSongName(file.name);
               })}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickFile('audio/*', (result, file) => { onChange({ ...comic, walkOnMusic: result, walkOnMusicName: file.name }); setSongName(file.name); }); } }}
             >
               <span className="perf-profile__dropzone-icon"></span>
               <span className="perf-profile__dropzone-label">

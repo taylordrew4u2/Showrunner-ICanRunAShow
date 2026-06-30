@@ -67,3 +67,8 @@ export async function setSignupCompleted(token: string, id: string, completed: b
 export async function deleteSignup(token: string, id: string): Promise<void> {
   await api.del(`/api/artist-entries?token=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}`);
 }
+
+
+export const DEFAULT_BLACK_LABEL = 'Black — $60';
+export const DEFAULT_COLOR_LABEL = 'Full color — $80';
+export const DEFAULT_NOTIFY_TEMPLATE = "Hi {name}! You're up — head over for your tattoo.";
