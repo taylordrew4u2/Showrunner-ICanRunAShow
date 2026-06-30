@@ -15,7 +15,7 @@
 
 /* Status accent colors */
 .show-card--upcoming   { --card-accent: var(--primary); }
-.show-card--in-progress { --card-accent: #1f9d57; }
+.show-card--in-progress { --card-accent: var(--success); }
 .show-card--completed  { --card-accent: var(--border-strong); }
 .show-card--cancelled  { --card-accent: var(--border); }
 
@@ -150,7 +150,7 @@
 }
 
 .show-card--upcoming .show-card__status   { color: var(--primary); }
-.show-card--in-progress .show-card__status { color: #1f9d57; }
+.show-card--in-progress .show-card__status { color: var(--success); }
 
 /* ── Progress ───────────────────────────────────────────────── */
 

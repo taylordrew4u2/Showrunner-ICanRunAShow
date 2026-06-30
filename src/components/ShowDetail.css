@@ -84,7 +84,7 @@
   padding: 10px 22px;
   border-radius: var(--radius-full);
   box-shadow: 0 4px 20px rgba(0,0,0,0.18);
-  z-index: 9999;
+  z-index: var(--z-lightbox);
   pointer-events: none;
   white-space: nowrap;
 }
@@ -97,9 +97,9 @@
 }
 
 .show-detail__save-indicator--saved {
-  color: #22c55e;
+  color: var(--success);
   background: var(--surface-strong);
-  border: 1.5px solid #22c55e;
+  border: 1.5px solid var(--success);
   animation: toastSlideIn 0.2s ease forwards, toastFadeOut 0.4s 2.1s ease forwards;
 }
 
@@ -384,42 +384,33 @@ select.show-detail__status--select {
   }
 }
 
-/* ─── Accent colors ──────────────────────────────────────────────────────── */
-.accordion-section--red::before    { background: linear-gradient(90deg, var(--primary), var(--primary)); }
-.accordion-section--red:hover      { border-color: var(--primary-soft-border); box-shadow: 0 8px 24px rgba(220, 38, 38, 0.2); }
-.accordion-section--red .accordion-section__count { color: var(--primary); background: var(--primary-soft); border-color: var(--primary-soft-border); }
+/* ─── Accent colors — unified brass accent for a cohesive ops-console look ── */
+.accordion-section--red::before,
+.accordion-section--blue::before,
+.accordion-section--green::before,
+.accordion-section--purple::before,
+.accordion-section--amber::before,
+.accordion-section--slate::before  { background: var(--primary); }
 
-.accordion-section--blue::before   { background: linear-gradient(90deg, #2563eb, #3b82f6); }
-.accordion-section--blue:hover     { border-color: #1e3a8a; box-shadow: 0 8px 24px rgba(37, 99, 235, 0.2); }
-.accordion-section--blue .accordion-section__count { color: #60a5fa; background: #1e3a8a30; border-color: #1e3a8a; }
-
-.accordion-section--green::before  { background: linear-gradient(90deg, #16a34a, #22c55e); }
-.accordion-section--green:hover    { border-color: #14532d; box-shadow: 0 8px 24px rgba(22, 163, 74, 0.2); }
-.accordion-section--green .accordion-section__count { color: #22c55e; background: #14532d30; border-color: #14532d; }
-
-.accordion-section--purple::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
-.accordion-section--purple:hover   { border-color: #4c1d95; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.2); }
-.accordion-section--purple .accordion-section__count { color: #a78bfa; background: #4c1d9530; border-color: #4c1d95; }
-
-.accordion-section--amber::before  { background: linear-gradient(90deg, #d97706, #f59e0b); }
-.accordion-section--amber:hover    { border-color: #78350f; box-shadow: 0 8px 24px rgba(217, 119, 6, 0.2); }
-.accordion-section--amber .accordion-section__count { color: #f59e0b; background: #78350f30; border-color: #78350f; }
-
-.accordion-section--slate::before  { background: linear-gradient(90deg, #475569, #64748b); }
-.accordion-section--slate:hover    { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+.accordion-section--red:hover,
+.accordion-section--blue:hover,
+.accordion-section--green:hover,
+.accordion-section--purple:hover,
+.accordion-section--amber:hover,
+.accordion-section--slate:hover    { border-color: var(--primary-soft-border); box-shadow: 0 6px 20px rgba(138, 106, 31, 0.1); }
 
 .accordion-section--complete {
-  border-color: #14532d;
+  border-color: var(--success);
   background: var(--surface-strong);
 }
 
 .accordion-section--complete::before {
-  background: linear-gradient(90deg, #16a34a, #22c55e);
+  background: var(--success);
 }
 
 .accordion-section--complete:hover {
-  border-color: #15803d;
-  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.2);
+  border-color: var(--success);
+  box-shadow: 0 8px 24px rgba(31, 157, 87, 0.15);
 }
 
 .accordion-section__header {
@@ -438,7 +429,7 @@ select.show-detail__status--select {
 }
 
 .accordion-section--complete .accordion-section__header:hover {
-  background: rgba(34, 197, 94, 0.08);
+  background: var(--success-soft);
 }
 
 @media (max-width: 768px) {
@@ -520,9 +511,9 @@ select.show-detail__status--select {
 .accordion-section__complete-badge {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #22c55e;
-  background: #14532d30;
-  border: 1px solid #14532d;
+  color: var(--success);
+  background: var(--success-soft);
+  border: 1px solid var(--success);
   border-radius: var(--radius-xs);
   padding: 4px 10px;
   white-space: nowrap;
@@ -586,7 +577,7 @@ select.show-detail__status--select {
 }
 
 .accordion-section--complete .accordion-section__deadline-bar {
-  border-top-color: #14532d;
+  border-top-color: var(--success);
 }
 
 @media (max-width: 768px) {
@@ -623,7 +614,7 @@ select.show-detail__status--select {
 }
 
 .accordion-section--complete .accordion-section__content {
-  border-top-color: #14532d;
+  border-top-color: var(--success);
 }
 
 @media (max-width: 768px) {
@@ -1328,8 +1319,8 @@ select.show-detail__status--select {
 }
 
 .section-list-item--locked {
-  background: rgba(34, 197, 94, 0.06);
-  border-color: #14532d;
+  background: var(--success-soft);
+  border-color: var(--success);
 }
 
 .section-list-item--active {
@@ -1342,20 +1333,20 @@ select.show-detail__status--select {
 }
 
 .section-list-item__delete {
-  color: var(--primary);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 8px 10px;
   border-radius: var(--radius-xs);
-  transition: all 0.2s;
+  transition: background var(--duration-normal) var(--ease-default), color var(--duration-normal) var(--ease-default);
   font-weight: 600;
   font-size: 1.1rem;
   border: 2px solid transparent;
 }
 
 .section-list-item__delete:hover {
-  background: var(--primary-soft);
-  border-color: var(--primary);
-  transform: scale(1.1);
+  background: var(--danger-soft);
+  border-color: var(--danger-soft-border);
+  color: var(--danger);
 }
 
 .section-edit-row {
@@ -1401,7 +1392,7 @@ select.show-detail__status--select {
 
 .vendor-card__booked {
   background: rgba(52, 210, 123, 0.15);
-  color: #34d27b;
+  color: var(--success);
   border-color: rgba(52, 210, 123, 0.35);
 }
 
@@ -1414,14 +1405,13 @@ select.show-detail__status--select {
 .vendor-card__link {
   display: inline-block;
   font-size: 0.85rem;
-  color: #1d4ed8;
+  color: var(--primary);
   text-decoration: none;
   margin-top: 4px;
   overflow-wrap: break-word;
   word-break: break-word;
 }
 .vendor-card__link:hover { text-decoration: underline; }
-[data-theme="dark"] .vendor-card__link { color: #60a5fa; }
 
 .vendor-card__notes {
   font-size: 0.85rem;
@@ -1633,9 +1623,9 @@ select.show-detail__status--select {
 .schedule-image-fallback__badge {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #22c55e;
-  background: #14532d30;
-  border: 1px solid #14532d;
+  color: var(--success);
+  background: var(--success-soft);
+  border: 1px solid var(--success);
   border-radius: var(--radius-xs);
   padding: 4px 12px;
 }
@@ -2053,12 +2043,11 @@ select.show-detail__status--select {
 .budget-card__title {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #16a34a;
+  color: var(--success);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 12px;
 }
-[data-theme="dark"] .budget-card__title { color: #4ade80; }
 .budget-card__grid {
   display: flex;
   gap: 20px;
@@ -2080,10 +2069,10 @@ select.show-detail__status--select {
   font-size: 1.1rem;
   font-weight: 800;
 }
-.budget-card__value--primary { color: #6b46c1; }
-.budget-card__value--spent   { color: var(--primary); }
-.budget-card__value--positive { color: #16a34a; }
-.budget-card__value--negative { color: var(--primary); }
+.budget-card__value--primary  { color: var(--primary); }
+.budget-card__value--spent    { color: var(--primary); }
+.budget-card__value--positive { color: var(--success); }
+.budget-card__value--negative { color: var(--danger); }
 
 /* ─── Receipt Photo (Expenses) ────────────────────────────────────────────── */
 .receipt-thumb {
@@ -2097,8 +2086,8 @@ select.show-detail__status--select {
   vertical-align: middle;
 }
 .receipt-thumb:hover {
-  border-color: #6b46c1;
-  box-shadow: 0 2px 8px rgba(107, 70, 193, 0.25);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
 }
 .receipt-thumb--inline {
   flex-shrink: 0;
@@ -2111,7 +2100,7 @@ select.show-detail__status--select {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.88);
-  z-index: 9999;
+  z-index: var(--z-lightbox);
   display: flex;
   flex-direction: column;
   align-items: center;
