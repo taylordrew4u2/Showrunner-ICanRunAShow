@@ -398,13 +398,14 @@ button.bento-tile {
 
 .shows-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 20px;
 }
 
 .shows-toolbar__search {
-  width: 100%;
+  flex: 1;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -425,20 +426,6 @@ button.bento-tile {
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
-.shows-toolbar__row2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.shows-toolbar__filters {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  flex: 1;
-}
-
 .shows-toolbar__sort {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -456,38 +443,6 @@ button.bento-tile {
 .shows-toolbar__sort:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-soft);
-}
-
-.shows-chip {
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.shows-chip:hover {
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-.shows-chip--active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: var(--on-primary);
-}
-
-.shows-toolbar__count {
-  font-size: 0.8rem;
-  color: var(--text-soft);
-  font-weight: 500;
-  white-space: nowrap;
-  margin-left: auto;
 }
 
 .shows-empty-filter {

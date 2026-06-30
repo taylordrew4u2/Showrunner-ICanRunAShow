@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Icon, type IconName } from './Icon';
+import { Icon } from './Icon';
 import './Login.css';
 
 interface LoginProps {
@@ -8,42 +8,6 @@ interface LoginProps {
   loading?: boolean;
   errorMessage?: string;
 }
-
-const FEATURES: { icon: IconName; title: string; text: string }[] = [
-  {
-    icon: 'mic',
-    title: 'Build the lineup',
-    text: 'Order performers, attach walk-on music, and keep every cue in one place.',
-  },
-  {
-    icon: 'camera',
-    title: 'Import by photo',
-    text: 'Snap a printed run-of-show and let it parse the schedule for you.',
-  },
-  {
-    icon: 'clock',
-    title: 'Run it live',
-    text: 'Full-screen live mode with per-cue countdowns keeps the night on time.',
-  },
-  {
-    icon: 'live',
-    title: 'Share a viewer link',
-    text: 'Broadcast the on-stage state to your team with a public link — no login.',
-  },
-];
-
-const HIGHLIGHTS: { icon: IconName; label: string }[] = [
-  { icon: 'mic', label: 'Lineups & walk-on music' },
-  { icon: 'camera', label: 'Photo & PDF schedule import' },
-  { icon: 'clock', label: 'Live mode with cue timing' },
-  { icon: 'lock', label: 'Encrypted, private by default' },
-];
-
-const STEPS = [
-  { num: '1', title: 'Plan', text: 'Create a show and build the lineup, staff, and schedule.' },
-  { num: '2', title: 'Prep', text: 'Import a schedule, add walk-on music, and collect artist details.' },
-  { num: '3', title: 'Run', text: 'Go live with cue timing and broadcast to your team.' },
-];
 
 export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }: LoginProps) {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -85,156 +49,86 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
     onSignIn(normalizedUsername, password);
   }
 
-  function scrollToAuth() {
-    document.getElementById('login-auth')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
   return (
     <div className="landing">
-      <header className="landing__nav">
+      <div className="landing__center">
         <div className="landing__wordmark">
           <span className="landing__wordmark-dot" />
           <span className="landing__wordmark-text">I Can Run A Show</span>
         </div>
-        <button type="button" className="landing__nav-cta" onClick={scrollToAuth}>
-          Sign in
-        </button>
-      </header>
 
-      <section className="landing__hero">
-        <div className="landing__hero-copy">
-          <span className="landing__badge">For live-event coordinators</span>
-          <h1 className="landing__headline">
-            Run a flawless show, <span className="landing__headline-accent">from lineup to last cue.</span>
-          </h1>
-          <p className="landing__lede">
-            One tool for the full live-show lifecycle — build the lineup, import the schedule,
-            and operate the night in real time with per-cue countdowns and a live viewer link.
-          </p>
+        <h1 className="landing__headline">
+          Run a flawless show,{' '}
+          <span className="landing__headline-accent">from lineup to last cue.</span>
+        </h1>
 
-          <ul className="landing__highlights">
-            {HIGHLIGHTS.map((h) => (
-              <li key={h.label}>
-                <Icon name={h.icon} size={17} className="landing__highlight-icon" />
-                {h.label}
-              </li>
-            ))}
-          </ul>
+        <p className="landing__lede">
+          Build the lineup, import the schedule, and operate the night in real time.
+        </p>
 
-          <div className="landing__hero-actions">
-            <button type="button" className="landing__cta" onClick={scrollToAuth}>
-              Get started
-            </button>
-            <span className="landing__cta-note">Installable as an app · works offline</span>
+        <div className="login__container">
+          <div className="login__header">
+            <h2 className="login__title">
+              {mode === 'signup' ? 'Create your account' : 'Welcome back'}
+            </h2>
           </div>
-        </div>
 
-        <div className="landing__auth" id="login-auth">
-          <div className="login__container">
-            <div className="login__header">
-              <h2 className="login__title">{mode === 'signup' ? 'Create your account' : 'Welcome back'}</h2>
-              <p className="login__subtitle">
-                {mode === 'signup'
-                  ? 'Your data is encrypted and stays private.'
-                  : 'Sign in to access your shows, lineup, and schedule.'}
-              </p>
-            </div>
-
-            <form className="login__form" onSubmit={handleSubmit}>
-              <div className="login__field">
-                <label className="login__label">Username</label>
-                <input
-                  className="login__input"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter username"
-                  disabled={loading}
-                  autoComplete="username"
-                />
-              </div>
-
-              <div className="login__field">
-                <label className="login__label">Password</label>
-                <input
-                  className="login__input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  disabled={loading}
-                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                />
-              </div>
-
-              {(error || errorMessage) && <div className="login__error">{error || errorMessage}</div>}
-
-              <button className="login__button" type="submit" disabled={loading}>
-                {loading ? 'Please wait...' : mode === 'signup' ? 'Create Account' : 'Sign In'}
-              </button>
-
-              <button
-                className="login__button login__button--secondary"
-                type="button"
+          <form className="login__form" onSubmit={handleSubmit}>
+            <div className="login__field">
+              <label className="login__label">Username</label>
+              <input
+                className="login__input"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username"
                 disabled={loading}
-                onClick={() => {
-                  setError('');
-                  setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
-                }}
-              >
-                {mode === 'signup' ? 'Already have an account? Sign In' : 'New here? Create Account'}
-              </button>
-            </form>
-
-            <div className="login__footer">
-              <p className="login__note">
-                <Icon name="lock" size={14} className="login__note-icon" />
-                Your data is encrypted and saved under your account.
-              </p>
+                autoComplete="username"
+              />
             </div>
+
+            <div className="login__field">
+              <label className="login__label">Password</label>
+              <input
+                className="login__input"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                disabled={loading}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              />
+            </div>
+
+            {(error || errorMessage) && (
+              <div className="login__error">{error || errorMessage}</div>
+            )}
+
+            <button className="login__button" type="submit" disabled={loading}>
+              {loading ? 'Please wait…' : mode === 'signup' ? 'Create Account' : 'Sign In'}
+            </button>
+
+            <button
+              className="login__button login__button--secondary"
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                setError('');
+                setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
+              }}
+            >
+              {mode === 'signup' ? 'Already have an account? Sign In' : "New here? Create Account"}
+            </button>
+          </form>
+
+          <div className="login__footer">
+            <p className="login__note">
+              <Icon name="lock" size={13} className="login__note-icon" />
+              Encrypted and private by default
+            </p>
           </div>
         </div>
-      </section>
-
-      <section className="landing__features" aria-label="Features">
-        <h2 className="landing__section-title">Everything you need on show night</h2>
-        <div className="landing__feature-grid">
-          {FEATURES.map((f) => (
-            <article key={f.title} className="landing__feature">
-              <span className="landing__feature-icon" aria-hidden="true">
-                <Icon name={f.icon} size={22} />
-              </span>
-              <h3 className="landing__feature-title">{f.title}</h3>
-              <p className="landing__feature-text">{f.text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="landing__steps" aria-label="How it works">
-        <h2 className="landing__section-title">How it works</h2>
-        <div className="landing__step-grid">
-          {STEPS.map((s) => (
-            <div key={s.num} className="landing__step">
-              <span className="landing__step-num">{s.num}</span>
-              <div>
-                <h3 className="landing__step-title">{s.title}</h3>
-                <p className="landing__step-text">{s.text}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="landing__steps-cta">
-          <button type="button" className="landing__cta" onClick={scrollToAuth}>
-            Create your first show
-          </button>
-        </div>
-      </section>
-
-      <footer className="landing__footer-bar">
-        <span className="landing__wordmark-dot" />
-        <span>I Can Run A Show — show management for live events</span>
-      </footer>
+      </div>
     </div>
   );
 }
