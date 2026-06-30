@@ -17,18 +17,61 @@
   --primary-soft-border: #ead7a6;
   --on-primary: #ffffff; /* text/icons sitting on a --primary fill */
   --danger: #c64559;
+  --danger-soft: #fdf0f2;
+  --danger-soft-border: #f5c0c8;
+  --on-danger: #ffffff;
   --success: #1f9d57;
+  --success-soft: #edf8f2;
   --shadow-sm: 0 1px 2px rgba(20, 16, 8, 0.06);
   --shadow-md: 0 6px 20px rgba(20, 16, 8, 0.10);
   --app-bar-height: 56px;
   --bottom-nav-height: 68px;
 
-  /* Radius scale — tightened for a crisper, more professional feel. */
+  /* Radius scale */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-full: 999px;
+
+  /* Type scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 0.95rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+
+  /* Spacing scale (8px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Transition timing */
+  --duration-fast: 0.1s;
+  --duration-normal: 0.18s;
+  --duration-slow: 0.28s;
+  --ease-default: ease;
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Z-index layers — never use raw integers outside this list */
+  --z-base: 0;
+  --z-raised: 1;
+  --z-sticky: 60;
+  --z-overlay: 80;
+  --z-runshow: 90;
+  --z-modal: 100;
+  --z-runshow-ui: 120;
+  --z-loading: 150;
+  --z-banner: 200;
+  --z-drawer: 201;
+  --z-lightbox: 1000;
 }
 
 /* ── Color scheme ────────────────────────────────────────────────────
@@ -56,7 +99,11 @@
   --primary-soft-border: #44391f;
   --on-primary: #15110a; /* near-black text on the brass fill */
   --danger: #db5b6b;
+  --danger-soft: #2a1318;
+  --danger-soft-border: #5a2430;
+  --on-danger: #ffffff;
   --success: #3fb583;
+  --success-soft: #0d2419;
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 14px 36px rgba(0, 0, 0, 0.55);
 }
@@ -117,7 +164,7 @@
 .app-header {
   position: fixed;
   inset: 0 0 auto 0;
-  z-index: 60;
+  z-index: var(--z-sticky);
   height: calc(var(--app-bar-height) + env(safe-area-inset-top));
   background: rgba(26, 29, 36, 0.94);
   border-bottom: 1px solid var(--border);
@@ -694,8 +741,10 @@ button.bento-tile {
   font-family: inherit;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.08s ease, background-color 0.15s ease, box-shadow 0.15s ease,
-    border-color 0.15s ease;
+  transition: transform var(--duration-fast) var(--ease-default),
+    background-color var(--duration-normal) var(--ease-default),
+    box-shadow var(--duration-normal) var(--ease-default),
+    border-color var(--duration-normal) var(--ease-default);
   user-select: none;
   touch-action: manipulation;
 }
@@ -703,6 +752,11 @@ button.bento-tile {
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* Crisp, tactile press — the button depresses instantly on touch. */
@@ -736,13 +790,20 @@ button.bento-tile {
 }
 
 .btn--danger {
-  background: var(--primary-soft);
-  border-color: var(--primary-soft-border);
+  background: var(--danger-soft);
+  border-color: var(--danger-soft-border);
   color: var(--danger);
 }
 
+.btn--danger:hover:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-danger);
+}
+
 .btn--sm {
-  padding-inline: 14px;
+  min-height: 36px;
+  padding: 6px 14px;
   font-size: 0.87rem;
 }
 
@@ -776,7 +837,7 @@ button.bento-tile {
   transform: translateX(-50%);
   width: 100%;
   max-width: 600px;
-  z-index: 60;
+  z-index: var(--z-sticky);
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
   background: var(--surface);
@@ -1527,7 +1588,7 @@ button.bento-tile {
   background: rgba(0, 0, 0, 0.4);
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
-  z-index: 80;
+  z-index: var(--z-overlay);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1665,7 +1726,7 @@ button.bento-tile {
   --rs-red: #e05555;
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-runshow);
   background: #06080c;
   color: #fff;
   display: flex;
@@ -1791,7 +1852,7 @@ button.bento-tile {
 .rs-countdown {
   position: fixed;
   inset: 0;
-  z-index: 120;
+  z-index: var(--z-runshow-ui);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2088,7 +2149,7 @@ button.bento-tile {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 200;
+  z-index: var(--z-banner);
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -2118,7 +2179,7 @@ button.bento-tile {
 .app-loading {
   position: fixed;
   inset: 0;
-  z-index: 150;
+  z-index: var(--z-loading);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2360,7 +2421,7 @@ button.bento-tile {
 .artist-page {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-runshow);
   background: var(--bg);
   color: var(--text);
   display: flex;
@@ -3070,7 +3131,7 @@ button.bento-tile {
 .artist-signup__lightbox {
   position: fixed; inset: 0;
   background: rgba(0, 0, 0, 0.92);
-  z-index: 500;
+  z-index: var(--z-lightbox);
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
   cursor: zoom-out;

@@ -21,7 +21,7 @@
 .perf-profile__card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   padding: 28px;
   margin-bottom: 16px;
   display: grid;
@@ -76,7 +76,7 @@
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 10px 14px;
   font-size: 0.92rem;
   font-family: inherit;
@@ -123,7 +123,7 @@
   gap: 8px;
   width: 100%;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   border: 2px dashed var(--border);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
@@ -211,7 +211,7 @@
 .perf-profile__photo-thumb {
   position: relative;
   aspect-ratio: 1 / 1;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
 }
@@ -247,7 +247,7 @@
   max-width: 92vw;
   max-height: 88dvh;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
 }
 
@@ -314,7 +314,7 @@
   left: 4px;
   bottom: 4px;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -376,7 +376,7 @@
   gap: 10px;
   background: var(--surface-strong);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 16px;
 }
 
@@ -404,7 +404,7 @@
 
 .perf-profile__video {
   width: 100%;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   max-height: 240px;
   object-fit: contain;
   background: #000;
@@ -419,7 +419,7 @@
 .perf-profile__media-error {
   margin: 0 0 12px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--primary-soft);
   border: 1px solid var(--primary-soft-border);
   color: var(--primary);
@@ -452,7 +452,7 @@
   color: var(--primary);
   text-decoration: none;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--primary-soft);
   border: 1px solid var(--primary-soft-border);
   transition: opacity 0.15s ease;
@@ -485,7 +485,7 @@
   gap: 6px;
   padding: 28px 20px;
   border: 2px dashed var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   text-align: center;
   transition: border-color 0.15s ease, background 0.15s ease;
