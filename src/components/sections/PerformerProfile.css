@@ -380,6 +380,12 @@
   padding: 16px;
 }
 
+.perf-profile__media-tile--bare {
+  border: none;
+  padding: 0;
+  background: none;
+}
+
 .perf-profile__media-label {
   font-size: 0.82rem;
   font-weight: 700;

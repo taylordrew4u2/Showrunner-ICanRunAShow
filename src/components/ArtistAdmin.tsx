@@ -10,6 +10,9 @@ import {
   deleteSignup,
   type ArtistSignupPayload,
   type ArtistSignupEntry,
+  DEFAULT_BLACK_LABEL,
+  DEFAULT_COLOR_LABEL,
+  DEFAULT_NOTIFY_TEMPLATE,
 } from '../utils/artistSignup';
 
 interface ArtistAdminProps {
@@ -39,9 +42,6 @@ interface Draft {
   hiddenCues: Set<string>;
 }
 
-const DEFAULT_BLACK_LABEL = 'Black — $60';
-const DEFAULT_COLOR_LABEL = 'Full color — $80';
-const DEFAULT_NOTIFY = "Hi {name}! You're up — head over for your tattoo.";
 
 function buildPayload(show: Show): ArtistSignupPayload {
   const hidden = new Set(show.artistHiddenCues ?? []);
@@ -71,7 +71,7 @@ function buildPayload(show: Show): ArtistSignupPayload {
 }
 
 function renderTemplate(template: string, name: string): string {
-  return template.replace(/\{name\}/g, name).trim() || DEFAULT_NOTIFY.replace('{name}', name);
+  return template.replace(/\{name\}/g, name).trim() || DEFAULT_NOTIFY_TEMPLATE.replace('{name}', name);
 }
 
 async function sendNotifyEmail(
@@ -158,7 +158,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     showSignups: show.artistSections?.signups ?? true,
     showFlash: show.artistSections?.flash ?? true,
     showPayment: show.artistSections?.payment ?? true,
-    notifyTemplate: show.artistNotifyTemplate ?? DEFAULT_NOTIFY,
+    notifyTemplate: show.artistNotifyTemplate ?? DEFAULT_NOTIFY_TEMPLATE,
     hiddenCues: new Set(show.artistHiddenCues ?? []),
   });
 
@@ -244,7 +244,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
         payment: draft.showPayment,
       },
       artistHiddenCues: Array.from(draft.hiddenCues),
-      artistNotifyTemplate: draft.notifyTemplate.trim() === DEFAULT_NOTIFY ? undefined : draft.notifyTemplate.trim() || undefined,
+      artistNotifyTemplate: draft.notifyTemplate.trim() === DEFAULT_NOTIFY_TEMPLATE ? undefined : draft.notifyTemplate.trim() || undefined,
     };
     if (!token) {
       token = generateId();
@@ -622,7 +622,7 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
             rows={2}
             value={draft.notifyTemplate}
             onChange={(e) => setDraft((d) => ({ ...d, notifyTemplate: e.target.value }))}
-            placeholder={DEFAULT_NOTIFY}
+            placeholder={DEFAULT_NOTIFY_TEMPLATE}
           />
         </section>
       </>

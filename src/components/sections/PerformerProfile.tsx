@@ -241,7 +241,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                     walkOnMusicArtist: performer.walkOnMusicArtist,
                     walkOnMusicTimestamp: performer.walkOnMusicTimestamp,
                     walkOnMusicLink: performer.walkOnMusicLink,
-                    notes: performer.socialMedia,
+                    notes: undefined,
                   };
                   onSaveToRolodex(comic);
                   setSavedToRolodex(true);
@@ -329,6 +329,9 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
             ) : !locked ? (
               <div
                 className={`perf-profile__dropzone${audioDrag ? ' perf-profile__dropzone--active' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-label="Upload walk-on audio file"
                 onDragOver={e => e.preventDefault()}
                 onDragEnter={() => setAudioDrag(true)}
                 onDragLeave={() => setAudioDrag(false)}
@@ -340,6 +343,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                   onChange({ ...performer, walkOnMusic: result, walkOnMusicName: file.name });
                   setSongName(file.name);
                 })}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickFile('audio/*', 'audio file', (result, file) => { onChange({ ...performer, walkOnMusic: result, walkOnMusicName: file.name }); setSongName(file.name); }); } }}
               >
                 <span className="perf-profile__dropzone-icon"></span>
                 <span className="perf-profile__dropzone-label">
@@ -391,11 +395,15 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
             ) : !locked ? (
               <div
                 className={`perf-profile__dropzone${videoDrag ? ' perf-profile__dropzone--active' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-label="Upload video file"
                 onDragOver={e => e.preventDefault()}
                 onDragEnter={() => setVideoDrag(true)}
                 onDragLeave={() => setVideoDrag(false)}
                 onDrop={e => handleDrop(e, 'video/', 'video', result => onChange({ ...performer, video: result }), setVideoDrag)}
                 onClick={() => pickFile('video/*', 'video', result => onChange({ ...performer, video: result }))}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickFile('video/*', 'video', result => onChange({ ...performer, video: result })); } }}
               >
                 <span className="perf-profile__dropzone-icon"></span>
                 <span className="perf-profile__dropzone-label">

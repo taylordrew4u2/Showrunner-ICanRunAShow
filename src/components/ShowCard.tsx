@@ -38,7 +38,11 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
   return (
     <div
       className={`show-card show-card--${show.status}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${show.name}`}
       onClick={e => onSelect(show, e)}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(show, e as unknown as React.MouseEvent); } }}
     >
       <div className="show-card__header">
         <h2 className="show-card__title">{show.name}</h2>
