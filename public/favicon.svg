@@ -1,21 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="I Can Run A Show">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#16181d"/>
-      <stop offset="1" stop-color="#0b0c0f"/>
-    </linearGradient>
-    <linearGradient id="gold" x1="0.15" y1="0" x2="0.85" y2="1">
-      <stop offset="0" stop-color="#f0d79b"/>
-      <stop offset="0.55" stop-color="#cfa55a"/>
-      <stop offset="1" stop-color="#a87f37"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="118" fill="url(#bg)"/>
-  <rect x="8" y="8" width="496" height="496" rx="110" fill="none" stroke="#b89243" stroke-opacity="0.22" stroke-width="5"/>
-  <!-- gauge ring: ~310° arc, gap centered at the bottom -->
-  <circle cx="256" cy="256" r="158" fill="none" stroke="url(#gold)" stroke-width="24"
+  <!-- Black background with rounded corners -->
+  <rect width="512" height="512" rx="118" fill="#000000"/>
+  <!-- Subtle dark border -->
+  <rect x="6" y="6" width="500" height="500" rx="112" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="4"/>
+  <!-- Gauge ring: ~310° arc, gap at the bottom — blue primary -->
+  <circle cx="256" cy="256" r="158" fill="none" stroke="#3b82f6" stroke-width="22"
           stroke-linecap="round" stroke-dasharray="855 138" transform="rotate(106 256 256)"/>
-  <!-- play triangle: optically centered, softly rounded corners -->
-  <path d="M218 192 L218 320 L330 256 Z" fill="url(#gold)" stroke="url(#gold)"
-        stroke-width="34" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- Play triangle: white, optically centered -->
+  <path d="M218 192 L218 320 L330 256 Z" fill="#ffffff" stroke="#ffffff"
+        stroke-width="28" stroke-linejoin="round" stroke-linecap="round"/>
 </svg>
