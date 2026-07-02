@@ -1,18 +1,18 @@
 <div align="center">
 
-# 🎤 I Can Run A Show
+# I Can Run A Show
 
-**Show-management software for live-event coordinators — build the lineup, import the schedule, and run the show in real time.**
+**Live-show management for comedians, drag promoters, and variety producers — build the lineup, import the schedule, and run the show.**
 
-[**Live Demo →**](https://icanrunashow.com)
+[**icanrunashow.com →**](https://icanrunashow.com)
 
 [![CI](https://github.com/taylordrew4u2/Showrunner-ICanRunAShow/actions/workflows/ci.yml/badge.svg)](https://github.com/taylordrew4u2/Showrunner-ICanRunAShow/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2563eb?logoColor=white)](LICENSE)
 &nbsp;
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
-![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-installable-000000?logo=pwa&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel&logoColor=white)
 
 </div>
@@ -320,7 +320,7 @@ Without these, the Email button shows a clear inline error explaining what's mis
 
 ## Technical Decisions
 
-**No CSS framework.** Every component is styled with hand-written CSS using a comprehensive design token system. Tokens cover type scale (`--text-*`), spacing (`--space-*`), z-index layers (`--z-*`), transition timing (`--duration-*`, `--ease-*`), and a radius scale (`--radius-sm` → `--radius-full`). This keeps the bundle small and gives full control over every interaction state and animation. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer/sign-up links — are just a `data-theme` swap.
+**No CSS framework.** Every component is styled with hand-written CSS using a comprehensive design token system. Tokens cover type scale (`--text-*`), spacing (`--space-*`), z-index layers (`--z-*`), transition timing (`--duration-*`, `--ease-*`), and a radius scale (`--radius-sm` → `--radius-full`). The palette is a clean black-and-white base with a single blue primary accent — no warm tones, no framework overrides. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer/sign-up links — are just a `data-theme` swap.
 
 **Phone-first, one column everywhere.** Rather than maintain separate desktop and mobile layouts, the app renders as a single centered column (capped width) at every screen size, with a bottom navigation. On a desktop it reads as a focused native phone app instead of a sprawling multi-pane dashboard.
 
