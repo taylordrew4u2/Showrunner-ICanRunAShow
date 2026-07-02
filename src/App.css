@@ -152,6 +152,31 @@
   }
 }
 
+/* ── Native-style view transition (touch devices) ─────────────────────
+   Each screen slides up slightly as it enters, like a native tab switch. */
+@media (pointer: coarse) {
+  .app-main > * {
+    animation: view-enter 0.22s var(--ease-out) backwards;
+  }
+}
+
+@keyframes view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-main > * {
+    animation: none;
+  }
+}
+
 .app-header {
   position: fixed;
   inset: 0 0 auto 0;
@@ -823,7 +848,7 @@ button.bento-tile {
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
-  max-width: 600px;
+  max-width: 860px;
   z-index: var(--z-sticky);
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
