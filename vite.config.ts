@@ -14,9 +14,9 @@ export default defineConfig({
       manifest: {
         name: 'I Can Run A Show',
         short_name: 'Run A Show',
-        description: 'Organize your show',
-        theme_color: '#f6f7f9',
-        background_color: '#f6f7f9',
+        description: 'Live-show management for comedians, drag promoters, and variety show producers.',
+        theme_color: '#000000',
+        background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
