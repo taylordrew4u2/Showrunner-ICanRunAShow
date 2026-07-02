@@ -1,37 +1,37 @@
 :root {
-  /* Professional "operations console" — restrained editorial neutrals with a
-     muted brass accent. The deep dark theme is the signature look (see below). */
-  --bg: #f6f4ef;
-  --backdrop: #e6e2d8; /* page behind the phone-app column */
+  /* Sleek black-and-white foundation with a clean blue primary accent. */
+  --bg: #f8f9fb;
+  --backdrop: #f0f1f4; /* page behind the phone-app column */
   --surface: #ffffff;
-  --surface-strong: #efece4;
-  --text: #16181d;
-  --text-muted: #5c5950;
-  --text-soft: #8b887e;
-  --border: #e7e2d7;
-  --border-strong: #d3cdbe;
-  --primary: #8a6a1f; /* deep brass — restrained, legible as text and on fills */
-  --primary-pressed: #6f5417;
-  --primary-bright: #b89243;
-  --primary-soft: #f6efdc;
-  --primary-soft-border: #ead7a6;
+  --surface-strong: #f3f4f6;
+  --text: #09090b;
+  --text-muted: #6b7280;
+  --text-soft: #9ca3af;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --primary: #2563eb; /* clean blue — clear, legible, professional */
+  --primary-pressed: #1d4ed8;
+  --primary-bright: #3b82f6;
+  --primary-soft: #eff6ff;
+  --primary-soft-border: #bfdbfe;
   --on-primary: #ffffff; /* text/icons sitting on a --primary fill */
-  --danger: #c64559;
-  --danger-soft: #fdf0f2;
-  --danger-soft-border: #f5c0c8;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --danger-soft-border: #fecaca;
   --on-danger: #ffffff;
-  --success: #1f9d57;
-  --success-soft: #edf8f2;
-  --shadow-sm: 0 1px 2px rgba(20, 16, 8, 0.06);
-  --shadow-md: 0 6px 20px rgba(20, 16, 8, 0.10);
+  --success: #16a34a;
+  --success-soft: #f0fdf4;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10), 0 2px 4px rgba(0, 0, 0, 0.06);
   --app-bar-height: 56px;
   --bottom-nav-height: 68px;
+  --header-bg: rgba(255, 255, 255, 0.92);
 
-  /* Radius scale */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  /* Radius scale — tighter for a sharper, more editorial look */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
   --radius-full: 999px;
 
   /* Type scale */
@@ -76,36 +76,33 @@
 
 /* ── Color scheme ────────────────────────────────────────────────────
    A minimal pair: Light is the base :root palette (no attribute); Dark is the
-   single override, selected via data-theme="dark" on <html>.
-
-   Dark is the signature "operations console" look: a near-black, high-contrast
-   surface with a restrained, premium brass accent — editorial and professional,
-   not flashy. */
+   single override, selected via data-theme="dark" on <html>. */
 
 [data-theme="dark"] {
-  --bg: #0c0d10;
-  --backdrop: #060708;
-  --surface: #15171c;
-  --surface-strong: #1d2027;
-  --text: #efece4;
-  --text-muted: #9a968d;
-  --text-soft: #65625a;
-  --border: #24262d;
-  --border-strong: #353841;
-  --primary: #b89243; /* muted brass — premium and restrained on near-black */
-  --primary-pressed: #9d7a32;
-  --primary-bright: #d4ad57;
-  --primary-soft: #201b10;
-  --primary-soft-border: #44391f;
-  --on-primary: #15110a; /* near-black text on the brass fill */
-  --danger: #db5b6b;
-  --danger-soft: #2a1318;
-  --danger-soft-border: #5a2430;
+  --bg: #000000;
+  --backdrop: #000000;
+  --surface: #0f0f0f;
+  --surface-strong: #1a1a1a;
+  --text: #f9fafb;
+  --text-muted: #9ca3af;
+  --text-soft: #4b5563;
+  --border: #1f1f1f;
+  --border-strong: #2d2d2d;
+  --primary: #3b82f6; /* blue on black — sharp and clear */
+  --primary-pressed: #2563eb;
+  --primary-bright: #60a5fa;
+  --primary-soft: #0c1a33;
+  --primary-soft-border: #1e3a5f;
+  --on-primary: #ffffff;
+  --danger: #ef4444;
+  --danger-soft: #1c0808;
+  --danger-soft-border: #450a0a;
   --on-danger: #ffffff;
-  --success: #3fb583;
-  --success-soft: #0d2419;
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 14px 36px rgba(0, 0, 0, 0.55);
+  --success: #22c55e;
+  --success-soft: #052e16;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.7);
+  --header-bg: rgba(0, 0, 0, 0.88);
 }
 
 * {
@@ -166,7 +163,7 @@
   inset: 0 0 auto 0;
   z-index: var(--z-sticky);
   height: calc(var(--app-bar-height) + env(safe-area-inset-top));
-  background: rgba(26, 29, 36, 0.94);
+  background: var(--header-bg);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1721,9 +1718,9 @@ button.bento-tile {
 
 /* Run Show (full-screen show-runner overlay) */
 .run-show {
-  --rs-blue: #5b8cff;
-  --rs-green: #34d27b;
-  --rs-red: #e05555;
+  --rs-blue: #3b82f6;
+  --rs-green: #22c55e;
+  --rs-red: #ef4444;
   position: fixed;
   inset: 0;
   z-index: var(--z-runshow);
@@ -1765,9 +1762,9 @@ button.bento-tile {
 }
 .run-show__restart:hover { background: rgba(255, 255, 255, 0.12); }
 .run-show__finish {
-  background: rgba(80, 200, 120, 0.16);
-  border: 1px solid rgba(80, 200, 120, 0.35);
-  color: #7ee2a8;
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: var(--rs-green);
   border-radius: var(--radius-full);
   padding: 7px 14px;
   font-size: 0.78rem;
@@ -1775,7 +1772,7 @@ button.bento-tile {
   cursor: pointer;
   font-family: inherit;
 }
-.run-show__finish:hover { background: rgba(80, 200, 120, 0.28); }
+.run-show__finish:hover { background: rgba(34, 197, 94, 0.28); }
 .run-show__close {
   display: inline-flex;
   align-items: center;
@@ -1991,13 +1988,13 @@ button.bento-tile {
 .rs-btn--start {
   background: var(--rs-green);
   border-color: var(--rs-green);
-  color: #04210f;
+  color: #052e16;
 }
 .rs-btn--start:hover:not(:disabled) { filter: brightness(1.08); background: var(--rs-green); }
 .rs-btn--next {
   background: var(--rs-blue);
   border-color: var(--rs-blue);
-  color: #0a1230;
+  color: #0c1a33;
 }
 .rs-btn--next:hover:not(:disabled) { filter: brightness(1.08); background: var(--rs-blue); }
 .rs-btn--active {
@@ -2234,8 +2231,8 @@ button.bento-tile {
   border-radius: 999px;
   background: var(--surface-strong);
 }
-.live-viewer__status--running { color: #16a34a; background: rgba(34, 197, 94, 0.14); }
-.live-viewer__status--paused { color: #4f7cff; background: rgba(79, 124, 255, 0.14); }
+.live-viewer__status--running { color: var(--success); background: rgba(22, 163, 74, 0.12); }
+.live-viewer__status--paused { color: var(--primary); background: rgba(37, 99, 235, 0.10); }
 .live-viewer__status--countdown { color: var(--text); background: var(--surface-strong); }
 .live-viewer__status--ended { color: var(--text-muted); }
 .live-viewer__timer {
@@ -2460,7 +2457,7 @@ button.bento-tile {
   letter-spacing: -0.01em;
 }
 .artist-page__bar-right { display: flex; align-items: center; gap: 10px; }
-.artist-page__saved { font-size: 0.82rem; color: #34d27b; font-weight: 600; }
+.artist-page__saved { font-size: 0.82rem; color: var(--success); font-weight: 600; }
 
 .artist-page__tabs {
   display: flex;
@@ -2538,8 +2535,8 @@ button.bento-tile {
 
 .artist-queue__next {
   grid-column: 1 / -1;
-  background: linear-gradient(135deg, rgba(52, 210, 123, 0.16), rgba(52, 210, 123, 0.04));
-  border: 2px solid rgba(52, 210, 123, 0.5);
+  background: var(--success-soft);
+  border: 2px solid var(--success);
   border-radius: var(--radius-lg);
   padding: 20px 22px;
   display: flex;
@@ -2555,13 +2552,13 @@ button.bento-tile {
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.16em;
-  color: #34d27b;
+  color: var(--success);
 }
 .artist-queue__next-pos {
   font-size: 1rem;
   font-weight: 800;
-  color: #34d27b;
-  background: rgba(52, 210, 123, 0.16);
+  color: var(--success);
+  background: var(--success-soft);
   padding: 2px 10px;
   border-radius: 999px;
 }
@@ -2636,7 +2633,7 @@ button.bento-tile {
 .artist-queue__notify-error {
   margin: 8px 0 0;
   font-size: 0.82rem;
-  color: #ff6b6b;
+  color: var(--danger);
   font-weight: 600;
 }
 
@@ -2646,7 +2643,7 @@ button.bento-tile {
   margin-top: 4px;
 }
 .artist-queue__remove {
-  color: #ff6b6b !important;
+  color: var(--danger) !important;
 }
 .artist-queue__deck-actions {
   display: flex;
@@ -2709,11 +2706,11 @@ button.bento-tile {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: linear-gradient(135deg, rgba(52, 210, 123, 0.14), rgba(52, 210, 123, 0.04));
-  border-color: rgba(52, 210, 123, 0.4);
+  background: var(--success-soft);
+  border-color: var(--success);
 }
 .artist-card__next-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.artist-card__next-label { font-size: 0.7rem; font-weight: 700; color: #34d27b; letter-spacing: 0.08em; text-transform: uppercase; }
+.artist-card__next-label { font-size: 0.7rem; font-weight: 700; color: var(--success); letter-spacing: 0.08em; text-transform: uppercase; }
 .artist-card__next-name { font-size: 1.15rem; font-weight: 800; line-height: 1.2; }
 .artist-card__next-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 @media (max-width: 520px) {
@@ -2759,8 +2756,8 @@ button.bento-tile {
   border: 1px solid var(--border);
 }
 .artist-admin__entry--next {
-  background: linear-gradient(135deg, rgba(52, 210, 123, 0.12), rgba(52, 210, 123, 0.04));
-  border-color: rgba(52, 210, 123, 0.4);
+  background: var(--success-soft);
+  border-color: var(--success);
 }
 .artist-admin__entry--done { opacity: 0.55; }
 .artist-admin__entry--done .artist-admin__entry-name { text-decoration: line-through; }
@@ -2775,7 +2772,7 @@ button.bento-tile {
 }
 .artist-admin__entry-name { font-weight: 700; }
 .artist-admin__entry-tag { font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; background: var(--border); }
-.artist-admin__entry-tag--black { background: #2a2a2a; color: #fff; }
+.artist-admin__entry-tag--black { background: var(--text); color: var(--bg); }
 .artist-admin__entry-tag--color { background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff); color: #fff; font-weight: 700; }
 .artist-admin__entry-phone { font-size: 0.82rem; color: var(--primary); text-decoration: none; }
 .artist-admin__entry-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
@@ -3048,11 +3045,11 @@ button.bento-tile {
 .artist-signup__success-card {
   padding: 16px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, rgba(52, 210, 123, 0.16), rgba(52, 210, 123, 0.04));
-  border: 1px solid rgba(52, 210, 123, 0.4);
+  background: var(--success-soft);
+  border: 1px solid var(--success);
   text-align: center;
 }
-.artist-signup__success-headline { font-size: 1.1rem; font-weight: 800; color: #34d27b; }
+.artist-signup__success-headline { font-size: 1.1rem; font-weight: 800; color: var(--success); }
 .artist-signup__success-pos { margin-top: 8px; font-size: 1.5rem; font-weight: 700; }
 .artist-signup__success-pos strong { font-size: 1.8rem; color: var(--primary); }
 .artist-signup__success-sub { margin-top: 8px; font-size: 0.9rem; color: var(--text-muted); }
@@ -3099,9 +3096,9 @@ button.bento-tile {
   background: var(--border); color: var(--text-muted);
   font-weight: 600;
 }
-.artist-signup__entry-tag--black { background: #2a2a2a; color: #fff; }
+.artist-signup__entry-tag--black { background: var(--text); color: var(--bg); }
 .artist-signup__entry-tag--color { background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff); color: #fff; font-weight: 700; }
-.artist-signup__entry-tag--done { background: rgba(52, 210, 123, 0.2); color: #34d27b; }
+.artist-signup__entry-tag--done { background: var(--success-soft); color: var(--success); }
 .artist-signup__entry-pos {
   font-size: 0.82rem; font-weight: 700; color: var(--text-muted);
   font-variant-numeric: tabular-nums;
