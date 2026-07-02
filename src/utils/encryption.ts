@@ -30,17 +30,33 @@ export function deriveUserId(identifier: string): string {
     .substring(0, 32);
 }
 
+// PBKDF2 at 100k iterations takes hundreds of ms of main-thread time, and the
+// same password is used for every save in a session — cache the derived keys
+// (in memory only; never persisted) so the cost is paid once per login.
+const keyCache = new Map<string, string>();
+const legacyKeyCache = new Map<string, string>();
+
 /**
  * Derive the current (v2) encryption key from a password. Used to encrypt new
  * data and as the first decryption attempt.
  */
 export function deriveKey(password: string): string {
-  return CryptoJS.PBKDF2(password, PASSWORD_SALT, KDF_V2).toString();
+  let key = keyCache.get(password);
+  if (!key) {
+    key = CryptoJS.PBKDF2(password, PASSWORD_SALT, KDF_V2).toString();
+    keyCache.set(password, key);
+  }
+  return key;
 }
 
 /** Derive the legacy (v1) key — only used as a decryption fallback. */
 function deriveLegacyKey(password: string): string {
-  return CryptoJS.PBKDF2(password, PASSWORD_SALT, KDF_V1).toString();
+  let key = legacyKeyCache.get(password);
+  if (!key) {
+    key = CryptoJS.PBKDF2(password, PASSWORD_SALT, KDF_V1).toString();
+    legacyKeyCache.set(password, key);
+  }
+  return key;
 }
 
 /**

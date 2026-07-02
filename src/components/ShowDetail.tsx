@@ -2,7 +2,6 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
-import { DeadlineIndicator } from './DeadlineIndicator';
 import { Icon } from './Icon';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
@@ -38,7 +37,6 @@ export interface ShowDetailHandle {
 
 export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }, ref) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const [editingDeadline, setEditingDeadline] = useState<SectionKey | null>(null);
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -168,16 +166,6 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2500);
     }, 300);
-  }
-
-  function handleDeadlineChange(sectionKey: SectionKey, deadline: string) {
-    const updatedDeadlines = {
-      ...show.deadlines,
-      [sectionKey]: deadline || undefined,
-    };
-    onUpdate({ ...show, deadlines: updatedDeadlines });
-    triggerSaveIndicator();
-    setEditingDeadline(null);
   }
 
   function handleHideSection(sectionKey: SectionKey) {
@@ -569,7 +557,6 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       <div className="show-detail__sections-accordion">
         {sections.filter((section) => !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
           const isExpanded = expandedSections.has(section.key);
-          const isComplete = false;
           const spanClass = section.span === 2 ? ' accordion-section--span2' : '';
           const accentClass = section.accent ? ` accordion-section--${section.accent}` : '';
 
@@ -612,64 +599,6 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
                   </button>
                 </div>
               </div>
-
-              {section.sectionKey && (
-                <div className="accordion-section__deadline-bar" onClick={(e) => e.stopPropagation()}>
-                  {show.deadlines?.[section.sectionKey] ? (
-                    <div className="accordion-section__deadline-display">
-                      <DeadlineIndicator 
-                        deadline={show.deadlines[section.sectionKey]} 
-                        isComplete={isComplete}
-                      />
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingDeadline(section.sectionKey!);
-                        }}
-                      >
-                        Edit Deadline
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      className="btn btn--secondary btn--sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingDeadline(section.sectionKey!);
-                      }}
-                    >
-                      + Set Deadline
-                    </button>
-                  )}
-                  
-                  {editingDeadline === section.sectionKey && (
-                    <div className="accordion-section__deadline-editor">
-                      <input
-                        type="date"
-                        className="section-field__input"
-                        defaultValue={show.deadlines?.[section.sectionKey] || ''}
-                        onChange={(e) => handleDeadlineChange(section.sectionKey!, e.target.value)}
-                        autoFocus
-                      />
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => setEditingDeadline(null)}
-                      >
-                        Cancel
-                      </button>
-                      {show.deadlines?.[section.sectionKey] && (
-                        <button
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => handleDeadlineChange(section.sectionKey!, '')}
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {isExpanded && (
                 <div className="accordion-section__content">

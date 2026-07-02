@@ -39,6 +39,52 @@ type Session = {
 
 const SESSION_STORAGE_KEY = 'showrunner_session';
 
+// Unsaved-edit backups. When a save fails (offline, server error), the latest
+// data is parked here so a closed tab or crashed browser can't lose it — it's
+// restored and re-saved on the next launch.
+const PENDING_SHOWS_KEY = 'showrunner:pendingShows';
+const PENDING_SETTINGS_KEY = 'showrunner:pendingSettings';
+const LAST_EXPORT_KEY = 'showrunner:lastExport';
+
+/** True when the user has 3+ shows and hasn't exported a backup in 30 days. */
+function shouldNudgeBackup(showCount: number): boolean {
+  if (showCount < 3) return false;
+  try {
+    const last = localStorage.getItem(LAST_EXPORT_KEY);
+    if (!last) return true;
+    return Date.now() - new Date(last).getTime() > 30 * 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
+
+function readPending<T>(key: string, username: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { username: string; data: T };
+    return parsed.username === username ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePending(key: string, username: string, data: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify({ username, data }));
+  } catch {
+    /* quota exceeded or unavailable — in-memory retry still covers us */
+  }
+}
+
+function clearPending(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
@@ -162,9 +208,16 @@ export default function App() {
             : show
         );
 
-        setShows(autoStatusShows);
-        setSettings(migratedSettings);
+        // If a previous session had unsaved edits (save failed, tab closed),
+        // prefer that local backup — it's strictly newer than what the server
+        // has. Setting state marks it dirty, so the auto-save re-persists it.
+        const pendingShows = readPending<Show[]>(PENDING_SHOWS_KEY, currentSession.username);
+        const pendingSettings = readPending<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
+
+        setShows(pendingShows ?? autoStatusShows);
+        setSettings(pendingSettings ?? migratedSettings);
         dataLoaded.current = true;
+        if (pendingSettings) saveSettings(pendingSettings);
         setLoadError(null);
       } catch (error) {
         console.error('Failed to load shows:', error);
@@ -188,6 +241,24 @@ export default function App() {
   // Guards against overlapping saves. The server replaces all rows per request,
   // so two concurrent saves can race and an older one can clobber a newer one.
   const savingRef = useRef(false);
+  // Bumped to re-run the save effect for a retry (after a failure backoff, or
+  // when the browser comes back online).
+  const [saveRetryTick, setSaveRetryTick] = useState(0);
+  const retryDelayRef = useRef(5000);
+  const settingsSaveSeqRef = useRef(0);
+  // Session-scoped dismissal of the backup nudge (it returns next visit).
+  const [backupNudgeDismissed, setBackupNudgeDismissed] = useState(false);
+
+  // A failed save must never be the end of the story: retry as soon as the
+  // browser regains connectivity.
+  useEffect(() => {
+    function onOnline() {
+      retryDelayRef.current = 5000;
+      setSaveRetryTick((t) => t + 1);
+    }
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, []);
 
   // Save shows when changed
   useEffect(() => {
@@ -209,12 +280,20 @@ export default function App() {
             saved = latestShowsRef.current;
             await saveEncryptedShows(saved, currentSession.username, currentSession.password);
           }
+          clearPending(PENDING_SHOWS_KEY);
+          retryDelayRef.current = 5000;
           setSaveError(null);
         } catch (error) {
           console.error('Failed to save shows:', error);
+          // Park the unsaved data locally so even closing the tab can't lose it,
+          // then retry with backoff until the save lands.
+          writePending(PENDING_SHOWS_KEY, currentSession.username, latestShowsRef.current);
           setSaveError(
-            "Couldn't save your latest changes. This is usually caused by an uploaded file (often a video) being too large. Try removing it or using a link instead — your other edits are safe.",
+            "Couldn't save your latest changes — retrying automatically. Your edits are backed up on this device in the meantime.",
           );
+          const delay = retryDelayRef.current;
+          retryDelayRef.current = Math.min(delay * 2, 60_000);
+          setTimeout(() => setSaveRetryTick((t) => t + 1), delay);
         } finally {
           savingRef.current = false;
         }
@@ -222,7 +301,7 @@ export default function App() {
     }, 1000); // Debounce saves
 
     return () => clearTimeout(timeout);
-  }, [shows, session]);
+  }, [shows, session, saveRetryTick]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -411,10 +490,34 @@ export default function App() {
 
   function saveSettings(updatedSettings: typeof settings) {
     if (!session) return;
-    saveEncryptedSettings(updatedSettings, session.username, session.password).catch((err) => {
-      console.error('Failed to save settings:', err);
-      setSaveError("Couldn't save your Rolodex changes. Check your connection and try again.");
-    });
+    const currentSession = session;
+    // Each call supersedes any still-retrying older one, so a stale snapshot
+    // can never land after (and clobber) a newer save.
+    const seq = ++settingsSaveSeqRef.current;
+    void (async () => {
+      // Retry with backoff until the save lands; back the data up locally in
+      // the meantime so a closed tab can't lose it.
+      let delay = 5000;
+      while (seq === settingsSaveSeqRef.current) {
+        try {
+          await saveEncryptedSettings(updatedSettings, currentSession.username, currentSession.password);
+          if (seq === settingsSaveSeqRef.current) {
+            clearPending(PENDING_SETTINGS_KEY);
+            setSaveError(null);
+          }
+          return;
+        } catch (err) {
+          console.error('Failed to save settings:', err);
+          if (seq !== settingsSaveSeqRef.current) return;
+          writePending(PENDING_SETTINGS_KEY, currentSession.username, updatedSettings);
+          setSaveError(
+            "Couldn't save your changes — retrying automatically. Your edits are backed up on this device in the meantime.",
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          delay = Math.min(delay * 2, 60_000);
+        }
+      }
+    })();
   }
 
   function handleAddPotentialComic() {
@@ -619,9 +722,17 @@ export default function App() {
       ) : (
         <div className="app">
           {loadingData && (
-            <div className="app-loading" role="status" aria-live="polite">
-              <div className="app-loading__spinner" aria-hidden="true" />
-              <div className="app-loading__text">Loading your shows…</div>
+            <div className="app-loading" role="status" aria-live="polite" aria-label="Loading your shows">
+              <div className="app-loading__skeletons" aria-hidden="true">
+                <div className="skeleton-tile-row">
+                  <div className="skeleton skeleton--tile" />
+                  <div className="skeleton skeleton--tile" />
+                </div>
+                <div className="skeleton skeleton--bar" />
+                <div className="skeleton skeleton--card" />
+                <div className="skeleton skeleton--card" />
+                <div className="skeleton skeleton--card" />
+              </div>
             </div>
           )}
           {loadError && (
@@ -655,6 +766,25 @@ export default function App() {
                   <h1 className="shows-list__title">Shows</h1>
                   <button className="btn btn--primary btn--sm shows-list__new-btn" onClick={() => setShowForm(true)}>+ New Show</button>
                 </div>
+                {!backupNudgeDismissed && shouldNudgeBackup(shows.length) && (
+                  <div className="backup-nudge" role="status">
+                    <span className="backup-nudge__text">
+                      It's been a while since your last backup. Download a copy of your data from Settings.
+                    </span>
+                    <div className="backup-nudge__actions">
+                      <button className="btn btn--secondary btn--sm" onClick={() => setView('settings')}>
+                        Open Settings
+                      </button>
+                      <button
+                        className="backup-nudge__close"
+                        onClick={() => setBackupNudgeDismissed(true)}
+                        aria-label="Dismiss backup reminder"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {shows.length > 0 && (
                   <div className="shows-toolbar">
                     <input
@@ -838,6 +968,10 @@ export default function App() {
                   a.download = `showrunner-backup-${new Date().toISOString().slice(0, 10)}.json`;
                   a.click();
                   URL.revokeObjectURL(url);
+                  try {
+                    localStorage.setItem(LAST_EXPORT_KEY, new Date().toISOString());
+                  } catch { /* ignore */ }
+                  setBackupNudgeDismissed(true);
                 } : undefined}
               />
             )}
