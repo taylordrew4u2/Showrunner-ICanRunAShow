@@ -398,13 +398,21 @@ export default function App() {
       setSettings(updatedSettings);
       
       if (session) {
-        saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+        saveSettings(updatedSettings);
       }
       
       return updatedShows;
     });
   }
 
+
+  function saveSettings(updatedSettings: typeof settings) {
+    if (!session) return;
+    saveEncryptedSettings(updatedSettings, session.username, session.password).catch((err) => {
+      console.error('Failed to save settings:', err);
+      setSaveError("Couldn't save your Rolodex changes. Check your connection and try again.");
+    });
+  }
 
   function handleAddPotentialComic() {
     const trimmedName = newComicName.trim();
@@ -423,7 +431,7 @@ export default function App() {
     };
 
     setSettings(updatedSettings);
-    saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+    saveSettings(updatedSettings);
     setNewComicName('');
     setNewComicNotes('');
   }
@@ -436,7 +444,7 @@ export default function App() {
       : [comic, ...settings.potentialComics];
     const updatedSettings = { ...settings, potentialComics: updated };
     setSettings(updatedSettings);
-    saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+    saveSettings(updatedSettings);
   }
 
   function handleUpdateRolodexComic(updated: PotentialComic) {
@@ -444,7 +452,7 @@ export default function App() {
     const updatedComics = settings.potentialComics.map(c => c.id === updated.id ? updated : c);
     const updatedSettings = { ...settings, potentialComics: updatedComics };
     setSettings(updatedSettings);
-    saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+    saveSettings(updatedSettings);
 
     // Sync matching performers in all shows (match by name, update profile fields)
     setShows(prev =>
@@ -481,7 +489,7 @@ export default function App() {
     };
 
     setSettings(updatedSettings);
-    saveEncryptedSettings(updatedSettings, session.username, session.password).catch(console.error);
+    saveSettings(updatedSettings);
   }
 
   function handleUpdateShow(updated: Show) {
