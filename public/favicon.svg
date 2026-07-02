@@ -1,12 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="I Can Run A Show">
-  <!-- Black background with rounded corners -->
-  <rect width="512" height="512" rx="118" fill="#000000"/>
-  <!-- Subtle dark border -->
-  <rect x="6" y="6" width="500" height="500" rx="112" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="4"/>
-  <!-- Gauge ring: ~310° arc, gap at the bottom — blue primary -->
-  <circle cx="256" cy="256" r="158" fill="none" stroke="#3b82f6" stroke-width="22"
-          stroke-linecap="round" stroke-dasharray="855 138" transform="rotate(106 256 256)"/>
-  <!-- Play triangle: white, optically centered -->
-  <path d="M218 192 L218 320 L330 256 Z" fill="#ffffff" stroke="#ffffff"
-        stroke-width="28" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- White background with rounded corners -->
+  <rect width="512" height="512" rx="100" fill="#ffffff"/>
+  <!-- Border -->
+  <rect x="2" y="2" width="508" height="508" rx="98" fill="none" stroke="#e0e0e0" stroke-width="4"/>
+  <!-- Blue play triangle, optically centered -->
+  <path d="M190 160 L190 352 L366 256 Z" fill="#2563eb"/>
 </svg>
