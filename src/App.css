@@ -272,6 +272,42 @@
   }
 }
 
+.backup-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-soft-border);
+  border-radius: var(--radius-md);
+}
+
+.backup-nudge__text {
+  font-size: 0.85rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 200px;
+}
+
+.backup-nudge__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.backup-nudge__close {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
 .offline-banner {
   margin-bottom: 12px;
   border-radius: var(--radius-md);
@@ -2187,33 +2223,65 @@ button.bento-tile {
   flex-shrink: 0;
 }
 
-/* First-load overlay */
+/* First-load overlay: skeleton screens shaped like the shows list, so the app
+   appears to be assembling rather than stalled. */
 .app-loading {
   position: fixed;
   inset: 0;
   z-index: var(--z-loading);
+  background: var(--bg);
+  padding: calc(var(--app-bar-height) + env(safe-area-inset-top) + 18px) 16px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.app-loading__skeletons {
+  width: 100%;
+  max-width: 828px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  background: var(--bg);
+  gap: 12px;
 }
-.app-loading__spinner {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 3px solid var(--border-strong);
-  border-top-color: var(--primary);
-  animation: app-loading-spin 0.8s linear infinite;
+
+.skeleton {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
 }
-.app-loading__text {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-muted);
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: skeleton-shimmer 1.4s ease infinite;
 }
-@keyframes app-loading-spin {
-  to { transform: rotate(360deg); }
+
+[data-theme="dark"] .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+
+.skeleton-tile-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.skeleton--tile { height: 86px; }
+.skeleton--bar { height: 42px; }
+.skeleton--card { height: 96px; }
+
+@keyframes skeleton-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
 }
 
 /* ── Live Viewer (read-only public page) ──────────────────────────── */
