@@ -59,6 +59,13 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
   }, [payload?.theme]);
 
   useEffect(() => {
+    if (payload?.showName) {
+      document.title = `${payload.showName} — Artist Sign-Up | I Can Run A Show`;
+    }
+    return () => { document.title = 'I Can Run A Show — Live-Show Management for Comedians & Promoters'; };
+  }, [payload?.showName]);
+
+  useEffect(() => {
     let alive = true;
     let initial = true;
     async function tick() {

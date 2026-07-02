@@ -56,6 +56,13 @@ export function LiveViewer({ token }: LiveViewerProps) {
     if (payload?.theme) applyColorScheme(payload.theme, false);
   }, [payload?.theme]);
 
+  useEffect(() => {
+    if (payload?.showName) {
+      document.title = `${payload.showName} — Live | I Can Run A Show`;
+    }
+    return () => { document.title = 'I Can Run A Show — Live-Show Management for Comedians & Promoters'; };
+  }, [payload?.showName]);
+
   // Local tick so the timer counts down between server updates.
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 250);
