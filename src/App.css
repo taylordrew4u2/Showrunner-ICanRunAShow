@@ -1,37 +1,36 @@
 :root {
-  /* Sleek black-and-white foundation with a clean blue primary accent. */
-  --bg: #f8f9fb;
-  --backdrop: #f0f1f4; /* page behind the phone-app column */
+  --bg: #f5f5f5;
+  --backdrop: #f5f5f5;
   --surface: #ffffff;
-  --surface-strong: #f3f4f6;
-  --text: #09090b;
-  --text-muted: #6b7280;
-  --text-soft: #9ca3af;
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
-  --primary: #2563eb; /* clean blue — clear, legible, professional */
+  --surface-strong: #f9f9f9;
+  --text: #111111;
+  --text-muted: #555555;
+  --text-soft: #999999;
+  --border: #e0e0e0;
+  --border-strong: #c8c8c8;
+  --primary: #2563eb;
   --primary-pressed: #1d4ed8;
   --primary-bright: #3b82f6;
   --primary-soft: #eff6ff;
   --primary-soft-border: #bfdbfe;
-  --on-primary: #ffffff; /* text/icons sitting on a --primary fill */
+  --on-primary: #ffffff;
   --danger: #dc2626;
   --danger-soft: #fef2f2;
   --danger-soft-border: #fecaca;
   --on-danger: #ffffff;
   --success: #16a34a;
   --success-soft: #f0fdf4;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10), 0 2px 4px rgba(0, 0, 0, 0.06);
-  --app-bar-height: 56px;
-  --bottom-nav-height: 68px;
-  --header-bg: rgba(255, 255, 255, 0.92);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --app-bar-height: 48px;
+  --bottom-nav-height: 56px;
+  --header-bg: #ffffff;
 
-  /* Radius scale — tighter for a sharper, more editorial look */
+  /* Radius scale — minimal, utilitarian */
   --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
   --radius-full: 999px;
 
   /* Type scale */
@@ -79,16 +78,16 @@
    single override, selected via data-theme="dark" on <html>. */
 
 [data-theme="dark"] {
-  --bg: #000000;
-  --backdrop: #000000;
-  --surface: #0f0f0f;
-  --surface-strong: #1a1a1a;
-  --text: #f9fafb;
-  --text-muted: #9ca3af;
-  --text-soft: #4b5563;
-  --border: #1f1f1f;
-  --border-strong: #2d2d2d;
-  --primary: #3b82f6; /* blue on black — sharp and clear */
+  --bg: #111111;
+  --backdrop: #111111;
+  --surface: #1a1a1a;
+  --surface-strong: #222222;
+  --text: #f0f0f0;
+  --text-muted: #909090;
+  --text-soft: #555555;
+  --border: #2a2a2a;
+  --border-strong: #3a3a3a;
+  --primary: #3b82f6;
   --primary-pressed: #2563eb;
   --primary-bright: #60a5fa;
   --primary-soft: #0c1a33;
@@ -100,9 +99,9 @@
   --on-danger: #ffffff;
   --success: #22c55e;
   --success-soft: #052e16;
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.6);
-  --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.7);
-  --header-bg: rgba(0, 0, 0, 0.88);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --header-bg: #1a1a1a;
 }
 
 * {
@@ -110,8 +109,6 @@
   min-width: 0;
 }
 
-/* Phone-first: the app is a single centered column at every width, so it reads
-   as a native phone app on desktop too. The bottom nav is the only navigation. */
 .app {
   min-height: 100dvh;
   display: flex;
@@ -120,11 +117,8 @@
   color: var(--text);
   overflow-x: hidden;
   width: 100%;
-  max-width: 600px;
+  max-width: 860px;
   margin: 0 auto;
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
 }
 
 /* ── Show expand animation ───────────────────────────────────────── */
@@ -165,8 +159,6 @@
   height: calc(var(--app-bar-height) + env(safe-area-inset-top));
   background: var(--header-bg);
   border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .app-header__inner {
@@ -279,18 +271,16 @@
 .bento-tile {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 20px;
+  border-radius: var(--radius-md);
+  padding: 16px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: border-color 0.1s ease;
 }
 
 .bento-tile:hover {
-  transform: translateY(-2px);
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
 }
 
 /* Stat tiles that double as status filters */
