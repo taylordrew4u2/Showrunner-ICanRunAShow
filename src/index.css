@@ -85,3 +85,40 @@ button,
   touch-action: manipulation;
   -webkit-touch-callout: none;
 }
+
+/* Native apps never show a text-selection caret when you tap UI chrome.
+   Scoped to controls and nav — inputs, textareas, and content stay selectable. */
+button,
+.btn,
+[role='button'],
+nav,
+label {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Stop the page-level rubber-band / pull-to-refresh inside the installed app —
+   scoped to body only (the document scroller), which iOS handles correctly. */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Native press feedback on touch: controls dim and shrink slightly under the
+   finger instead of relying on hover states that don't exist on touch. */
+@media (pointer: coarse) {
+  button:active:not(:disabled),
+  .btn:active:not(:disabled),
+  [role='button']:active {
+    opacity: 0.75;
+    transform: scale(0.97);
+    transition: opacity 0.05s ease, transform 0.05s ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled),
+  .btn:active:not(:disabled),
+  [role='button']:active {
+    transform: none;
+  }
+}
