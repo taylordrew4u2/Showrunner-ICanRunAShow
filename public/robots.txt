@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Disallow private app routes (these require auth anyway, but be explicit)
+Disallow: /api/
+
+Sitemap: https://icanrunashow.com/sitemap.xml

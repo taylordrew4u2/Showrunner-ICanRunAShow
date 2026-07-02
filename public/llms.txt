@@ -1,0 +1,33 @@
+# I Can Run A Show
+
+> Live-show management software for comedians, promoters, and stage managers who run recurring live events.
+
+I Can Run A Show is a production tool that covers the full show lifecycle in a single app: build the lineup, import the schedule by photo or PDF (AI-assisted), and operate the show in a full-screen live mode with per-cue countdowns and walk-on music. It also powers a public read-only viewer link for audiences and a sign-up queue for tattoo artist shows.
+
+## Who it's for
+
+Independent live-show coordinators — comedians who produce their own shows, drag promoters, variety show producers, tattoo studio event organizers. Anyone who currently manages a show across spreadsheets, notes apps, and a music player.
+
+## What it does
+
+- **Show management** — multiple shows with status tracking (upcoming, in-progress, completed, cancelled), venue and date info, per-show sections (lineup, schedule, vendors, staff, host, expenses, deadlines)
+- **Lineup builder** — performer profiles with photo, social media, email, walk-on music, audio file, and video; clickable Instagram links; bulk email all performers
+- **Schedule import** — upload a photo, PDF, or plain text; GPT-4o-mini Vision extracts the cue list automatically; Tesseract.js OCR + regex fallback runs without an API key
+- **Run Show mode** — full-screen live mode, per-cue countdown timers, drift indicator, keyboard navigation, walk-on music with automatic fade in/out, live broadcast to a public viewer URL
+- **Public viewer** — read-only link showing the current on-stage performer and what's next; updates live during the show
+- **Artist sign-up** — public queue for tattoo/merch shows; artists sign up, see their queue position, and get an email when they're up
+- **Performer rolodex** — global performer directory that syncs across shows
+- **PDF runsheet export** — one tap to export the show as a PDF
+
+## Tech stack
+
+React 19, TypeScript, Vite, Vercel, Turso (libSQL), client-side AES encryption, PWA (installable)
+
+## Pricing
+
+Free to use at icanrunashow.com. No account required to view a public show or join an artist queue.
+
+## Links
+
+- App: https://icanrunashow.com
+- Source: https://github.com/taylordrew4u2/Showrunner-ICanRunAShow
