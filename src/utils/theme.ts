@@ -12,14 +12,14 @@ export const COLOR_SCHEMES: {
   swatch: string; // accent color
   bg: string; // background color, for the swatch preview
 }[] = [
-  { id: 'dark', label: 'Dark', description: 'Operations console', swatch: '#b89243', bg: '#0c0d10' },
-  { id: 'light', label: 'Light', description: 'Editorial', swatch: '#8a6a1f', bg: '#f6f4ef' },
+  { id: 'light', label: 'Light', description: 'Default', swatch: '#2563eb', bg: '#f5f5f5' },
+  { id: 'dark', label: 'Dark', description: 'Dark', swatch: '#3b82f6', bg: '#111111' },
 ];
 
 /** The browser/PWA chrome color for each scheme (matches --bg). */
 const THEME_COLORS: Record<ColorScheme, string> = {
-  dark: '#0c0d10',
-  light: '#f6f4ef',
+  light: '#f5f5f5',
+  dark: '#111111',
 };
 
 const STORAGE_KEY = 'showrunner:theme';
@@ -35,8 +35,7 @@ export function loadColorScheme(): ColorScheme {
   } catch {
     /* ignore */
   }
-  // Default to the signature Dark "control room" look until the user changes it.
-  return 'dark';
+  return 'light';
 }
 
 export function applyColorScheme(scheme: ColorScheme, persist = true): void {
