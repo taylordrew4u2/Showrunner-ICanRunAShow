@@ -555,58 +555,6 @@ select.show-detail__status--select {
   transform: rotate(180deg);
 }
 
-.accordion-section__deadline-bar {
-  padding: 8px 20px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  opacity: 0.45;
-  transition: opacity 0.15s ease;
-}
-
-.accordion-section:hover .accordion-section__deadline-bar,
-.accordion-section:focus-within .accordion-section__deadline-bar {
-  opacity: 1;
-}
-
-/* Always fully visible when a deadline is already set or being edited */
-.accordion-section__deadline-bar:has(.accordion-section__deadline-display),
-.accordion-section__deadline-bar:has(.accordion-section__deadline-editor) {
-  opacity: 1;
-}
-
-.accordion-section--complete .accordion-section__deadline-bar {
-  border-top-color: var(--success);
-}
-
-@media (max-width: 768px) {
-  .accordion-section__deadline-bar {
-    padding: 10px 16px;
-  }
-}
-
-.accordion-section__deadline-display {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.accordion-section__deadline-editor {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.accordion-section__deadline-editor .section-field__input {
-  flex: 1;
-  min-width: 160px;
-  max-width: 240px;
-}
-
 .accordion-section__content {
   padding: 20px 22px 22px;
   border-top: 1px solid var(--border);
@@ -742,35 +690,6 @@ select.show-detail__status--select {
 
 .section-card__clickable {
   width: 100%;
-}
-
-.section-card__deadline {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.section-card__deadline-display {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.section-card__deadline-editor {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.section-card__deadline-editor .section-field__input {
-  flex: 1;
-  min-width: 160px;
 }
 
 .section-card__completion-checkbox {
@@ -1765,24 +1684,6 @@ select.show-detail__status--select {
 
   .section-card:active {
     transform: scale(0.98);
-  }
-
-  .section-card__deadline-display {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .section-card__deadline-editor {
-    flex-direction: column;
-  }
-
-  .section-card__deadline-editor .section-field__input {
-    width: 100%;
-  }
-
-  .section-card__deadline .btn {
-    width: 100%;
-    justify-content: center;
   }
 
   .show-detail__meta {

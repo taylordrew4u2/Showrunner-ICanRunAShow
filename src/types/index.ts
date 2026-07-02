@@ -162,20 +162,6 @@ export type SectionKey =
   | "files"
   | "recap";
 
-export interface SectionDeadlines {
-  basic?: string; // ISO date string
-  performers?: string;
-  artists?: string;
-  schedule?: string;
-  hosts?: string;
-  dj?: string;
-  staff?: string;
-  vendors?: string;
-  expenses?: string;
-  files?: string;
-  recap?: string;
-}
-
 export interface SectionCompletions {
   basic?: boolean;
   performers?: boolean;
@@ -212,7 +198,6 @@ export interface Show {
   files: ShowFile[];
   scenes?: Scene[];
   recap?: ShowRecap;
-  deadlines?: SectionDeadlines;
   completions?: SectionCompletions;
   hiddenSections?: SectionKey[];
   host?: string; // host name (free text, or set from a performer)
