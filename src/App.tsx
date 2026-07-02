@@ -68,6 +68,7 @@ export default function App() {
 
   const [shows, setShows] = useState<Show[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(false);
   const dataLoaded = useRef(false);
   const showDetailRef = useRef<ShowDetailHandle>(null);
@@ -164,10 +165,12 @@ export default function App() {
         setShows(autoStatusShows);
         setSettings(migratedSettings);
         dataLoaded.current = true;
+        setLoadError(null);
       } catch (error) {
         console.error('Failed to load shows:', error);
         // Never overwrite in-memory shows on load failure — leave state unchanged
         // so the auto-save effect cannot wipe the database.
+        setLoadError("Couldn't load your shows. Check your connection and refresh the page.");
       } finally {
         setLoadingData(false);
       }
@@ -619,6 +622,18 @@ export default function App() {
             <div className="app-loading" role="status" aria-live="polite">
               <div className="app-loading__spinner" aria-hidden="true" />
               <div className="app-loading__text">Loading your shows…</div>
+            </div>
+          )}
+          {loadError && (
+            <div className="save-error-banner" role="alert">
+              <span className="save-error-banner__text">{loadError}</span>
+              <button
+                className="save-error-banner__close"
+                onClick={() => setLoadError(null)}
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
             </div>
           )}
           {saveError && (
