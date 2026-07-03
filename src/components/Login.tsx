@@ -126,6 +126,11 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
               <Icon name="lock" size={13} className="login__note-icon" />
               Encrypted and private by default
             </p>
+            <p className="login__legal">
+              <a href="/privacy.html">Privacy Policy</a>
+              <span aria-hidden="true"> · </span>
+              <a href="/terms.html">Terms of Service</a>
+            </p>
           </div>
         </div>
       </div>
