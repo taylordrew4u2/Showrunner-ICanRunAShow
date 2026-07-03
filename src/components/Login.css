@@ -213,3 +213,14 @@
   flex-shrink: 0;
   opacity: 0.6;
 }
+
+.login__legal {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.login__legal a {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
