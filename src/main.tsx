@@ -19,3 +19,13 @@ createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </StrictMode>,
 )
+
+// Fade out the static boot splash now that React has painted, so a cold
+// launch from the home-screen icon reads as an app opening rather than a
+// page loading in.
+requestAnimationFrame(() => {
+  const splash = document.getElementById('boot-splash')
+  if (!splash) return
+  splash.classList.add('boot-splash--hidden')
+  setTimeout(() => splash.remove(), 250)
+})
