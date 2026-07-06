@@ -7,7 +7,7 @@
 [**icanrunashow.com →**](https://icanrunashow.com)
 
 [![CI](https://github.com/taylordrew4u2/Showrunner-ICanRunAShow/actions/workflows/ci.yml/badge.svg)](https://github.com/taylordrew4u2/Showrunner-ICanRunAShow/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-2563eb?logoColor=white)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-dc2626?logoColor=white)](LICENSE)
 &nbsp;
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
