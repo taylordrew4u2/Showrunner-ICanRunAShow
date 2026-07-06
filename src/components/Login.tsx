@@ -127,12 +127,70 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
               Encrypted and private by default
             </p>
             <p className="login__legal">
+              <a href="/guides/">Guides</a>
+              <span aria-hidden="true"> · </span>
               <a href="/privacy.html">Privacy Policy</a>
               <span aria-hidden="true"> · </span>
               <a href="/terms.html">Terms of Service</a>
             </p>
           </div>
         </div>
+
+        <section className="landing__section" aria-label="What I Can Run A Show does">
+          <h2 className="landing__section-title">Everything a live show needs, in one place</h2>
+          <div className="landing__features">
+            <div className="landing__feature">
+              <h3>Lineups &amp; Rolodex</h3>
+              <p>Book performers with photos, credits, socials, and walk-on music. Every act you've worked with stays in your Rolodex for the next show.</p>
+            </div>
+            <div className="landing__feature">
+              <h3>Run-of-show builder</h3>
+              <p>Cue-by-cue schedules with times, notes, and drag-to-reorder. Import an existing schedule from a photo or PDF.</p>
+            </div>
+            <div className="landing__feature">
+              <h3>Live show mode</h3>
+              <p>A full-screen countdown timer with on-stage and up-next cards — plus a public live view your performers can watch from the green room.</p>
+            </div>
+            <div className="landing__feature">
+              <h3>Artist sign-up links</h3>
+              <p>Share a public link and let performers submit their own name, photo, credits, and music straight into your lineup.</p>
+            </div>
+            <div className="landing__feature">
+              <h3>Expenses &amp; recaps</h3>
+              <p>Track what each show costs and how it went, so the next one is easier to plan and price.</p>
+            </div>
+            <div className="landing__feature">
+              <h3>Private by design</h3>
+              <p>Your show data is encrypted on your device before it's stored. No email required to sign up.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing__section" aria-label="Guides">
+          <h2 className="landing__section-title">Guides for producers</h2>
+          <ul className="landing__guides">
+            <li><a href="/guides/how-to-build-a-run-of-show.html">How to build a run-of-show for a live comedy show</a></li>
+            <li><a href="/guides/keep-your-show-on-time.html">How to keep a live show on time (without being the bad guy)</a></li>
+            <li><a href="/guides/first-show-checklist.html">The first-time producer's checklist</a></li>
+            <li><a href="/guides/booking-a-balanced-lineup.html">How to book a balanced lineup</a></li>
+          </ul>
+        </section>
+
+        <section className="landing__section" aria-label="Frequently asked questions">
+          <h2 className="landing__section-title">FAQ</h2>
+          <dl className="landing__faq">
+            <dt>Who is this for?</dt>
+            <dd>Comedians, drag promoters, burlesque and variety producers, open-mic hosts — anyone who runs live shows and is tired of juggling notes apps, spreadsheets, and group chats.</dd>
+            <dt>How much does it cost?</dt>
+            <dd>It's free to use.</dd>
+            <dt>Do my performers need accounts?</dt>
+            <dd>No. Public links — artist sign-up and the live viewer — work in any browser with no account.</dd>
+            <dt>Does it work on my phone?</dt>
+            <dd>Yes. It's built phone-first and installs to your home screen like a native app, and it keeps working when the venue Wi-Fi doesn't.</dd>
+            <dt>What happens to my data?</dt>
+            <dd>It's encrypted on your device with a key derived from your password before it's stored — we can't read it. You can export a full backup anytime. See the <a href="/privacy.html">privacy policy</a>.</dd>
+          </dl>
+        </section>
       </div>
     </div>
   );
