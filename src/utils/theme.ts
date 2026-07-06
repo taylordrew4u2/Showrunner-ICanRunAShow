@@ -12,8 +12,8 @@ export const COLOR_SCHEMES: {
   swatch: string; // accent color
   bg: string; // background color, for the swatch preview
 }[] = [
-  { id: 'light', label: 'Light', description: 'Default', swatch: '#2563eb', bg: '#f5f5f5' },
-  { id: 'dark', label: 'Dark', description: 'Dark', swatch: '#3b82f6', bg: '#111111' },
+  { id: 'light', label: 'Light', description: 'Default', swatch: '#dc2626', bg: '#f5f5f5' },
+  { id: 'dark', label: 'Dark', description: 'Dark', swatch: '#ef4444', bg: '#111111' },
 ];
 
 /** The browser/PWA chrome color for each scheme (matches --bg). */

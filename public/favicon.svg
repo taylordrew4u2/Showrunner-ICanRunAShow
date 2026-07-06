@@ -3,6 +3,6 @@
   <rect width="512" height="512" rx="100" fill="#ffffff"/>
   <!-- Border -->
   <rect x="2" y="2" width="508" height="508" rx="98" fill="none" stroke="#e0e0e0" stroke-width="4"/>
-  <!-- Blue play triangle, optically centered -->
-  <path d="M190 160 L190 352 L366 256 Z" fill="#2563eb"/>
+  <!-- Red play triangle, optically centered -->
+  <path d="M190 160 L190 352 L366 256 Z" fill="#dc2626"/>
 </svg>
