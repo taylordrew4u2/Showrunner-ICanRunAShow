@@ -28,6 +28,7 @@ import { Modal } from './components/Modal';
 import { RolodexProfile } from './components/sections/RolodexProfile';
 import { LiveViewer } from './components/LiveViewer';
 import { ArtistSignup } from './components/ArtistSignup';
+import { InstallPrompt } from './components/InstallPrompt';
 import './App.css';
 
 type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex';
@@ -1079,6 +1080,8 @@ export default function App() {
               />
             </Modal>
           )}
+
+          <InstallPrompt />
         </div>
       )}
     </>
