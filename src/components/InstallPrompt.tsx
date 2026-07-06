@@ -17,7 +17,6 @@ interface BeforeInstallPromptEvent extends Event {
  */
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showIOSHint, setShowIOSHint] = useState(false);
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem(DISMISSED_KEY) === '1';
@@ -25,14 +24,12 @@ export function InstallPrompt() {
       return false;
     }
   });
+  // Computed once at mount (not in an effect) — iOS has no install event to
+  // listen for, so there's no external state to synchronize here.
+  const [showIOSHint] = useState(() => !isStandalone() && isMobile() && isIOS());
 
   useEffect(() => {
-    if (isStandalone() || !isMobile() || dismissed) return;
-
-    if (isIOS()) {
-      setShowIOSHint(true);
-      return;
-    }
+    if (dismissed || isStandalone() || !isMobile() || isIOS()) return;
 
     function onBeforeInstallPrompt(e: Event) {
       e.preventDefault();
@@ -45,7 +42,6 @@ export function InstallPrompt() {
   function dismiss() {
     setDismissed(true);
     setDeferredPrompt(null);
-    setShowIOSHint(false);
     try {
       localStorage.setItem(DISMISSED_KEY, '1');
     } catch {
