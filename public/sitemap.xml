@@ -6,6 +6,31 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://icanrunashow.com/guides/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://icanrunashow.com/guides/how-to-build-a-run-of-show.html</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://icanrunashow.com/guides/keep-your-show-on-time.html</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://icanrunashow.com/guides/first-show-checklist.html</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://icanrunashow.com/guides/booking-a-balanced-lineup.html</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://icanrunashow.com/privacy.html</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>

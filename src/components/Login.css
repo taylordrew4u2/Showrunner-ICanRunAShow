@@ -224,3 +224,94 @@
   color: var(--text-muted);
   text-decoration: underline;
 }
+
+/* ── Public landing content (features, guides, FAQ) ───────────────── */
+
+.landing__section {
+  width: 100%;
+  max-width: 720px;
+  margin: 48px auto 0;
+  text-align: left;
+}
+
+.landing__section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0 0 16px;
+}
+
+.landing__features {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.landing__feature {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.landing__feature h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--text);
+}
+
+.landing__feature p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.55;
+}
+
+.landing__guides {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.landing__guides a {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.landing__guides a:hover {
+  border-color: var(--border-strong);
+}
+
+.landing__faq {
+  margin: 0;
+}
+
+.landing__faq dt {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+  margin-top: 14px;
+}
+
+.landing__faq dd {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.landing__faq a {
+  color: var(--primary);
+}
