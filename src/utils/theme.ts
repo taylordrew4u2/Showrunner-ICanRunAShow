@@ -13,7 +13,7 @@ export const COLOR_SCHEMES: {
   bg: string; // background color, for the swatch preview
 }[] = [
   { id: 'light', label: 'Light', description: 'Default', swatch: '#dc2626', bg: '#f5f5f5' },
-  { id: 'dark', label: 'Dark', description: 'Dark', swatch: '#ef4444', bg: '#111111' },
+  { id: 'dark', label: 'Dark', description: 'Dark', swatch: '#dc2626', bg: '#111111' },
 ];
 
 /** The browser/PWA chrome color for each scheme (matches --bg). */
