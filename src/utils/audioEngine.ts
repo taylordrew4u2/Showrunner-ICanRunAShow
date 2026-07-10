@@ -12,6 +12,8 @@
  *   audioEngine.setMuted(true|false);
  */
 
+import { isMediaRef, resolveMediaUrl } from './mediaStore';
+
 type CtxCtor = typeof AudioContext;
 
 interface PlayOptions {
@@ -143,7 +145,13 @@ class AudioEngine {
     const cached = this.buffers.get(src);
     if (cached) return cached;
     try {
-      const res = await fetch(src);
+      // Large tracks live in the chunked media store and the show only holds
+      // a `media:` reference — resolve it to a data URL before decoding.
+      // Plain data URLs / http links pass through unchanged. Buffers cache
+      // under the original src, so a track only resolves once per session.
+      const resolved = isMediaRef(src) ? await resolveMediaUrl(src) : src;
+      if (!resolved) return null;
+      const res = await fetch(resolved);
       const arr = await res.arrayBuffer();
       // Older Safari requires the callback form, but modern returns a promise.
       const buf = await this.ctx.decodeAudioData(arr.slice(0));

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Artist } from '../../types';
-import { compressImage, embedSizeError, readFileAsDataURL } from '../../utils/media';
+import { audioUploadSizeError, compressImage, embedSizeError, readFileAsDataURL } from '../../utils/media';
+import { uploadMedia } from '../../utils/mediaStore';
+import { useMediaUrl } from '../../utils/useMediaUrl';
 import './PerformerProfile.css';
 
 interface ArtistProfileProps {
@@ -20,6 +22,8 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
   const [photoDrag, setPhotoDrag] = useState(false);
   const [audioDrag, setAudioDrag] = useState(false);
   const [videoDrag, setVideoDrag] = useState(false);
+  // Resolves `media:` store references to a playable URL (passthrough otherwise).
+  const walkOnUrl = useMediaUrl(artist.walkOnMusic);
 
   const locked = artist.lockedIn;
 
@@ -38,6 +42,18 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
 
   function guardRead(file: File, kind: string, onLoad: (result: string, file: File) => void) {
     const isPhoto = /image|photo/i.test(kind) || file.type.startsWith('image/');
+    const isAudio = /audio|music|song|track/i.test(kind) || file.type.startsWith('audio/');
+    if (isAudio) {
+      // Audio goes to the chunked media store (song-sized cap) — the show
+      // payload only carries a small `media:` reference.
+      const err = audioUploadSizeError(file);
+      if (err) { setMediaError(err); return; }
+      setMediaError('Uploading audio…');
+      uploadMedia(file)
+        .then((ref) => { setMediaError(null); onLoad(ref, file); })
+        .catch(() => setMediaError('Could not upload that audio file. Check your connection and try again.'));
+      return;
+    }
     if (!isPhoto) {
       const err = embedSizeError(file, kind);
       if (err) { setMediaError(err); return; }
@@ -214,9 +230,13 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
             )}
             {artist.walkOnMusic ? (
               <>
-                <audio controls preload="none" className="perf-profile__audio">
-                  <source src={artist.walkOnMusic} />
-                </audio>
+                {walkOnUrl ? (
+                  <audio controls preload="none" className="perf-profile__audio">
+                    <source src={walkOnUrl} />
+                  </audio>
+                ) : (
+                  <p className="perf-profile__media-empty">Loading audio…</p>
+                )}
                 {!locked && (
                   <div className="perf-profile__media-actions">
                     <button

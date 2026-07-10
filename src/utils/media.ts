@@ -11,6 +11,20 @@
 const MAX_EMBED_BYTES = 2 * 1024 * 1024; // 2 MB — generic files / video (steer big video to links)
 const MAX_AUDIO_EMBED_BYTES = 2 * 1024 * 1024; // 2 MB — walk-on tracks; keep the export small enough to save
 
+// Audio no longer embeds in the show payload — it uploads to the chunked
+// media store (see mediaStore.ts) — so it gets a real-world song-sized cap.
+const MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024;
+
+/** Size check for audio going to the media store (not embedded). */
+export function audioUploadSizeError(file: File): string | null {
+  if (file.size > MAX_AUDIO_UPLOAD_BYTES) {
+    return `That audio file is ${formatBytes(file.size)} — over the ${formatBytes(
+      MAX_AUDIO_UPLOAD_BYTES,
+    )} limit. Try a compressed format (MP3/AAC) or trim the track.`;
+  }
+  return null;
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
