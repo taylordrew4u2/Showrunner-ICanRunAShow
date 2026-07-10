@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { PotentialComic } from '../../types';
-import { embedSizeError, readFileAsDataURL } from '../../utils/media';
+import { audioUploadSizeError } from '../../utils/media';
+import { uploadMedia } from '../../utils/mediaStore';
+import { useMediaUrl } from '../../utils/useMediaUrl';
 import { socialLink } from '../../utils/social';
 import { PhotoGallery } from './PhotoGallery';
 import './PerformerProfile.css';
@@ -25,6 +27,8 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
   const [dirty, setDirty] = useState(false);
   const [audioDrag, setAudioDrag] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  // Resolves `media:` store references to a playable URL (passthrough otherwise).
+  const walkOnUrl = useMediaUrl(comic.walkOnMusic);
 
   // All photos for this comic, falling back to the legacy single `photo` field.
   const photos = comic.photos ?? (comic.photo ? [comic.photo] : []);
@@ -52,19 +56,18 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
     setDirty(false);
   }
 
-  // Rolodex entries live inside the settings blob, which is saved in a single
-  // size-capped request — an unchecked upload here can make ALL settings
-  // permanently unsavable. Enforce the same embed cap as show uploads.
+  // Rolodex audio goes to the chunked media store — settings only carry a
+  // small `media:` reference, so a big track can't brick the settings save.
   function guardRead(file: File, onLoad: (result: string, file: File) => void) {
-    const err = embedSizeError(file, 'audio file');
+    const err = audioUploadSizeError(file);
     if (err) {
       setMediaError(err);
       return;
     }
-    setMediaError(null);
-    readFileAsDataURL(file)
-      .then(result => onLoad(result, file))
-      .catch(() => setMediaError('Could not read that file. Please try again.'));
+    setMediaError('Uploading audio…');
+    uploadMedia(file)
+      .then(ref => { setMediaError(null); onLoad(ref, file); })
+      .catch(() => setMediaError('Could not upload that audio file. Check your connection and try again.'));
   }
 
   function pickFile(accept: string, onLoad: (result: string, file: File) => void) {
@@ -247,9 +250,13 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
           )}
           {comic.walkOnMusic ? (
             <>
-              <audio controls preload="none" className="perf-profile__audio">
-                <source src={comic.walkOnMusic} />
-              </audio>
+              {walkOnUrl ? (
+                <audio controls preload="none" className="perf-profile__audio">
+                  <source src={walkOnUrl} />
+                </audio>
+              ) : (
+                <p className="perf-profile__media-empty">Loading audio…</p>
+              )}
               <div className="perf-profile__media-actions">
                 <button
                   className="btn btn--secondary btn--sm"

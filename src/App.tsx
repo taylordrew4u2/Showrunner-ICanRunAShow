@@ -19,6 +19,7 @@ import {
   PayloadTooLargeError,
 } from './utils/secure-storage';
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from './utils/trash';
+import { initMediaStore, clearMediaStore } from './utils/mediaStore';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
@@ -191,6 +192,13 @@ export default function App() {
       }
     }
   }, []);
+
+  // Media store (large audio chunks) needs the session credentials for auth
+  // headers + the encryption key. Keep it in sync with the session.
+  useEffect(() => {
+    if (session) initMediaStore(session.username, session.password);
+    else clearMediaStore();
+  }, [session]);
 
   // Load data for signed in user
   useEffect(() => {

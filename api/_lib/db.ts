@@ -74,6 +74,15 @@ const DDL: string[] = [
      payload    TEXT NOT NULL,
      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
    )`,
+  `CREATE TABLE IF NOT EXISTS user_media (
+     user_id    TEXT NOT NULL,
+     id         TEXT NOT NULL,
+     seq        INTEGER NOT NULL,
+     total      INTEGER NOT NULL,
+     data       TEXT NOT NULL,
+     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+     PRIMARY KEY (user_id, id, seq)
+   )`,
   `CREATE TABLE IF NOT EXISTS artist_signup (
      token      TEXT PRIMARY KEY,
      payload    TEXT NOT NULL,

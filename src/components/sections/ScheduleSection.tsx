@@ -1,7 +1,8 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
-import { embedSizeError, readFileAsDataURL, pickFile } from '../../utils/media';
+import { audioUploadSizeError, pickFile } from '../../utils/media';
+import { uploadMedia } from '../../utils/mediaStore';
 import { Icon } from '../Icon';
 
 // Loaded on demand — pulls in the AI/OCR/PDF parsing deps only when the
@@ -377,14 +378,16 @@ export function ScheduleSection({
   const handlePickMusic = useCallback(async (id: string): Promise<string | null> => {
     const file = await pickFile('audio/*');
     if (!file) return null;
-    const err = embedSizeError(file, 'audio file');
+    // Cue music goes to the chunked media store — the schedule only carries a
+    // small `media:` reference, so tracks get a song-sized cap.
+    const err = audioUploadSizeError(file);
     if (err) return err;
     try {
-      const data = await readFileAsDataURL(file);
-      onChangeRef.current(scheduleRef.current.map((s) => (s.id === id ? { ...s, music: data, musicName: file.name } : s)));
+      const ref = await uploadMedia(file);
+      onChangeRef.current(scheduleRef.current.map((s) => (s.id === id ? { ...s, music: ref, musicName: file.name } : s)));
       return null;
     } catch {
-      return 'Could not read that file. Please try again.';
+      return 'Could not upload that audio file. Check your connection and try again.';
     }
   }, []);
 
