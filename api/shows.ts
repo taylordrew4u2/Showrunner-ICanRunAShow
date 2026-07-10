@@ -53,8 +53,71 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     if (req.method === 'PUT') {
-      const body = await readJson<{ shows: EncryptedRow[]; deleteAll?: boolean }>(req);
+      const body = await readJson<{
+        shows?: EncryptedRow[];
+        deleteAll?: boolean;
+        // Chunked sync: the client splits a large save across several
+        // requests because the platform caps request bodies (~4.5 MB).
+        partial?: boolean;
+        snapshot?: boolean; // take a backup before the first chunk
+        keepIds?: string[]; // final chunk: prune rows not in the synced set
+      }>(req);
       const incoming = Array.isArray(body.shows) ? body.shows : [];
+
+      if (body.partial) {
+        if (body.snapshot) {
+          const existing = await db.execute({
+            sql: `SELECT count(*) as cnt FROM user_shows WHERE user_id = ?`,
+            args: [userId],
+          });
+          if (Number(existing.rows[0][0]) > 0) {
+            await db.execute({
+              sql: `INSERT INTO user_shows_backup (id, user_id, encrypted_data)
+                    SELECT id, user_id, encrypted_data FROM user_shows WHERE user_id = ?`,
+              args: [userId],
+            });
+          }
+        }
+
+        if (incoming.length > 0) {
+          // Upsert scoped to the owner: a conflicting id owned by another
+          // user is a no-op, never an overwrite.
+          await db.batch(
+            incoming.map((s) => ({
+              sql: `INSERT INTO user_shows (id, user_id, encrypted_data)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                      encrypted_data = excluded.encrypted_data,
+                      updated_at = datetime('now')
+                    WHERE user_shows.user_id = excluded.user_id`,
+              args: [s.id, userId, s.encryptedData] as (string | number)[],
+            })),
+            'write',
+          );
+        }
+
+        if (Array.isArray(body.keepIds)) {
+          // Final chunk: remove rows that are no longer in the user's data
+          // (deletions), then verify the synced set is complete.
+          if (body.keepIds.length === 0) {
+            return json({ error: 'empty_without_delete_all', skipped: true }, 409);
+          }
+          const placeholders = body.keepIds.map(() => '?').join(',');
+          await db.execute({
+            sql: `DELETE FROM user_shows WHERE user_id = ? AND id NOT IN (${placeholders})`,
+            args: [userId, ...body.keepIds],
+          });
+          const verification = await db.execute({
+            sql: `SELECT count(*) as cnt FROM user_shows WHERE user_id = ?`,
+            args: [userId],
+          });
+          if (Number(verification.rows[0][0]) !== body.keepIds.length) {
+            await restoreFromBackup(db, userId);
+            return json({ ok: false, restored: true }, 500);
+          }
+        }
+        return json({ ok: true });
+      }
 
       const existing = await db.execute({
         sql: `SELECT count(*) as cnt FROM user_shows WHERE user_id = ?`,

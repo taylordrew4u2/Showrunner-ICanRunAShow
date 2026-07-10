@@ -12,6 +12,7 @@ import {
 } from "./encryption";
 import { api, type ApiError } from "./api";
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from "./trash";
+import { describeLargestMedia } from "./showSize";
 
 /**
  * Secure storage. All data is encrypted in the browser (the password-derived
@@ -136,20 +137,55 @@ export async function saveEncryptedShows(
   // run after the initial load), so tell the server it's intentional — without
   // the flag it refuses empty saves as a safety net against bugs.
   const deleteAll = shows.length === 0;
+  const a = auth(username, password);
   const body = JSON.stringify({ shows: payload, deleteAll });
-  if (body.length > MAX_SAVE_BYTES) {
-    // Point at the heaviest show so the user knows where to trim.
-    const heaviest = payload.reduce(
-      (max, row) => (row.encryptedData.length > max.len ? { id: row.id, len: row.encryptedData.length } : max),
-      { id: "", len: 0 },
-    );
-    const show = shows.find((s) => s.id === heaviest.id);
-    const where = show?.name ? ` (largest: "${show.name}")` : "";
+  if (body.length <= MAX_SAVE_BYTES) {
+    await api.put("/api/shows", { shows: payload, deleteAll }, a);
+    return;
+  }
+
+  // The whole set doesn't fit in one request, so sync in chunks — the request
+  // ceiling then applies per show rather than to the entire account.
+  const ENVELOPE = 4000; // JSON wrapper + headers margin per request
+  const perRequestLimit = MAX_SAVE_BYTES - ENVELOPE;
+
+  // A single show that can't fit even alone can never sync — tell the user
+  // exactly which files inside it are the problem.
+  const oversized = payload.filter((row) => row.encryptedData.length > perRequestLimit);
+  if (oversized.length > 0) {
+    const details = oversized.map((row) => {
+      const show = shows.find((s) => s.id === row.id);
+      if (!show) return "an unknown show";
+      const files = describeLargestMedia(show);
+      return `"${show.name}"${files ? ` — biggest files: ${files}` : ""}`;
+    });
     throw new PayloadTooLargeError(
-      `Your show data is too large to save${where}. Remove or shrink a big uploaded file — audio, video, or a photo. Large videos work best pasted as a link instead of uploaded.`,
+      `One of your shows is too large to save even by itself: ${details.join("; ")}. Remove or shrink those uploads — large audio/video works best as a pasted link.`,
     );
   }
-  await api.put("/api/shows", { shows: payload, deleteAll }, auth(username, password));
+
+  // Greedy-pack rows into batches under the per-request ceiling.
+  const batches: typeof payload[] = [];
+  let current: typeof payload = [];
+  let size = 0;
+  for (const row of payload) {
+    const rowSize = row.encryptedData.length + row.id.length + 64;
+    if (current.length > 0 && size + rowSize > perRequestLimit) {
+      batches.push(current);
+      current = [];
+      size = 0;
+    }
+    current.push(row);
+    size += rowSize;
+  }
+  if (current.length > 0) batches.push(current);
+
+  // Upsert each batch (the server snapshots a backup before the first), then
+  // prune deletions and verify completeness in a final request.
+  for (let i = 0; i < batches.length; i++) {
+    await api.put("/api/shows", { partial: true, snapshot: i === 0, shows: batches[i] }, a);
+  }
+  await api.put("/api/shows", { partial: true, keepIds: payload.map((row) => row.id) }, a);
 }
 
 /**
