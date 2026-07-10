@@ -45,6 +45,9 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
   const [artistAdminOpen, setArtistAdminOpen] = useState(false);
   const [tempShowName, setTempShowName] = useState(show.name);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  // The list of not-yet-added sections stays tucked behind a single button so a
+  // show only ever displays the sections the producer actually chose.
+  const [addSectionOpen, setAddSectionOpen] = useState(false);
   const [lightMode, setLightMode] = useState<boolean>(() => {
     try {
       return localStorage.getItem('showrunner:lightMode') === '1';
@@ -612,20 +615,32 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
 
       {sections.some((section) => (show.hiddenSections || []).includes(section.sectionKey)) && (
         <div className="hidden-sections">
-          <p className="hidden-sections__label">Hidden</p>
-          <div className="hidden-sections__bubbles">
-            {sections.filter((section) => (show.hiddenSections || []).includes(section.sectionKey)).map((section) => (
-              <button
-                key={section.key}
-                className="hidden-bubble"
-                onClick={() => handleRestoreSection(section.sectionKey!)}
-                title={`Restore "${section.title}"`}
-              >
-                <span className="hidden-bubble__icon">+</span>
-                <span className="hidden-bubble__title">{section.title}</span>
-              </button>
-            ))}
-          </div>
+          {!addSectionOpen ? (
+            <button
+              type="button"
+              className="hidden-sections__add-btn"
+              onClick={() => setAddSectionOpen(true)}
+            >
+              + Add a section
+            </button>
+          ) : (
+            <>
+              <p className="hidden-sections__label">Add a section</p>
+              <div className="hidden-sections__bubbles">
+                {sections.filter((section) => (show.hiddenSections || []).includes(section.sectionKey)).map((section) => (
+                  <button
+                    key={section.key}
+                    className="hidden-bubble"
+                    onClick={() => handleRestoreSection(section.sectionKey!)}
+                    title={`Add "${section.title}"`}
+                  >
+                    <span className="hidden-bubble__icon">+</span>
+                    <span className="hidden-bubble__title">{section.title}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
