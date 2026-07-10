@@ -9,7 +9,6 @@ import type {
   StaffMember,
   Vendor,
   Expense,
-  ShowFile,
   Scene,
   TodoItem,
 } from "../types";
@@ -54,13 +53,6 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     .total-row td { font-weight: bold; background: #F3F4F6; }
     .rules-box { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 14px; margin-top: 10px; white-space: pre-wrap; font-size: 13px; }
     .section-empty { color: #9CA3AF; font-style: italic; font-size: 12px; padding: 6px 0; }
-    .photo-thumb { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 8px; }
-    .flyer-img { max-width: 320px; height: auto; display: block; margin: 10px 0 16px; border-radius: 8px; border: 1px solid #E5E7EB; }
-    .file-img { max-width: 100%; height: auto; display: block; margin: 8px 0; border-radius: 4px; border: 1px solid #E5E7EB; page-break-inside: avoid; }
-    .file-entry { margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid #E5E7EB; page-break-inside: avoid; }
-    .file-entry:last-child { border-bottom: none; }
-    .file-name { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
-    .file-meta { color: #6B7280; font-size: 11px; margin-bottom: 4px; }
     .badge { display: inline-block; background: #EDE9FE; color: #5B21B6; border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; margin-left: 6px; }
     .badge--green { background: #D1FAE5; color: #065F46; }
     .todo-item { padding: 4px 0; border-bottom: 1px solid #F3F4F6; font-size: 13px; }
@@ -77,8 +69,6 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
 <body>
   <div class="brand">${esc(settings.brandName)}</div>
   ${settings.producers.length > 0 ? `<div class="producers">Producers: ${settings.producers.map((p) => `${esc(p.name)} (${esc(p.role)})`).join(", ")}</div>` : ""}
-
-  ${show.flyer ? `<img class="flyer-img" src="${show.flyer}" alt="Show Flyer" />` : ""}
 
   <h1>${esc(show.name)}</h1>
   ${show.date ? `<div class="meta"><strong>Date:</strong> ${esc(show.date)}</div>` : ""}
@@ -98,7 +88,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     ${show.performers.map((p: Performer, i: number) => `
     <tr>
       <td>${i + 1}</td>
-      <td>${p.photo ? `<img class="photo-thumb" src="${p.photo}" />` : ""}${esc(p.name)}</td>
+      <td>${esc(p.name)}</td>
       <td>${esc(p.socialMedia)}</td>
       <td>${p.walkOnMusicName ? esc(p.walkOnMusicName) : "—"}</td>
       <td>${esc(p.walkOnMusicTimestamp)}</td>
@@ -114,25 +104,20 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       ? `
   <h2>Artists</h2>
   <table>
-    <tr><th>#</th><th>Name</th><th>Type</th><th>Walk-On Music</th><th>File</th></tr>
+    <tr><th>#</th><th>Name</th><th>Type</th><th>Walk-On Music</th></tr>
     ${show.artists.map((a: Artist, i: number) => `
     <tr>
       <td>${i + 1}</td>
-      <td>${a.photo ? `<img class="photo-thumb" src="${a.photo}" />` : ""}${esc(a.name)}</td>
+      <td>${esc(a.name)}</td>
       <td>${esc(a.artistType)}</td>
       <td>${a.walkOnMusicName ? esc(a.walkOnMusicName) : "—"}</td>
-      <td>${a.fileName ? esc(a.fileName) : "—"}</td>
     </tr>`).join("")}
   </table>`
       : ""
   }
 
   ${
-    show.scheduleImage
-      ? `
-  <h2>Schedule &amp; Timing</h2>
-  <img src="${show.scheduleImage}" style="max-width: 100%; height: auto; margin-bottom: 10px;" alt="Schedule" />`
-      : show.schedule.length > 0
+    show.schedule.length > 0
       ? `
   <h2>Schedule &amp; Timing</h2>
   <table>
@@ -148,7 +133,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Hosts</h2>
   <table>
     <tr><th>Name</th><th>Hosting</th><th>Notes</th></tr>
-    ${show.hosts.map((h: Host) => `<tr><td>${h.photo ? `<img class="photo-thumb" src="${h.photo}" />` : ""}${esc(h.name)}</td><td>${h.isHosting ? "✓ Yes" : "No"}</td><td>${esc(h.notes)}</td></tr>`).join("")}
+    ${show.hosts.map((h: Host) => `<tr><td>${esc(h.name)}</td><td>${h.isHosting ? "✓ Yes" : "No"}</td><td>${esc(h.notes)}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -232,19 +217,6 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     ${show.recap.performerNotes ? `<div class="recap-notes"><strong>Performer Notes:</strong>\n${esc(show.recap.performerNotes)}</div>` : ""}
     ${show.recap.improvementNotes ? `<div class="recap-notes" style="margin-top:8px;"><strong>Improvement Notes:</strong>\n${esc(show.recap.improvementNotes)}</div>` : ""}
   </div>`
-      : ""
-  }
-
-  ${
-    (show.files?.length ?? 0) > 0
-      ? `
-  <h2>Attached Files</h2>
-  ${(show.files as ShowFile[]).map((f: ShowFile) => `
-  <div class="file-entry">
-    <div class="file-name">${esc(f.name)}</div>
-    <div class="file-meta">Type: ${esc(f.fileType)} &nbsp;·&nbsp; Uploaded: ${f.uploadedAt ? new Date(f.uploadedAt).toLocaleDateString() : "—"}${f.notes ? ` &nbsp;·&nbsp; ${esc(f.notes)}` : ""}</div>
-    ${f.fileType.startsWith("image/") ? `<img class="file-img" src="${f.fileData}" alt="${esc(f.name)}" />` : f.fileType === "application/pdf" ? `<embed src="${f.fileData}" type="application/pdf" style="width:100%;height:1100px;display:block;margin:8px 0;border:1px solid #E5E7EB;border-radius:4px;" />` : ""}
-  </div>`).join("")}`
       : ""
   }
 

@@ -219,13 +219,11 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
       segment: {
         name: onStageName,
         description: current?.description,
-        photo: onStagePerformer?.photo,
         credits: onStagePerformer?.credits,
       },
       next: {
         name: nextName || undefined,
         description: next?.description,
-        photo: nextPerformer?.photo,
       },
       totalSec,
       remainingAtLastUpdate: totalSec - elapsed,
@@ -245,7 +243,6 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
       segment: {
         name: onStageName,
         description: current?.description,
-        photo: onStagePerformer?.photo,
         credits: onStagePerformer?.credits,
       },
       next: {},
@@ -399,13 +396,9 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
         {/* On stage */}
         {onStageName && (
           <div className="rs-card rs-onstage">
-            {onStagePerformer?.photo ? (
-              <img src={onStagePerformer.photo} alt="" className="rs-onstage__photo" />
-            ) : (
-              <div className="rs-onstage__photo rs-onstage__photo--placeholder">
-                {onStageName.charAt(0).toUpperCase()}
-              </div>
-            )}
+            <div className="rs-onstage__photo rs-onstage__photo--placeholder">
+              {onStageName.charAt(0).toUpperCase()}
+            </div>
             <div className="rs-onstage__info">
               <div className="rs-onstage__label">On stage</div>
               <div className="rs-onstage__name">{onStageName}</div>

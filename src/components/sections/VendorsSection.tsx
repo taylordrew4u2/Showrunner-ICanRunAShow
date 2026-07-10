@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { Vendor } from '../../types';
 import { VENDOR_CATEGORIES } from '../../types';
 import { generateId } from '../../utils/id';
-import { compressImage, pickFile } from '../../utils/media';
 
 interface VendorsSectionProps {
   vendors: Vendor[];
@@ -57,17 +56,6 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
 
   function toggleBooked(id: string) {
     onChange(vendors.map((v) => (v.id === id ? { ...v, booked: !v.booked } : v)));
-  }
-
-  async function handlePhoto(id: string) {
-    const file = await pickFile('image/*');
-    if (!file) return;
-    try {
-      const data = await compressImage(file);
-      onChange(vendors.map((v) => (v.id === id ? { ...v, photo: data } : v)));
-    } catch {
-      alert("Couldn't read that image. Try a different file.");
-    }
   }
 
   return (
@@ -195,13 +183,9 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
                 </div>
               ) : (
                 <>
-                  {v.photo ? (
-                    <img src={v.photo} alt="" className="section-list-item__photo" />
-                  ) : (
-                    <div className="vendor-card__avatar" aria-hidden="true">
-                      {v.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <div className="vendor-card__avatar" aria-hidden="true">
+                    {v.name.charAt(0).toUpperCase()}
+                  </div>
                   <div className="section-list-item__body">
                     <div className="vendor-card__heading">
                       <span className="section-list-item__name">{v.name}</span>
@@ -231,9 +215,6 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
                       title="Toggle booked"
                     >
                       {v.booked ? 'Booked' : 'Book'}
-                    </button>
-                    <button className="btn btn--ghost btn--sm" onClick={() => handlePhoto(v.id)} title="Upload logo/photo">
-                      Photo
                     </button>
                     <button className="btn btn--ghost btn--sm" onClick={() => startEdit(v)}>Edit</button>
                     <button

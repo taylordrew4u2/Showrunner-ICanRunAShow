@@ -13,14 +13,12 @@ const AIImportFlow = lazy(() =>
 
 interface ScheduleSectionProps {
   schedule: ScheduleItem[];
-  scheduleImage?: string;
   showName?: string;
   performers?: Performer[];
   onChange: (schedule: ScheduleItem[]) => void;
-  onImageChange: (image: string | undefined) => void;
 }
 
-type ScheduleMode = 'choose' | 'build' | 'upload';
+type ScheduleMode = 'choose' | 'build';
 
 function timeToMinutes(time: string): number | null {
   if (!time) return null;
@@ -326,19 +324,15 @@ const CueRow = memo(function CueRow({
 
 export function ScheduleSection({
   schedule,
-  scheduleImage,
   showName,
   performers = [],
   onChange,
-  onImageChange,
 }: ScheduleSectionProps) {
-  const initialMode: ScheduleMode = schedule.length > 0 ? 'build' : scheduleImage ? 'upload' : 'choose';
+  const initialMode: ScheduleMode = schedule.length > 0 ? 'build' : 'choose';
   const [mode, setMode] = useState<ScheduleMode>(initialMode);
   const [time, setTime] = useState('');
   const [desc, setDesc] = useState('');
   const [importOpen, setImportOpen] = useState(false);
-  const [refOpen, setRefOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Keep latest schedule + onChange in refs so the per-row callbacks
   // can be referentially stable (which lets React.memo skip non-editing rows).
@@ -398,30 +392,6 @@ export function ScheduleSection({
     }
   }
 
-  function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      onImageChange(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-    event.target.value = '';
-  }
-
-  function goBuild() {
-    setMode('build');
-  }
-
-  function removeImage() {
-    onImageChange(undefined);
-    setMode('build');
-  }
-
-  function handleSwitchToUpload() {
-    setMode('upload');
-  }
-
   function handleApplyImport(items: ScheduleItem[]) {
     onChange([...schedule, ...items]);
     setImportOpen(false);
@@ -441,11 +411,6 @@ export function ScheduleSection({
             <span className="schedule-choice__icon"><Icon name="sparkle" size={20} /></span>
             <span className="schedule-choice__label">Import with AI</span>
             <span className="schedule-choice__desc">Photo, PDF, or paste — AI extracts cues</span>
-          </button>
-          <button className="schedule-choice__option" onClick={() => setMode('upload')}>
-            <span className="schedule-choice__icon"><Icon name="file" size={20} /></span>
-            <span className="schedule-choice__label">Upload File</span>
-            <span className="schedule-choice__desc">Attach a PDF or image of your show run</span>
           </button>
         </div>
       )}
@@ -470,36 +435,6 @@ export function ScheduleSection({
               </button>
             )}
           </div>
-
-          {scheduleImage && (
-            <div className="schedule-ref">
-              <div className="schedule-ref__header">
-                <button className="schedule-ref__toggle" onClick={() => setRefOpen((v) => !v)}>
-                  <Icon name="file" size={14} />
-                  Uploaded reference
-                  <span className="schedule-ref__chevron">{refOpen ? '▲' : '▼'}</span>
-                </button>
-                <div className="schedule-ref__actions">
-                  <button className="btn btn--ghost btn--sm" onClick={() => fileInputRef.current?.click()}>Replace</button>
-                  <button className="btn btn--ghost btn--sm" onClick={removeImage}>Remove file</button>
-                </div>
-              </div>
-              {refOpen && (
-                scheduleImage.startsWith('data:application/pdf') ? (
-                  <embed src={scheduleImage} type="application/pdf" className="schedule-image-fallback__pdf" />
-                ) : (
-                  <img src={scheduleImage} alt="Uploaded show run" className="schedule-image-fallback__img" />
-                )
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,image/*"
-                onChange={handleFileUpload}
-                className="schedule-upload__file-input"
-              />
-            </div>
-          )}
 
           <button className="ai-import-entry" onClick={() => setImportOpen(true)}>
             <span className="ai-import-entry__icon"><Icon name="sparkle" size={14} /></span>
@@ -557,85 +492,6 @@ export function ScheduleSection({
               ))}
             </div>
           )}
-
-          {!scheduleImage && (
-            <button
-              className="btn btn--ghost btn--sm"
-              style={{ marginTop: 12 }}
-              onClick={handleSwitchToUpload}
-            >
-              Attach a reference file (PDF / image)
-            </button>
-          )}
-        </>
-      )}
-
-      {mode === 'upload' && (
-        <>
-          {scheduleImage ? (
-            <div className="schedule-image-fallback">
-              <div className="schedule-image-fallback__header">
-                <span className="schedule-image-fallback__badge">Uploaded Show Run</span>
-                <button
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Replace with a different file"
-                >
-                  Replace
-                </button>
-                <button
-                  className="btn btn--ghost btn--sm"
-                  onClick={removeImage}
-                  title="Remove file"
-                >
-                  × Remove
-                </button>
-              </div>
-              {scheduleImage.startsWith('data:application/pdf') ? (
-                <embed src={scheduleImage} type="application/pdf" className="schedule-image-fallback__pdf" />
-              ) : (
-                <img src={scheduleImage} alt="Show Run" className="schedule-image-fallback__img" />
-              )}
-            </div>
-          ) : (
-            <div className="dropzone" onClick={() => fileInputRef.current?.click()}>
-              <div className="dropzone__icon"><Icon name="file" size={28} /></div>
-              <div className="dropzone__title">Upload a PDF or image</div>
-              <div className="dropzone__sub">We'll attach it as-is. To extract cues automatically, use AI Import.</div>
-              <button className="btn btn--secondary btn--sm">Choose file</button>
-            </div>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,image/*"
-            onChange={handleFileUpload}
-            className="schedule-upload__file-input"
-          />
-
-          {scheduleImage && (
-            <div className="schedule-upload__cta">
-              <p className="schedule-upload__cta-text">
-                Want to edit it? Turn it into an editable run-of-show — the file stays attached as a reference.
-              </p>
-              <div className="schedule-upload__cta-row">
-                <button className="btn btn--primary btn--sm" onClick={() => setImportOpen(true)}>
-                  Extract cues with AI
-                </button>
-                <button className="btn btn--secondary btn--sm" onClick={goBuild}>
-                  Build / edit cues manually
-                </button>
-              </div>
-            </div>
-          )}
-
-          <button
-            className="btn btn--ghost btn--sm"
-            style={{ marginTop: 12 }}
-            onClick={goBuild}
-          >
-            {scheduleImage ? 'Back to builder' : 'Switch to build your own instead'}
-          </button>
         </>
       )}
 

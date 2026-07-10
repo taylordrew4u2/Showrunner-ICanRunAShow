@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Artist } from '../../types';
-import { audioUploadSizeError, compressImage, embedSizeError, readFileAsDataURL } from '../../utils/media';
+import { audioUploadSizeError } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
 import { useMediaUrl } from '../../utils/useMediaUrl';
 import './PerformerProfile.css';
@@ -19,9 +19,7 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
   const [credits, setCredits] = useState(artist.credits || '');
   const [dirty, setDirty] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
-  const [photoDrag, setPhotoDrag] = useState(false);
   const [audioDrag, setAudioDrag] = useState(false);
-  const [videoDrag, setVideoDrag] = useState(false);
   // Resolves `media:` store references to a playable URL (passthrough otherwise).
   const walkOnUrl = useMediaUrl(artist.walkOnMusic);
 
@@ -40,32 +38,18 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
     setDirty(false);
   }
 
-  function guardRead(file: File, kind: string, onLoad: (result: string, file: File) => void) {
-    const isPhoto = /image|photo/i.test(kind) || file.type.startsWith('image/');
-    const isAudio = /audio|music|song|track/i.test(kind) || file.type.startsWith('audio/');
-    if (isAudio) {
-      // Audio goes to the chunked media store (song-sized cap) — the show
-      // payload only carries a small `media:` reference.
-      const err = audioUploadSizeError(file);
-      if (err) { setMediaError(err); return; }
-      setMediaError('Uploading audio…');
-      uploadMedia(file)
-        .then((ref) => { setMediaError(null); onLoad(ref, file); })
-        .catch(() => setMediaError('Could not upload that audio file. Check your connection and try again.'));
-      return;
-    }
-    if (!isPhoto) {
-      const err = embedSizeError(file, kind);
-      if (err) { setMediaError(err); return; }
-    }
-    setMediaError(null);
-    const reader = isPhoto ? compressImage(file) : readFileAsDataURL(file);
-    reader
-      .then((result) => onLoad(result, file))
-      .catch(() => setMediaError('Could not read that file. Please try again.'));
+  // Walk-on audio is the only upload — it goes to the chunked media store
+  // (song-sized cap); the show payload only carries a small `media:` reference.
+  function guardRead(file: File, onLoad: (result: string, file: File) => void) {
+    const err = audioUploadSizeError(file);
+    if (err) { setMediaError(err); return; }
+    setMediaError('Uploading audio…');
+    uploadMedia(file)
+      .then((ref) => { setMediaError(null); onLoad(ref, file); })
+      .catch(() => setMediaError('Could not upload that audio file. Check your connection and try again.'));
   }
 
-  function pickFile(accept: string, kind: string, onLoad: (result: string, file: File) => void) {
+  function pickFile(accept: string, onLoad: (result: string, file: File) => void) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = accept;
@@ -75,7 +59,7 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
       const file = input.files?.[0];
       if (input.parentNode) input.parentNode.removeChild(input);
       if (!file) return;
-      guardRead(file, kind, onLoad);
+      guardRead(file, onLoad);
     };
     document.body.appendChild(input);
     input.click();
@@ -84,7 +68,6 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
   function handleDrop(
     e: React.DragEvent,
     mimePrefix: string,
-    kind: string,
     onLoad: (result: string, file: File) => void,
     setDrag: (v: boolean) => void,
   ) {
@@ -92,7 +75,7 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
     setDrag(false);
     const file = e.dataTransfer.files?.[0];
     if (!file || !file.type.startsWith(mimePrefix)) return;
-    guardRead(file, kind, onLoad);
+    guardRead(file, onLoad);
   }
 
   return (
@@ -179,40 +162,14 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
           </div>
         </div>
 
-        {/* Photo panel */}
+        {/* Avatar */}
         <div className="perf-profile__photo-panel">
-          <div
-            className={`perf-profile__photo-drop${photoDrag ? ' perf-profile__photo-drop--active' : ''}${locked ? ' perf-profile__photo-drop--locked' : ''}`}
-            onDragOver={e => e.preventDefault()}
-            onDragEnter={() => !locked && setPhotoDrag(true)}
-            onDragLeave={() => setPhotoDrag(false)}
-            onDrop={e => !locked && handleDrop(e, 'image/', 'photo', result => onChange({ ...artist, photo: result }), setPhotoDrag)}
-            onClick={() => !locked && pickFile('image/*', 'photo', result => onChange({ ...artist, photo: result }))}
-          >
-            <div className="perf-profile__avatar-wrap">
-              {artist.photo ? (
-                <img src={artist.photo} alt={artist.name} className="perf-profile__avatar" />
-              ) : (
-                <div className="perf-profile__avatar-placeholder">
-                  {artist.name.charAt(0).toUpperCase()}
-                </div>
-              )}
+          <div className="perf-profile__avatar-wrap">
+            <div className="perf-profile__avatar-placeholder">
+              {artist.name.charAt(0).toUpperCase()}
             </div>
-            {!locked && (
-              <p className="perf-profile__photo-hint">
-                {photoDrag ? 'Drop photo' : artist.photo ? 'Click or drag to update' : 'Click or drag to upload'}
-              </p>
-            )}
           </div>
           <p className="perf-profile__photo-name">{artist.name}</p>
-          {artist.photo && !locked && (
-            <button
-              className="perf-profile__photo-remove"
-              onClick={e => { e.stopPropagation(); onChange({ ...artist, photo: undefined }); }}
-            >
-              Remove photo
-            </button>
-          )}
         </div>
       </div>
 
@@ -241,7 +198,7 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                   <div className="perf-profile__media-actions">
                     <button
                       className="btn btn--secondary btn--sm"
-                      onClick={() => pickFile('audio/*', 'audio file', (result, file) =>
+                      onClick={() => pickFile('audio/*', (result, file) =>
                         onChange({ ...artist, walkOnMusic: result, walkOnMusicName: file.name }))}
                     >
                       Replace
@@ -261,9 +218,9 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                 onDragOver={e => e.preventDefault()}
                 onDragEnter={() => setAudioDrag(true)}
                 onDragLeave={() => setAudioDrag(false)}
-                onDrop={e => handleDrop(e, 'audio/', 'audio file', (result, file) =>
+                onDrop={e => handleDrop(e, 'audio/', (result, file) =>
                   onChange({ ...artist, walkOnMusic: result, walkOnMusicName: file.name }), setAudioDrag)}
-                onClick={() => pickFile('audio/*', 'audio file', (result, file) =>
+                onClick={() => pickFile('audio/*', (result, file) =>
                   onChange({ ...artist, walkOnMusic: result, walkOnMusicName: file.name }))}
               >
                 <span className="perf-profile__dropzone-label">
@@ -292,84 +249,8 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                 Open video link
               </a>
             )}
-            {artist.video ? (
-              <>
-                <video src={artist.video} controls preload="none" className="perf-profile__video" />
-                {!locked && (
-                  <div className="perf-profile__media-actions">
-                    <button
-                      className="btn btn--secondary btn--sm"
-                      onClick={() => pickFile('video/*', 'video', result => onChange({ ...artist, video: result }))}
-                    >
-                      Replace
-                    </button>
-                    <button
-                      className="btn btn--ghost btn--sm"
-                      onClick={() => onChange({ ...artist, video: undefined })}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : !locked ? (
-              <div
-                className={`perf-profile__dropzone${videoDrag ? ' perf-profile__dropzone--active' : ''}`}
-                onDragOver={e => e.preventDefault()}
-                onDragEnter={() => setVideoDrag(true)}
-                onDragLeave={() => setVideoDrag(false)}
-                onDrop={e => handleDrop(e, 'video/', 'video', result => onChange({ ...artist, video: result }), setVideoDrag)}
-                onClick={() => pickFile('video/*', 'video', result => onChange({ ...artist, video: result }))}
-              >
-                <span className="perf-profile__dropzone-label">
-                  {videoDrag ? 'Drop video file' : 'Drag & drop or click to upload a short clip'}
-                </span>
-                <span className="perf-profile__dropzone-sub">Small clips only — use a link for full videos</span>
-              </div>
-            ) : (
-              <p className="perf-profile__media-empty">No video uploaded.</p>
-            )}
-          </div>
-
-          {/* File */}
-          <div className="perf-profile__media-tile">
-            <p className="perf-profile__media-label">File</p>
-            {artist.file ? (
-              <>
-                {artist.file.startsWith('data:image') ? (
-                  <img src={artist.file} alt={artist.fileName || 'File'} className="perf-profile__video" />
-                ) : (
-                  <p className="perf-profile__song-info">{artist.fileName || 'Attached file'}</p>
-                )}
-                {!locked && (
-                  <div className="perf-profile__media-actions">
-                    <button
-                      className="btn btn--secondary btn--sm"
-                      onClick={() => pickFile('*/*', 'file', (result, file) =>
-                        onChange({ ...artist, file: result, fileName: file.name }))}
-                    >
-                      Replace
-                    </button>
-                    <button
-                      className="btn btn--ghost btn--sm"
-                      onClick={() => onChange({ ...artist, file: undefined, fileName: undefined })}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : !locked ? (
-              <div
-                className="perf-profile__dropzone"
-                onClick={() => pickFile('*/*', 'file', (result, file) =>
-                  onChange({ ...artist, file: result, fileName: file.name }))}
-              >
-                <span className="perf-profile__dropzone-label">Click to upload a file</span>
-                <span className="perf-profile__dropzone-sub">Any file type</span>
-              </div>
-            ) : (
-              <p className="perf-profile__media-empty">No file uploaded.</p>
+            {!artist.videoLink && (
+              <p className="perf-profile__media-empty">Paste a hosted link — video uploads aren't stored.</p>
             )}
           </div>
 

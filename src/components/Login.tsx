@@ -141,7 +141,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
           <div className="landing__features">
             <div className="landing__feature">
               <h3>Lineups &amp; Rolodex</h3>
-              <p>Book performers with photos, credits, socials, and walk-on music. Every act you've worked with stays in your Rolodex for the next show.</p>
+              <p>Book performers with credits, socials, and walk-on music. Every act you've worked with stays in your Rolodex for the next show.</p>
             </div>
             <div className="landing__feature">
               <h3>Run-of-show builder</h3>
@@ -153,7 +153,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
             </div>
             <div className="landing__feature">
               <h3>Artist sign-up links</h3>
-              <p>Share a public link and let performers submit their own name, photo, credits, and music straight into your lineup.</p>
+              <p>Share a public link and let performers submit their own name, credits, and music straight into your lineup.</p>
             </div>
             <div className="landing__feature">
               <h3>Expenses &amp; recaps</h3>

@@ -4,7 +4,6 @@ import { audioUploadSizeError } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
 import { useMediaUrl } from '../../utils/useMediaUrl';
 import { socialLink } from '../../utils/social';
-import { PhotoGallery } from './PhotoGallery';
 import './PerformerProfile.css';
 
 interface RolodexProfileProps {
@@ -30,15 +29,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
   // Resolves `media:` store references to a playable URL (passthrough otherwise).
   const walkOnUrl = useMediaUrl(comic.walkOnMusic);
 
-  // All photos for this comic, falling back to the legacy single `photo` field.
-  const photos = comic.photos ?? (comic.photo ? [comic.photo] : []);
-
   function mark() { setDirty(true); }
-
-  // Persist the photo list, keeping `photo` synced to the cover (photos[0]).
-  function setPhotos(next: string[]) {
-    onChange({ ...comic, photos: next.length ? next : undefined, photo: next[0] });
-  }
 
   function handleSave() {
     onChange({
@@ -224,8 +215,15 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
           </div>
         </div>
 
-        {/* Photo gallery */}
-        <PhotoGallery photos={photos} name={comic.name} onChange={setPhotos} />
+        {/* Avatar */}
+        <div className="perf-profile__photo-panel">
+          <div className="perf-profile__avatar-wrap">
+            <div className="perf-profile__avatar-placeholder">
+              {comic.name.charAt(0).toUpperCase()}
+            </div>
+          </div>
+          <p className="perf-profile__photo-name">{comic.name}</p>
+        </div>
       </div>
 
       {/* Walk-on music */}
