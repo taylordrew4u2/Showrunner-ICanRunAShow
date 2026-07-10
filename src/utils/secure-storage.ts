@@ -19,6 +19,24 @@ import { api, type ApiError } from "./api";
  * and authorization, never the raw password.
  */
 
+/**
+ * Thrown when an encrypted blob is too large for the server to accept in a
+ * single request. The hosting platform rejects request bodies over ~4.5 MB
+ * (HTTP 413), so we detect it before sending and surface an actionable message
+ * instead of retrying a request that can never succeed.
+ */
+export class PayloadTooLargeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PayloadTooLargeError';
+  }
+}
+
+// Stay comfortably under the platform's ~4.5 MB request-body limit (headers +
+// JSON envelope eat into it). Media is embedded as base64 inside the encrypted
+// blob, so a couple of uploaded files can push a save over this on their own.
+const MAX_SAVE_BYTES = 4_300_000;
+
 function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
 }
@@ -113,6 +131,19 @@ export async function saveEncryptedShows(
     showCipherCache.set(show, { key, cipher });
     return { id: show.id, encryptedData: cipher };
   });
+  const body = JSON.stringify({ shows: payload });
+  if (body.length > MAX_SAVE_BYTES) {
+    // Point at the heaviest show so the user knows where to trim.
+    const heaviest = payload.reduce(
+      (max, row) => (row.encryptedData.length > max.len ? { id: row.id, len: row.encryptedData.length } : max),
+      { id: "", len: 0 },
+    );
+    const show = shows.find((s) => s.id === heaviest.id);
+    const where = show?.name ? ` (largest: "${show.name}")` : "";
+    throw new PayloadTooLargeError(
+      `Your show data is too large to save${where}. Remove or shrink a big uploaded file — audio, video, or a photo. Large videos work best pasted as a link instead of uploaded.`,
+    );
+  }
   await api.put("/api/shows", { shows: payload }, auth(username, password));
 }
 

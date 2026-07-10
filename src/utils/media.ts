@@ -2,8 +2,14 @@
 // gets written to the backend in a single request. Large files (especially
 // video) blow past the request/row size limit and make the whole save fail, so
 // we cap the size of anything embedded and steer large videos to a link field.
-const MAX_EMBED_BYTES = 8 * 1024 * 1024; // 8 MB — images / generic / video (steer big video to links)
-const MAX_AUDIO_EMBED_BYTES = 30 * 1024 * 1024; // 30 MB — music tracks run larger
+// The whole show set is saved to the backend in one request, and the hosting
+// platform rejects bodies over ~4.5 MB (HTTP 413). Media is embedded as base64
+// inside that request, and base64 + encryption inflate a raw file by ~1.8x, so
+// even a single large upload can make the save impossible. Cap embedded files
+// well under that ceiling; photos are downscaled separately and aren't capped
+// here. Big video belongs in a hosted link, not the payload.
+const MAX_EMBED_BYTES = 2 * 1024 * 1024; // 2 MB — generic files / video (steer big video to links)
+const MAX_AUDIO_EMBED_BYTES = 2 * 1024 * 1024; // 2 MB — walk-on tracks; keep the export small enough to save
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
