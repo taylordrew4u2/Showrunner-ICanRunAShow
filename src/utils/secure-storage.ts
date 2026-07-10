@@ -185,6 +185,16 @@ export async function loadEncryptedSettings(
 }
 
 /**
+ * Public entry point for settings healing/migration. Local pending backups
+ * bypass loadEncryptedSettings, so App runs them through this before use —
+ * otherwise a backup written before the size caps existed (bloated trash,
+ * oversized rolodex audio) would keep the account permanently unsavable.
+ */
+export function healSettings(settings: AppSettings): AppSettings {
+  return migrateSettings(settings);
+}
+
+/**
  * Migrate old settings format to new format
  */
 type LegacySettings = Partial<AppSettings> & {
