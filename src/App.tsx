@@ -15,6 +15,7 @@ import {
   exportUserData,
   createAccount,
   authenticateUser,
+  healSettings,
   PayloadTooLargeError,
 } from './utils/secure-storage';
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from './utils/trash';
@@ -61,12 +62,24 @@ function shouldNudgeBackup(showCount: number): boolean {
   }
 }
 
+// A pending backup is only trustworthy for a short window. Preferring an old
+// one over the server would resurrect data the user has since deleted (possibly
+// on another device) — and then re-save the resurrected copy over the server.
+const PENDING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 function readPending<T>(key: string, username: string): T | null {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { username: string; data: T };
-    return parsed.username === username ? parsed.data : null;
+    const parsed = JSON.parse(raw) as { username: string; data: T; at?: number };
+    if (parsed.username !== username) return null;
+    // Backups written before timestamps existed (at === undefined) are from the
+    // failing-saves era and are exactly the stale copies we must not restore.
+    if (!parsed.at || Date.now() - parsed.at > PENDING_MAX_AGE_MS) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return parsed.data;
   } catch {
     return null;
   }
@@ -74,7 +87,7 @@ function readPending<T>(key: string, username: string): T | null {
 
 function writePending(key: string, username: string, data: unknown): void {
   try {
-    localStorage.setItem(key, JSON.stringify({ username, data }));
+    localStorage.setItem(key, JSON.stringify({ username, data, at: Date.now() }));
   } catch {
     /* quota exceeded or unavailable — in-memory retry still covers us */
   }
@@ -226,7 +239,11 @@ export default function App() {
         // prefer that local backup — it's strictly newer than what the server
         // has. Setting state marks it dirty, so the auto-save re-persists it.
         const pendingShows = readPending<Show[]>(PENDING_SHOWS_KEY, currentSession.username);
-        const pendingSettings = readPending<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
+        // Pending backups bypass loadEncryptedSettings, so run them through the
+        // same healing (trash media stripping, oversized-audio removal) —
+        // otherwise a poisoned backup keeps the account unsavable forever.
+        const rawPendingSettings = readPending<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
+        const pendingSettings = rawPendingSettings ? healSettings(rawPendingSettings) : null;
 
         setShows(pendingShows ?? autoStatusShows);
         setSettings(pendingSettings ?? migratedSettings);
@@ -915,7 +932,13 @@ export default function App() {
               <Expenses
                 settings={settings}
                 onBack={handleBack}
-                onUpdateSettings={handleSaveSettings}
+                onUpdateSettings={(updated) => {
+                  // Persist through the retrying saver (with local backup),
+                  // and stay on this page — handleSaveSettings is the Settings
+                  // form's submit (it navigates away and drops edits on error).
+                  setSettings(updated);
+                  saveSettings(updated);
+                }}
               />
             )}
 
