@@ -116,7 +116,18 @@ export default function App() {
   const [shows, setShows] = useState<Show[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [loadingData, setLoadingData] = useState(false);
+  // Start in the loading state whenever a session will be restored, so the app
+  // never shows an interactive (empty) shows list before the initial load
+  // finishes. Creating a show during that window would be silently lost: the
+  // save effect is gated on dataLoaded, and the load resolving would overwrite
+  // the new show. Blocking interaction until loaded closes that race.
+  const [loadingData, setLoadingData] = useState(() => {
+    try {
+      return !!localStorage.getItem(SESSION_STORAGE_KEY);
+    } catch {
+      return false;
+    }
+  });
   const dataLoaded = useRef(false);
   const showDetailRef = useRef<ShowDetailHandle>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -714,7 +725,22 @@ export default function App() {
           loading={authLoading}
           errorMessage={authError}
         />
-      ) : !loadingData && !settings.onboarded ? (
+      ) : loadingData ? (
+        <div className="app">
+          <div className="app-loading" role="status" aria-live="polite" aria-label="Loading your shows">
+            <div className="app-loading__skeletons" aria-hidden="true">
+              <div className="skeleton-tile-row">
+                <div className="skeleton skeleton--tile" />
+                <div className="skeleton skeleton--tile" />
+              </div>
+              <div className="skeleton skeleton--bar" />
+              <div className="skeleton skeleton--card" />
+              <div className="skeleton skeleton--card" />
+              <div className="skeleton skeleton--card" />
+            </div>
+          </div>
+        </div>
+      ) : !settings.onboarded ? (
         <Onboarding
           username={session.username}
           onComplete={handleCompleteOnboarding}
@@ -722,20 +748,6 @@ export default function App() {
         />
       ) : (
         <div className="app">
-          {loadingData && (
-            <div className="app-loading" role="status" aria-live="polite" aria-label="Loading your shows">
-              <div className="app-loading__skeletons" aria-hidden="true">
-                <div className="skeleton-tile-row">
-                  <div className="skeleton skeleton--tile" />
-                  <div className="skeleton skeleton--tile" />
-                </div>
-                <div className="skeleton skeleton--bar" />
-                <div className="skeleton skeleton--card" />
-                <div className="skeleton skeleton--card" />
-                <div className="skeleton skeleton--card" />
-              </div>
-            </div>
-          )}
           {loadError && (
             <div className="save-error-banner" role="alert">
               <span className="save-error-banner__text">{loadError}</span>
