@@ -28,7 +28,12 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
   const [location, setLocation] = useState(initial?.location ?? '');
   const [status, setStatus] = useState<ShowStatus>(initial?.status ?? 'upcoming');
   const [selectedBlocks, setSelectedBlocks] = useState<Set<SectionKey>>(() => {
-    const hidden = new Set(initial?.hiddenSections ?? []);
+    // New show: start with nothing selected so the producer opts into exactly
+    // the sections they want — a show that only checks "Performers" gets only
+    // the performers section. Editing an existing show: reflect its current
+    // sections so the boxes match what's already there.
+    if (!initial?.id) return new Set<SectionKey>();
+    const hidden = new Set(initial.hiddenSections ?? []);
     return new Set(SELECTABLE_BLOCKS.map(b => b.key).filter(k => !hidden.has(k)));
   });
 
@@ -142,7 +147,8 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
       <fieldset className="show-form__blocks">
         <legend className="show-form__blocks-legend">Show Blocks</legend>
         <p className="show-form__blocks-hint">
-          Choose which sections to include. You can always add or remove these later.
+          Pick only the sections this show needs — check nothing and you'll get a
+          bare show. You can add any of these later from the show page.
         </p>
         <div className="show-form__blocks-grid">
           {SELECTABLE_BLOCKS.map(block => {
