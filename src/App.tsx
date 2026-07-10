@@ -15,6 +15,7 @@ import {
   exportUserData,
   createAccount,
   authenticateUser,
+  PayloadTooLargeError,
 } from './utils/secure-storage';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
@@ -297,15 +298,29 @@ export default function App() {
           setSaveError(null);
         } catch (error) {
           console.error('Failed to save shows:', error);
-          // Park the unsaved data locally so even closing the tab can't lose it,
-          // then retry with backoff until the save lands.
+          // Park the unsaved data locally so even closing the tab can't lose it.
           writePending(PENDING_SHOWS_KEY, currentSession.username, latestShowsRef.current);
-          setSaveError(
-            "Couldn't save your latest changes — retrying automatically. Your edits are backed up on this device in the meantime.",
-          );
-          const delay = retryDelayRef.current;
-          retryDelayRef.current = Math.min(delay * 2, 60_000);
-          setTimeout(() => setSaveRetryTick((t) => t + 1), delay);
+          // A too-large payload (client-side guard or a 413 from the server) can
+          // never succeed by retrying — the data has to get smaller first. Show
+          // an actionable message and skip the backoff loop; the save effect
+          // re-runs on its own when the user trims a file, so it recovers then.
+          const tooLarge =
+            error instanceof PayloadTooLargeError ||
+            (error as { status?: number })?.status === 413;
+          if (tooLarge) {
+            setSaveError(
+              error instanceof PayloadTooLargeError
+                ? error.message
+                : "Your show data is too large to save. Remove or shrink a big uploaded file — audio, video, or a photo.",
+            );
+          } else {
+            setSaveError(
+              "Couldn't save your latest changes — retrying automatically. Your edits are backed up on this device in the meantime.",
+            );
+            const delay = retryDelayRef.current;
+            retryDelayRef.current = Math.min(delay * 2, 60_000);
+            setTimeout(() => setSaveRetryTick((t) => t + 1), delay);
+          }
         } finally {
           savingRef.current = false;
         }
