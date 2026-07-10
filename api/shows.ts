@@ -53,7 +53,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     if (req.method === 'PUT') {
-      const body = await readJson<{ shows: EncryptedRow[] }>(req);
+      const body = await readJson<{ shows: EncryptedRow[]; deleteAll?: boolean }>(req);
       const incoming = Array.isArray(body.shows) ? body.shows : [];
 
       const existing = await db.execute({
@@ -62,9 +62,13 @@ export default async function handler(req: Request): Promise<Response> {
       });
       const existingCount = Number(existing.rows[0][0]);
 
-      // Never wipe existing shows with an empty array.
-      if (incoming.length === 0 && existingCount > 0) {
-        return json({ ok: false, skipped: true });
+      // Never wipe existing shows with an empty array unless the client says
+      // it's intentional (the user deleted every show). Without the flag an
+      // empty save is treated as a bug and refused — but signal it as an error
+      // (409) rather than a silent 200, so the client never mistakes a skipped
+      // save for a persisted one and lets deletions silently resurrect.
+      if (incoming.length === 0 && existingCount > 0 && !body.deleteAll) {
+        return json({ error: 'empty_without_delete_all', skipped: true }, 409);
       }
 
       if (existingCount > 0) {

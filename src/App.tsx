@@ -17,6 +17,7 @@ import {
   authenticateUser,
   PayloadTooLargeError,
 } from './utils/secure-storage';
+import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from './utils/trash';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
@@ -486,32 +487,30 @@ export default function App() {
   }
 
   function handleDeleteShow(id: string) {
-    setShows((prev) => {
-      const showToDelete = prev.find((s) => s.id === id);
-      if (!showToDelete) return prev;
-      
-      const updatedShows = prev.filter((s) => s.id !== id);
-      
-      // Move to trash instead of permanent deletion
-      const deletedItem = {
-        id: generateId(),
-        type: 'show' as const,
-        data: showToDelete,
-        deletedAt: new Date().toISOString(),
-      };
-      
-      const updatedSettings = {
-        ...settings,
-        trash: [deletedItem, ...(settings.trash || [])],
-      };
-      setSettings(updatedSettings);
-      
-      if (session) {
-        saveSettings(updatedSettings);
-      }
-      
-      return updatedShows;
-    });
+    const showToDelete = shows.find((s) => s.id === id);
+    if (!showToDelete) return;
+
+    setShows((prev) => prev.filter((s) => s.id !== id));
+
+    // Move to trash instead of permanent deletion — but strip embedded media
+    // first and cap the trash length. Trash lives in the settings blob, which
+    // has a hard request-size ceiling; a full show copy (with base64 audio /
+    // photos / files) can make settings permanently unsavable.
+    const deletedItem = {
+      id: generateId(),
+      type: 'show' as const,
+      data: stripShowMediaForTrash(showToDelete),
+      deletedAt: new Date().toISOString(),
+    };
+
+    const updatedSettings = {
+      ...settings,
+      trash: [deletedItem, ...(settings.trash || [])].slice(0, MAX_TRASH_ITEMS),
+    };
+    setSettings(updatedSettings);
+    if (session) {
+      saveSettings(updatedSettings);
+    }
   }
 
 
@@ -525,10 +524,16 @@ export default function App() {
       // Retry with backoff until the save lands; back the data up locally in
       // the meantime so a closed tab can't lose it.
       let delay = 5000;
+      let toSave = updatedSettings;
       while (seq === settingsSaveSeqRef.current) {
         try {
-          await saveEncryptedSettings(updatedSettings, currentSession.username, currentSession.password);
+          await saveEncryptedSettings(toSave, currentSession.username, currentSession.password);
           if (seq === settingsSaveSeqRef.current) {
+            // If we had to prune trash to fit under the size limit, reflect
+            // that in state so the app matches what actually persisted.
+            if (toSave !== updatedSettings) {
+              setSettings((prev) => ({ ...prev, trash: [] }));
+            }
             clearPending(PENDING_SETTINGS_KEY);
             setSaveError(null);
           }
@@ -536,7 +541,26 @@ export default function App() {
         } catch (err) {
           console.error('Failed to save settings:', err);
           if (seq !== settingsSaveSeqRef.current) return;
-          writePending(PENDING_SETTINGS_KEY, currentSession.username, updatedSettings);
+          const tooLarge =
+            err instanceof PayloadTooLargeError ||
+            (err as { status?: number })?.status === 413;
+          if (tooLarge) {
+            // Retrying an oversized payload can never succeed — the data has
+            // to shrink. Trash (deleted shows) is the usual culprit and is
+            // droppable, so self-heal by emptying it and retrying once.
+            if ((toSave.trash?.length ?? 0) > 0) {
+              toSave = { ...toSave, trash: [] };
+              continue;
+            }
+            writePending(PENDING_SETTINGS_KEY, currentSession.username, toSave);
+            setSaveError(
+              err instanceof PayloadTooLargeError
+                ? err.message
+                : 'Your settings are too large to save — usually a large photo in the Rolodex. Remove a big photo to fix it.',
+            );
+            return;
+          }
+          writePending(PENDING_SETTINGS_KEY, currentSession.username, toSave);
           setSaveError(
             "Couldn't save your changes — retrying automatically. Your edits are backed up on this device in the meantime.",
           );

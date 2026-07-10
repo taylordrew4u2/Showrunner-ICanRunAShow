@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { PotentialComic } from '../../types';
-import { readFileAsDataURL } from '../../utils/media';
+import { embedSizeError, readFileAsDataURL } from '../../utils/media';
 import { socialLink } from '../../utils/social';
 import { PhotoGallery } from './PhotoGallery';
 import './PerformerProfile.css';
@@ -24,6 +24,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
   const [musicLink, setMusicLink] = useState(comic.walkOnMusicLink || '');
   const [dirty, setDirty] = useState(false);
   const [audioDrag, setAudioDrag] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
 
   // All photos for this comic, falling back to the legacy single `photo` field.
   const photos = comic.photos ?? (comic.photo ? [comic.photo] : []);
@@ -51,6 +52,21 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
     setDirty(false);
   }
 
+  // Rolodex entries live inside the settings blob, which is saved in a single
+  // size-capped request — an unchecked upload here can make ALL settings
+  // permanently unsavable. Enforce the same embed cap as show uploads.
+  function guardRead(file: File, onLoad: (result: string, file: File) => void) {
+    const err = embedSizeError(file, 'audio file');
+    if (err) {
+      setMediaError(err);
+      return;
+    }
+    setMediaError(null);
+    readFileAsDataURL(file)
+      .then(result => onLoad(result, file))
+      .catch(() => setMediaError('Could not read that file. Please try again.'));
+  }
+
   function pickFile(accept: string, onLoad: (result: string, file: File) => void) {
     const input = document.createElement('input');
     input.type = 'file';
@@ -58,7 +74,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      readFileAsDataURL(file).then(result => onLoad(result, file));
+      guardRead(file, onLoad);
     };
     input.click();
   }
@@ -73,7 +89,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
     setDrag(false);
     const file = e.dataTransfer.files?.[0];
     if (!file || !file.type.startsWith(mimePrefix)) return;
-    readFileAsDataURL(file).then(result => onLoad(result, file));
+    guardRead(file, onLoad);
   }
 
   return (
@@ -278,6 +294,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
               <span className="perf-profile__dropzone-sub">MP3, WAV, AAC, M4A</span>
             </div>
           )}
+          {mediaError && <p className="perf-profile__media-error">{mediaError}</p>}
         </div>
       </div>
     </div>

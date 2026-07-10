@@ -11,6 +11,7 @@ import {
   hashPassword,
 } from "./encryption";
 import { api, type ApiError } from "./api";
+import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from "./trash";
 
 /**
  * Secure storage. All data is encrypted in the browser (the password-derived
@@ -131,7 +132,11 @@ export async function saveEncryptedShows(
     showCipherCache.set(show, { key, cipher });
     return { id: show.id, encryptedData: cipher };
   });
-  const body = JSON.stringify({ shows: payload });
+  // An empty list is a deliberate "delete everything" from the app (saves only
+  // run after the initial load), so tell the server it's intentional — without
+  // the flag it refuses empty saves as a safety net against bugs.
+  const deleteAll = shows.length === 0;
+  const body = JSON.stringify({ shows: payload, deleteAll });
   if (body.length > MAX_SAVE_BYTES) {
     // Point at the heaviest show so the user knows where to trim.
     const heaviest = payload.reduce(
@@ -144,7 +149,7 @@ export async function saveEncryptedShows(
       `Your show data is too large to save${where}. Remove or shrink a big uploaded file — audio, video, or a photo. Large videos work best pasted as a link instead of uploaded.`,
     );
   }
-  await api.put("/api/shows", { shows: payload }, auth(username, password));
+  await api.put("/api/shows", { shows: payload, deleteAll }, auth(username, password));
 }
 
 /**
@@ -210,6 +215,23 @@ function migrateSettings(settings: LegacySettings): AppSettings {
   if (typeof settings.brandBudget !== "number") settings.brandBudget = 0;
   if (typeof settings.totalSpent !== "number") settings.totalSpent = 0;
   if (!Array.isArray(settings.trash)) settings.trash = [];
+  // Heal accounts whose trash was written before media stripping existed:
+  // full show copies (embedded audio/photos) in trash can push the settings
+  // blob over the request-size ceiling and block every settings save.
+  settings.trash = settings.trash.slice(0, MAX_TRASH_ITEMS).map((item) =>
+    item && item.data ? { ...item, data: stripShowMediaForTrash(item.data) } : item,
+  );
+  // Same healing for rolodex walk-on tracks uploaded before the size cap:
+  // a single large embedded audio file makes the settings blob unsavable.
+  // ~3M chars of base64 ≈ a 2.2 MB file — anything bigger can never persist.
+  const MAX_EMBED_CHARS = 3_000_000;
+  settings.potentialComics = (settings.potentialComics || []).map((comic) =>
+    comic.walkOnMusic &&
+    comic.walkOnMusic.startsWith("data:") &&
+    comic.walkOnMusic.length > MAX_EMBED_CHARS
+      ? { ...comic, walkOnMusic: undefined }
+      : comic,
+  );
   if (!Array.isArray(settings.potentialComics)) settings.potentialComics = [];
   if (!Array.isArray(settings.showTypes)) settings.showTypes = [];
   // Settings that already exist on the server belong to an established account —
@@ -228,5 +250,11 @@ export async function saveEncryptedSettings(
   password: string,
 ): Promise<void> {
   const encryptedData = encryptData(settings, password);
+  // Same platform request-size ceiling as shows — never fire a doomed request.
+  if (encryptedData.length > MAX_SAVE_BYTES) {
+    throw new PayloadTooLargeError(
+      "Your settings are too large to save — usually a large photo in the Rolodex or an over-full trash. Remove a big photo to fix it.",
+    );
+  }
   await api.put("/api/settings", { encryptedData }, auth(username, password));
 }
