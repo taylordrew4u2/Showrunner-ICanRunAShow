@@ -1756,6 +1756,27 @@ select.show-detail__status--select {
   margin-bottom: 10px;
 }
 
+.hidden-sections__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.hidden-sections__add-btn:hover {
+  background: var(--surface-strong);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
 .hidden-sections__bubbles {
   display: flex;
   flex-wrap: wrap;
