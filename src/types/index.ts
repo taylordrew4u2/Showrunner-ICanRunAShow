@@ -22,9 +22,6 @@ export interface Performer {
   walkOnMusicLink?: string; // YouTube or Spotify URL
   credits?: string;
   lockedIn?: boolean;
-  photo?: string; // primary/cover photo (kept in sync with photos[0] for back-compat)
-  photos?: string[]; // all photos for this performer
-  video?: string; // file URI
   videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
 }
 
@@ -34,23 +31,10 @@ export interface Artist {
   artistType?: string;
   socialMedia?: string;
   credits?: string;
-  photo?: string;
   walkOnMusic?: string;
   walkOnMusicName?: string;
-  video?: string;
   videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
-  file?: string; // generic file URI
-  fileName?: string;
   lockedIn?: boolean;
-}
-
-export interface ShowFile {
-  id: string;
-  name: string;
-  fileData: string; // base64 data
-  fileType: string; // mime type
-  uploadedAt: string;
-  notes?: string;
 }
 
 export interface ScheduleItem {
@@ -68,7 +52,6 @@ export interface ScheduleItem {
 export interface Host {
   id: string;
   name: string;
-  photo?: string;
   notes?: string;
   isHosting: boolean;
 }
@@ -97,7 +80,6 @@ export interface Vendor {
   website?: string;
   cost?: number;
   notes?: string;
-  photo?: string; // logo or photo, base64 data URL
   booked?: boolean;
 }
 
@@ -108,7 +90,6 @@ export interface Expense {
   cost: number;
   date?: string;
   notes?: string;
-  receiptPhoto?: string; // base64 data URL
 }
 
 export interface Producer {
@@ -122,8 +103,6 @@ export interface PotentialComic {
   name: string;
   notes?: string;
   // Optional performer data saved from a show
-  photo?: string; // primary/cover photo (kept in sync with photos[0])
-  photos?: string[]; // all photos for this comic
   socialMedia?: string;
   email?: string; // contact email
 
@@ -159,7 +138,6 @@ export type SectionKey =
   | "staff"
   | "vendors"
   | "expenses"
-  | "files"
   | "recap";
 
 export interface SectionCompletions {
@@ -172,7 +150,6 @@ export interface SectionCompletions {
   staff?: boolean;
   vendors?: boolean;
   expenses?: boolean;
-  files?: boolean;
   recap?: boolean;
 }
 
@@ -184,18 +161,15 @@ export interface Show {
   location: string;
   venueName: string;
   status: ShowStatus;
-  flyer?: string; // base64 image data
   ticketLink?: string;
   performers: Performer[];
   artists: Artist[];
   schedule: ScheduleItem[];
-  scheduleImage?: string; // base64 fallback image when AI can't extract
   hosts: Host[];
   djSongs: DJSong[];
   staff: StaffMember[];
   vendors?: Vendor[];
   expenses: Expense[];
-  files: ShowFile[];
   scenes?: Scene[];
   recap?: ShowRecap;
   completions?: SectionCompletions;
@@ -205,15 +179,12 @@ export interface Show {
   viewToken?: string; // public read-only viewer link token
   viewNote?: string; // optional note shown on the viewer page before the show starts
   artistSignupToken?: string; // public sign-up sheet link token
-  artistFlashImage?: string; // flash sheet image (data URL)
-  artistScheduleImage?: string; // tonight's schedule image shown on the public artist page (data URL)
   artistPaymentLinks?: { cashApp?: string; venmo?: string; zelle?: string; other?: string };
   artistScheduleVisible?: boolean; // show the schedule on the public sign-up page
   artistWelcomeMessage?: string; // intro shown at the top of the public page
   artistPricingLabels?: { black?: string; color?: string }; // override "Black $60" / "Color $80"
   artistSections?: {
     schedule?: boolean;
-    flash?: boolean;
     live?: boolean;
     signups?: boolean;
     payment?: boolean;

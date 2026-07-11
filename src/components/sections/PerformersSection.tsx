@@ -52,8 +52,6 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
       socialMedia: comic.socialMedia,
       email: comic.email,
       credits: comic.credits,
-      photo: comic.photo,
-      photos: comic.photos,
       walkOnMusic: comic.walkOnMusic,
       walkOnMusicName: comic.walkOnMusicName,
       walkOnMusicArtist: comic.walkOnMusicArtist,
@@ -140,7 +138,6 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
               className="section-rolodex-picker__item"
               onClick={() => addFromRolodex(comic)}
             >
-              {comic.photo && <img src={comic.photo} alt="" className="section-rolodex-picker__photo" />}
               <span className="section-rolodex-picker__name">{comic.name}</span>
               {comic.socialMedia && <span className="section-list-item__tag">{comic.socialMedia}</span>}
               {comic.walkOnMusicName && <span className="section-list-item__tag">{comic.walkOnMusicName}</span>}
@@ -155,7 +152,6 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
       <ul className="section-list">
         {performers.map((p, idx) => (
           <li key={p.id} className={`section-list-item ${p.lockedIn ? 'section-list-item--locked' : ''} ${selectedId === p.id ? 'section-list-item--active' : ''}`}>
-            {p.photo && <img src={p.photo} alt="" className="section-list-item__photo" />}
             <div className="section-list-item__content">
               <div className="section-list-item__body">
                 <span className="section-list-item__order">{idx + 1}</span>

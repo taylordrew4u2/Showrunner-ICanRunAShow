@@ -11,7 +11,7 @@ Independent live-show coordinators — comedians who produce their own shows, dr
 ## What it does
 
 - **Show management** — multiple shows with status tracking (upcoming, in-progress, completed, cancelled), venue and date info, per-show sections (lineup, schedule, vendors, staff, host, expenses, deadlines)
-- **Lineup builder** — performer profiles with photo, social media, email, walk-on music, audio file, and video; clickable Instagram links; bulk email all performers
+- **Lineup builder** — performer profiles with social media, email, walk-on music, and video links; clickable Instagram links; bulk email all performers
 - **Schedule import** — upload a photo, PDF, or plain text; GPT-4o-mini Vision extracts the cue list automatically; Tesseract.js OCR + regex fallback runs without an API key
 - **Run Show mode** — full-screen live mode, per-cue countdown timers, drift indicator, keyboard navigation, walk-on music with automatic fade in/out, live broadcast to a public viewer URL
 - **Public viewer** — read-only link showing the current on-stage performer and what's next; updates live during the show

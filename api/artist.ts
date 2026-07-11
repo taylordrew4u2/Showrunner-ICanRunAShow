@@ -4,8 +4,8 @@
 import { ensureSchema, getDb } from './_lib/db';
 import { exceedsSize, handleError, json, readJson, tooLarge } from './_lib/http';
 
-// The signup payload can embed base64 flash/schedule images, so allow more
-// headroom than the live route while still bounding an anonymous POST.
+// The signup payload is text-only (no embedded images anymore), but keep
+// generous headroom for long schedules while still bounding an anonymous POST.
 const MAX_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
 export default async function handler(req: Request): Promise<Response> {

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Show } from '../types';
 import { generateId } from '../utils/id';
-import { compressImage, pickFile } from '../utils/media';
 import { loadColorScheme } from '../utils/theme';
 import {
   publishArtistPayload,
@@ -25,8 +24,6 @@ type Tab = 'queue' | 'signups' | 'settings';
 
 interface Draft {
   scheduleVisible: boolean;
-  flashImage: string;
-  scheduleImage: string;
   welcomeMessage: string;
   cashApp: string;
   venmo: string;
@@ -36,7 +33,6 @@ interface Draft {
   colorLabel: string;
   showLive: boolean;
   showSignups: boolean;
-  showFlash: boolean;
   showPayment: boolean;
   notifyTemplate: string;
   hiddenCues: Set<string>;
@@ -58,8 +54,6 @@ function buildPayload(show: Show): ArtistSignupPayload {
         description: s.description,
         performer: s.performer || undefined,
       })),
-    flashImage: show.artistFlashImage,
-    scheduleImage: show.artistScheduleImage,
     startsAtIso,
     paymentLinks: show.artistPaymentLinks,
     liveToken: show.viewToken,
@@ -145,8 +139,6 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
 
   const [draft, setDraft] = useState<Draft>({
     scheduleVisible: show.artistScheduleVisible ?? true,
-    flashImage: show.artistFlashImage ?? '',
-    scheduleImage: show.artistScheduleImage ?? '',
     welcomeMessage: show.artistWelcomeMessage ?? '',
     cashApp: show.artistPaymentLinks?.cashApp ?? '',
     venmo: show.artistPaymentLinks?.venmo ?? '',
@@ -156,7 +148,6 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
     colorLabel: show.artistPricingLabels?.color ?? DEFAULT_COLOR_LABEL,
     showLive: show.artistSections?.live ?? true,
     showSignups: show.artistSections?.signups ?? true,
-    showFlash: show.artistSections?.flash ?? true,
     showPayment: show.artistSections?.payment ?? true,
     notifyTemplate: show.artistNotifyTemplate ?? DEFAULT_NOTIFY_TEMPLATE,
     hiddenCues: new Set(show.artistHiddenCues ?? []),
@@ -186,28 +177,6 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
   const onDeck = pending.slice(1, 4);
   const cues = show.schedule ?? [];
 
-  async function handleUploadFlash() {
-    const file = await pickFile('image/*');
-    if (!file) return;
-    try {
-      const data = await compressImage(file, { maxDim: 1800, quality: 0.85 });
-      setDraft((d) => ({ ...d, flashImage: data }));
-    } catch {
-      alert("Couldn't read that image.");
-    }
-  }
-
-  async function handleUploadScheduleImage() {
-    const file = await pickFile('image/*');
-    if (!file) return;
-    try {
-      const data = await compressImage(file, { maxDim: 1800, quality: 0.85 });
-      setDraft((d) => ({ ...d, scheduleImage: data }));
-    } catch {
-      alert("Couldn't read that image.");
-    }
-  }
-
   function toggleCue(id: string) {
     setDraft((d) => {
       const next = new Set(d.hiddenCues);
@@ -231,14 +200,11 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
       : undefined;
     const updates: Partial<Show> = {
       artistScheduleVisible: draft.scheduleVisible,
-      artistFlashImage: draft.flashImage || undefined,
-      artistScheduleImage: draft.scheduleImage || undefined,
       artistPaymentLinks: paymentLinks,
       artistWelcomeMessage: draft.welcomeMessage.trim() || undefined,
       artistPricingLabels: pricingLabels,
       artistSections: {
         schedule: draft.scheduleVisible,
-        flash: draft.showFlash,
         live: draft.showLive,
         signups: draft.showSignups,
         payment: draft.showPayment,
@@ -513,10 +479,6 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
               Full schedule
             </label>
             <label className="artist-admin__check">
-              <input type="checkbox" checked={draft.showFlash} onChange={(e) => setDraft((d) => ({ ...d, showFlash: e.target.checked }))} />
-              Flash sheet
-            </label>
-            <label className="artist-admin__check">
               <input type="checkbox" checked={draft.showSignups} onChange={(e) => setDraft((d) => ({ ...d, showSignups: e.target.checked }))} />
               Sign-up list
             </label>
@@ -564,37 +526,6 @@ export function ArtistAdmin({ show, onChange, onClose }: ArtistAdminProps) {
             </ul>
           </section>
         )}
-
-        <section className="artist-card artist-page__col-full">
-          <h2 className="artist-card__title">Flash sheet image</h2>
-          {draft.flashImage ? (
-            <div className="artist-admin__flash">
-              <img src={draft.flashImage} alt="Flash sheet" />
-              <div className="artist-admin__flash-actions">
-                <button className="btn btn--secondary btn--sm" onClick={handleUploadFlash}>Replace</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => setDraft((d) => ({ ...d, flashImage: '' }))}>Remove</button>
-              </div>
-            </div>
-          ) : (
-            <button className="btn btn--secondary btn--sm" onClick={handleUploadFlash}>Upload flash sheet</button>
-          )}
-        </section>
-
-        <section className="artist-card artist-page__col-full">
-          <h2 className="artist-card__title">Tonight's schedule image</h2>
-          <p className="artist-card__hint">Shown when artists tap "Tonight's schedule" on the public page. Upload your show run as an image.</p>
-          {draft.scheduleImage ? (
-            <div className="artist-admin__flash">
-              <img src={draft.scheduleImage} alt="Tonight's schedule" />
-              <div className="artist-admin__flash-actions">
-                <button className="btn btn--secondary btn--sm" onClick={handleUploadScheduleImage}>Replace</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => setDraft((d) => ({ ...d, scheduleImage: '' }))}>Remove</button>
-              </div>
-            </div>
-          ) : (
-            <button className="btn btn--secondary btn--sm" onClick={handleUploadScheduleImage}>Upload schedule image</button>
-          )}
-        </section>
 
         <section className="artist-card artist-page__col-full">
           <h2 className="artist-card__title">Payment links</h2>

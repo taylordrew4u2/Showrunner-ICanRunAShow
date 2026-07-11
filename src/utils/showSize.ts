@@ -27,40 +27,22 @@ function collectEmbedded(show: Show): EmbeddedItem[] {
     if (bytes > 0) items.push({ label, bytes });
   };
 
-  add('flyer', show.flyer);
-  add('schedule image', show.scheduleImage);
-  add('artist flash sheet', show.artistFlashImage);
-  add('artist schedule image', show.artistScheduleImage);
   for (const p of show.performers || []) {
     add(`${p.name} — walk-on music`, p.walkOnMusic);
-    add(`${p.name} — video`, p.video);
-    add(`${p.name} — photo`, p.photo);
-    (p.photos || []).forEach((ph, i) => {
-      if (ph !== p.photo) add(`${p.name} — photo ${i + 1}`, ph);
-    });
   }
   for (const a of show.artists || []) {
     add(`${a.name} — walk-on music`, a.walkOnMusic);
-    add(`${a.name} — video`, a.video);
-    add(`${a.name} — photo`, a.photo);
-    add(`${a.name} — file${a.fileName ? ` (${a.fileName})` : ''}`, a.file);
   }
   for (const c of show.schedule || []) {
     add(`cue "${c.description || c.time}" — music`, c.music);
   }
-  for (const f of show.files || []) {
-    add(`file "${f.name}"`, f.fileData);
-  }
-  for (const h of show.hosts || []) add(`${h.name} — photo`, h.photo);
-  for (const v of show.vendors || []) add(`${v.name} — photo`, v.photo);
-  for (const e of show.expenses || []) add(`receipt for "${e.itemName}"`, e.receiptPhoto);
 
   return items.sort((a, b) => b.bytes - a.bytes);
 }
 
 /**
  * Human-readable list of the biggest embedded files in a show, e.g.
- * `Alice — walk-on music (8.2 MB), flyer (3.1 MB)`.
+ * `Alice — walk-on music (8.2 MB), Bea — walk-on music (3.1 MB)`.
  */
 export function describeLargestMedia(show: Show, limit = 3): string {
   const items = collectEmbedded(show).slice(0, limit);

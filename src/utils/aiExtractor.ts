@@ -175,7 +175,7 @@ export async function importScheduleFromFile(
     if (ocrItems.length > 0) return ocrItems;
 
     throw new Error(
-      "Couldn't read a schedule from that photo. Make sure the times are clearly visible, paste the text instead, or attach the image as a reference and add cues manually.",
+      "Couldn't read a schedule from that photo. Make sure the times are clearly visible, or paste the text instead and add cues manually.",
     );
   }
 
