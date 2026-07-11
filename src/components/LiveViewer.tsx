@@ -128,13 +128,9 @@ export function LiveViewer({ token }: LiveViewerProps) {
             <ol className="live-viewer__lineup-list">
               {payload.lineup.map((p, i) => (
                 <li key={i} className="live-viewer__lineup-item">
-                  {p.photo ? (
-                    <img src={p.photo} alt="" className="live-viewer__lineup-photo" />
-                  ) : (
-                    <div className="live-viewer__lineup-photo live-viewer__lineup-photo--placeholder">
-                      {(p.name || '·').charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <div className="live-viewer__lineup-photo live-viewer__lineup-photo--placeholder">
+                    {(p.name || '·').charAt(0).toUpperCase()}
+                  </div>
                   <div className="live-viewer__lineup-info">
                     <div className="live-viewer__lineup-name">{p.name}</div>
                     {p.credits && <div className="live-viewer__lineup-credits">{p.credits}</div>}
@@ -179,13 +175,9 @@ export function LiveViewer({ token }: LiveViewerProps) {
         <div className="live-viewer__card">
           <div className="live-viewer__label">On stage</div>
           <div className="live-viewer__person">
-            {seg.photo ? (
-              <img src={seg.photo} alt="" className="live-viewer__photo" />
-            ) : (
-              <div className="live-viewer__photo live-viewer__photo--placeholder">
-                {(seg.name || '·').charAt(0).toUpperCase()}
-              </div>
-            )}
+            <div className="live-viewer__photo live-viewer__photo--placeholder">
+              {(seg.name || '·').charAt(0).toUpperCase()}
+            </div>
             <div className="live-viewer__info">
               <div className="live-viewer__name">{seg.name || seg.description || '—'}</div>
               {seg.credits && <div className="live-viewer__credits">{seg.credits}</div>}
@@ -196,13 +188,9 @@ export function LiveViewer({ token }: LiveViewerProps) {
         <div className="live-viewer__card">
           <div className="live-viewer__label">Up next</div>
           <div className="live-viewer__person">
-            {next.photo ? (
-              <img src={next.photo} alt="" className="live-viewer__photo" />
-            ) : (
-              <div className="live-viewer__photo live-viewer__photo--placeholder">
-                {(next.name || '—').charAt(0).toUpperCase()}
-              </div>
-            )}
+            <div className="live-viewer__photo live-viewer__photo--placeholder">
+              {(next.name || '—').charAt(0).toUpperCase()}
+            </div>
             <div className="live-viewer__info">
               <div className="live-viewer__name">{next.name || next.description || 'End of show'}</div>
             </div>

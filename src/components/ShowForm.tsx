@@ -4,7 +4,7 @@ import './ShowForm.css';
 
 interface ShowFormProps {
   initial?: Partial<Show>;
-  onSave: (show: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes' | 'files'>) => void;
+  onSave: (show: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes'>) => void;
   onCancel: () => void;
 }
 
@@ -17,7 +17,6 @@ const SELECTABLE_BLOCKS: { key: SectionKey; label: string }[] = [
   { key: 'dj', label: 'DJ Music' },
   { key: 'staff', label: 'Staff' },
   { key: 'vendors', label: 'Vendors' },
-  { key: 'files', label: 'Files' },
 ];
 
 export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {

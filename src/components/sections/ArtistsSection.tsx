@@ -65,7 +65,6 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
             key={a.id}
             className={`section-list-item ${a.lockedIn ? 'section-list-item--locked' : ''} ${selectedId === a.id ? 'section-list-item--active' : ''}`}
           >
-            {a.photo && <img src={a.photo} alt="" className="section-list-item__photo" />}
             <div className="section-list-item__content">
               <div className="section-list-item__body">
                 <span className="section-list-item__order">{idx + 1}</span>
@@ -76,8 +75,7 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
                 </span>
                 {a.socialMedia && <span className="section-list-item__tag">{a.socialMedia}</span>}
                 {a.walkOnMusicName && <span className="section-list-item__tag">{a.walkOnMusicName}</span>}
-                {(a.video || a.videoLink) && <span className="section-list-item__tag">Video</span>}
-                {a.fileName && <span className="section-list-item__tag">{a.fileName}</span>}
+                {a.videoLink && <span className="section-list-item__tag">Video</span>}
               </div>
               <div className="section-list-item__buttons">
                 <button className="btn btn--ghost btn--sm" onClick={() => moveUp(idx)} title="Move up" disabled={idx === 0}>↑</button>

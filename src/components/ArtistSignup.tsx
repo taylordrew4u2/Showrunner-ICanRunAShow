@@ -42,8 +42,6 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
   const [signups, setSignups] = useState<ArtistSignupEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>('home');
-  const [flashOpen, setFlashOpen] = useState(false);
-  const [scheduleZoom, setScheduleZoom] = useState(false);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -172,13 +170,9 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
                 <div className="artist-signup__live-block">
                   <div className="artist-signup__live-label">On stage</div>
                   <div className="artist-signup__live-row">
-                    {live.segment?.photo ? (
-                      <img className="artist-signup__live-photo" src={live.segment.photo} alt="" />
-                    ) : (
-                      <div className="artist-signup__live-photo artist-signup__live-photo--placeholder">
-                        {getInitials(live.segment?.name || live.segment?.description || '?')}
-                      </div>
-                    )}
+                    <div className="artist-signup__live-photo artist-signup__live-photo--placeholder">
+                      {getInitials(live.segment?.name || live.segment?.description || '?')}
+                    </div>
                     <div>
                       <div className="artist-signup__live-name">{live.segment?.name || live.segment?.description || '—'}</div>
                     </div>
@@ -187,13 +181,9 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
                 <div className="artist-signup__live-block">
                   <div className="artist-signup__live-label">Up next</div>
                   <div className="artist-signup__live-row">
-                    {live.next?.photo ? (
-                      <img className="artist-signup__live-photo artist-signup__live-photo--sm" src={live.next.photo} alt="" />
-                    ) : (
-                      <div className="artist-signup__live-photo artist-signup__live-photo--sm artist-signup__live-photo--placeholder">
-                        {getInitials(live.next?.name || live.next?.description || '?')}
-                      </div>
-                    )}
+                    <div className="artist-signup__live-photo artist-signup__live-photo--sm artist-signup__live-photo--placeholder">
+                      {getInitials(live.next?.name || live.next?.description || '?')}
+                    </div>
                     <div className="artist-signup__live-name artist-signup__live-name--sm">
                       {live.next?.name || live.next?.description || 'End of show'}
                     </div>
@@ -223,7 +213,7 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
               <span className="artist-signup__nav-body">
                 <span className="artist-signup__nav-title">Sign up for a tattoo</span>
                 <span className="artist-signup__nav-sub">
-                  View the flash & get in line
+                  Get in line
                   {waitingCount > 0 && ` · ${waitingCount} waiting`}
                 </span>
               </span>
@@ -234,13 +224,13 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
               type="button"
               className="artist-signup__nav-btn"
               onClick={() => setView('schedule')}
-              disabled={!payload.scheduleImage}
+              disabled={!payload.scheduleVisible || !(payload.schedule?.length)}
             >
               <span className="artist-signup__nav-icon">▦</span>
               <span className="artist-signup__nav-body">
                 <span className="artist-signup__nav-title">Tonight's schedule</span>
                 <span className="artist-signup__nav-sub">
-                  {payload.scheduleImage ? 'See the full run-of-show' : 'Schedule not posted yet'}
+                  {payload.scheduleVisible && payload.schedule?.length ? 'See the full run-of-show' : 'Schedule not posted yet'}
                 </span>
               </span>
               <span className="artist-signup__nav-chevron">›</span>
@@ -257,20 +247,6 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
             </button>
             <h1 className="artist-signup__subtitle">Sign up</h1>
           </header>
-
-          {payload.flashImage && (
-            <section className="artist-signup__section">
-              <h2 className="artist-signup__h2">Flash sheet</h2>
-              <button type="button" className="artist-signup__flash-btn" onClick={() => setFlashOpen(true)} aria-label="View flash sheet larger">
-                <img src={payload.flashImage} alt="Tattoo flash sheet" className="artist-signup__flash" />
-                <span className="artist-signup__flash-zoom">Tap to zoom</span>
-              </button>
-              <p className="artist-signup__hint">
-                Pick the number of the image you want.&nbsp;
-                <strong>{blackLabel}</strong> · <strong>{colorLabel}</strong>
-              </p>
-            </section>
-          )}
 
           <section className="artist-signup__section artist-signup__signup-section">
             <h2 className="artist-signup__h2">Your info</h2>
@@ -404,29 +380,25 @@ export function ArtistSignup({ token }: ArtistSignupProps) {
           </header>
 
           <section className="artist-signup__section">
-            {payload.scheduleImage ? (
-              <button type="button" className="artist-signup__flash-btn" onClick={() => setScheduleZoom(true)} aria-label="View schedule larger">
-                <img src={payload.scheduleImage} alt="Tonight's schedule" className="artist-signup__flash" />
-                <span className="artist-signup__flash-zoom">Tap to zoom</span>
-              </button>
+            {payload.scheduleVisible && payload.schedule?.length ? (
+              <ol className="artist-signup__list">
+                {payload.schedule.map((s, i) => (
+                  <li key={i} className="artist-signup__entry">
+                    <div className="artist-signup__entry-body">
+                      <div className="artist-signup__entry-name">{s.description}</div>
+                      <div className="artist-signup__entry-tags">
+                        {s.time && <span className="artist-signup__entry-tag">{s.time}</span>}
+                        {s.performer && <span className="artist-signup__entry-tag">{s.performer}</span>}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             ) : (
               <p className="artist-signup__hint">No schedule posted yet — check back soon.</p>
             )}
           </section>
         </>
-      )}
-
-      {flashOpen && payload.flashImage && (
-        <div className="artist-signup__lightbox" onClick={() => setFlashOpen(false)} role="dialog" aria-modal="true">
-          <img src={payload.flashImage} alt="Flash sheet" />
-          <button className="artist-signup__lightbox-close" onClick={() => setFlashOpen(false)} aria-label="Close">×</button>
-        </div>
-      )}
-      {scheduleZoom && payload.scheduleImage && (
-        <div className="artist-signup__lightbox" onClick={() => setScheduleZoom(false)} role="dialog" aria-modal="true">
-          <img src={payload.scheduleImage} alt="Schedule" />
-          <button className="artist-signup__lightbox-close" onClick={() => setScheduleZoom(false)} aria-label="Close">×</button>
-        </div>
       )}
     </div>
   );

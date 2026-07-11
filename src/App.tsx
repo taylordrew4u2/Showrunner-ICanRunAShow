@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import type { Show, AppSettings, PotentialComic } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
-import { syncPerformerCover } from './utils/performer';
 import { ServerNotConfiguredError } from './utils/api';
 import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
 import { vibrateTap } from './utils/haptics';
@@ -19,6 +18,7 @@ import {
   PayloadTooLargeError,
 } from './utils/secure-storage';
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from './utils/trash';
+import { stripLegacyShowMedia, stripLegacySettingsMedia } from './utils/stripMedia';
 import { initMediaStore, clearMediaStore } from './utils/mediaStore';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
@@ -212,14 +212,12 @@ export default function App() {
           loadEncryptedShows(currentSession.username, currentSession.password),
           loadEncryptedSettings(currentSession.username, currentSession.password),
         ]);
-        // Ensure backward compatibility: add files array if missing
-        const migratedShows = loadedShows.map((show) => ({
-          ...show,
-          files: show.files || [],
-        }));
+        // Scrub legacy embedded media (photos, videos, files) that older saves
+        // still carry — the next save writes the slimmed-down payload.
+        const migratedShows = loadedShows.map((show) => stripLegacyShowMedia(show));
 
         // Migrate per-show expenses into global settings.expenses
-        let migratedSettings = { ...loadedSettings, expenses: loadedSettings.expenses || [] };
+        let migratedSettings = stripLegacySettingsMedia({ ...loadedSettings, expenses: loadedSettings.expenses || [] });
         const perShowExpenses = migratedShows.flatMap((s) => s.expenses || []);
         if (perShowExpenses.length > 0) {
           const existingIds = new Set(migratedSettings.expenses.map((e: { id: string }) => e.id));
@@ -246,12 +244,13 @@ export default function App() {
         // If a previous session had unsaved edits (save failed, tab closed),
         // prefer that local backup — it's strictly newer than what the server
         // has. Setting state marks it dirty, so the auto-save re-persists it.
-        const pendingShows = readPending<Show[]>(PENDING_SHOWS_KEY, currentSession.username);
+        const rawPendingShows = readPending<Show[]>(PENDING_SHOWS_KEY, currentSession.username);
+        const pendingShows = rawPendingShows ? rawPendingShows.map((s) => stripLegacyShowMedia(s)) : null;
         // Pending backups bypass loadEncryptedSettings, so run them through the
         // same healing (trash media stripping, oversized-audio removal) —
         // otherwise a poisoned backup keeps the account unsavable forever.
         const rawPendingSettings = readPending<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
-        const pendingSettings = rawPendingSettings ? healSettings(rawPendingSettings) : null;
+        const pendingSettings = rawPendingSettings ? stripLegacySettingsMedia(healSettings(rawPendingSettings)) : null;
 
         setShows(pendingShows ?? autoStatusShows);
         setSettings(pendingSettings ?? migratedSettings);
@@ -337,7 +336,7 @@ export default function App() {
             setSaveError(
               error instanceof PayloadTooLargeError
                 ? error.message
-                : "Your show data is too large to save. Remove or shrink a big uploaded file — audio, video, or a photo.",
+                : "Your show data is too large to save. Remove or shrink a big uploaded walk-on track.",
             );
           } else {
             setSaveError(
@@ -474,14 +473,13 @@ export default function App() {
     }
   }
 
-  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes' | 'files'>) {
+  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes'>) {
     const newShow: Show = {
       ...data,
       id: generateId(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scenes: [],
-      files: [],
     };
     setShows((prev) => [newShow, ...prev]);
     setShowForm(false);
@@ -519,8 +517,8 @@ export default function App() {
 
     // Move to trash instead of permanent deletion — but strip embedded media
     // first and cap the trash length. Trash lives in the settings blob, which
-    // has a hard request-size ceiling; a full show copy (with base64 audio /
-    // photos / files) can make settings permanently unsavable.
+    // has a hard request-size ceiling; a full show copy (with base64 audio)
+    // can make settings permanently unsavable.
     const deletedItem = {
       id: generateId(),
       type: 'show' as const,
@@ -581,7 +579,7 @@ export default function App() {
             setSaveError(
               err instanceof PayloadTooLargeError
                 ? err.message
-                : 'Your settings are too large to save — usually a large photo in the Rolodex. Remove a big photo to fix it.',
+                : 'Your settings are too large to save — usually an over-full trash. Empty the trash to fix it.',
             );
             return;
           }
@@ -642,13 +640,8 @@ export default function App() {
         ...show,
         performers: show.performers.map(p => {
           if (p.name.toLowerCase() !== updated.name.toLowerCase()) return p;
-          // Prefer the comic's gallery; keep the cover (photo) synced to photos[0].
-          const photos = updated.photos ?? p.photos;
-          const photo = (photos && photos.length) ? photos[0] : (updated.photo ?? p.photo);
           return {
             ...p,
-            photo,
-            photos,
             socialMedia: updated.socialMedia ?? p.socialMedia,
             credits: updated.credits ?? p.credits,
             walkOnMusic: updated.walkOnMusic ?? p.walkOnMusic,
@@ -675,29 +668,8 @@ export default function App() {
   }
 
   function handleUpdateShow(updated: Show) {
-    setShows((prev) => {
-      // Ensure files array always exists and is never lost
-      const safeUpdated = {
-        ...updated,
-        files: updated.files || [],
-        // Ensure all artists have their file fields preserved
-        artists: (updated.artists || []).map(a => ({
-          ...a,
-          file: a.file,
-          fileName: a.fileName
-        })),
-        // Normalize each performer so the legacy `photo` cover always matches photos[0].
-        performers: (updated.performers || []).map(syncPerformerCover)
-      };
-      const updatedShows = prev.map((s) => (s.id === safeUpdated.id ? safeUpdated : s));
-      
-      return updatedShows;
-    });
-    // Update selectedShow with the safe version that preserves files
-    setSelectedShow({
-      ...updated,
-      files: updated.files || []
-    });
+    setShows((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    setSelectedShow(updated);
   }
 
   function handleSelectShow(show: Show, e?: React.MouseEvent) {
@@ -987,14 +959,9 @@ export default function App() {
                   <div className="rolodex__list">
                     {settings.potentialComics.map((comic) => (
                       <article key={comic.id} className="rolodex__item">
-                        {comic.photo && (
-                          <img src={comic.photo} alt={comic.name} className="rolodex__photo" />
-                        )}
-                        {!comic.photo && (
-                          <div className="rolodex__photo-placeholder">
-                            {comic.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                        <div className="rolodex__photo-placeholder">
+                          {comic.name.charAt(0).toUpperCase()}
+                        </div>
                         <div className="rolodex__item-content">
                           <p className="rolodex__name">{comic.name}</p>
                           {comic.socialMedia && <p className="rolodex__meta">{comic.socialMedia}</p>}

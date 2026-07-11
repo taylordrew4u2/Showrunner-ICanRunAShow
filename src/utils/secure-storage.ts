@@ -160,7 +160,7 @@ export async function saveEncryptedShows(
       return `"${show.name}"${files ? ` — biggest files: ${files}` : ""}`;
     });
     throw new PayloadTooLargeError(
-      `One of your shows is too large to save even by itself: ${details.join("; ")}. Remove or shrink those uploads — large audio/video works best as a pasted link.`,
+      `One of your shows is too large to save even by itself: ${details.join("; ")}. Remove or shrink those walk-on tracks.`,
     );
   }
 
@@ -262,7 +262,7 @@ function migrateSettings(settings: LegacySettings): AppSettings {
   if (typeof settings.totalSpent !== "number") settings.totalSpent = 0;
   if (!Array.isArray(settings.trash)) settings.trash = [];
   // Heal accounts whose trash was written before media stripping existed:
-  // full show copies (embedded audio/photos) in trash can push the settings
+  // full show copies (embedded audio) in trash can push the settings
   // blob over the request-size ceiling and block every settings save.
   settings.trash = settings.trash.slice(0, MAX_TRASH_ITEMS).map((item) =>
     item && item.data ? { ...item, data: stripShowMediaForTrash(item.data) } : item,
@@ -299,7 +299,7 @@ export async function saveEncryptedSettings(
   // Same platform request-size ceiling as shows — never fire a doomed request.
   if (encryptedData.length > MAX_SAVE_BYTES) {
     throw new PayloadTooLargeError(
-      "Your settings are too large to save — usually a large photo in the Rolodex or an over-full trash. Remove a big photo to fix it.",
+      "Your settings are too large to save — usually an over-full trash or a large embedded walk-on track. Empty the trash to fix it.",
     );
   }
   await api.put("/api/settings", { encryptedData }, auth(username, password));

@@ -116,7 +116,7 @@ I Can Run A Show handles the full workflow in a single application:
 
 **Show building**
 - Multiple shows with status tracking (upcoming, in-progress, completed, cancelled)
-- Per-show lineup with performer profiles: photo, social media, email, credits, walk-on track, audio file, and video
+- Per-show lineup with performer profiles: social media, email, credits, walk-on track, and video link
 - Clickable contacts — social handles link straight to the profile (bare handles resolve to Instagram); one tap to email a performer
 - "Email all performers" — opens your mail app with the lineup BCC'd and a pre-filled confirmation, for quick booking confirmations
 - Global performer rolodex — save a performer once, reuse across shows; edits sync to all matching performers
@@ -298,7 +298,7 @@ Without these, the Email button shows a clear inline error explaining what's mis
 
 1. Open the app and create an account (username + password)
 2. Create a show and fill in basic info (name, date, venue)
-3. Add performers to the lineup; upload walk-on music, photo, and profile data per performer
+3. Add performers to the lineup; upload walk-on music and add profile data per performer
 4. In the Schedule section, import a schedule by uploading a PDF, image, or pasting text — or build it cue-by-cue
 5. (Optional) Generate the public viewer link and the artist sign-up link from the show detail page
 6. On show day, open Run Show — cues advance with countdown timers, music plays with fades, and the live state is broadcast to anyone with the viewer link

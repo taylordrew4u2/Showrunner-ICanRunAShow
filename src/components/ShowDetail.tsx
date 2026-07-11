@@ -11,7 +11,6 @@ import { DJMusicSection } from './sections/DJMusicSection';
 import { StaffSection } from './sections/StaffSection';
 import { VendorsSection } from './sections/VendorsSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
-import { FilesSection } from './sections/FilesSection';
 import { RunShow } from './RunShow';
 import { Modal } from './Modal';
 import { ArtistAdmin } from './ArtistAdmin';
@@ -107,12 +106,7 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
   }
 
   function handleUpdate(updates: Partial<Show>) {
-    // Ensure files array is never lost during updates
-    const merged = { 
-      ...show, 
-      ...updates,
-      files: updates.files !== undefined ? updates.files : (show.files || [])
-    };
+    const merged = { ...show, ...updates };
 
     // Auto-add walk-on music to DJ list when performers/artists get new songs
     if (updates.performers || updates.artists) {
@@ -222,7 +216,6 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
   function buildLineup(): LiveViewPayload['lineup'] {
     return show.performers.map((p) => ({
       name: p.name,
-      photo: p.photo ?? p.photos?.[0],
       credits: p.credits,
     }));
   }
@@ -297,7 +290,7 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       key: 'basic',
       sectionKey: 'basic' as SectionKey,
       title: 'Basic Info',
-      subtitle: 'Set show time, location, and venue. Upload a flyer.',
+      subtitle: 'Set show time, location, and venue.',
       accent: 'slate',
       span: 2,
       content: <BasicInfoSection show={show} onChange={handleUpdate} />,
@@ -306,7 +299,7 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       key: 'performers',
       sectionKey: 'performers' as SectionKey,
       title: 'Performers',
-      subtitle: 'Names, walk-on music, photos, and social media.',
+      subtitle: 'Names, walk-on music, and social media.',
       accent: 'red',
       count: show.performers.length,
       content: <PerformersSection
@@ -321,7 +314,7 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       key: 'artists',
       sectionKey: 'artists' as SectionKey,
       title: 'Artists',
-      subtitle: 'Artist entries with name, type, music, and photos.',
+      subtitle: 'Artist entries with name, type, and music.',
       accent: 'purple',
       count: show.artists.length,
       content: <ArtistsSection artists={show.artists} onChange={(artists) => handleUpdate({ artists })} />,
@@ -336,11 +329,9 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       count: show.schedule.length,
       content: <ScheduleSection
         schedule={show.schedule}
-        scheduleImage={show.scheduleImage}
         showName={show.name}
         performers={show.performers}
         onChange={(schedule) => handleUpdate({ schedule })}
-        onImageChange={(scheduleImage) => handleUpdate({ scheduleImage })}
       />,
     },
     {
@@ -369,15 +360,6 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       accent: 'green',
       count: (show.vendors || []).length,
       content: <VendorsSection vendors={show.vendors || []} onChange={(vendors) => handleUpdate({ vendors })} />,
-    },
-    {
-      key: 'files',
-      sectionKey: 'files' as SectionKey,
-      title: 'Files',
-      subtitle: 'Upload and manage any files needed for the show.',
-      accent: 'slate',
-      count: show.files?.length || 0,
-      content: <FilesSection files={show.files || []} onChange={(files) => handleUpdate({ files })} />,
     },
   ];
 
@@ -520,12 +502,6 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
           </div>
         )}
       </div>
-
-      {show.flyer && (
-        <div className="show-detail__flyer">
-          <img src={show.flyer} alt="Show flyer" className="show-detail__flyer-image" />
-        </div>
-      )}
 
       {/* Host */}
       <div className="show-detail__host">

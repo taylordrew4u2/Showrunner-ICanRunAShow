@@ -21,7 +21,6 @@ function baseShow(): Show {
     staff: [],
     vendors: [],
     expenses: [],
-    files: [],
     createdAt: 'now',
     updatedAt: 'now',
   };
@@ -32,13 +31,13 @@ describe('describeLargestMedia', () => {
     const show = baseShow();
     show.performers = [
       { id: 'p1', name: 'Alice', walkOnMusic: blob(8) },
-      { id: 'p2', name: 'Bea', photo: blob(1) },
+      { id: 'p2', name: 'Bea', walkOnMusic: blob(1) },
     ];
-    show.flyer = blob(3);
+    show.artists = [{ id: 'a1', name: 'Cal', walkOnMusic: blob(3) }];
     const desc = describeLargestMedia(show);
     expect(desc).toContain('Alice — walk-on music (8.0 MB)');
-    expect(desc.indexOf('Alice')).toBeLessThan(desc.indexOf('flyer'));
-    expect(desc).toContain('flyer (3.0 MB)');
+    expect(desc.indexOf('Alice')).toBeLessThan(desc.indexOf('Cal'));
+    expect(desc).toContain('Cal — walk-on music (3.0 MB)');
   });
 
   it('caps the list at the limit', () => {
@@ -58,14 +57,16 @@ describe('describeLargestMedia', () => {
     expect(describeLargestMedia(show)).toBe('');
   });
 
-  it('covers files, cue music, and receipts', () => {
+  it('ignores media-store references', () => {
     const show = baseShow();
-    show.files = [{ id: 'f1', name: 'set.pdf', fileData: blob(2), fileType: 'application/pdf', uploadedAt: 'now' }];
+    show.performers = [{ id: 'p1', name: 'Alice', walkOnMusic: 'media:abc123' }];
+    expect(describeLargestMedia(show)).toBe('');
+  });
+
+  it('covers cue music', () => {
+    const show = baseShow();
     show.schedule = [{ id: 'c1', time: '8:00', description: 'Opener', music: blob(1) }];
-    show.expenses = [{ id: 'e1', category: 'venue', itemName: 'rent', cost: 1, receiptPhoto: blob(0.5) }];
     const desc = describeLargestMedia(show, 5);
-    expect(desc).toContain('file "set.pdf"');
     expect(desc).toContain('cue "Opener" — music');
-    expect(desc).toContain('receipt for "rent"');
   });
 });
