@@ -28,6 +28,7 @@
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [How to Run Locally](#how-to-run-locally)
+- [iOS App](#ios-app)
 - [Usage](#usage)
 - [What I Built](#what-i-built)
 - [Technical Decisions](#technical-decisions)
@@ -291,6 +292,20 @@ One-time setup:
 5. Redeploy
 
 Without these, the Email button shows a clear inline error explaining what's missing.
+
+---
+
+## iOS App
+
+A native iOS wrapper (Capacitor) lives in `ios/App`. On a Mac with Xcode:
+
+```bash
+npm install
+npm run ios:sync   # build the web app and sync it into the iOS project
+npm run ios:open   # open the project in Xcode
+```
+
+See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store notes.
 
 ---
 
