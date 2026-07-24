@@ -114,6 +114,12 @@ export interface PotentialComic {
   walkOnMusicLink?: string;
 }
 
+export interface EmailListEntry {
+  id: string;
+  email: string;
+  addedAt: string;
+}
+
 export interface ShowRecap {
   attendance?: number;
   merchSales?: number;
@@ -211,6 +217,7 @@ export interface AppSettings {
   trash: DeletedItem[];
   potentialComics: PotentialComic[];
   expenses: Expense[];
+  emailList: EmailListEntry[]; // collected audience emails — storage only, no sending
   showTypes: string[]; // kinds of shows this producer makes (set during onboarding)
   onboarded: boolean; // whether the account has completed the welcome onboarding
   rolodexTermSingular?: string; // override for the Rolodex noun, e.g. "Comic" / "Queen"
@@ -226,6 +233,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   trash: [],
   potentialComics: [],
   expenses: [],
+  emailList: [],
   showTypes: [],
   onboarded: false,
 };
