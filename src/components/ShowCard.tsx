@@ -1,4 +1,5 @@
 import type { Show } from '../types';
+import { parseShowDate } from '../utils/showDate';
 import './ShowCard.css';
 
 interface ShowCardProps {
@@ -31,21 +32,39 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
     onDuplicate(show.id);
   }
 
-  const dateStr = show.date
-    ? new Date(show.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-    : null;
+  const showDate = parseShowDate(show.date);
+  const isCurrentYear = showDate?.getFullYear() === new Date().getFullYear();
+  const weekday = showDate?.toLocaleDateString(undefined, { weekday: 'long' });
+  const fullDateStr = showDate?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const when = [weekday, show.time].filter(Boolean).join(' · ');
 
   return (
     <div
       className={`show-card show-card--${show.status}`}
       role="button"
       tabIndex={0}
-      aria-label={`Open ${show.name}`}
+      aria-label={`Open ${show.name}${fullDateStr ? `, ${fullDateStr}` : ''}`}
       onClick={e => onSelect(show, e)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(show, e as unknown as React.MouseEvent); } }}
     >
       <div className="show-card__header">
-        <h2 className="show-card__title">{show.name}</h2>
+        <div className={`show-card__date${showDate ? '' : ' show-card__date--tbd'}`} aria-hidden="true">
+          {showDate ? (
+            <>
+              <span className="show-card__date-month">
+                {showDate.toLocaleDateString(undefined, { month: 'short' })}
+              </span>
+              <span className="show-card__date-day">{showDate.getDate()}</span>
+              {!isCurrentYear && <span className="show-card__date-year">{showDate.getFullYear()}</span>}
+            </>
+          ) : (
+            <span className="show-card__date-tbd">TBD</span>
+          )}
+        </div>
+        <div className="show-card__heading">
+          <h2 className="show-card__title">{show.name}</h2>
+          {when && <span className="show-card__when">{when}</span>}
+        </div>
         <div className="show-card__actions">
           <button
             className="show-card__action-btn"
@@ -66,11 +85,9 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
         </div>
       </div>
 
-      {(show.venueName || dateStr) && (
+      {show.venueName && (
         <div className="show-card__meta">
-          {show.venueName && <span>{show.venueName}</span>}
-          {show.venueName && dateStr && <span className="show-card__meta-sep">·</span>}
-          {dateStr && <span>{dateStr}</span>}
+          <span>{show.venueName}</span>
         </div>
       )}
 

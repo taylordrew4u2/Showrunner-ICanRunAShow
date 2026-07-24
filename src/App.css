@@ -540,6 +540,43 @@ button.bento-tile {
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
+.shows-toolbar__view {
+  display: flex;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.shows-toolbar__view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.shows-toolbar__view-btn + .shows-toolbar__view-btn {
+  border-left: 1px solid var(--border);
+}
+
+.shows-toolbar__view-btn:hover {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.shows-toolbar__view-btn--active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
 .shows-empty-filter {
   display: flex;
   flex-direction: column;

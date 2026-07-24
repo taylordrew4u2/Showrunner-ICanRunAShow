@@ -24,6 +24,7 @@ import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
 import { ShowCard } from './components/ShowCard';
+import { ShowsCalendar } from './components/ShowsCalendar';
 import { ShowForm } from './components/ShowForm';
 import { ShowDetail, type ShowDetailHandle } from './components/ShowDetail';
 import { exportShowToPDF } from './utils/pdfExport';
@@ -178,6 +179,25 @@ export default function App() {
       /* ignore */
     }
   }, [sortBy]);
+
+  const [showsView, setShowsView] = useState<'cards' | 'calendar'>(() => {
+    try {
+      const saved = localStorage.getItem('showrunner:showsView');
+      if (saved === 'cards' || saved === 'calendar') return saved;
+    } catch {
+      /* ignore */
+    }
+    return 'cards';
+  });
+
+  // Remember cards-vs-calendar too.
+  useEffect(() => {
+    try {
+      localStorage.setItem('showrunner:showsView', showsView);
+    } catch {
+      /* ignore */
+    }
+  }, [showsView]);
 
   // Restore session from localStorage on mount (persists until logout)
   useEffect(() => {
@@ -844,17 +864,39 @@ export default function App() {
                       placeholder="Search shows…"
                       aria-label="Search shows"
                     />
-                    <select
-                      className="shows-toolbar__sort"
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                      aria-label="Sort shows"
-                    >
-                      <option value="added">Recent</option>
-                      <option value="date-asc">Soonest</option>
-                      <option value="date-desc">Latest</option>
-                      <option value="name">A–Z</option>
-                    </select>
+                    {showsView === 'cards' && (
+                      <select
+                        className="shows-toolbar__sort"
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                        aria-label="Sort shows"
+                      >
+                        <option value="added">Recent</option>
+                        <option value="date-asc">Soonest</option>
+                        <option value="date-desc">Latest</option>
+                        <option value="name">A–Z</option>
+                      </select>
+                    )}
+                    <div className="shows-toolbar__view" role="group" aria-label="View mode">
+                      <button
+                        className={`shows-toolbar__view-btn${showsView === 'cards' ? ' shows-toolbar__view-btn--active' : ''}`}
+                        onClick={() => setShowsView('cards')}
+                        aria-pressed={showsView === 'cards'}
+                        aria-label="Card view"
+                        title="Card view"
+                      >
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true"><path d="M3 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm8 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V4zm-8 8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4zm8 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+                      </button>
+                      <button
+                        className={`shows-toolbar__view-btn${showsView === 'calendar' ? ' shows-toolbar__view-btn--active' : ''}`}
+                        onClick={() => setShowsView('calendar')}
+                        aria-pressed={showsView === 'calendar'}
+                        aria-label="Calendar view"
+                        title="Calendar view"
+                      >
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/></svg>
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -874,6 +916,8 @@ export default function App() {
                       Clear filters
                     </button>
                   </div>
+                ) : showsView === 'calendar' ? (
+                  <ShowsCalendar shows={filteredShows} onSelect={handleSelectShow} />
                 ) : (
                   <div className="shows-grid">
                     {sortedShows.map((show) => (
