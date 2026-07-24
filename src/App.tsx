@@ -156,6 +156,8 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [newComicName, setNewComicName] = useState('');
   const [newComicNotes, setNewComicNotes] = useState('');
+  const [newListEmail, setNewListEmail] = useState('');
+  const [emailListOpen, setEmailListOpen] = useState(false);
   const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
   const [expandOrigin, setExpandOrigin] = useState({ x: 50, y: 30 });
   const [searchQuery, setSearchQuery] = useState('');
@@ -636,6 +638,44 @@ export default function App() {
     setNewComicNotes('');
   }
 
+  function handleAddEmailToList() {
+    const trimmed = newListEmail.trim();
+    if (!trimmed || !session) return;
+
+    // Don't store the same address twice.
+    const exists = settings.emailList.some(
+      (entry) => entry.email.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (exists) {
+      setNewListEmail('');
+      return;
+    }
+
+    const updatedSettings = {
+      ...settings,
+      emailList: [
+        { id: generateId(), email: trimmed, addedAt: new Date().toISOString() },
+        ...settings.emailList,
+      ],
+    };
+
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
+    setNewListEmail('');
+  }
+
+  function handleRemoveEmailFromList(id: string) {
+    if (!session) return;
+
+    const updatedSettings = {
+      ...settings,
+      emailList: settings.emailList.filter((entry) => entry.id !== id),
+    };
+
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
+  }
+
   function handleSavePerformerToRolodex(comic: PotentialComic) {
     if (!session) return;
     const existing = settings.potentialComics.find(c => c.name.toLowerCase() === comic.name.toLowerCase());
@@ -932,6 +972,77 @@ export default function App() {
                     {rolodexTile}
                   </div>
                 )}
+
+                <section className="email-list" aria-label="Email list">
+                  <button
+                    className="email-list__header"
+                    type="button"
+                    onClick={() => setEmailListOpen((open) => !open)}
+                    aria-expanded={emailListOpen}
+                  >
+                    <span className="email-list__icon" aria-hidden="true">✉️</span>
+                    <span className="email-list__heading">
+                      <span className="email-list__title">Email List</span>
+                      <span className="email-list__count">
+                        {settings.emailList.length} {settings.emailList.length === 1 ? 'email' : 'emails'} collected
+                      </span>
+                    </span>
+                    <span className={`email-list__chevron${emailListOpen ? ' email-list__chevron--open' : ''}`} aria-hidden="true">▾</span>
+                  </button>
+
+                  {emailListOpen && (
+                    <div className="email-list__body">
+                      <p className="email-list__subtitle">
+                        A place to keep emails you collect at shows. Nothing is sent — they're just stored here.
+                      </p>
+                      <form
+                        className="email-list__form"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleAddEmailToList();
+                        }}
+                      >
+                        <input
+                          className="rolodex__input"
+                          type="email"
+                          inputMode="email"
+                          autoComplete="off"
+                          value={newListEmail}
+                          onChange={(e) => setNewListEmail(e.target.value)}
+                          placeholder="name@example.com"
+                          aria-label="Email address"
+                        />
+                        <button
+                          className="btn btn--secondary"
+                          type="submit"
+                          disabled={!newListEmail.trim()}
+                        >
+                          Add
+                        </button>
+                      </form>
+
+                      {settings.emailList.length === 0 ? (
+                        <p className="email-list__empty">No emails stored yet.</p>
+                      ) : (
+                        <ul className="email-list__entries">
+                          {settings.emailList.map((entry) => (
+                            <li key={entry.id} className="email-list__entry">
+                              <span className="email-list__address">{entry.email}</span>
+                              <button
+                                className="email-list__remove"
+                                type="button"
+                                onClick={() => handleRemoveEmailFromList(entry.id)}
+                                aria-label={`Remove ${entry.email}`}
+                              >
+                                ×
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </section>
               </div>
             )}
 
