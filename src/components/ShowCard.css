@@ -25,14 +25,86 @@
   background: var(--surface-strong);
 }
 
-/* ── Header row: title + actions ─────────────────────────────── */
+/* ── Top row: date block + title + actions ───────────────────── */
 
-.show-card__header {
+.show-card__top {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
   min-height: 36px;
+}
+
+.show-card__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Optically center against the taller date block */
+  padding-top: 2px;
+}
+
+/* ── Prominent date block ───────────────────────────────────── */
+
+.show-card__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 52px;
+  padding: 6px 4px 5px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  line-height: 1.15;
+}
+
+.show-card__date-month {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--card-accent, var(--primary));
+}
+
+.show-card__date-day {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.show-card__date-sub {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-soft);
+}
+
+.show-card__date--tbd {
+  border-style: dashed;
+  background: transparent;
+  min-height: 52px;
+}
+
+.show-card__date-tbd {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+}
+
+/* Dim the date block on finished/cancelled shows */
+.show-card--completed .show-card__date-day,
+.show-card--cancelled .show-card__date-day {
+  color: var(--text-soft);
+}
+
+.show-card--cancelled .show-card__date {
+  opacity: 0.65;
 }
 
 .show-card__title {
@@ -44,7 +116,6 @@
   line-height: 1.3;
   word-break: break-word;
   overflow-wrap: break-word;
-  flex: 1;
 }
 
 /* ── Action buttons ─────────────────────────────────────────── */
@@ -104,6 +175,12 @@
   color: var(--text-muted);
   font-weight: 400;
   min-height: 18px;
+}
+
+.show-card__meta-time {
+  font-weight: 600;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
 }
 
 .show-card__meta-sep {

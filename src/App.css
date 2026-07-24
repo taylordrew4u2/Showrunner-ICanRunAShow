@@ -540,6 +540,46 @@ button.bento-tile {
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
+/* List / calendar view toggle */
+.shows-toolbar__view {
+  display: flex;
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+.shows-toolbar__view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.shows-toolbar__view-btn:hover {
+  color: var(--text);
+}
+
+.shows-toolbar__view-btn--active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.shows-toolbar__view-btn:active {
+  transform: scale(0.94);
+}
+
 .shows-empty-filter {
   display: flex;
   flex-direction: column;
@@ -733,6 +773,20 @@ button.bento-tile {
 }
 
 @media (max-width: 520px) {
+  /* Wrap the toolbar so search gets a full row and the sort +
+     view toggle stay thumb-sized on a second row. */
+  .shows-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .shows-toolbar__search {
+    flex: 1 1 100%;
+  }
+
+  .shows-toolbar__sort {
+    flex: 1;
+  }
+
   .shows-grid {
     grid-template-columns: 1fr;
     gap: 10px;
