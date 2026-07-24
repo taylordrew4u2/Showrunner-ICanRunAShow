@@ -9,9 +9,13 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "screenshots": "node scripts/capture-screenshots.mjs"
+    "screenshots": "node scripts/capture-screenshots.mjs",
+    "ios:sync": "npm run build && cap sync ios",
+    "ios:open": "cap open ios"
   },
   "dependencies": {
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
     "@libsql/client": "^0.17.0",
     "crypto-js": "^4.2.0",
     "pdfjs-dist": "5.5.207",
@@ -21,6 +25,7 @@
     "workbox-window": "^7.4.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
     "@eslint/js": "^9.39.3",
     "@types/crypto-js": "^4.2.2",
     "@types/node": "24.11.0",
