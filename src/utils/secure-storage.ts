@@ -279,6 +279,7 @@ function migrateSettings(settings: LegacySettings): AppSettings {
       : comic,
   );
   if (!Array.isArray(settings.potentialComics)) settings.potentialComics = [];
+  if (!Array.isArray(settings.emailList)) settings.emailList = [];
   if (!Array.isArray(settings.showTypes)) settings.showTypes = [];
   // Settings that already exist on the server belong to an established account —
   // don't force these users through onboarding, only brand-new signups.
