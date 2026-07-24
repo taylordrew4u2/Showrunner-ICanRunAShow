@@ -58,7 +58,7 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These are gener
   <img src="docs/screenshots/schedule.png" width="32%" alt="Run-of-show builder" />
 </p>
 <p align="center">
-  <sub><b>Shows dashboard</b> — status tiles &amp; filters &nbsp;·&nbsp; <b>Show detail</b> — the section accordion &nbsp;·&nbsp; <b>Run-of-show</b> — build the cue list (or import by AI)</sub>
+  <sub><b>Shows dashboard</b> — status tiles &amp; filters &nbsp;·&nbsp; <b>Show detail</b> — the section accordion &nbsp;·&nbsp; <b>Run-of-show</b> — build the cue list (or import it from a photo, PDF, or text)</sub>
 </p>
 
 <p align="center">
@@ -100,7 +100,7 @@ Live show coordinators have no dedicated tool that spans pre-show planning and r
 I Can Run A Show handles the full workflow in a single application:
 
 - **Before the show:** build the lineup, attach walk-on music and profile data to each performer, track the budget, coordinate staff and hosts, and export a PDF runsheet
-- **Day of:** upload a photo, PDF, or plain text to import the schedule automatically via AI (with OCR + regex fallback)
+- **Day of:** upload a photo, PDF, or plain text to import the schedule automatically (with OCR + regex fallback)
 - **During the show:** run a full-screen live mode with per-cue countdowns, manual walk-on music with automatic fade in/out, and live status broadcast to a public viewer URL
 - **Audience-facing:** a separate public sign-up link for tattoo artist queueing, with email notification when an artist is up
 
@@ -123,8 +123,8 @@ I Can Run A Show handles the full workflow in a single application:
 - Vendors, staff, host, expenses, and per-section deadlines on each show
 
 **Schedule import**
-- AI schedule import via GPT-4o-mini Vision (images) and text — routed through a server-side proxy so the OpenAI key never ships in the bundle; PDF.js (PDFs) and the regex parser run in the browser
-- On-device OCR fallback (Tesseract.js) + local parsing when the server has no OpenAI key configured
+- Automatic schedule import from images and text — routed through a server-side extraction proxy so the API key never ships in the bundle; PDF.js (PDFs) and the regex parser run in the browser
+- On-device OCR fallback (Tesseract.js) + local parsing when the server has no extraction key configured
 
 **Run show**
 - Full-screen live mode with per-cue countdown, drift indicator, and keyboard navigation
@@ -152,7 +152,7 @@ I Can Run A Show handles the full workflow in a single application:
 - **Database:** Turso (libSQL — serverless SQLite at the edge), accessed **server-side** via `@libsql/client`
 - **Server API:** Vercel serverless functions (Node) under `/api` — all DB reads/writes go through these, so no DB credential is exposed to the browser
 - **Encryption:** crypto-js (PBKDF2 key derivation, AES)
-- **AI:** OpenAI GPT-4o-mini (vision + text) via a server-side proxy; Tesseract.js OCR fallback
+- **Schedule extraction:** server-side proxy for image + text parsing; Tesseract.js OCR fallback
 - **PDF:** PDF.js (pdfjs-dist) — client-side extraction
 - **Email:** Brevo REST API via a Vercel Edge function (`/api/notify-artist`)
 - **Typography:** Inter (Google Fonts) — loaded via `preconnect` with `font-display: swap` fallback
@@ -187,7 +187,7 @@ showrunner/
 │       ├── secure-storage.ts    # Client-side encryption + calls to the API
 │       ├── encryption.ts        # Key derivation and AES helpers (browser)
 │       ├── api.ts               # fetch wrapper for the server API
-│       ├── aiExtractor.ts       # AI proxy call + PDF.js + OCR + regex pipeline
+│       ├── aiExtractor.ts       # extraction proxy call + PDF.js + OCR + regex pipeline
 │       ├── audioEngine.ts       # Web Audio wrapper with fade + preload
 │       ├── pdfExport.ts         # Client-side PDF generation
 │       ├── liveView.ts          # Live state pub/sub (via the API)
@@ -202,7 +202,7 @@ showrunner/
 │   ├── settings.ts             # encrypted settings blob
 │   ├── live.ts                  # live-viewer state
 │   ├── artist.ts / artist-entries.ts  # public sign-up payload + queue
-│   ├── ai-extract.ts            # server-side OpenAI proxy (key never in the bundle)
+│   ├── ai-extract.ts            # server-side extraction proxy (key never in the bundle)
 │   └── notify-artist.ts         # "you're up" emails via Brevo
 └── .github/workflows/ci.yml     # Lint + tests + type-check + build on push/PR
 ```
@@ -268,7 +268,7 @@ TURSO_AUTH_TOKEN=
 Optional (all server-side — **no** `VITE_` prefix):
 
 ```env
-OPENAI_API_KEY=               # AI schedule import via /api/ai-extract; falls back to OCR + regex without it
+OPENAI_API_KEY=               # automatic schedule import via /api/ai-extract; falls back to OCR + regex without it
 
 # For /api/notify-artist
 BREVO_API_KEY=
@@ -310,7 +310,7 @@ Without these, the Email button shows a clear inline error explaining what's mis
 - Designed and built the application from scratch, solo
 - Designed the layout phone-first — a single centered app-style column at every width with a bottom navigation, so it reads as a native phone app on desktop too — no layout library
 - Built the encryption layer: password-derived AES keys via PBKDF2, all data encrypted before reaching Turso; per-show write is debounced 1s
-- Built the AI schedule import pipeline: GPT-4o-mini Vision for photos (via a server-side proxy so the key stays off the client), PDF.js for multi-page PDFs in the browser, and a Tesseract.js OCR + regex fallback for plain text
+- Built the schedule import pipeline: server-side image extraction for photos (via a proxy so the key stays off the client), PDF.js for multi-page PDFs in the browser, and a Tesseract.js OCR + regex fallback for plain text
 - Built the Web Audio engine wrapper for cue music — single AudioContext unlocked on Start, fade-in / fade-out on every cue change, buffer preloading for the current and next cue, and context-resume retry to survive iOS Safari auto-suspension
 - Built the public read-only viewer URL and the artist sign-up flow (public sign-up form, admin queue with Mark-paid + Email button, Brevo edge function for notifications)
 - Built the performer rolodex with cross-show sync — editing a rolodex entry propagates to all matching performers
@@ -326,7 +326,7 @@ Without these, the Email button shows a clear inline error explaining what's mis
 
 **Encryption in the client, not the server.** The server (Turso) stores only ciphertext. The password-derived key never leaves the device. This avoids the need to trust the database host with user data. The trade-off is that there is no password recovery — by design.
 
-**AI pipeline with fallback.** Schedule import works without an API key by falling back to OCR + regex matching for common time formats. This makes the feature usable in environments where the OpenAI key is not configured or hits a rate limit.
+**Import pipeline with fallback.** Schedule import works without an API key by falling back to OCR + regex matching for common time formats. This makes the feature usable in environments where the extraction key is not configured or hits a rate limit.
 
 **Web Audio API for cue music.** HTMLAudioElement was unreliable across iOS Safari's autoplay rules after auto-advance / pre-roll. The Web Audio path unlocks a single AudioContext on the Start tap, preloads buffers, and explicitly resumes the context on every play — this is the only path that works reliably in the field.
 
@@ -368,7 +368,7 @@ Unit tests (Vitest) cover the pure logic: schedule text parsing, cue timing/form
 - The database is reached only through server-side API routes; the Turso credential is a server env var and is never included in the client bundle
 - The stored auth credential is a per-user salted, slow PBKDF2 hash (the client hash is never stored verbatim), compared in constant time, with legacy rows upgraded transparently on next login
 - Authentication is rate-limited (per-account fixed window); public upsert routes cap payload size; sign-up queue mutations are scoped to the show token
-- The optional OpenAI extractor runs behind a server proxy, so the key stays in the server environment and never ships in the client bundle
+- The optional schedule extractor runs behind a server proxy, so the key stays in the server environment and never ships in the client bundle
 - The encryption KDF uses SHA-256 at 100k iterations; reaching the OWASP 600k target needs migrating from pure-JS crypto-js to native WebCrypto/Argon2 (a tracked follow-up)
 
 ---
@@ -392,7 +392,7 @@ A full keyboard-navigation + ARIA + color-contrast audit is a future improvement
 - The encryption-key KDF still uses a static (non-per-user) salt and, capped by pure-JS crypto-js, 100k iterations rather than the OWASP-recommended 600k — improving both needs a move to native WebCrypto/Argon2
 - Unit tests cover the core pure logic; no component or end-to-end tests yet
 - No password recovery — losing the password means losing access to all data
-- AI schedule import depends on an OpenAI key; without it, only the OCR + regex fallback runs
+- Automatic schedule import depends on a server-side API key; without it, only the OCR + regex fallback runs
 - Error handling is present but not exhaustive — some failure states surface as console errors rather than user-facing messages
 
 ---
