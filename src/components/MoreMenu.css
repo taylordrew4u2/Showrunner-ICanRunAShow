@@ -35,7 +35,10 @@
   top: calc(100% + 6px);
   right: 0;
   z-index: var(--z-overlay);
-  min-width: 200px;
+  /* The menu hangs left from the trigger, so on a narrow phone a fixed 200px
+     could reach past the left edge. Never wider than the screen allows. */
+  min-width: min(200px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
   padding: 4px;
   background: var(--surface);
   border: 1px solid var(--border);

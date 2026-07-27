@@ -193,6 +193,12 @@
     border-color: var(--border-strong, #d0d5dd);
 }
 
+@media (pointer: coarse) {
+    .settings__chip {
+        min-height: var(--tap-min);
+    }
+}
+
 .settings__chip--active {
     background: var(--primary, #DC2626);
     border-color: var(--primary, #DC2626);
