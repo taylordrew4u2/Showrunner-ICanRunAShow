@@ -34,7 +34,11 @@ export type IconName =
   | 'tv'
   | 'filter'
   | 'chevron-right'
-  | 'live';
+  | 'live'
+  | 'shield'
+  | 'download'
+  | 'alert'
+  | 'cloud';
 
 interface IconProps {
   name: IconName;
@@ -293,6 +297,36 @@ export function Icon({ name, size = 20, className, style, ...rest }: IconProps) 
         <svg {...common}>
           <circle cx="12" cy="12" r="4" fill="currentColor" />
           <path d="M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14M8 8a6 6 0 0 0 0 8M16 8a6 6 0 0 1 0 8" />
+        </svg>
+      );
+    case 'shield':
+      return (
+        <svg {...common}>
+          <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z" />
+          <polyline points="9 12 11 14 15 10" />
+        </svg>
+      );
+    case 'download':
+      return (
+        <svg {...common}>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+      );
+    case 'alert':
+      return (
+        <svg {...common}>
+          <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      );
+    case 'cloud':
+      return (
+        <svg {...common}>
+          <path d="M17.5 19a4.5 4.5 0 0 0 .5-8.97A6 6 0 0 0 6.1 11.2 3.5 3.5 0 0 0 6.5 19z" />
+          <polyline points="9 14 11 16 15 12" />
         </svg>
       );
     default:

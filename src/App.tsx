@@ -34,6 +34,8 @@ import { RolodexProfile } from './components/sections/RolodexProfile';
 import { LiveViewer } from './components/LiveViewer';
 import { ArtistSignup } from './components/ArtistSignup';
 import { InstallPrompt } from './components/InstallPrompt';
+import { SyncStatus, type SyncState } from './components/SyncStatus';
+import { Icon } from './components/Icon';
 import './App.css';
 
 type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails';
@@ -95,17 +97,37 @@ const SESSION_STORAGE_KEY = 'showrunner_session';
 const PENDING_SHOWS_KEY = 'showrunner:pendingShows';
 const PENDING_SETTINGS_KEY = 'showrunner:pendingSettings';
 const LAST_EXPORT_KEY = 'showrunner:lastExport';
+// When this account last had a save confirmed by the server. Kept across
+// reloads so the status pill can answer "when did this last reach my account?"
+// on a cold start, before the first save of the session.
+const LAST_SYNC_KEY = 'showrunner:lastSync';
+
+function readLastSync(username: string): number | null {
+  try {
+    const raw = localStorage.getItem(LAST_SYNC_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { username: string; at: number };
+    return parsed.username === username && typeof parsed.at === 'number' ? parsed.at : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLastSync(username: string, at: number): void {
+  try {
+    localStorage.setItem(LAST_SYNC_KEY, JSON.stringify({ username, at }));
+  } catch {
+    /* ignore */
+  }
+}
 
 /** True when the user has 3+ shows and hasn't exported a backup in 30 days. */
-function shouldNudgeBackup(showCount: number): boolean {
+function shouldNudgeBackup(showCount: number, lastBackupAt: string | null): boolean {
   if (showCount < 3) return false;
-  try {
-    const last = localStorage.getItem(LAST_EXPORT_KEY);
-    if (!last) return true;
-    return Date.now() - new Date(last).getTime() > 30 * 24 * 60 * 60 * 1000;
-  } catch {
-    return false;
-  }
+  if (!lastBackupAt) return true;
+  const at = new Date(lastBackupAt).getTime();
+  if (Number.isNaN(at)) return true;
+  return Date.now() - at > 30 * 24 * 60 * 60 * 1000;
 }
 
 // A pending backup is only trustworthy for a short window. Preferring an old
@@ -175,8 +197,24 @@ export default function App() {
   }, []);
 
   const [shows, setShows] = useState<Show[]>([]);
+  // Only ever holds problems the user has to act on (a payload that can never
+  // fit). Transient failures are handled silently and reported by the sync
+  // pill instead — a retry that's already working shouldn't look like an alarm.
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Where the user's work currently is. Drives the always-visible status pill.
+  const [syncState, setSyncState] = useState<SyncState>('saved');
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  // True while edits are parked in this device's local backup — i.e. written
+  // here but not yet confirmed by the server.
+  const [hasLocalCopy, setHasLocalCopy] = useState(false);
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(LAST_EXPORT_KEY);
+    } catch {
+      return null;
+    }
+  });
   // Start in the loading state whenever a session will be restored, so the app
   // never shows an interactive (empty) shows list before the initial load
   // finishes. Creating a show during that window would be silently lost: the
@@ -263,6 +301,12 @@ export default function App() {
   useEffect(() => {
     if (session) initMediaStore(session.username, session.password);
     else clearMediaStore();
+  }, [session]);
+
+  // Carry the last confirmed save across reloads, so the status pill can say
+  // when your work last reached your account instead of starting blank.
+  useEffect(() => {
+    setLastSavedAt(session ? readLastSync(session.username) : null);
   }, [session]);
 
   // Load data for signed in user
@@ -352,6 +396,15 @@ export default function App() {
   // Session-scoped dismissal of the backup nudge (it returns next visit).
   const [backupNudgeDismissed, setBackupNudgeDismissed] = useState(false);
 
+  // Records a confirmed round-trip to the server. Everything the status pill
+  // claims about "saved" traces back to this being called.
+  function markSynced(username: string) {
+    const at = Date.now();
+    setLastSavedAt(at);
+    writeLastSync(username, at);
+    setSyncState('saved');
+  }
+
   // A failed save must never be the end of the story: retry as soon as the
   // browser regains connectivity.
   useEffect(() => {
@@ -359,9 +412,46 @@ export default function App() {
       retryDelayRef.current = 5000;
       setSaveRetryTick((t) => t + 1);
     }
+    // Losing signal isn't a failure — say so plainly rather than waiting for a
+    // request to time out and reporting it as an error.
+    function onOffline() {
+      setSyncState((prev) => (prev === 'blocked' ? prev : 'offline'));
+    }
     window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
   }, []);
+
+  // Park every edit on this device as soon as it happens, not only after a
+  // save fails. The save is debounced and then takes a round-trip; closing the
+  // tab inside that window used to drop the edit on the floor. Writing the
+  // local copy first means the only way to lose work is to lose the device.
+  useEffect(() => {
+    if (!session || !dataLoaded.current) return;
+    const currentSession = session;
+    const timeout = setTimeout(() => {
+      writePending(PENDING_SHOWS_KEY, currentSession.username, latestShowsRef.current);
+      setHasLocalCopy(true);
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [shows, session]);
+
+  // If work exists only on this device, closing the tab risks it being the
+  // only copy — worth one confirm. Deliberately not shown while a normal save
+  // is simply in flight: that case is already covered by the local copy above
+  // and re-sends itself on the next launch.
+  useEffect(() => {
+    if (syncState !== 'retrying' && syncState !== 'offline' && syncState !== 'blocked') return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [syncState]);
 
   // Save shows when changed
   useEffect(() => {
@@ -375,6 +465,7 @@ export default function App() {
 
       void (async () => {
         savingRef.current = true;
+        setSyncState((prev) => (prev === 'blocked' ? prev : 'saving'));
         try {
           // Re-save until the data stops changing mid-flight, so the last edit
           // always wins and is never lost to an overlapping request.
@@ -384,12 +475,15 @@ export default function App() {
             await saveEncryptedShows(saved, currentSession.username, currentSession.password);
           }
           clearPending(PENDING_SHOWS_KEY);
+          setHasLocalCopy(false);
           retryDelayRef.current = 5000;
           setSaveError(null);
+          markSynced(currentSession.username);
         } catch (error) {
           console.error('Failed to save shows:', error);
           // Park the unsaved data locally so even closing the tab can't lose it.
           writePending(PENDING_SHOWS_KEY, currentSession.username, latestShowsRef.current);
+          setHasLocalCopy(true);
           // A too-large payload (client-side guard or a 413 from the server) can
           // never succeed by retrying — the data has to get smaller first. Show
           // an actionable message and skip the backoff loop; the save effect
@@ -398,15 +492,17 @@ export default function App() {
             error instanceof PayloadTooLargeError ||
             (error as { status?: number })?.status === 413;
           if (tooLarge) {
+            setSyncState('blocked');
             setSaveError(
               error instanceof PayloadTooLargeError
                 ? error.message
                 : "Your show data is too large to save. Remove or shrink a big uploaded walk-on track.",
             );
           } else {
-            setSaveError(
-              "Couldn't save your latest changes — retrying automatically. Your edits are backed up on this device in the meantime.",
-            );
+            // No banner: the retry is already running and the work is already
+            // held on this device, so there's nothing for the user to do. The
+            // status pill reports it quietly and explains it on tap.
+            setSyncState(navigator.onLine ? 'retrying' : 'offline');
             const delay = retryDelayRef.current;
             retryDelayRef.current = Math.min(delay * 2, 60_000);
             setTimeout(() => setSaveRetryTick((t) => t + 1), delay);
@@ -485,6 +581,34 @@ export default function App() {
     setAuthError('');
   }
 
+  /**
+   * Download a plain-JSON copy of everything. The one guarantee that doesn't
+   * depend on this app, this device, or this server still being around — so
+   * it's reachable from the status pill on every screen, not just Settings.
+   */
+  async function handleDownloadBackup() {
+    if (!session) return;
+    try {
+      const url = await exportUserData(session.username, session.password);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `showrunner-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      const at = new Date().toISOString();
+      try {
+        localStorage.setItem(LAST_EXPORT_KEY, at);
+      } catch {
+        /* ignore */
+      }
+      setLastBackupAt(at);
+      setBackupNudgeDismissed(true);
+    } catch (error) {
+      console.error('Failed to export backup:', error);
+      setSaveError("Couldn't build your backup file. Check your connection and try again.");
+    }
+  }
+
   async function handleCompleteOnboarding(data: { brandName: string; showTypes: string[] }) {
     if (!session) return;
     setOnboardingSaving(true);
@@ -514,12 +638,16 @@ export default function App() {
     try {
       await saveEncryptedSettings(updatedSettings, session.username, session.password);
       setSettings(updatedSettings);
+      markSynced(session.username);
       setView('list');
     } catch (error) {
       console.error('Failed to save settings:', error);
-      // Surfaced through the same banner as every other save problem instead of
-      // a browser alert() the user has to dismiss before they can retry.
-      setSaveError("Couldn't save your settings. Check your connection and try again.");
+      // Never make someone retype what they just entered. Keep their edits in
+      // the app and hand them to the retrying saver, which backs them up on
+      // this device and keeps trying — the status pill reports where they are.
+      setSettings(updatedSettings);
+      saveSettings(updatedSettings);
+      setView('list');
     } finally {
       setSettingsSaving(false);
     }
@@ -643,6 +771,7 @@ export default function App() {
             }
             clearPending(PENDING_SETTINGS_KEY);
             setSaveError(null);
+            markSynced(currentSession.username);
           }
           return;
         } catch (err) {
@@ -660,6 +789,8 @@ export default function App() {
               continue;
             }
             writePending(PENDING_SETTINGS_KEY, currentSession.username, toSave);
+            setHasLocalCopy(true);
+            setSyncState('blocked');
             setSaveError(
               err instanceof PayloadTooLargeError
                 ? err.message
@@ -668,9 +799,9 @@ export default function App() {
             return;
           }
           writePending(PENDING_SETTINGS_KEY, currentSession.username, toSave);
-          setSaveError(
-            "Couldn't save your changes — retrying automatically. Your edits are backed up on this device in the meantime.",
-          );
+          setHasLocalCopy(true);
+          // Same as shows: a retry in progress is not an error to shout about.
+          setSyncState(navigator.onLine ? 'retrying' : 'offline');
           await new Promise((resolve) => setTimeout(resolve, delay));
           delay = Math.min(delay * 2, 60_000);
         }
@@ -898,30 +1029,56 @@ export default function App() {
         />
       ) : (
         <div className="app">
-          {loadError && (
-            <div className="save-error-banner" role="alert">
-              <span className="save-error-banner__text">{loadError}</span>
-              <button
-                className="save-error-banner__close"
-                onClick={() => setLoadError(null)}
-                aria-label="Dismiss"
-              >
-                ×
-              </button>
+          {/* Everything that reports on the state of your data, in one stack:
+              problems that need you first, then the always-on sync pill. */}
+          <div className="status-rail">
+            {loadError && (
+              <div className="system-notice" role="alert">
+                <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />
+                <div className="system-notice__body">
+                  <span className="system-notice__text">{loadError}</span>
+                  <span className="system-notice__reassurance">
+                    Nothing has been deleted — this is a connection problem, not a data problem.
+                  </span>
+                </div>
+                <button
+                  className="system-notice__close"
+                  onClick={() => setLoadError(null)}
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {saveError && (
+              <div className="system-notice" role="alert">
+                <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />
+                <div className="system-notice__body">
+                  <span className="system-notice__text">{saveError}</span>
+                  <span className="system-notice__reassurance">
+                    Everything you'd already saved is untouched, and this change is held on this
+                    device until it fits.
+                  </span>
+                </div>
+                <button
+                  className="system-notice__close"
+                  onClick={() => setSaveError(null)}
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            <div className="status-rail__pill-row">
+              <SyncStatus
+                state={syncState}
+                lastSavedAt={lastSavedAt}
+                hasLocalCopy={hasLocalCopy}
+                lastBackupAt={lastBackupAt}
+                onDownloadBackup={handleDownloadBackup}
+              />
             </div>
-          )}
-          {saveError && (
-            <div className="save-error-banner" role="alert">
-              <span className="save-error-banner__text">{saveError}</span>
-              <button
-                className="save-error-banner__close"
-                onClick={() => setSaveError(null)}
-                aria-label="Dismiss"
-              >
-                ×
-              </button>
-            </div>
-          )}
+          </div>
           <main className="app-main">
             {view === 'list' && (
               <div className="shows-list">
@@ -938,14 +1095,16 @@ export default function App() {
                     ) : undefined
                   }
                 />
-                {!backupNudgeDismissed && shouldNudgeBackup(shows.length) && (
+                {!backupNudgeDismissed && shouldNudgeBackup(shows.length, lastBackupAt) && (
                   <div className="backup-nudge" role="status">
+                    <Icon name="shield" size={16} className="backup-nudge__icon" aria-hidden />
                     <span className="backup-nudge__text">
-                      It's been a while since your last backup. Download a copy of your data from Settings.
+                      Your shows are saved and encrypted. Keep a copy of your own too — one tap,
+                      and the file is yours.
                     </span>
                     <div className="backup-nudge__actions">
-                      <button className="btn btn--secondary btn--sm" onClick={() => setView('settings')}>
-                        Open Settings
+                      <button className="btn btn--secondary btn--sm" onClick={handleDownloadBackup}>
+                        Download backup
                       </button>
                       <button
                         className="backup-nudge__close"
@@ -1237,18 +1396,9 @@ export default function App() {
                 onRestoreShow={handleRestoreShow}
                 onDeleteForever={handleDeleteForever}
                 onEmptyTrash={handleEmptyTrash}
-                onExport={session ? async () => {
-                  const url = await exportUserData(session.username, session.password);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `showrunner-backup-${new Date().toISOString().slice(0, 10)}.json`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                  try {
-                    localStorage.setItem(LAST_EXPORT_KEY, new Date().toISOString());
-                  } catch { /* ignore */ }
-                  setBackupNudgeDismissed(true);
-                } : undefined}
+                onExport={handleDownloadBackup}
+                lastBackupAt={lastBackupAt}
+                lastSavedAt={lastSavedAt}
               />
             )}
           </main>
