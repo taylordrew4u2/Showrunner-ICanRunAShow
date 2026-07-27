@@ -1,0 +1,85 @@
+/* Shared page chrome. Every screen renders this and nothing else above its
+   content, so the title, the back control, and the primary action are always
+   in the same place. */
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+/* Back sits above the title (never beside it) so the title's position never
+   shifts between a top-level screen and a sub-page. */
+.page-header__back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  margin-left: -8px;
+  padding: 6px 10px 6px 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.page-header__back:hover {
+  color: var(--text);
+  background: var(--surface-strong);
+}
+
+.page-header__back:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.page-header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-header__title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.page-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.page-header__subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  max-width: 60ch;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .page-header__title {
+    font-size: 1.4rem;
+  }
+}
