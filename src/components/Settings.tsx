@@ -5,6 +5,7 @@ import { COLOR_SCHEMES, type ColorScheme } from '../utils/theme';
 import { defaultRolodexTerm } from '../utils/terminology';
 import { generateId } from '../utils/id';
 import { PageHeader } from './PageHeader';
+import { Icon } from './Icon';
 import './Settings.css';
 
 interface SettingsProps {
@@ -15,6 +16,10 @@ interface SettingsProps {
   colorScheme?: ColorScheme;
   onColorSchemeChange?: (scheme: ColorScheme) => void;
   onExport?: () => Promise<void>;
+  /** ISO date of the last downloaded backup file, or null if never. */
+  lastBackupAt?: string | null;
+  /** Epoch ms of the last save confirmed by the server. */
+  lastSavedAt?: number | null;
   /** Who's signed in — shown in the account card. */
   username?: string;
   onLogout?: () => void;
@@ -31,6 +36,8 @@ export function Settings({
   colorScheme,
   onColorSchemeChange,
   onExport,
+  lastBackupAt = null,
+  lastSavedAt = null,
   username,
   onLogout,
   onRestoreShow,
@@ -308,6 +315,74 @@ export function Settings({
         </div>
       )}
 
+      {/* The safety story in one place. It was all true before — encrypted
+          client-side, auto-saved, locally backed up — but nowhere in the app
+          said so, which made careful work feel like a gamble. */}
+      <div className="settings__card">
+        <h2 className="settings__card-title">Your data</h2>
+        <ul className="settings__assurances">
+          <li className="settings__assurance">
+            <Icon name="lock" size={16} aria-hidden />
+            <div>
+              <strong>Encrypted before it leaves your device</strong>
+              <span>
+                Your password is the encryption key, and it never leaves this device. What's
+                stored is unreadable without it — including to us.
+              </span>
+            </div>
+          </li>
+          <li className="settings__assurance">
+            <Icon name="cloud" size={16} aria-hidden />
+            <div>
+              <strong>Saved as you work</strong>
+              <span>
+                {lastSavedAt
+                  ? `Last confirmed save ${new Date(lastSavedAt).toLocaleString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}. `
+                  : 'Every change saves on its own. '}
+                There's no save button to forget, and a failed save keeps retrying instead of
+                giving up.
+              </span>
+            </div>
+          </li>
+          <li className="settings__assurance">
+            <Icon name="shield" size={16} aria-hidden />
+            <div>
+              <strong>A spare copy on this device</strong>
+              <span>
+                If a save can't get through, your edits are held here and re-sent next time the
+                app opens. Closing the app mid-edit doesn't lose anything.
+              </span>
+            </div>
+          </li>
+          <li className="settings__assurance">
+            <Icon name="download" size={16} aria-hidden />
+            <div>
+              <strong>A copy you own outright</strong>
+              <span>
+                {lastBackupAt
+                  ? `You last downloaded a backup on ${new Date(lastBackupAt).toLocaleDateString(
+                      undefined,
+                      { month: 'long', day: 'numeric', year: 'numeric' },
+                    )}.`
+                  : "You haven't downloaded a backup yet — worth doing once your shows matter."}{' '}
+                It's a plain file with every show, contact, and expense in it, readable without
+                this app.
+              </span>
+            </div>
+          </li>
+        </ul>
+        {onExport && (
+          <button className="btn btn--primary settings__backup-btn" onClick={onExport}>
+            Download a backup
+          </button>
+        )}
+      </div>
+
       <div className="settings__card">
         <h2 className="settings__card-title">Account</h2>
         {username && (
@@ -315,12 +390,11 @@ export function Settings({
             Signed in as <strong>{username}</strong>.
           </p>
         )}
+        <p className="settings__hint">
+          There's no password reset — your password is the key to your own encryption, so nobody
+          can restore it for you. Keep it somewhere safe.
+        </p>
         <div className="settings__account-actions">
-          {onExport && (
-            <button className="btn btn--secondary" onClick={onExport}>
-              Download a backup
-            </button>
-          )}
           {onLogout && (
             <button className="btn btn--ghost" onClick={onLogout}>
               Log out

@@ -122,10 +122,23 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
           </form>
 
           <div className="login__footer">
-            <p className="login__note">
-              <Icon name="lock" size={13} className="login__note-icon" />
-              Encrypted and private by default
-            </p>
+            {/* Three specifics beat one vague reassurance. This is the first
+                screen anyone sees, and it's where they decide whether their
+                real show is safe to put in here. */}
+            <ul className="login__trust">
+              <li>
+                <Icon name="lock" size={13} aria-hidden />
+                Encrypted on your device before it's stored
+              </li>
+              <li>
+                <Icon name="cloud" size={13} aria-hidden />
+                Saves as you work, and retries if the venue Wi-Fi drops
+              </li>
+              <li>
+                <Icon name="download" size={13} aria-hidden />
+                Export a full copy of everything, anytime
+              </li>
+            </ul>
             <p className="login__legal">
               <a href="/guides/">Guides</a>
               <span aria-hidden="true"> · </span>

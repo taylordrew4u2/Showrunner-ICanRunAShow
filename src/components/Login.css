@@ -214,6 +214,36 @@
   opacity: 0.6;
 }
 
+/* Left-aligned on purpose: these are claims to be read, not a centred
+   decorative flourish. */
+.login__trust {
+  list-style: none;
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  text-align: left;
+}
+
+/* Icons ride the first line, not the block's centre — a two-line claim
+   shouldn't push its checkmark into the gap between lines. */
+.login__trust li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.login__trust svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--success);
+}
+
 .login__legal {
   margin: 8px 0 0;
   font-size: 0.75rem;

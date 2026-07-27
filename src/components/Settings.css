@@ -358,3 +358,48 @@
     flex-wrap: wrap;
     gap: 8px;
 }
+
+/* ── Your data ────────────────────────────────────────────────────────
+   The guarantees, stated plainly. Set as a list of facts rather than
+   marketing copy — each line is something the app actually does, and each
+   one answers a specific "what happens if…" worry. */
+.settings__assurances {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.settings__assurance {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.settings__assurance svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--success);
+}
+
+.settings__assurance strong {
+    display: block;
+    font-size: 0.86rem;
+    font-weight: 650;
+    color: var(--text);
+    line-height: 1.35;
+}
+
+.settings__assurance span {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.settings__backup-btn {
+    align-self: flex-start;
+}
