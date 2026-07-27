@@ -220,7 +220,13 @@
   color: var(--text-soft);
 }
 
+/* A footer link row is navigation, not prose — give each link a real target
+   instead of the 18px line box the font size alone produces. */
 .login__legal a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  padding: 0 2px;
   color: var(--text-muted);
   text-decoration: underline;
 }

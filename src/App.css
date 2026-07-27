@@ -26,6 +26,13 @@
   --bottom-nav-height: 56px;
   --header-bg: #ffffff;
 
+  /* Smallest comfortable finger target. index.css scales the root font size up
+     on phones so text reads well, but control sizes are absolute px and don't
+     scale with it — so without an explicit floor the buttons stay
+     desktop-sized while the type around them grows. Every control that can be
+     tapped is clamped to this under `@media (pointer: coarse)`. */
+  --tap-min: 44px;
+
   /* Radius scale — minimal, utilitarian */
   --radius-xs: 2px;
   --radius-sm: 3px;
@@ -318,6 +325,13 @@
   transform: scale(0.94);
 }
 
+@media (pointer: coarse) {
+  .shows-toolbar__view-btn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
 /* Every screen holds its content to one readable column, so the eye starts in
    the same place whichever tab you're on. */
 .shows-list {
@@ -579,6 +593,13 @@
   color: var(--text);
 }
 
+@media (pointer: coarse) {
+  .email-list__remove {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
 @media (max-width: 520px) {
   /* Wrap the toolbar so search gets a full row and the sort +
      view toggle stay thumb-sized on a second row. */
@@ -715,6 +736,14 @@
   min-height: 36px;
   padding: 6px 14px;
   font-size: 0.87rem;
+}
+
+/* A small button is a visual weight, not an invitation to aim harder — it
+   still gets a full-size target under a finger. */
+@media (pointer: coarse) {
+  .btn--sm {
+    min-height: var(--tap-min);
+  }
 }
 
 /* ── Bottom nav / Sidebar nav ────────────────────────────────────────── */
@@ -1577,6 +1606,9 @@
   justify-content: center;
   width: 36px;
   height: 36px;
+  /* Without this the bar's flex row squeezes the button down to ~26px on a
+     narrow phone — and this is the way out of a running show. */
+  flex-shrink: 0;
   border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1584,6 +1616,21 @@
   cursor: pointer;
 }
 .run-show__close:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* Live mode is operated one-handed, mid-show, in the dark. Its controls get
+   full-size targets before anything else does. */
+@media (pointer: coarse) {
+  .run-show__close {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+
+  .run-show__restart,
+  .run-show__finish,
+  .rs-btn {
+    min-height: var(--tap-min);
+  }
+}
 
 .run-show__scroll {
   flex: 1;

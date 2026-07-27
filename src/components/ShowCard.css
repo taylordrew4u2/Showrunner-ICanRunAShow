@@ -164,6 +164,15 @@
   transform: scale(0.92);
 }
 
+/* On touch these are permanently visible (see the `hover: none` block below)
+   and one of them deletes the show, so at 28px they were an easy mis-tap. */
+@media (pointer: coarse) {
+  .show-card__action-btn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
 /* ── Metadata row ───────────────────────────────────────────── */
 
 .show-card__meta {

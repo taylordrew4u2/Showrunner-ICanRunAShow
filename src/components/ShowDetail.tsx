@@ -417,7 +417,14 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     <div className="show-detail">
       <div className="show-detail__hero">
         <div className="show-detail__topbar">
-          <button type="button" className="show-detail__back-btn" onClick={onBack}>
+          {/* The visible "Shows" label is hidden on narrow phones (see the CSS),
+              so the button carries its own name for assistive tech. */}
+          <button
+            type="button"
+            className="show-detail__back-btn"
+            onClick={onBack}
+            aria-label="Back to shows"
+          >
             <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
               <path
                 fillRule="evenodd"
