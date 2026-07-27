@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+  /* Same readable column as every other screen. */
+  max-width: 760px;
+  margin: 0 auto;
 }
 
 @media (max-width: 768px) {
@@ -20,23 +23,42 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 8px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
 }
 
-/* On desktop the sidebar "Shows" link acts as Back, so hide the duplicate. */
-@media (min-width: 900px) {
-  .show-detail__back-btn {
-    display: none;
-  }
+/* Matches the back control on every other screen, so "how do I get out of
+   here" has the same answer everywhere. */
+.show-detail__back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-height: 36px;
+  margin-left: -8px;
+  padding: 6px 10px 6px 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color 0.12s ease, background-color 0.12s ease;
 }
 
-/* Secondary actions hidden everywhere — they live in the sidebar (desktop) or bottom menu (mobile). */
-.show-detail__topbar-secondary {
-  display: none;
+.show-detail__back-btn:hover {
+  color: var(--text);
+  background: var(--surface-strong);
+}
+
+.show-detail__back-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* Prominent "Run Show" action — always visible when a show is open */
@@ -319,19 +341,15 @@ select.show-detail__status--select {
   }
 }
 
-/* ─── Bento Grid Layout for Sections ──────────────────────────────────────── */
+/* ─── Section stack ────────────────────────────────────────────────────────
+   One column at every width. As a two-column grid, sections with a `span 2`
+   left ragged holes and the running order changed between phone and desktop —
+   so a show read as a different page depending on the device. */
 .show-detail__sections-accordion {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin: 8px 0;
-}
-
-@media (max-width: 900px) {
-  .show-detail__sections-accordion {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
 }
 
 @media (max-width: 768px) {
@@ -371,17 +389,6 @@ select.show-detail__status--select {
    ancestor would make it their containing block and break/clip them. */
 .accordion-section:hover {
   box-shadow: var(--shadow-md);
-}
-
-/* Span 2 columns */
-.accordion-section--span2 {
-  grid-column: span 2;
-}
-
-@media (max-width: 900px) {
-  .accordion-section--span2 {
-    grid-column: span 1;
-  }
 }
 
 /* ─── Accent colors — unified brass accent for a cohesive ops-console look ── */
@@ -462,15 +469,8 @@ select.show-detail__status--select {
   line-height: 1.2;
 }
 
-/* Wider tiles get a larger headline so type scales with surface */
-.accordion-section--span2 .accordion-section__title {
-  font-size: 1.3rem;
-  letter-spacing: -0.02em;
-}
-
 @media (max-width: 768px) {
-  .accordion-section__title,
-  .accordion-section--span2 .accordion-section__title {
+  .accordion-section__title {
     font-size: 1.05rem;
     letter-spacing: -0.01em;
   }
@@ -485,13 +485,8 @@ select.show-detail__status--select {
   letter-spacing: -0.005em;
 }
 
-.accordion-section--span2 .accordion-section__subtitle {
-  font-size: 0.9rem;
-}
-
 @media (max-width: 768px) {
-  .accordion-section__subtitle,
-  .accordion-section--span2 .accordion-section__subtitle {
+  .accordion-section__subtitle {
     font-size: 0.8rem;
   }
 }
@@ -1704,114 +1699,6 @@ select.show-detail__status--select {
   }
 }
 
-/* ─── Remove Section Button ───────────────────────────────────────────────── */
-
-.accordion-section__remove-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  border: none;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-  opacity: 0;
-}
-
-.accordion-section:hover .accordion-section__remove-btn,
-.accordion-section:focus-within .accordion-section__remove-btn {
-  opacity: 1;
-}
-
-@media (hover: none) {
-  .accordion-section__remove-btn {
-    opacity: 1;
-  }
-}
-
-.accordion-section__remove-btn:hover {
-  background: var(--primary-soft);
-  color: var(--primary);
-}
-
-/* ─── Hidden Sections Bubbles ─────────────────────────────────────────────── */
-
-.hidden-sections {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.hidden-sections__label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  margin-bottom: 10px;
-}
-
-.hidden-sections__add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: transparent;
-  border: 1px dashed var(--border-strong);
-  border-radius: 999px;
-  padding: 6px 16px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.hidden-sections__add-btn:hover {
-  background: var(--surface-strong);
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-.hidden-sections__bubbles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.hidden-bubble {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--surface-strong);
-  border: 1px dashed var(--border-strong);
-  border-radius: 999px;
-  padding: 5px 14px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.hidden-bubble:hover {
-  background: var(--surface);
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-.hidden-bubble__icon {
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.hidden-bubble__title {
-  white-space: nowrap;
-}
-
 /* ─── Recap To-Do List (lives inside Recap section) ─────────────────────── */
 
 .recap-todo {
@@ -2101,60 +1988,85 @@ select.show-detail__status--select {
   min-width: 0;
 }
 
-/* ─── Theme Toggle Button ────────────────────────────────────────────────── */
-.show-detail__theme-toggle {
+/* ─── Sections modal ─────────────────────────────────────────────────────
+   Adding and removing sections is a deliberate, reversible choice made in one
+   place, rather than an "×" sitting a few pixels from the expand chevron. */
+
+.show-detail__manage-row {
   display: flex;
-  align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  background: transparent;
-  border-radius: var(--radius-sm);
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.12s ease;
+  padding-top: 4px;
 }
 
-.show-detail__theme-toggle:hover {
+.manage-sections {
+  display: flex;
+  flex-direction: column;
+  min-width: min(460px, 88vw);
+  padding: 6px 4px 4px;
+}
+
+.manage-sections__title {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.manage-sections__sub {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.manage-sections__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.manage-sections__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   background: var(--surface-strong);
 }
 
-/* ─── Light Mode Override ─────────────────────────────────────────────────
-   Per-page override that re-defines the global design tokens so this view
-   reads as light against the otherwise-dark app. Only affects descendants
-   of .show-detail--light.
-*/
-.show-detail--light {
-  --bg: #f6f8fb;
-  --surface: #ffffff;
-  --surface-strong: #f0f3f8;
-  --text: #0f172a;
-  --text-muted: #475569;
-  --text-soft: #94a3b8;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --primary: #e05555;
-  --primary-pressed: #cc3c3c;
-  --primary-soft: #fee2e2;
-  --primary-soft-border: #fecaca;
-  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.1);
-
-  background: var(--bg);
-  color: var(--text);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  outline: 1px solid var(--border);
+.manage-sections__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-@media (max-width: 768px) {
-  .show-detail--light {
-    padding: 14px;
-    border-radius: var(--radius-md);
-  }
+.manage-sections__name {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.manage-sections__desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.manage-sections__always {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.manage-sections__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 
 /* Viewer link modal */

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { AppSettings, Expense } from '../types';
 import { EXPENSE_CATEGORIES } from '../types';
 import { generateId } from '../utils/id';
+import { PageHeader } from './PageHeader';
 import './Expenses.css';
 
 interface ExpensesProps {
@@ -90,10 +91,12 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
 
   return (
     <div className="expenses-page">
-      <div className="expenses-page__topbar">
-        <button className="btn btn--ghost" onClick={onBack}>← Back</button>
-        <h1 className="expenses-page__title">Expenses</h1>
-      </div>
+      <PageHeader
+        title="Expenses"
+        subtitle="Everything you spend across all shows, tracked against your brand budget."
+        onBack={onBack}
+        backLabel="Shows"
+      />
 
       {brandBudget > 0 && (
         <div className="budget-card">
@@ -160,7 +163,12 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
         </div>
       </div>
 
-      {expenses.length === 0 && <p className="section-empty">No expenses yet.</p>}
+      {expenses.length === 0 && (
+        <div className="empty-state">
+          <h2 className="empty-state__title">No expenses yet</h2>
+          <p className="empty-state__text">Add your first one above to start tracking spend.</p>
+        </div>
+      )}
 
       <ul className="section-list">
         {expenses.map((e) => (
