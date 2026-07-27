@@ -326,8 +326,9 @@ export function Settings({
             <div>
               <strong>Encrypted before it leaves your device</strong>
               <span>
-                Your password is the encryption key, and it never leaves this device. What's
-                stored is unreadable without it — including to us.
+                Your password is the encryption key. It's used the moment you sign in and then
+                discarded — never sent to us, and never written to this browser. What's stored
+                is unreadable without it, including to us.
               </span>
             </div>
           </li>

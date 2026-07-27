@@ -143,8 +143,8 @@ export function SyncStatus({
               <div>
                 <strong>Encrypted before it leaves this device</strong>
                 <span>
-                  Your password is the key, and it never leaves your phone or computer. Nobody
-                  else can read your shows.
+                  Your password is the key. It's used at sign-in and then discarded — never sent
+                  anywhere, never stored in this browser. Nobody else can read your shows.
                 </span>
               </div>
             </li>
