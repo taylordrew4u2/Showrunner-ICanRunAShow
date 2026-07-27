@@ -23,11 +23,11 @@ import { initMediaStore, clearMediaStore } from './utils/mediaStore';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
+import { PageHeader } from './components/PageHeader';
 import { ShowCard } from './components/ShowCard';
 import { ShowsCalendar } from './components/ShowsCalendar';
 import { ShowForm } from './components/ShowForm';
-import { ShowDetail, type ShowDetailHandle } from './components/ShowDetail';
-import { exportShowToPDF } from './utils/pdfExport';
+import { ShowDetail } from './components/ShowDetail';
 import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
 import { RolodexProfile } from './components/sections/RolodexProfile';
@@ -37,6 +37,44 @@ import { InstallPrompt } from './components/InstallPrompt';
 import './App.css';
 
 type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex';
+
+/**
+ * The app's four destinations. Keeping this a plain list — rather than four
+ * hand-written buttons plus an overflow menu that changed depending on the
+ * screen — is what keeps the nav identical everywhere you go.
+ */
+const NAV_ITEMS: {
+  id: Exclude<View, 'detail'>;
+  label: string;
+  /** Which views light this tab up. A show's detail page still counts as Shows. */
+  views: View[];
+  icon: string;
+}[] = [
+  {
+    id: 'list',
+    label: 'Shows',
+    views: ['list', 'detail'],
+    icon: 'M2 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1zm0 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1zm0 5a1 1 0 011-1h8a1 1 0 010 2H3a1 1 0 01-1-1z',
+  },
+  {
+    id: 'rolodex',
+    label: 'Rolodex',
+    views: ['rolodex'],
+    icon: 'M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z',
+  },
+  {
+    id: 'expenses',
+    label: 'Expenses',
+    views: ['expenses'],
+    icon: 'M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z',
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    views: ['settings'],
+    icon: 'M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z',
+  },
+];
 
 type Session = {
   username: string;
@@ -146,14 +184,12 @@ export default function App() {
     }
   });
   const dataLoaded = useRef(false);
-  const showDetailRef = useRef<ShowDetailHandle>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [onboardingSaving, setOnboardingSaving] = useState(false);
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [newComicName, setNewComicName] = useState('');
   const [newComicNotes, setNewComicNotes] = useState('');
   const [newListEmail, setNewListEmail] = useState('');
@@ -170,7 +206,9 @@ export default function App() {
     } catch {
       /* ignore */
     }
-    return 'added';
+    // The next show you have to run is the one you came here for, so the list
+    // opens on soonest-first rather than in the order things were created.
+    return 'date-asc';
   });
 
   // Remember the sort preference so the shows list feels familiar each visit.
@@ -377,21 +415,6 @@ export default function App() {
     return () => clearTimeout(timeout);
   }, [shows, session, saveRetryTick]);
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.bottom-nav')) {
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [menuOpen]);
-
   async function handleSignIn(username: string, password: string) {
     setAuthError('');
     setAuthLoading(true);
@@ -489,7 +512,9 @@ export default function App() {
       setView('list');
     } catch (error) {
       console.error('Failed to save settings:', error);
-      alert('Failed to save settings. Please try again.');
+      // Surfaced through the same banner as every other save problem instead of
+      // a browser alert() the user has to dismiss before they can retry.
+      setSaveError("Couldn't save your settings. Check your connection and try again.");
     } finally {
       setSettingsSaving(false);
     }
@@ -558,6 +583,38 @@ export default function App() {
     }
   }
 
+  /** Put a trashed show back in the list. */
+  function handleRestoreShow(trashId: string) {
+    const item = (settings.trash || []).find((t) => t.id === trashId);
+    if (!item) return;
+
+    // A show deleted on this device may already have been restored elsewhere —
+    // don't create a duplicate if it's somehow back in the list.
+    setShows((prev) => (prev.some((s) => s.id === item.data.id) ? prev : [item.data, ...prev]));
+
+    const updatedSettings = {
+      ...settings,
+      trash: (settings.trash || []).filter((t) => t.id !== trashId),
+    };
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
+  }
+
+  /** Remove one item from the trash for good. */
+  function handleDeleteForever(trashId: string) {
+    const updatedSettings = {
+      ...settings,
+      trash: (settings.trash || []).filter((t) => t.id !== trashId),
+    };
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
+  }
+
+  function handleEmptyTrash() {
+    const updatedSettings = { ...settings, trash: [] };
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
+  }
 
   function saveSettings(updatedSettings: typeof settings) {
     if (!session) return;
@@ -793,14 +850,6 @@ export default function App() {
   // derived from their show types and overridable in Settings.
   const rolodexTerm = getRolodexTerm(settings);
 
-  const rolodexTile = (
-    <div className="show-card rolodex-tile" onClick={() => setView('rolodex')}>
-      <div className="rolodex-tile__icon"></div>
-      <h2 className="rolodex-tile__title">{rolodexTerm.singular} Rolodex</h2>
-      <p className="rolodex-tile__count">{settings.potentialComics.length} {(settings.potentialComics.length === 1 ? rolodexTerm.singular : rolodexTerm.plural).toLowerCase()}</p>
-    </div>
-  );
-
   // Public read-only routes — no auth required.
   const search = new URLSearchParams(window.location.search);
   const viewToken = search.get('view');
@@ -871,10 +920,19 @@ export default function App() {
           <main className="app-main">
             {view === 'list' && (
               <div className="shows-list">
-                <div className="shows-list__header">
-                  <h1 className="shows-list__title">Shows</h1>
-                  <button className="btn btn--primary btn--sm shows-list__new-btn" onClick={() => setShowForm(true)}>+ New Show</button>
-                </div>
+                <PageHeader
+                  title="Shows"
+                  actions={
+                    // With no shows yet the empty state carries the call to
+                    // action, so there's only ever one "New Show" button on
+                    // screen at a time.
+                    shows.length > 0 ? (
+                      <button className="btn btn--primary btn--sm" onClick={() => setShowForm(true)}>
+                        + New Show
+                      </button>
+                    ) : undefined
+                  }
+                />
                 {!backupNudgeDismissed && shouldNudgeBackup(shows.length) && (
                   <div className="backup-nudge" role="status">
                     <span className="backup-nudge__text">
@@ -941,19 +999,21 @@ export default function App() {
                 )}
 
                 {shows.length === 0 ? (
-                  <div className="shows-grid">
-                    <div className="empty-state">
-                      <div className="empty-state__icon"></div>
-                      <h2>No shows yet</h2>
-                      <p>Tap <strong>+ New Show</strong> to get started.</p>
-                    </div>
-                    {rolodexTile}
+                  <div className="empty-state">
+                    <h2 className="empty-state__title">No shows yet</h2>
+                    <p className="empty-state__text">
+                      Create a show to build its lineup, run-of-show, and live mode.
+                    </p>
+                    <button className="btn btn--primary" onClick={() => setShowForm(true)}>
+                      + New Show
+                    </button>
                   </div>
                 ) : filteredShows.length === 0 ? (
-                  <div className="shows-empty-filter">
-                    <p className="shows-empty-filter__text">No shows match your search.</p>
-                    <button className="btn btn--secondary btn--sm" onClick={clearFilters}>
-                      Clear filters
+                  <div className="empty-state">
+                    <h2 className="empty-state__title">No matches</h2>
+                    <p className="empty-state__text">No shows match “{searchQuery.trim()}”.</p>
+                    <button className="btn btn--secondary" onClick={clearFilters}>
+                      Clear search
                     </button>
                   </div>
                 ) : showsView === 'calendar' ? (
@@ -969,10 +1029,12 @@ export default function App() {
                         onDuplicate={handleDuplicateShow}
                       />
                     ))}
-                    {rolodexTile}
                   </div>
                 )}
 
+                {/* Kept off a brand-new, empty workspace so the first screen is
+                    only about creating a show. */}
+                {(shows.length > 0 || settings.emailList.length > 0) && (
                 <section className="email-list" aria-label="Email list">
                   <button
                     className="email-list__header"
@@ -1043,6 +1105,7 @@ export default function App() {
                     </div>
                   )}
                 </section>
+                )}
               </div>
             )}
 
@@ -1053,7 +1116,6 @@ export default function App() {
                 style={{ '--expand-origin-x': `${expandOrigin.x}%`, '--expand-origin-y': `${expandOrigin.y}%` } as React.CSSProperties}
               >
                 <ShowDetail
-                  ref={showDetailRef}
                   show={selectedShow}
                   settings={settings}
                   onBack={handleBack}
@@ -1079,11 +1141,12 @@ export default function App() {
 
             {view === 'rolodex' && (
               <div className="rolodex-page">
-                <div className="rolodex-page__topbar">
-                  <button className="btn btn--ghost" onClick={handleBack}>← Back</button>
-                  <h1 className="rolodex-page__title">{rolodexTerm.singular} Rolodex</h1>
-                </div>
-                <p className="rolodex-page__subtitle">Keep a running list of {rolodexTerm.plural.toLowerCase()} you want to book next.</p>
+                <PageHeader
+                  title={`${rolodexTerm.singular} Rolodex`}
+                  subtitle={`Keep a running list of ${rolodexTerm.plural.toLowerCase()} you want to book next.`}
+                  onBack={handleBack}
+                  backLabel="Shows"
+                />
 
                 <div className="rolodex__form">
                   <input
@@ -1109,7 +1172,12 @@ export default function App() {
                 </div>
 
                 {settings.potentialComics.length === 0 ? (
-                  <p className="rolodex__empty">No {rolodexTerm.plural.toLowerCase()} saved yet.</p>
+                  <div className="empty-state">
+                    <h2 className="empty-state__title">No {rolodexTerm.plural.toLowerCase()} yet</h2>
+                    <p className="empty-state__text">
+                      Add someone above, or save a performer from a show to keep their details here.
+                    </p>
+                  </div>
                 ) : (
                   <div className="rolodex__list">
                     {settings.potentialComics.map((comic) => (
@@ -1166,6 +1234,11 @@ export default function App() {
                 saving={settingsSaving}
                 colorScheme={colorScheme}
                 onColorSchemeChange={setColorScheme}
+                username={session.username}
+                onLogout={handleLogout}
+                onRestoreShow={handleRestoreShow}
+                onDeleteForever={handleDeleteForever}
+                onEmptyTrash={handleEmptyTrash}
                 onExport={session ? async () => {
                   const url = await exportUserData(session.username, session.password);
                   const a = document.createElement('a');
@@ -1182,97 +1255,39 @@ export default function App() {
             )}
           </main>
 
+          {/* Four fixed destinations, in the same order and the same place on
+              every screen. Actions that belong to one show now live on that
+              show's page instead of reshaping the nav as you move around. */}
           <nav className="bottom-nav" aria-label="Primary navigation">
-            {/* Brand wordmark — visible in desktop sidebar */}
             <div className="bottom-nav__brand">
               <span className="bottom-nav__brand-dot" />
               <span className="bottom-nav__brand-text">I Can Run A Show</span>
             </div>
 
-            {/* Show context — desktop sidebar only, when viewing a show */}
-            {view === 'detail' && selectedShow && (
-              <div className="bottom-nav__show-ctx">
-                <p className="bottom-nav__show-ctx-name">{selectedShow.name}</p>
-                <button className="bottom-nav__ctx-item" onClick={() => showDetailRef.current?.openRunShow()}>▶ Run Show</button>
-                <button className="bottom-nav__ctx-item" onClick={() => showDetailRef.current?.openViewer()}>Viewer link</button>
-                {(!(selectedShow.hiddenSections || []).includes('artists') || !!selectedShow.artistSignupToken) && (
-                  <button className="bottom-nav__ctx-item" onClick={() => showDetailRef.current?.openArtistAdmin()}>Artist admin</button>
-                )}
-                <button className="bottom-nav__ctx-item" onClick={() => exportShowToPDF(selectedShow, settings)}>Export PDF</button>
-              </div>
-            )}
-
-            {/* Primary nav items */}
             <div className="bottom-nav__items">
-              <button
-                className={`bottom-nav__item${view === 'list' || view === 'detail' ? ' bottom-nav__item--active' : ''}`}
-                onClick={() => { handleBack(); setMenuOpen(false); }}
-              >
-                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1zm0 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1zm0 5a1 1 0 011-1h8a1 1 0 010 2H3a1 1 0 01-1-1z"/></svg>
-                <span>Shows</span>
-              </button>
-              <button
-                className="bottom-nav__item bottom-nav__item--new"
-                onClick={() => { setShowForm(true); setMenuOpen(false); }}
-              >
-                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/></svg>
-                <span>New Show</span>
-              </button>
-              <button
-                className={`bottom-nav__item${view === 'rolodex' ? ' bottom-nav__item--active' : ''}`}
-                onClick={() => { setView('rolodex'); setSelectedShow(null); setMenuOpen(false); }}
-              >
-                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
-                <span>{rolodexTerm.singular} Rolodex</span>
-              </button>
-              <button
-                className={`bottom-nav__item${view === 'expenses' ? ' bottom-nav__item--active' : ''}`}
-                onClick={() => { setView('expenses'); setSelectedShow(null); setMenuOpen(false); }}
-              >
-                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd"/></svg>
-                <span>Expenses</span>
-              </button>
-            </div>
-
-            {/* Bottom of sidebar: settings + logout */}
-            <div className="bottom-nav__footer">
-              <button
-                className={`bottom-nav__item${view === 'settings' ? ' bottom-nav__item--active' : ''}`}
-                onClick={() => { setView('settings'); setSelectedShow(null); setMenuOpen(false); }}
-              >
-                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd"/></svg>
-                <span>Settings</span>
-              </button>
-              <button className="bottom-nav__item bottom-nav__item--logout" onClick={() => { handleLogout(); setMenuOpen(false); }}>
-                <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd"/></svg>
-                <span>Logout</span>
-              </button>
-            </div>
-
-            {/* Mobile-only: hamburger for overflow/contextual actions */}
-            <button
-              className="bottom-nav__menu-btn"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="More options"
-              aria-expanded={menuOpen}
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20" aria-hidden="true"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg>
-            </button>
-            <div className={`bottom-nav__dropdown${menuOpen ? '' : ' bottom-nav__dropdown--hidden'}`}>
-              {view === 'detail' && selectedShow && (
-                <>
-                  <p className="bottom-nav__dropdown-label">{selectedShow.name}</p>
-                  <button className="bottom-nav__dropdown-item" onClick={() => { showDetailRef.current?.openRunShow(); setMenuOpen(false); }}>▶ Run Show</button>
-                  <button className="bottom-nav__dropdown-item" onClick={() => { showDetailRef.current?.openViewer(); setMenuOpen(false); }}>Viewer link</button>
-                  {(!(selectedShow.hiddenSections || []).includes('artists') || !!selectedShow.artistSignupToken) && (
-                    <button className="bottom-nav__dropdown-item" onClick={() => { showDetailRef.current?.openArtistAdmin(); setMenuOpen(false); }}>Artist admin</button>
-                  )}
-                  <button className="bottom-nav__dropdown-item" onClick={() => { exportShowToPDF(selectedShow, settings); setMenuOpen(false); }}>Export PDF</button>
-                  <div className="bottom-nav__dropdown-divider" />
-                </>
-              )}
-              <button className="bottom-nav__dropdown-item" onClick={() => { setView('settings'); setSelectedShow(null); setMenuOpen(false); }}>Settings</button>
-              <button className="bottom-nav__dropdown-item" onClick={() => { handleLogout(); setMenuOpen(false); }}>Logout</button>
+              {NAV_ITEMS.map((item) => {
+                const active = item.views.includes(view);
+                return (
+                  <button
+                    key={item.id}
+                    className={`bottom-nav__item${active ? ' bottom-nav__item--active' : ''}`}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={() => {
+                      if (item.id === 'list') {
+                        handleBack();
+                      } else {
+                        setView(item.id);
+                        setSelectedShow(null);
+                      }
+                    }}
+                  >
+                    <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" clipRule="evenodd" d={item.icon} />
+                    </svg>
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </nav>
 

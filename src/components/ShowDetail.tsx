@@ -1,8 +1,9 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
 import { Icon } from './Icon';
+import { MoreMenu } from './MoreMenu';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
 import { ArtistsSection } from './sections/ArtistsSection';
@@ -15,6 +16,7 @@ import { RunShow } from './RunShow';
 import { Modal } from './Modal';
 import { ArtistAdmin } from './ArtistAdmin';
 import { exportShowToPDF } from '../utils/pdfExport';
+import { parseShowDate, formatShowTime } from '../utils/showDate';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
 import './ShowDetail.css';
@@ -27,15 +29,32 @@ interface ShowDetailProps {
   onSaveToRolodex?: (comic: import('../types').PotentialComic) => void;
 }
 
-// Lets the sidebar trigger this show's actions from outside the component.
-export interface ShowDetailHandle {
-  openRunShow: () => void;
-  openViewer: () => void;
-  openArtistAdmin: () => void;
+const STATUS_LABELS: Record<ShowStatus, string> = {
+  upcoming: 'Upcoming',
+  'in-progress': 'In progress',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
+/** Which sections a producer had open, remembered per show. */
+function openSectionsKey(showId: string): string {
+  return `showrunner:openSections:${showId}`;
 }
 
-export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }, ref) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+function loadOpenSections(showId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(openSectionsKey(showId));
+    if (raw) return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    /* ignore */
+  }
+  // First visit: Basic Info is where every show starts, so it opens by default
+  // instead of presenting a wall of closed rows.
+  return new Set(['basic']);
+}
+
+export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }: ShowDetailProps) {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => loadOpenSections(show.id));
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -44,24 +63,18 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
   const [artistAdminOpen, setArtistAdminOpen] = useState(false);
   const [tempShowName, setTempShowName] = useState(show.name);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  // The list of not-yet-added sections stays tucked behind a single button so a
-  // show only ever displays the sections the producer actually chose.
-  const [addSectionOpen, setAddSectionOpen] = useState(false);
-  const [lightMode, setLightMode] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('showrunner:lightMode') === '1';
-    } catch {
-      return false;
-    }
-  });
+  // Adding and removing sections happens in one deliberate place, so a stray tap
+  // next to the expand chevron can't wipe a section off the show.
+  const [manageSectionsOpen, setManageSectionsOpen] = useState(false);
 
+  // Come back to a show and it looks the way you left it.
   useEffect(() => {
     try {
-      localStorage.setItem('showrunner:lightMode', lightMode ? '1' : '0');
+      localStorage.setItem(openSectionsKey(show.id), JSON.stringify([...expandedSections]));
     } catch {
       /* ignore */
     }
-  }, [lightMode]);
+  }, [show.id, expandedSections]);
 
   // Keep the public viewer's pre-show lineup current: whenever an upcoming show's
   // lineup or details change, re-publish the scheduled payload (debounced). Skipped
@@ -92,14 +105,6 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
     setViewerCopied(false);
     setViewerOpen(true);
   }
-
-  // Expose this show's actions so the sidebar can trigger them.
-  useImperativeHandle(ref, () => ({
-    openRunShow: () => setRunShowOpen(true),
-    openViewer,
-    openArtistAdmin: () => setArtistAdminOpen(true),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [show.viewNote]);
 
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
@@ -290,9 +295,8 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       key: 'basic',
       sectionKey: 'basic' as SectionKey,
       title: 'Basic Info',
-      subtitle: 'Set show time, location, and venue.',
+      subtitle: 'Date, time, location, and venue.',
       accent: 'slate',
-      span: 2,
       content: <BasicInfoSection show={show} onChange={handleUpdate} />,
     },
     {
@@ -325,7 +329,6 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       title: 'Schedule',
       subtitle: 'Timeline of events with times and descriptions.',
       accent: 'blue',
-      span: 2,
       count: show.schedule.length,
       content: <ScheduleSection
         schedule={show.schedule}
@@ -371,7 +374,6 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       title: 'Recap',
       subtitle: 'Attendance, sales, performer notes, and lessons learned.',
       accent: 'slate',
-      span: 2,
       content: (
         <ShowRecapSection
           recap={show.recap}
@@ -386,11 +388,45 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
     });
   }
 
+  // Date and time are written the same way here as on the show cards, so the
+  // same show doesn't read as "9/18/2026 20:00" in one place and
+  // "Sep 18 · 8:00 PM" in another.
+  const detailDate = parseShowDate(show.date);
+  const metaParts = [
+    detailDate?.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: detailDate.getFullYear() === new Date().getFullYear() ? undefined : 'numeric',
+    }),
+    formatShowTime(show.time),
+    show.venueName,
+    show.location,
+  ].filter((part): part is string => !!part);
+
+  // Every secondary action for this show, in one menu attached to the show —
+  // rather than scattered across the app's navigation.
+  const moreItems = [
+    { label: 'Viewer link', onSelect: openViewer },
+    ...(showArtistAdmin ? [{ label: 'Artist admin', onSelect: () => setArtistAdminOpen(true) }] : []),
+    { label: 'Export PDF', onSelect: () => exportShowToPDF(show, settings) },
+    { label: 'Add or remove sections', onSelect: () => setManageSectionsOpen(true) },
+  ];
+
   return (
-    <div className={`show-detail${lightMode ? ' show-detail--light' : ''}`}>
+    <div className="show-detail">
       <div className="show-detail__hero">
         <div className="show-detail__topbar">
-          <button className="btn btn--ghost show-detail__back-btn" onClick={onBack}>← Back</button>
+          <button type="button" className="show-detail__back-btn" onClick={onBack}>
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
+              <path
+                fillRule="evenodd"
+                d="M12.707 4.293a1 1 0 010 1.414L8.414 10l4.293 4.293a1 1 0 01-1.414 1.414l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span>Shows</span>
+          </button>
           <div className="show-detail__save-indicator-container">
             {saveStatus === 'saving' && (
               <span className="show-detail__save-indicator show-detail__save-indicator--saving">
@@ -404,36 +440,6 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
             )}
           </div>
           <button
-            className="show-detail__theme-toggle"
-            onClick={() => setLightMode((v) => !v)}
-            title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
-            aria-pressed={lightMode}
-          >
-            {lightMode ? '🌙' : '☀️'}
-          </button>
-          {/* Secondary actions — hidden on mobile (bottom menu) and desktop (sidebar). */}
-          <div className="show-detail__topbar-secondary">
-            <button className="btn btn--secondary btn--sm" onClick={() => exportShowToPDF(show, settings)}>
-              Export PDF
-            </button>
-            <button
-              className="btn btn--secondary btn--sm"
-              onClick={openViewer}
-              title="Public read-only viewer link"
-            >
-              Viewer link
-            </button>
-            {showArtistAdmin && (
-              <button
-                className="btn btn--secondary btn--sm"
-                onClick={() => setArtistAdminOpen(true)}
-                title="Artist sign-up admin"
-              >
-                Artist admin
-              </button>
-            )}
-          </div>
-          <button
             className="show-detail__run-show"
             onClick={() => setRunShowOpen(true)}
             title="Run the live show"
@@ -441,6 +447,7 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
             <Icon name="play" size={14} />
             Run Show
           </button>
+          <MoreMenu label="More show actions" items={moreItems} />
         </div>
         <div className="show-detail__header">
           {editingShowName ? (
@@ -487,18 +494,16 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
             aria-label="Show status"
             title="Change show status"
           >
-            <option value="upcoming">upcoming</option>
-            <option value="in-progress">in progress</option>
-            <option value="completed">completed</option>
-            <option value="cancelled">cancelled</option>
+            {(Object.keys(STATUS_LABELS) as ShowStatus[]).map((status) => (
+              <option key={status} value={status}>{STATUS_LABELS[status]}</option>
+            ))}
           </select>
         </div>
-        {(show.venueName || show.location || show.date || show.time) && (
+        {metaParts.length > 0 && (
           <div className="show-detail__meta">
-            {show.venueName && <span>{show.venueName}</span>}
-            {show.location && <span>{show.location}</span>}
-            {show.date && <span>{new Date(show.date).toLocaleDateString()}</span>}
-            {show.time && <span>{show.time}</span>}
+            {metaParts.map((part) => (
+              <span key={part}>{part}</span>
+            ))}
           </div>
         )}
       </div>
@@ -536,13 +541,12 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       <div className="show-detail__sections-accordion">
         {sections.filter((section) => !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
           const isExpanded = expandedSections.has(section.key);
-          const spanClass = section.span === 2 ? ' accordion-section--span2' : '';
           const accentClass = section.accent ? ` accordion-section--${section.accent}` : '';
 
           return (
             <div
               key={section.key}
-              className={`accordion-section${spanClass}${accentClass}`}
+              className={`accordion-section${accentClass}`}
             >
               <div 
                 className="accordion-section__header"
@@ -558,21 +562,10 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
                   <p className="accordion-section__subtitle">{section.subtitle}</p>
                 </div>
                 <div className="accordion-section__header-right">
-                  {section.sectionKey && section.sectionKey !== 'basic' && (
-                    <button
-                      className="accordion-section__remove-btn"
-                      title={`Remove ${section.title}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleHideSection(section.sectionKey!);
-                      }}
-                    >
-                      ×
-                    </button>
-                  )}
                   <button
                     className={`accordion-section__expand-icon ${isExpanded ? 'accordion-section__expand-icon--expanded' : ''}`}
-                    aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
+                    aria-label={isExpanded ? `Collapse ${section.title}` : `Expand ${section.title}`}
+                    aria-expanded={isExpanded}
                   >
                     ▼
                   </button>
@@ -589,36 +582,15 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
         })}
       </div>
 
-      {sections.some((section) => (show.hiddenSections || []).includes(section.sectionKey)) && (
-        <div className="hidden-sections">
-          {!addSectionOpen ? (
-            <button
-              type="button"
-              className="hidden-sections__add-btn"
-              onClick={() => setAddSectionOpen(true)}
-            >
-              + Add a section
-            </button>
-          ) : (
-            <>
-              <p className="hidden-sections__label">Add a section</p>
-              <div className="hidden-sections__bubbles">
-                {sections.filter((section) => (show.hiddenSections || []).includes(section.sectionKey)).map((section) => (
-                  <button
-                    key={section.key}
-                    className="hidden-bubble"
-                    onClick={() => handleRestoreSection(section.sectionKey!)}
-                    title={`Add "${section.title}"`}
-                  >
-                    <span className="hidden-bubble__icon">+</span>
-                    <span className="hidden-bubble__title">{section.title}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      <div className="show-detail__manage-row">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          onClick={() => setManageSectionsOpen(true)}
+        >
+          Add or remove sections
+        </button>
+      </div>
 
       <div className="show-detail__scenes">
         <SceneList scenes={show.scenes ?? []} onChange={handleScenesChange} />
@@ -639,6 +611,50 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
           onFinish={() => onUpdate({ ...show, status: 'completed' })}
           onClose={() => setRunShowOpen(false)}
         />
+      )}
+
+      {manageSectionsOpen && (
+        <Modal onClose={() => setManageSectionsOpen(false)} labelledBy="manage-sections-title">
+          <div className="manage-sections">
+            <h2 id="manage-sections-title" className="manage-sections__title">Sections</h2>
+            <p className="manage-sections__sub">
+              Choose what this show tracks. Removing a section only hides it — nothing you've
+              entered is deleted, and it all comes back if you add the section again.
+            </p>
+            <ul className="manage-sections__list">
+              {sections.map((section) => {
+                const hidden = (show.hiddenSections || []).includes(section.sectionKey);
+                const locked = section.sectionKey === 'basic';
+                return (
+                  <li key={section.key} className="manage-sections__row">
+                    <div className="manage-sections__info">
+                      <span className="manage-sections__name">{section.title}</span>
+                      <span className="manage-sections__desc">{section.subtitle}</span>
+                    </div>
+                    {locked ? (
+                      <span className="manage-sections__always">Always on</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className={`btn btn--sm ${hidden ? 'btn--secondary' : 'btn--ghost'}`}
+                        onClick={() =>
+                          hidden
+                            ? handleRestoreSection(section.sectionKey)
+                            : handleHideSection(section.sectionKey)
+                        }
+                      >
+                        {hidden ? 'Add' : 'Remove'}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="manage-sections__actions">
+              <button className="btn btn--primary" onClick={() => setManageSectionsOpen(false)}>Done</button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {artistAdminOpen && (
@@ -694,4 +710,4 @@ export const ShowDetail = forwardRef<ShowDetailHandle, ShowDetailProps>(function
       )}
     </div>
   );
-});
+}

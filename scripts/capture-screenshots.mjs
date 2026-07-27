@@ -56,7 +56,7 @@ async function onboardIfPresent(page) {
 async function signInOrUp(page) {
   await page.goto(APP_URL, { waitUntil: 'networkidle' });
 
-  const inApp = page.getByRole('button', { name: 'Menu' });
+  const inApp = page.locator('.bottom-nav__item', { hasText: 'Shows' }).first();
   const onboarding = page.getByRole('button', { name: 'Get started' });
 
   if (await inApp.count()) return; // restored session
@@ -88,8 +88,7 @@ async function signInOrUp(page) {
 }
 
 async function openNewShowForm(page) {
-  await page.getByRole('button', { name: 'Menu' }).click();
-  await page.getByRole('button', { name: 'New Show' }).click();
+  await page.getByRole('button', { name: '+ New Show' }).first().click();
   await page.locator('.show-form').waitFor();
 }
 
@@ -171,12 +170,12 @@ async function main() {
     await signInOrUp(page);
 
     // Seed only if the workspace is empty.
-    const hasShow = await page.locator('.show-card:not(.rolodex-tile)').count();
+    const hasShow = await page.locator('.show-card').count();
     if (!hasShow) {
       await seedShow(page);
     } else {
       log('account already has shows — capturing as-is');
-      await page.locator('.show-card:not(.rolodex-tile)').first().click();
+      await page.locator('.show-card').first().click();
       await page.locator('.show-detail').waitFor();
     }
 
@@ -187,7 +186,7 @@ async function main() {
     await captureRunShow(page);
 
     // 3) Shows dashboard.
-    await page.locator('.show-detail .btn--ghost', { hasText: 'Back' }).first().click();
+    await page.locator('.show-detail__back-btn').first().click();
     await page.locator('.shows-list').waitFor();
     await shot(page, 'shows');
 

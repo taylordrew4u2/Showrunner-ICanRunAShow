@@ -4,6 +4,7 @@ import { SHOW_TYPES } from '../types';
 import { COLOR_SCHEMES, type ColorScheme } from '../utils/theme';
 import { defaultRolodexTerm } from '../utils/terminology';
 import { generateId } from '../utils/id';
+import { PageHeader } from './PageHeader';
 import './Settings.css';
 
 interface SettingsProps {
@@ -14,9 +15,28 @@ interface SettingsProps {
   colorScheme?: ColorScheme;
   onColorSchemeChange?: (scheme: ColorScheme) => void;
   onExport?: () => Promise<void>;
+  /** Who's signed in — shown in the account card. */
+  username?: string;
+  onLogout?: () => void;
+  onRestoreShow?: (trashId: string) => void;
+  onDeleteForever?: (trashId: string) => void;
+  onEmptyTrash?: () => void;
 }
 
-export function Settings({ settings: initialSettings, onSave, onBack, saving = false, colorScheme, onColorSchemeChange, onExport }: SettingsProps) {
+export function Settings({
+  settings: initialSettings,
+  onSave,
+  onBack,
+  saving = false,
+  colorScheme,
+  onColorSchemeChange,
+  onExport,
+  username,
+  onLogout,
+  onRestoreShow,
+  onDeleteForever,
+  onEmptyTrash,
+}: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
   const [newProducerName, setNewProducerName] = useState('');
   const [newProducerRole, setNewProducerRole] = useState('');
@@ -63,13 +83,15 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
     });
   }
 
+  const trash = settings.trash || [];
+
   return (
     <div className="settings">
-      <button className="btn btn--ghost" onClick={onBack}>← Back</button>
-      <h1 className="settings__title">Settings</h1>
+      <PageHeader title="Settings" onBack={onBack} backLabel="Shows" />
 
       {onColorSchemeChange && (
         <div className="settings__card">
+          <h2 className="settings__card-title">Appearance</h2>
           <div className="section-field">
             <span className="section-field__label">Color Scheme</span>
             <p className="settings__hint">Pick the look that fits you. Applies across the whole app instantly.</p>
@@ -99,6 +121,7 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
       )}
 
       <div className="settings__card">
+        <h2 className="settings__card-title">Your workspace</h2>
         <label className="section-field">
           <span className="section-field__label">Brand Name</span>
           <input
@@ -224,14 +247,87 @@ export function Settings({ settings: initialSettings, onSave, onBack, saving = f
       </div>
 
       <button className="btn btn--primary settings__save" onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Settings'}
+        {saving ? 'Saving…' : 'Save Settings'}
       </button>
 
-      {onExport && (
-        <button className="btn btn--secondary settings__save" onClick={onExport}>
-          Export Backup (JSON)
-        </button>
+      {/* Deleting a show has always said it goes to the trash "where you can
+          recover it" — this is where you actually recover it. */}
+      {onRestoreShow && onDeleteForever && (
+        <div className="settings__card">
+          <h2 className="settings__card-title">Recently deleted</h2>
+          <p className="settings__hint">
+            Deleted shows are kept here so you can put them back. Walk-on audio isn't kept, so a
+            restored show comes back without it.
+          </p>
+
+          {trash.length === 0 ? (
+            <p className="settings__empty">Nothing deleted.</p>
+          ) : (
+            <>
+              <ul className="settings__trash-list">
+                {trash.map((item) => (
+                  <li key={item.id} className="settings__trash-row">
+                    <div className="settings__trash-info">
+                      <span className="settings__trash-name">{item.data.name || 'Untitled show'}</span>
+                      <span className="settings__trash-date">
+                        Deleted {new Date(item.deletedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="settings__trash-actions">
+                      <button className="btn btn--secondary btn--sm" onClick={() => onRestoreShow(item.id)}>
+                        Restore
+                      </button>
+                      <button
+                        className="btn btn--danger btn--sm"
+                        onClick={() => {
+                          if (window.confirm(`Permanently delete "${item.data.name}"? This can't be undone.`)) {
+                            onDeleteForever(item.id);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {onEmptyTrash && (
+                <button
+                  className="btn btn--ghost btn--sm settings__trash-empty"
+                  onClick={() => {
+                    if (window.confirm(`Permanently delete all ${trash.length} item(s)? This can't be undone.`)) {
+                      onEmptyTrash();
+                    }
+                  }}
+                >
+                  Empty trash
+                </button>
+              )}
+            </>
+          )}
+        </div>
       )}
+
+      <div className="settings__card">
+        <h2 className="settings__card-title">Account</h2>
+        {username && (
+          <p className="settings__hint">
+            Signed in as <strong>{username}</strong>.
+          </p>
+        )}
+        <div className="settings__account-actions">
+          {onExport && (
+            <button className="btn btn--secondary" onClick={onExport}>
+              Download a backup
+            </button>
+          )}
+          {onLogout && (
+            <button className="btn btn--ghost" onClick={onLogout}>
+              Log out
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

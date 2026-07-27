@@ -8,6 +8,17 @@ interface BasicInfoSectionProps {
 export function BasicInfoSection({ show, onChange }: BasicInfoSectionProps) {
   return (
     <div className="section-body">
+      {/* Shows get moved. The date was previously only settable when the show
+          was created, leaving no way to reschedule one. */}
+      <label className="section-field">
+        <span className="section-field__label">Date</span>
+        <input
+          className="section-field__input"
+          type="date"
+          value={show.date}
+          onChange={(e) => onChange({ date: e.target.value })}
+        />
+      </label>
       <label className="section-field">
         <span className="section-field__label">Show Time</span>
         <input

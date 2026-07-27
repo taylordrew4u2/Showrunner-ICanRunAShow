@@ -1,23 +1,10 @@
 /* ─── Expenses Page ────────────────────────────────────────────────────────── */
 
+/* No page padding of its own — .app-main already provides the gutters every
+   other screen uses, and doubling them made this page sit differently. */
 .expenses-page {
-    max-width: 900px;
+    max-width: 700px;
     margin: 0 auto;
-    padding: 24px 16px 100px;
-}
-
-.expenses-page__topbar {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-}
-
-.expenses-page__title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0;
 }
 
 .expenses-page__filter {
@@ -62,18 +49,6 @@
 }
 
 @media (max-width: 640px) {
-    .expenses-page {
-        padding: 16px 12px calc(var(--bottom-nav-height, 72px) + env(safe-area-inset-bottom) + 16px);
-    }
-
-    .expenses-page__title {
-        font-size: 1.25rem;
-    }
-
-    .expenses-page__topbar {
-        gap: 12px;
-    }
-
     .expenses-page__add {
         padding: 12px;
         border-radius: 10px;
