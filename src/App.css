@@ -13,12 +13,19 @@
   --primary-bright: #ef4444;
   --primary-soft: #fef2f2;
   --primary-soft-border: #fecaca;
+  /* --primary on --primary-soft lands at 4.41:1 — just under AA. This is the
+     shade to use for text and icons sitting on a soft-red fill (5.9:1). */
+  --primary-on-soft: #b91c1c;
   --on-primary: #ffffff;
   --danger: #c2410c;
   --danger-soft: #fff7ed;
   --danger-soft-border: #fed7aa;
   --on-danger: #ffffff;
   --success: #16a34a;
+  /* --success is tuned to read as green next to text, not to sit *under*
+     white text: at 3.3:1 it fails AA on a filled button. This is the same
+     green darkened to 5.0:1 for solid fills that carry white type. */
+  --success-strong: #15803d;
   --success-soft: #f0fdf4;
   --success-soft-border: #bbf7d0;
   /* Warning is for "we're handling it, keep working" states — a failed save
@@ -108,12 +115,14 @@
   --primary-bright: #f87171;
   --primary-soft: #2a0a0a;
   --primary-soft-border: #7f1d1d;
+  --primary-on-soft: #f87171;
   --on-primary: #ffffff;
   --danger: #c2410c;
   --danger-soft: #2a1605;
   --danger-soft-border: #7c3a05;
   --on-danger: #ffffff;
   --success: #22c55e;
+  --success-strong: #15803d;
   --success-soft: #052e16;
   --success-soft-border: #14532d;
   --warning: #fbbf24;
