@@ -434,7 +434,9 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
             </svg>
             <span>Shows</span>
           </button>
-          <div className="show-detail__save-indicator-container">
+          {/* Announced, not just shown — this was the only confirmation an edit
+              landed, and it was invisible to anyone not watching that corner. */}
+          <div className="show-detail__save-indicator-container" role="status" aria-live="polite">
             {saveStatus === 'saving' && (
               <span className="show-detail__save-indicator show-detail__save-indicator--saving">
                 Saving…
@@ -458,10 +460,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         </div>
         <div className="show-detail__header">
           {editingShowName ? (
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1 }}>
-              <h1 className="show-detail__title" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>{tempShowName || show.name}</h1>
+            <div className="show-detail__name-edit">
+              {/* The page keeps exactly one h1 whether or not the name is being
+                  edited, so the document outline never changes underfoot. */}
+              <h1 className="visually-hidden">{tempShowName || show.name}</h1>
               <input
-                className="section-field__input"
+                className="section-field__input show-detail__name-input"
                 value={tempShowName}
                 onChange={(e) => setTempShowName(e.target.value)}
                 onKeyDown={(e) => {
@@ -469,8 +473,8 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                   if (e.key === 'Escape') setEditingShowName(false);
                 }}
                 placeholder="Show name"
+                aria-label="Show name"
                 autoFocus
-                style={{ fontSize: '1.5rem', fontWeight: '800' }}
               />
               <button className="btn btn--primary btn--sm" onClick={handleSaveShowName}>
                 Save
@@ -483,11 +487,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
             <>
               <h1 className="show-detail__title">{show.name}</h1>
               <button
-                className="btn btn--ghost btn--sm"
+                className="show-detail__name-edit-btn"
                 onClick={handleEditShowName}
-                title="Edit show name"
+                aria-label={`Edit show name, currently ${show.name}`}
               >
-                Edit
+                <Icon name="edit" size={14} aria-hidden />
+                <span>Edit</span>
               </button>
             </>
           )}
@@ -548,43 +553,69 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       <div className="show-detail__sections-accordion">
         {sections.filter((section) => !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
           const isExpanded = expandedSections.has(section.key);
-          const accentClass = section.accent ? ` accordion-section--${section.accent}` : '';
+          const panelId = `show-section-panel-${section.key}`;
+          const buttonId = `show-section-header-${section.key}`;
+          const filled = typeof section.count === 'number' && section.count > 0;
 
           return (
-            <div
-              key={section.key}
-              className={`accordion-section${accentClass}`}
-            >
-              <div 
-                className="accordion-section__header"
-                onClick={() => toggleSection(section.key)}
-              >
-                <div className="accordion-section__header-left">
-                  <div className="accordion-section__title-row">
-                    <h2 className="accordion-section__title">{section.title}</h2>
-                    {typeof section.count === 'number' && (
-                      <span className="accordion-section__count">{section.count}</span>
+            <section key={section.key} className="accordion-section">
+              {/* The whole header is one button, wrapped in the heading. It used
+                  to be a div with a click handler and a separate arrow button,
+                  so the only thing a keyboard could reach was the arrow — the
+                  large obvious target was mouse-only. */}
+              <h2 className="accordion-section__heading">
+                <button
+                  type="button"
+                  id={buttonId}
+                  className="accordion-section__header"
+                  onClick={() => toggleSection(section.key)}
+                  aria-expanded={isExpanded}
+                  aria-controls={panelId}
+                >
+                  <span className="accordion-section__header-left">
+                    <span className="accordion-section__title-row">
+                      <span className="accordion-section__title">{section.title}</span>
+                      {filled && (
+                        <span className="accordion-section__count">
+                          {section.count}
+                          <span className="visually-hidden"> added</span>
+                        </span>
+                      )}
+                    </span>
+                    {/* The description is for a section you haven't filled in
+                        yet. Once there's something in it, repeating "Names,
+                        walk-on music, and social media" on every card is noise
+                        you have to read past. */}
+                    {!filled && (
+                      <span className="accordion-section__subtitle">{section.subtitle}</span>
                     )}
-                  </div>
-                  <p className="accordion-section__subtitle">{section.subtitle}</p>
-                </div>
-                <div className="accordion-section__header-right">
-                  <button
-                    className={`accordion-section__expand-icon ${isExpanded ? 'accordion-section__expand-icon--expanded' : ''}`}
-                    aria-label={isExpanded ? `Collapse ${section.title}` : `Expand ${section.title}`}
-                    aria-expanded={isExpanded}
+                  </span>
+                  <svg
+                    className="accordion-section__chevron"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
-                    ▼
-                  </button>
-                </div>
-              </div>
+                    <polyline points="5 8 10 13 15 8" />
+                  </svg>
+                </button>
+              </h2>
 
               {isExpanded && (
-                <div className="accordion-section__content">
+                <div
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={buttonId}
+                  className="accordion-section__content"
+                >
                   {section.content}
                 </div>
               )}
-            </div>
+            </section>
           );
         })}
       </div>
