@@ -68,6 +68,15 @@ export function deriveKeys(password: string): string[] {
 }
 
 /**
+ * Everything a session needs to read and write data, derived in one go at
+ * sign-in. Deriving here — rather than holding the password and deriving on
+ * demand — is what lets the session be persisted without the password in it.
+ */
+export function deriveSessionKeys(password: string): { key: string; legacyKey: string } {
+  return { key: deriveKey(password), legacyKey: deriveLegacyKey(password) };
+}
+
+/**
  * Encrypt data with password-derived key (always the current v2 key).
  */
 export function encryptData(data: unknown, password: string): string {

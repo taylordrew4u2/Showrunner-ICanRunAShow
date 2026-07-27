@@ -1,9 +1,10 @@
 // Client side of /api/media: large uploads (walk-on music) live outside the
 // show/settings payloads as encrypted chunks, and the data model carries only
 // a tiny reference string. Same end-to-end encryption as everything else —
-// chunks are AES-encrypted with the password-derived key before upload.
+// chunks are AES-encrypted with the session's data key before upload.
 import { api } from './api';
-import { deriveKey, deriveUserId, encryptWithKey, decryptWithKey, hashPassword } from './encryption';
+import { encryptWithKey, decryptWithKey } from './encryption';
+import type { SessionCredentials } from './session-vault';
 import { readFileAsDataURL } from './media';
 
 /** Reference format stored in show/settings fields: `media:<uuid>#<chunkCount>` */
@@ -36,11 +37,12 @@ export function splitIntoChunks(text: string, sliceChars = SLICE_CHARS): string[
 }
 
 // The store needs the session credentials for auth headers + the encryption
-// key. App sets them at login/restore and clears them at logout.
-let creds: { username: string; password: string } | null = null;
+// key. App sets them at login/restore and clears them at logout. These are the
+// values derived at sign-in — the raw password is never held here.
+let creds: SessionCredentials | null = null;
 
-export function initMediaStore(username: string, password: string): void {
-  creds = { username, password };
+export function initMediaStore(session: SessionCredentials): void {
+  creds = session;
 }
 
 export function clearMediaStore(): void {
@@ -50,10 +52,7 @@ export function clearMediaStore(): void {
 
 function authOpts() {
   if (!creds) throw new Error('Media store not initialized (no session)');
-  return {
-    authUserId: deriveUserId(creds.username.trim().toLowerCase()),
-    authHash: hashPassword(creds.password),
-  };
+  return { authUserId: creds.userId, authHash: creds.authHash };
 }
 
 /**
@@ -63,7 +62,7 @@ function authOpts() {
 export async function uploadMedia(file: File): Promise<string> {
   if (!creds) throw new Error('Media store not initialized (no session)');
   const dataUrl = await readFileAsDataURL(file);
-  const key = deriveKey(creds.password);
+  const key = creds.key;
   const id = crypto.randomUUID();
   const chunks = splitIntoChunks(dataUrl);
   const a = authOpts();
@@ -96,7 +95,7 @@ export async function resolveMediaUrl(src: string): Promise<string | null> {
   const promise = (async () => {
     const parsed = parseMediaRef(src);
     if (!parsed || !creds) return null;
-    const key = deriveKey(creds.password);
+    const key = creds.key;
     const a = authOpts();
     try {
       const parts: string[] = new Array(parsed.total);

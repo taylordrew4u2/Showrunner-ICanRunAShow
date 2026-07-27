@@ -1,15 +1,7 @@
 import type { Show, AppSettings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
-import {
-  encryptData,
-  encryptWithKey,
-  decryptData,
-  decryptWithKeys,
-  deriveKey,
-  deriveKeys,
-  deriveUserId,
-  hashPassword,
-} from "./encryption";
+import { encryptWithKey, decryptWithKeys, deriveUserId, hashPassword } from "./encryption";
+import type { SessionCredentials } from "./session-vault";
 import { api, type ApiError } from "./api";
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from "./trash";
 import { describeLargestMedia } from "./showSize";
@@ -47,9 +39,15 @@ function getUserId(username: string): string {
   return deriveUserId(normalizeUsername(username));
 }
 
-// Auth headers for the per-user routes.
-function auth(username: string, password: string) {
-  return { authUserId: getUserId(username), authHash: hashPassword(password) };
+// Auth headers for the per-user routes. Both values were derived at sign-in,
+// so nothing here needs (or has) the raw password.
+function auth(creds: SessionCredentials) {
+  return { authUserId: creds.userId, authHash: creds.authHash };
+}
+
+/** Every key to try when reading, newest first (see decryptWithKeys). */
+function readKeys(creds: SessionCredentials): string[] {
+  return [creds.key, creds.legacyKey];
 }
 
 /**
@@ -89,18 +87,16 @@ export async function authenticateUser(
 /**
  * Load encrypted shows from the backend and decrypt them client-side.
  */
-export async function loadEncryptedShows(
-  username: string,
-  password: string,
-): Promise<Show[]> {
+export async function loadEncryptedShows(creds: SessionCredentials): Promise<Show[]> {
   const { shows } = await api.get<{ shows: { id: string; encryptedData: string }[] }>(
     "/api/shows",
-    auth(username, password),
+    auth(creds),
   );
-  // Derive the keys once and reuse them for every row — PBKDF2 is deliberately
-  // slow. decryptWithKeys tries the current key, then the legacy key, so shows
-  // saved before the KDF upgrade still decrypt (and re-encrypt on next save).
-  const keys = deriveKeys(password);
+  // Keys were derived once at sign-in — PBKDF2 is deliberately slow, so it must
+  // not run per row. decryptWithKeys tries the current key, then the legacy key,
+  // so shows saved before the KDF upgrade still decrypt (and re-encrypt on the
+  // next save).
+  const keys = readKeys(creds);
   return shows.map((row) => decryptWithKeys<Show>(row.encryptedData, keys));
 }
 
@@ -119,11 +115,9 @@ const showCipherCache = new WeakMap<Show, { key: string; cipher: string }>();
  */
 export async function saveEncryptedShows(
   shows: Show[],
-  username: string,
-  password: string,
+  creds: SessionCredentials,
 ): Promise<void> {
-  // Derive the key once for the whole batch (PBKDF2 is slow).
-  const key = deriveKey(password);
+  const key = creds.key;
   const payload = shows.map((show) => {
     const cached = showCipherCache.get(show);
     if (cached && cached.key === key) {
@@ -137,7 +131,7 @@ export async function saveEncryptedShows(
   // run after the initial load), so tell the server it's intentional — without
   // the flag it refuses empty saves as a safety net against bugs.
   const deleteAll = shows.length === 0;
-  const a = auth(username, password);
+  const a = auth(creds);
   const body = JSON.stringify({ shows: payload, deleteAll });
   if (body.length <= MAX_SAVE_BYTES) {
     await api.put("/api/shows", { shows: payload, deleteAll }, a);
@@ -192,12 +186,9 @@ export async function saveEncryptedShows(
  * Export all user data as a downloadable JSON blob (unencrypted).
  * Returns a Blob URL the caller can use for a download link.
  */
-export async function exportUserData(
-  username: string,
-  password: string,
-): Promise<string> {
-  const shows = await loadEncryptedShows(username, password);
-  const settings = await loadEncryptedSettings(username, password);
+export async function exportUserData(creds: SessionCredentials): Promise<string> {
+  const shows = await loadEncryptedShows(creds);
+  const settings = await loadEncryptedSettings(creds);
   const payload = JSON.stringify({ shows, settings, exportedAt: new Date().toISOString() }, null, 2);
   const blob = new Blob([payload], { type: "application/json" });
   return URL.createObjectURL(blob);
@@ -206,16 +197,13 @@ export async function exportUserData(
 /**
  * Load encrypted settings from the backend.
  */
-export async function loadEncryptedSettings(
-  username: string,
-  password: string,
-): Promise<AppSettings> {
+export async function loadEncryptedSettings(creds: SessionCredentials): Promise<AppSettings> {
   const { encryptedData } = await api.get<{ encryptedData: string | null }>(
     "/api/settings",
-    auth(username, password),
+    auth(creds),
   );
   if (!encryptedData) return DEFAULT_SETTINGS;
-  const settings = decryptData<AppSettings>(encryptedData, password);
+  const settings = decryptWithKeys<AppSettings>(encryptedData, readKeys(creds));
   // Migrate old settings format
   return migrateSettings(settings);
 }
@@ -293,15 +281,14 @@ function migrateSettings(settings: LegacySettings): AppSettings {
  */
 export async function saveEncryptedSettings(
   settings: AppSettings,
-  username: string,
-  password: string,
+  creds: SessionCredentials,
 ): Promise<void> {
-  const encryptedData = encryptData(settings, password);
+  const encryptedData = encryptWithKey(settings, creds.key);
   // Same platform request-size ceiling as shows — never fire a doomed request.
   if (encryptedData.length > MAX_SAVE_BYTES) {
     throw new PayloadTooLargeError(
       "Your settings are too large to save — usually an over-full trash or a large embedded walk-on track. Empty the trash to fix it.",
     );
   }
-  await api.put("/api/settings", { encryptedData }, auth(username, password));
+  await api.put("/api/settings", { encryptedData }, auth(creds));
 }

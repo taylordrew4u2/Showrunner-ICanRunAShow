@@ -128,7 +128,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
             <ul className="login__trust">
               <li>
                 <Icon name="lock" size={13} aria-hidden />
-                Encrypted on your device before it's stored
+                Encrypted on your device — your password is never stored
               </li>
               <li>
                 <Icon name="cloud" size={13} aria-hidden />
