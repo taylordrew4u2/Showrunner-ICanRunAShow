@@ -20,6 +20,14 @@ import {
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from './utils/trash';
 import { stripLegacyShowMedia, stripLegacySettingsMedia } from './utils/stripMedia';
 import { initMediaStore, clearMediaStore } from './utils/mediaStore';
+import {
+  type SessionCredentials,
+  credentialsFrom,
+  hasStoredSession,
+  loadSession,
+  saveSession,
+  clearSession,
+} from './utils/session-vault';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
@@ -84,12 +92,11 @@ const NAV_ITEMS: {
   },
 ];
 
-type Session = {
-  username: string;
-  password: string;
-};
-
-const SESSION_STORAGE_KEY = 'showrunner_session';
+/**
+ * The signed-in session. Holds only values derived from the password at
+ * sign-in (see session-vault) — never the password itself.
+ */
+type Session = SessionCredentials;
 
 // Unsaved-edit backups. When a save fails (offline, server error), the latest
 // data is parked here so a closed tab or crashed browser can't lose it — it's
@@ -222,7 +229,7 @@ export default function App() {
   // the new show. Blocking interaction until loaded closes that race.
   const [loadingData, setLoadingData] = useState(() => {
     try {
-      return !!localStorage.getItem(SESSION_STORAGE_KEY);
+      return hasStoredSession();
     } catch {
       return false;
     }
@@ -282,24 +289,33 @@ export default function App() {
     }
   }, [showsView]);
 
-  // Restore session from localStorage on mount (persists until logout)
+  // Restore the session on mount (persists until logout). Reading it is async
+  // now — the stored record is decrypted with a key the browser holds and
+  // won't hand over — so a failed restore has to clear the loading state
+  // itself, or the app would sit on the skeleton forever.
   useEffect(() => {
-    const savedSession = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (savedSession) {
+    let cancelled = false;
+    void (async () => {
       try {
-        const parsed = JSON.parse(savedSession) as Session;
-        setSession(parsed);
+        const restored = await loadSession();
+        if (cancelled) return;
+        if (restored) setSession(restored);
+        else setLoadingData(false);
       } catch (error) {
         console.error('Failed to restore session:', error);
-        localStorage.removeItem(SESSION_STORAGE_KEY);
+        if (!cancelled) setLoadingData(false);
       }
-    }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
 
   // Media store (large audio chunks) needs the session credentials for auth
   // headers + the encryption key. Keep it in sync with the session.
   useEffect(() => {
-    if (session) initMediaStore(session.username, session.password);
+    if (session) initMediaStore(session);
     else clearMediaStore();
   }, [session]);
 
@@ -318,8 +334,8 @@ export default function App() {
     async function loadData() {
       try {
         const [loadedShows, loadedSettings] = await Promise.all([
-          loadEncryptedShows(currentSession.username, currentSession.password),
-          loadEncryptedSettings(currentSession.username, currentSession.password),
+          loadEncryptedShows(currentSession),
+          loadEncryptedSettings(currentSession),
         ]);
         // Scrub legacy embedded media (photos, videos, files) that older saves
         // still carry — the next save writes the slimmed-down payload.
@@ -472,7 +488,7 @@ export default function App() {
           let saved: Show[] | null = null;
           while (latestShowsRef.current !== saved) {
             saved = latestShowsRef.current;
-            await saveEncryptedShows(saved, currentSession.username, currentSession.password);
+            await saveEncryptedShows(saved, currentSession);
           }
           clearPending(PENDING_SHOWS_KEY);
           setHasLocalCopy(false);
@@ -516,6 +532,19 @@ export default function App() {
     return () => clearTimeout(timeout);
   }, [shows, session, saveRetryTick]);
 
+  /**
+   * Take a freshly entered password and turn it into a stored session.
+   *
+   * This is the only place the raw password exists, and it does not outlive
+   * this call: the keys and the auth hash are derived here, and those derived
+   * values are what get held in memory and written to disk.
+   */
+  async function beginSession(username: string, password: string) {
+    const creds = credentialsFrom(username, password);
+    await saveSession(creds);
+    setSession(creds);
+  }
+
   async function handleSignIn(username: string, password: string) {
     setAuthError('');
     setAuthLoading(true);
@@ -528,9 +557,7 @@ export default function App() {
         return;
       }
 
-      const newSession = { username, password };
-      setSession(newSession);
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
+      await beginSession(username, password);
     } catch (error) {
       console.error('Sign in failed:', error);
       setAuthError(
@@ -549,9 +576,7 @@ export default function App() {
 
     try {
       await createAccount(username, password);
-      const newSession = { username, password };
-      setSession(newSession);
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
+      await beginSession(username, password);
     } catch (error) {
       console.error('Sign up failed:', error);
       const message = error instanceof Error ? error.message : '';
@@ -571,7 +596,7 @@ export default function App() {
 
   function handleLogout() {
     setSession(null);
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    clearSession();
     dataLoaded.current = false;
     setShows([]);
     setSettings(DEFAULT_SETTINGS);
@@ -589,7 +614,7 @@ export default function App() {
   async function handleDownloadBackup() {
     if (!session) return;
     try {
-      const url = await exportUserData(session.username, session.password);
+      const url = await exportUserData(session);
       const a = document.createElement('a');
       a.href = url;
       a.download = `showrunner-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -620,7 +645,7 @@ export default function App() {
       onboarded: true,
     };
     try {
-      await saveEncryptedSettings(updatedSettings, session.username, session.password);
+      await saveEncryptedSettings(updatedSettings, session);
       setSettings(updatedSettings);
     } catch (error) {
       console.error('Failed to save onboarding:', error);
@@ -636,7 +661,7 @@ export default function App() {
 
     setSettingsSaving(true);
     try {
-      await saveEncryptedSettings(updatedSettings, session.username, session.password);
+      await saveEncryptedSettings(updatedSettings, session);
       setSettings(updatedSettings);
       markSynced(session.username);
       setView('list');
@@ -762,7 +787,7 @@ export default function App() {
       let toSave = updatedSettings;
       while (seq === settingsSaveSeqRef.current) {
         try {
-          await saveEncryptedSettings(toSave, currentSession.username, currentSession.password);
+          await saveEncryptedSettings(toSave, currentSession);
           if (seq === settingsSaveSeqRef.current) {
             // If we had to prune trash to fit under the size limit, reflect
             // that in state so the app matches what actually persisted.

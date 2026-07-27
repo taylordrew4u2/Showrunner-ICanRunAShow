@@ -84,17 +84,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-    <!-- Google AdSense: Auto ads. Scans public pages and places ad units
-         automatically — no per-slot IDs needed. -->
+    <!-- Google AdSense: Auto ads. Deliberately NOT loaded here.
+         This file is the shell for the whole single-page app, so any script tag
+         in it also runs on every signed-in screen — third-party script sharing
+         an origin with a producer's shows, contacts, and session keys. Loading
+         it only while signed out doesn't help either: the landing page and the
+         signed-in app are the same document, and script that has already run
+         can't be taken back.
+         Ads therefore live on the static pages under /public (the guides),
+         which carry their own tags and hold no account data. Putting them back
+         on the marketing page means serving it as its own document, separate
+         from the app. -->
     <meta name="google-adsense-account" content="ca-pub-6785541334207915" />
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6785541334207915"
-      crossorigin="anonymous"></script>
-    <script>
-      (adsbygoogle = window.adsbygoogle || []).push({
-        google_ad_client: "ca-pub-6785541334207915",
-        enable_page_level_ads: true
-      });
-    </script>
   </head>
   <body>
     <!-- Boot splash: shown instantly (pure CSS, no JS/framework needed) so a
