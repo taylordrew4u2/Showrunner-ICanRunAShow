@@ -36,12 +36,12 @@ import { ArtistSignup } from './components/ArtistSignup';
 import { InstallPrompt } from './components/InstallPrompt';
 import './App.css';
 
-type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex';
+type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails';
 
 /**
- * The app's four destinations. Keeping this a plain list — rather than four
- * hand-written buttons plus an overflow menu that changed depending on the
- * screen — is what keeps the nav identical everywhere you go.
+ * The app's destinations. Keeping this a plain list — rather than hand-written
+ * buttons plus an overflow menu that changed depending on the screen — is what
+ * keeps the nav identical everywhere you go.
  */
 const NAV_ITEMS: {
   id: Exclude<View, 'detail'>;
@@ -61,6 +61,12 @@ const NAV_ITEMS: {
     label: 'Rolodex',
     views: ['rolodex'],
     icon: 'M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z',
+  },
+  {
+    id: 'emails',
+    label: 'Emails',
+    views: ['emails'],
+    icon: 'M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884zM18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z',
   },
   {
     id: 'expenses',
@@ -193,7 +199,6 @@ export default function App() {
   const [newComicName, setNewComicName] = useState('');
   const [newComicNotes, setNewComicNotes] = useState('');
   const [newListEmail, setNewListEmail] = useState('');
-  const [emailListOpen, setEmailListOpen] = useState(false);
   const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
   const [expandOrigin, setExpandOrigin] = useState({ x: 50, y: 30 });
   const [searchQuery, setSearchQuery] = useState('');
@@ -1032,79 +1037,72 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Kept off a brand-new, empty workspace so the first screen is
-                    only about creating a show. */}
-                {(shows.length > 0 || settings.emailList.length > 0) && (
-                <section className="email-list" aria-label="Email list">
+              </div>
+            )}
+
+            {view === 'emails' && (
+              <div className="email-list-page">
+                <PageHeader
+                  title="Email List"
+                  subtitle="Emails you collect at shows, kept in one place. Nothing is ever sent from here — they're only stored."
+                  onBack={handleBack}
+                  backLabel="Shows"
+                />
+
+                <form
+                  className="email-list__form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleAddEmailToList();
+                  }}
+                >
+                  <input
+                    className="rolodex__input"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="off"
+                    value={newListEmail}
+                    onChange={(e) => setNewListEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    aria-label="Email address"
+                  />
                   <button
-                    className="email-list__header"
-                    type="button"
-                    onClick={() => setEmailListOpen((open) => !open)}
-                    aria-expanded={emailListOpen}
+                    className="btn btn--secondary"
+                    type="submit"
+                    disabled={!newListEmail.trim()}
                   >
-                    <span className="email-list__icon" aria-hidden="true">✉️</span>
-                    <span className="email-list__heading">
-                      <span className="email-list__title">Email List</span>
-                      <span className="email-list__count">
-                        {settings.emailList.length} {settings.emailList.length === 1 ? 'email' : 'emails'} collected
-                      </span>
-                    </span>
-                    <span className={`email-list__chevron${emailListOpen ? ' email-list__chevron--open' : ''}`} aria-hidden="true">▾</span>
+                    Add
                   </button>
+                </form>
 
-                  {emailListOpen && (
-                    <div className="email-list__body">
-                      <p className="email-list__subtitle">
-                        A place to keep emails you collect at shows. Nothing is sent — they're just stored here.
-                      </p>
-                      <form
-                        className="email-list__form"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          handleAddEmailToList();
-                        }}
-                      >
-                        <input
-                          className="rolodex__input"
-                          type="email"
-                          inputMode="email"
-                          autoComplete="off"
-                          value={newListEmail}
-                          onChange={(e) => setNewListEmail(e.target.value)}
-                          placeholder="name@example.com"
-                          aria-label="Email address"
-                        />
-                        <button
-                          className="btn btn--secondary"
-                          type="submit"
-                          disabled={!newListEmail.trim()}
-                        >
-                          Add
-                        </button>
-                      </form>
-
-                      {settings.emailList.length === 0 ? (
-                        <p className="email-list__empty">No emails stored yet.</p>
-                      ) : (
-                        <ul className="email-list__entries">
-                          {settings.emailList.map((entry) => (
-                            <li key={entry.id} className="email-list__entry">
-                              <span className="email-list__address">{entry.email}</span>
-                              <button
-                                className="email-list__remove"
-                                type="button"
-                                onClick={() => handleRemoveEmailFromList(entry.id)}
-                                aria-label={`Remove ${entry.email}`}
-                              >
-                                ×
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-                </section>
+                {settings.emailList.length === 0 ? (
+                  <div className="empty-state">
+                    <h2 className="empty-state__title">No emails yet</h2>
+                    <p className="empty-state__text">
+                      Add an address above to start building your list.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="email-list__count">
+                      {settings.emailList.length} {settings.emailList.length === 1 ? 'email' : 'emails'} collected
+                    </p>
+                    <ul className="email-list__entries">
+                      {settings.emailList.map((entry) => (
+                        <li key={entry.id} className="email-list__entry">
+                          <span className="email-list__address">{entry.email}</span>
+                          <button
+                            className="email-list__remove"
+                            type="button"
+                            onClick={() => handleRemoveEmailFromList(entry.id)}
+                            aria-label={`Remove ${entry.email}`}
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
                 )}
               </div>
             )}

@@ -464,84 +464,30 @@
   text-overflow: ellipsis;
 }
 
-/* ── Email List (on main page) ─────────────────────────────────────── */
+/* ── Email List page ───────────────────────────────────────────────── */
 
-.email-list {
-  margin-top: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-}
-
-.email-list__header {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  color: var(--text);
-  font: inherit;
-}
-
-.email-list__icon {
-  font-size: 1.3rem;
-}
-
-.email-list__heading {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.email-list__title {
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.email-list__count {
-  margin-top: 2px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-.email-list__chevron {
-  color: var(--text-muted);
-  transition: transform 0.15s ease;
-}
-
-.email-list__chevron--open {
-  transform: rotate(180deg);
-}
-
-.email-list__body {
-  padding: 0 16px 16px;
-}
-
-.email-list__subtitle {
-  margin: 0 0 12px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
+.email-list-page {
+  max-width: 700px;
+  margin: 0 auto;
 }
 
 .email-list__form {
   display: flex;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .email-list__form .rolodex__input {
   flex: 1;
 }
 
-.email-list__empty {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.9rem;
+.email-list__count {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-soft);
 }
 
 .email-list__entries {
@@ -560,7 +506,7 @@
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface-strong);
+  background: var(--surface);
 }
 
 .email-list__address {
@@ -589,7 +535,7 @@
 }
 
 .email-list__remove:hover {
-  background: var(--surface);
+  background: var(--surface-strong);
   color: var(--text);
 }
 
@@ -768,7 +714,7 @@
   max-width: 860px;
   z-index: var(--z-sticky);
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   background: var(--surface);
   border-top: 1px solid var(--border);
   border-left: 1px solid var(--border);
@@ -794,13 +740,24 @@
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
-  padding: 6px 4px;
+  padding: 6px 2px;
   border-radius: var(--radius-sm);
   transition: color 0.15s ease, background-color 0.15s ease;
   min-width: 44px;
   min-height: 44px;
   justify-content: center;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
+}
+
+/* The one place a fixed px size is right: five labels share the width of the
+   screen, so this one must NOT grow with index.css's phone type scaling the
+   way body copy does — at 0.68rem "Expenses" and "Settings" collide on a
+   320px phone. The tab itself stays a 44px+ target; only the caption under
+   the icon is pinned, the way a native tab bar does it. */
+.bottom-nav__item span {
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .bottom-nav__item--active {
@@ -3883,6 +3840,12 @@
     min-height: 40px;
     min-width: auto;
     letter-spacing: 0;
+  }
+
+  /* In the sidebar each label owns a full row, so it goes back to scaling
+     with the rest of the type. */
+  .bottom-nav__item span {
+    font-size: inherit;
   }
 
   .bottom-nav__item-icon {
