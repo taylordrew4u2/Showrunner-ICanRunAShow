@@ -55,8 +55,10 @@
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
+/* --text-soft is a 2.6:1 grey — fine for a rule or an icon, not for a
+   sentence someone is meant to read. */
 .scene-list__empty {
-  color: var(--text-soft);
+  color: var(--text-muted);
   font-size: 0.9rem;
   text-align: center;
   padding: 24px 0;

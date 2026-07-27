@@ -94,7 +94,7 @@
   padding: 9px 16px;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
-  background: var(--success);
+  background: var(--success-strong);
   color: #ffffff;
   font-family: inherit;
   font-size: 0.9rem;
@@ -104,8 +104,12 @@
   flex-shrink: 0;
   transition: filter 0.15s ease, transform 0.05s ease;
 }
-.show-detail__run-show:hover { filter: brightness(1.06); }
+.show-detail__run-show:hover { filter: brightness(1.1); }
 .show-detail__run-show:active { transform: translateY(1px); }
+.show-detail__run-show:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 
 @media (max-width: 768px) {
   .show-detail__run-show {
@@ -254,16 +258,18 @@ select.show-detail__status--select {
 
 /* ── Host slot ───────────────────────────────────────────────────────── */
 
+/* Reads as one more line of the show's header, not a separate slab. It used
+   to be a filled, bordered card sitting between the title and the sections,
+   which gave a single text field more visual weight than the whole lineup. */
 .show-detail__host {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 12px 14px;
-  background: var(--surface-strong);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  margin-top: 8px;
+  padding: 0;
+  background: none;
+  border: 0;
+  margin-top: 14px;
 }
 
 .show-detail__host-label {
@@ -278,22 +284,46 @@ select.show-detail__status--select {
 .show-detail__host-input {
   flex: 1 1 160px;
   min-width: 0;
+  max-width: 340px;
 }
 
+/* .section-field__select is width:100%, so without a ceiling this optional
+   shortcut stretches the full column and outweighs the field it fills in. */
 .show-detail__host-pick {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 240px;
 }
 
+@media (max-width: 640px) {
+  /* Full width on its own line rather than squeezed beside the name field,
+     where its label got cut to "Use a performe". */
+  .show-detail__host-pick {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}
+
+/* Separated by a real divider rather than a wide gap, so "8:00 PM  The
+   Waypost" reads as two facts instead of one run-on line. The dividers are
+   decoration — screen readers get the plain list. */
 .show-detail__meta {
   display: flex;
-  gap: 18px;
+  gap: 10px;
   flex-wrap: wrap;
+  align-items: baseline;
   color: var(--text-muted);
   font-size: 0.92rem;
   font-weight: 500;
   letter-spacing: -0.005em;
   word-break: break-word;
   overflow-wrap: break-word;
+}
+
+.show-detail__meta > span:not(:last-child)::after {
+  content: '·';
+  margin-left: 10px;
+  color: var(--text-soft);
 }
 
 @media (max-width: 640px) {
@@ -394,20 +424,14 @@ select.show-detail__status--select {
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  min-height: 88px;
   position: relative;
 }
 
-.accordion-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--border);
-  transition: background 0.18s ease;
-}
+/* No accent bar. Every section used to wear a 3px red rule across its top —
+   and since all six accent colours resolved to the same red, the page read as
+   a stack of seven alerts rather than a document. The card edge and the type
+   hierarchy carry the structure now; red is left for things that are actually
+   wrong. */
 
 /* No transform here: this section contains position: fixed overlays (the
    performer/artist profile drawer, Run Show, import sheet). A transform on an
@@ -416,41 +440,29 @@ select.show-detail__status--select {
   box-shadow: var(--shadow-md);
 }
 
-/* ─── Accent colors — unified brass accent for a cohesive ops-console look ── */
-.accordion-section--red::before,
-.accordion-section--blue::before,
-.accordion-section--green::before,
-.accordion-section--purple::before,
-.accordion-section--amber::before,
-.accordion-section--slate::before  { background: var(--primary); }
-
-.accordion-section--red:hover,
-.accordion-section--blue:hover,
-.accordion-section--green:hover,
-.accordion-section--purple:hover,
-.accordion-section--amber:hover,
-.accordion-section--slate:hover    { border-color: var(--primary-soft-border); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.08); }
-
-.accordion-section--complete {
-  border-color: var(--success);
-  background: var(--surface-strong);
+.accordion-section:hover {
+  border-color: var(--border-strong);
 }
 
-.accordion-section--complete::before {
-  background: var(--success);
-}
-
-.accordion-section--complete:hover {
-  border-color: var(--success);
-  box-shadow: 0 8px 24px rgba(31, 157, 87, 0.15);
+/* The heading is structure only — the button inside it does the presenting. */
+.accordion-section__heading {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .accordion-section__header {
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 20px 22px 18px;
+  padding: 18px 20px;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
   cursor: pointer;
   user-select: none;
   transition: background 0.15s ease;
@@ -460,8 +472,9 @@ select.show-detail__status--select {
   background: var(--surface-strong);
 }
 
-.accordion-section--complete .accordion-section__header:hover {
-  background: var(--success-soft);
+.accordion-section__header:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 @media (max-width: 768px) {
@@ -477,17 +490,22 @@ select.show-detail__status--select {
   min-width: 0;
 }
 
+.accordion-section__header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .accordion-section__title-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 4px;
 }
 
 .accordion-section__title {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.05rem;
+  font-weight: 650;
   color: var(--text);
   margin: 0;
   letter-spacing: -0.015em;
@@ -496,7 +514,7 @@ select.show-detail__status--select {
 
 @media (max-width: 768px) {
   .accordion-section__title {
-    font-size: 1.05rem;
+    font-size: 1rem;
     letter-spacing: -0.01em;
   }
 }
@@ -516,16 +534,20 @@ select.show-detail__status--select {
   }
 }
 
+/* A count is a fact, not a warning. In red-on-pink it read as an error badge,
+   and "0" was shown for every empty section — so a brand-new show opened
+   looking like a list of problems. Empty sections now show no badge at all. */
 .accordion-section__count {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--primary);
-  background: var(--primary-soft);
-  border: 1px solid var(--primary-soft-border);
-  border-radius: 999px;
-  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
   white-space: nowrap;
-  line-height: 1.2;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
 }
 
 .accordion-section__complete-badge {
@@ -556,33 +578,34 @@ select.show-detail__status--select {
   }
 }
 
-.accordion-section__expand-icon {
-  background: none;
-  border: none;
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 12px;
-  min-width: 44px;
-  min-height: 44px;
-  transition: transform 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Was a "▼" character, which screen readers announce as "black down-pointing
+   triangle" and which never matched the weight of the rest of the type. */
+.accordion-section__chevron {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--text-soft);
+  transition: transform var(--duration-normal) var(--ease-out), color var(--duration-normal) var(--ease-out);
 }
 
-.accordion-section__expand-icon--expanded {
+.accordion-section__header[aria-expanded='true'] .accordion-section__chevron {
   transform: rotate(180deg);
 }
 
-.accordion-section__content {
-  padding: 20px 22px 22px;
-  border-top: 1px solid var(--border);
-  animation: accordionSlideDown 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+.accordion-section__header:hover .accordion-section__chevron {
+  color: var(--text);
 }
 
-.accordion-section--complete .accordion-section__content {
-  border-top-color: var(--success);
+@media (prefers-reduced-motion: reduce) {
+  .accordion-section__chevron {
+    transition: none;
+  }
+}
+
+.accordion-section__content {
+  padding: 18px 20px 20px;
+  border-top: 1px solid var(--border);
+  animation: accordionSlideDown 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @media (max-width: 768px) {
@@ -1176,7 +1199,7 @@ select.show-detail__status--select {
 .section-list-item__time {
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--primary-on-soft);
   background: var(--primary-soft);
   padding: 4px 10px;
   border-radius: var(--radius-xs);
@@ -1209,7 +1232,7 @@ select.show-detail__status--select {
 }
 
 .section-list-item__tag--link {
-  color: var(--primary);
+  color: var(--primary-on-soft);
   text-decoration: none;
   border: 1px solid var(--primary-soft-border);
   background: var(--primary-soft);
@@ -1234,7 +1257,7 @@ select.show-detail__status--select {
 
 .section-list-item__cost {
   font-weight: 700;
-  color: var(--primary);
+  color: var(--primary-on-soft);
   background: var(--primary-soft);
 }
 
@@ -2108,3 +2131,59 @@ select.show-detail__status--select {
 .viewer-link-modal__url-row .section-field__input { flex: 1; font-family: ui-monospace, monospace; font-size: 0.78rem; }
 .viewer-link-modal__hint { margin: 4px 0 0; font-size: 0.8rem; color: var(--text-muted); }
 .viewer-link-modal__actions { display: flex; gap: 8px; margin-top: 14px; }
+
+/* ── Show name editing ────────────────────────────────────────────────
+   Was a row of inline styles on the elements themselves, including a
+   hand-rolled clip-rect to hide the h1. */
+.show-detail__name-edit {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.show-detail__name-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Quiet until you go looking for it: the show's name is the loudest thing on
+   the page, and a filled button beside it competed with it. */
+.show-detail__name-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out);
+}
+
+.show-detail__name-edit-btn:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.show-detail__name-edit-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .show-detail__name-edit-btn {
+    min-height: var(--tap-min);
+    padding-inline: 12px;
+  }
+}
