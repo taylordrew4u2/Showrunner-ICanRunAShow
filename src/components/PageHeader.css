@@ -41,6 +41,12 @@
   outline-offset: 2px;
 }
 
+@media (pointer: coarse) {
+  .page-header__back {
+    min-height: var(--tap-min);
+  }
+}
+
 .page-header__row {
   display: flex;
   align-items: center;

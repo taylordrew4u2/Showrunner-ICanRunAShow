@@ -61,6 +61,31 @@
   outline-offset: 2px;
 }
 
+@media (pointer: coarse) {
+  .show-detail__back-btn,
+  .show-detail__run-show,
+  .show-detail__status--select {
+    min-height: var(--tap-min);
+  }
+}
+
+/* Back + "Run Show" + the overflow menu need ~317px of row, which doesn't fit
+   a 320px phone. Rather than wrap (which would drag the overflow menu to the
+   left edge and swing its dropdown off-screen), the back control drops to its
+   chevron — the bottom nav still names the destination, and the button keeps
+   its accessible label. */
+@media (max-width: 420px) {
+  .show-detail__back-btn span {
+    display: none;
+  }
+
+  .show-detail__back-btn {
+    min-width: var(--tap-min);
+    justify-content: center;
+    padding-inline: 8px;
+  }
+}
+
 /* Prominent "Run Show" action — always visible when a show is open */
 .show-detail__run-show {
   display: inline-flex;
