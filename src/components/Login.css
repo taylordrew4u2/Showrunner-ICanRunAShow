@@ -57,7 +57,7 @@
 }
 
 .landing__headline-accent {
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .landing__lede {
@@ -186,7 +186,7 @@
 .login__error {
   background: var(--primary-soft);
   border: 1px solid var(--primary-soft-border);
-  color: var(--primary);
+  color: var(--primary-text);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   font-size: 0.875rem;
@@ -241,7 +241,7 @@
 .login__trust svg {
   flex-shrink: 0;
   margin-top: 2px;
-  color: var(--success);
+  color: var(--success-text);
 }
 
 .login__legal {
@@ -349,5 +349,5 @@
 }
 
 .landing__faq a {
-  color: var(--primary);
+  color: var(--primary-text);
 }

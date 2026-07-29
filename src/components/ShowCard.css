@@ -13,10 +13,14 @@
 }
 
 /* Status accent colors */
-.show-card--upcoming   { --card-accent: var(--primary); }
-.show-card--in-progress { --card-accent: var(--success); }
-.show-card--completed  { --card-accent: var(--border-strong); }
-.show-card--cancelled  { --card-accent: var(--border); }
+/* Two accents per status, not one: --card-accent is a rule, a dot, a progress
+   fill — shapes, where a light colour is fine. --card-accent-text is the same
+   idea as type, where it has to clear 4.5:1. Sharing one value meant the date
+   badge rendered brand red on a dark card at 3.3:1. */
+.show-card--upcoming    { --card-accent: var(--primary);      --card-accent-text: var(--primary-text); }
+.show-card--in-progress { --card-accent: var(--success);      --card-accent-text: var(--success-text); }
+.show-card--completed   { --card-accent: var(--border-strong); --card-accent-text: var(--text-muted); }
+.show-card--cancelled   { --card-accent: var(--border);       --card-accent-text: var(--text-muted); }
 
 .show-card:hover,
 .show-card:focus-within {
@@ -65,7 +69,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  color: var(--card-accent, var(--primary));
+  color: var(--card-accent-text, var(--text-muted));
 }
 
 .show-card__date-day {
@@ -157,7 +161,7 @@
 
 .show-card__action-btn--delete:hover {
   background: var(--primary-soft);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .show-card__action-btn:active {
@@ -229,8 +233,8 @@
   flex-shrink: 0;
 }
 
-.show-card--upcoming .show-card__status   { color: var(--primary); }
-.show-card--in-progress .show-card__status { color: var(--success); }
+.show-card--upcoming .show-card__status   { color: var(--primary-text); }
+.show-card--in-progress .show-card__status { color: var(--success-text); }
 
 /* ── Progress ───────────────────────────────────────────────── */
 
@@ -290,4 +294,45 @@
   .show-card__title {
     font-size: 0.95rem;
   }
+}
+
+/* ── Opening the card ─────────────────────────────────────────────────
+   The title is the real control. Its hit area is stretched over the whole
+   card so clicking anywhere still opens the show — the behaviour the old
+   role="button" wrapper gave, without nesting controls inside a control. */
+.show-card__open {
+  appearance: none;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.show-card__open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+/* The ring belongs on the card, since the card is what the button covers.
+   Keyed to the title specifically — :focus-within would also fire for
+   Duplicate and Delete, which have rings of their own. */
+.show-card__open:focus-visible {
+  outline: none;
+}
+
+.show-card:has(.show-card__open:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Above the stretched hit area, or they'd be unclickable. */
+.show-card__actions {
+  position: relative;
+  z-index: 1;
 }

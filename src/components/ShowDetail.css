@@ -148,7 +148,7 @@
 }
 
 .show-detail__save-indicator--saved {
-  color: var(--success);
+  color: var(--success-text);
   background: var(--surface-strong);
   border: 1.5px solid var(--success);
   animation: toastSlideIn 0.2s ease forwards, toastFadeOut 0.4s 2.1s ease forwards;
@@ -234,7 +234,7 @@ select.show-detail__status--select {
 
 .show-detail__status--upcoming {
   background: var(--primary-soft);
-  color: var(--primary);
+  color: var(--primary-text);
   border-color: var(--primary-soft-border);
 }
 
@@ -575,7 +575,7 @@ select.show-detail__status--select {
 .accordion-section__complete-badge {
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--success);
+  color: var(--success-text);
   background: var(--success-soft);
   border: 1px solid var(--success);
   border-radius: var(--radius-xs);
@@ -729,7 +729,7 @@ select.show-detail__status--select {
 .section-card__count {
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--primary-text);
   background: var(--primary-soft);
   border: 1px solid var(--primary-soft-border);
   border-radius: var(--radius-xs);
@@ -742,7 +742,7 @@ select.show-detail__status--select {
   display: none;
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--primary-text);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   opacity: 0.8;
@@ -902,7 +902,7 @@ select.show-detail__status--select {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--primary);
+  color: var(--primary-text);
   background: var(--primary-soft);
   border: 1px solid var(--primary-soft-border);
   border-radius: var(--radius-xs);
@@ -1221,7 +1221,7 @@ select.show-detail__status--select {
 .section-list-item__time {
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--primary-on-soft);
+  color: var(--primary-text);
   background: var(--primary-soft);
   padding: 4px 10px;
   border-radius: var(--radius-xs);
@@ -1254,7 +1254,7 @@ select.show-detail__status--select {
 }
 
 .section-list-item__tag--link {
-  color: var(--primary-on-soft);
+  color: var(--primary-text);
   text-decoration: none;
   border: 1px solid var(--primary-soft-border);
   background: var(--primary-soft);
@@ -1279,7 +1279,7 @@ select.show-detail__status--select {
 
 .section-list-item__cost {
   font-weight: 700;
-  color: var(--primary-on-soft);
+  color: var(--primary-text);
   background: var(--primary-soft);
 }
 
@@ -1330,7 +1330,7 @@ select.show-detail__status--select {
 .section-list-item__delete:hover {
   background: var(--danger-soft);
   border-color: var(--danger-soft-border);
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .section-edit-row {
@@ -1376,7 +1376,7 @@ select.show-detail__status--select {
 
 .vendor-card__booked {
   background: var(--success-soft);
-  color: var(--success);
+  color: var(--success-text);
   border-color: var(--success);
 }
 
@@ -1389,7 +1389,7 @@ select.show-detail__status--select {
 .vendor-card__link {
   display: inline-block;
   font-size: 0.85rem;
-  color: var(--primary);
+  color: var(--primary-text);
   text-decoration: none;
   margin-top: 4px;
   overflow-wrap: break-word;
@@ -1607,7 +1607,7 @@ select.show-detail__status--select {
 .schedule-image-fallback__badge {
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--success);
+  color: var(--success-text);
   background: var(--success-soft);
   border: 1px solid var(--success);
   border-radius: var(--radius-xs);
@@ -1639,7 +1639,7 @@ select.show-detail__status--select {
   border-radius: var(--radius-md);
   background: var(--primary-soft);
   border: 1px solid var(--primary);
-  color: var(--primary);
+  color: var(--primary-text);
   font-weight: 800;
   font-size: 1.1rem;
 }
@@ -1899,7 +1899,7 @@ select.show-detail__status--select {
 }
 
 .recap-todo__delete:hover {
-  color: var(--primary);
+  color: var(--primary-text);
   background: var(--primary-soft);
 }
 
@@ -1922,7 +1922,7 @@ select.show-detail__status--select {
 .budget-card__title {
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--success);
+  color: var(--success-text);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 12px;
@@ -1948,10 +1948,10 @@ select.show-detail__status--select {
   font-size: 1.1rem;
   font-weight: 800;
 }
-.budget-card__value--primary  { color: var(--primary); }
-.budget-card__value--spent    { color: var(--primary); }
-.budget-card__value--positive { color: var(--success); }
-.budget-card__value--negative { color: var(--danger); }
+.budget-card__value--primary  { color: var(--primary-text); }
+.budget-card__value--spent    { color: var(--primary-text); }
+.budget-card__value--positive { color: var(--success-text); }
+.budget-card__value--negative { color: var(--danger-text); }
 
 /* ─── Receipt Photo (Expenses) ────────────────────────────────────────────── */
 .receipt-thumb {

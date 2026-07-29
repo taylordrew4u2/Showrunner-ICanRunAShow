@@ -381,7 +381,7 @@
 .settings__assurance svg {
     flex-shrink: 0;
     margin-top: 2px;
-    color: var(--success);
+    color: var(--success-text);
 }
 
 .settings__assurance strong {
