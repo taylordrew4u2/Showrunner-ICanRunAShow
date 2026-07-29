@@ -1,5 +1,7 @@
 import type { Show } from '../types';
 import { parseShowDate, formatShowTime } from '../utils/showDate';
+import { formatRuntime } from '../utils/sectionSummary';
+import { baseDurations } from '../utils/showTiming';
 import './ShowCard.css';
 
 interface ShowCardProps {
@@ -19,6 +21,19 @@ const STATUS_LABELS: Record<Show['status'], string> = {
 export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProps) {
   const sceneCount = show.scenes?.length ?? 0;
   const doneCount = show.scenes?.filter((s) => s.status === 'done').length ?? 0;
+
+  // What you actually want to know at a glance about a show you haven't opened:
+  // how big the bill is, how long the night runs, who's hosting. The card knew
+  // all of it and showed none of it.
+  const lineupCount = show.performers.length + show.artists.length;
+  const runtime = show.schedule.length
+    ? formatRuntime(baseDurations(show.schedule).reduce((sum, sec) => sum + sec, 0))
+    : null;
+  const facts = [
+    lineupCount > 0 ? `${lineupCount} on the bill` : null,
+    runtime,
+    show.host?.trim() ? `Host ${show.host.trim()}` : null,
+  ].filter((f): f is string => !!f);
 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
@@ -83,13 +98,12 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
               {show.name}
             </button>
           </h2>
-          {(show.venueName || timeStr) && (
-            <div className="show-card__meta">
-              {timeStr && <span className="show-card__meta-time">{timeStr}</span>}
-              {timeStr && show.venueName && <span className="show-card__meta-sep">·</span>}
-              {show.venueName && <span>{show.venueName}</span>}
-            </div>
-          )}
+          <div className="show-card__meta">
+            {timeStr && <span className="show-card__meta-time">{timeStr}</span>}
+            {timeStr && show.venueName && <span className="show-card__meta-sep">·</span>}
+            {show.venueName && <span className="show-card__meta-venue">{show.venueName}</span>}
+            <span className="show-card__status">{STATUS_LABELS[show.status]}</span>
+          </div>
         </div>
 
         <div className="show-card__actions">
@@ -112,22 +126,31 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
         </div>
       </div>
 
-      <div className="show-card__footer">
-        <span className="show-card__status">
-          {STATUS_LABELS[show.status]}
-        </span>
-        {sceneCount > 0 && (
-          <div className="show-card__progress-wrap">
-            <div className="show-card__progress">
-              <div
-                className="show-card__progress-bar"
-                style={{ width: `${(doneCount / sceneCount) * 100}%` }}
-              />
+      {(facts.length > 0 || sceneCount > 0) && (
+        <div className="show-card__footer">
+          {facts.length > 0 && (
+            <span className="show-card__facts">
+              {facts.map((fact, i) => (
+                <span key={fact}>
+                  {i > 0 && <span className="show-card__meta-sep" aria-hidden="true"> · </span>}
+                  {fact}
+                </span>
+              ))}
+            </span>
+          )}
+          {sceneCount > 0 && (
+            <div className="show-card__progress-wrap">
+              <div className="show-card__progress">
+                <div
+                  className="show-card__progress-bar"
+                  style={{ width: `${(doneCount / sceneCount) * 100}%` }}
+                />
+              </div>
+              <span className="show-card__progress-label">{doneCount}/{sceneCount}</span>
             </div>
-            <span className="show-card__progress-label">{doneCount}/{sceneCount}</span>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </article>
   );
 }
