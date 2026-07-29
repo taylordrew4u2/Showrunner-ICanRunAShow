@@ -409,7 +409,7 @@ select.show-detail__status--select {
 
 @media (max-width: 768px) {
   .show-detail__sections-accordion {
-    gap: 8px;
+    gap: 6px;
     margin: 8px 0;
   }
 }
@@ -457,7 +457,7 @@ select.show-detail__status--select {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 18px 20px;
+  padding: 14px 18px;
   background: none;
   border: 0;
   font: inherit;
@@ -479,9 +479,8 @@ select.show-detail__status--select {
 
 @media (max-width: 768px) {
   .accordion-section__header {
-    padding: 16px 18px 14px;
-    gap: 12px;
-    flex-wrap: wrap;
+    padding: 13px 15px;
+    gap: 10px;
   }
 }
 
@@ -494,6 +493,9 @@ select.show-detail__status--select {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  /* Lets the preview line below actually truncate instead of stretching the
+     header until the chevron is pushed off the card. */
+  min-width: 0;
 }
 
 .accordion-section__title-row {
@@ -516,6 +518,26 @@ select.show-detail__status--select {
   .accordion-section__title {
     font-size: 1rem;
     letter-spacing: -0.01em;
+  }
+}
+
+/* What's actually inside, so a collapsed section still tells you something:
+     "Alice Nguyen, Bea Ortiz, Cal Rivers" rather than just "3". Always one
+     line — the section itself is where the full list lives. */
+.accordion-section__preview {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .accordion-section__preview {
+    font-size: 0.8rem;
   }
 }
 
@@ -2185,5 +2207,47 @@ select.show-detail__status--select {
   .show-detail__name-edit-btn {
     min-height: var(--tap-min);
     padding-inline: 12px;
+  }
+}
+
+
+/* ── Density ──────────────────────────────────────────────────────────
+   The show page is a reference you scan mid-planning, so what matters is how
+   much of the show you can take in at once. These pack more in without adding
+   anything new to look at. */
+
+/* Short paired fields sit two-up rather than each taking a full row. Five
+   stacked inputs turned "date, time, venue" into a full screen of scrolling. */
+@media (min-width: 560px) {
+  .section-body--grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+    align-items: start;
+  }
+
+  .section-body--grid .section-field--full {
+    grid-column: 1 / -1;
+  }
+}
+
+/* On a wide screen the sections ran down a 760px column with the rest of the
+   window empty. Collapsed cards now pack two-up — but an open one spans the
+   full width, so its content is never squeezed into half a column. */
+@media (min-width: 1100px) {
+  .show-detail {
+    max-width: 1040px;
+  }
+
+  .show-detail__sections-accordion {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 10px;
+  }
+
+  .show-detail__sections-accordion:has(.accordion-section__header[aria-expanded='true'])
+    .accordion-section:has(.accordion-section__header[aria-expanded='true']) {
+    grid-column: 1 / -1;
   }
 }

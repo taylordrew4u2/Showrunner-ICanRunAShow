@@ -7,7 +7,7 @@ interface BasicInfoSectionProps {
 
 export function BasicInfoSection({ show, onChange }: BasicInfoSectionProps) {
   return (
-    <div className="section-body">
+    <div className="section-body section-body--grid">
       {/* Shows get moved. The date was previously only settable when the show
           was created, leaving no way to reschedule one. */}
       <label className="section-field">
@@ -46,7 +46,7 @@ export function BasicInfoSection({ show, onChange }: BasicInfoSectionProps) {
           placeholder="Venue name"
         />
       </label>
-      <label className="section-field">
+      <label className="section-field section-field--full">
         <span className="section-field__label">Ticket Link</span>
         <input
           className="section-field__input"

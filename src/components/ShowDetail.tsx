@@ -17,6 +17,7 @@ import { Modal } from './Modal';
 import { ArtistAdmin } from './ArtistAdmin';
 import { exportShowToPDF } from '../utils/pdfExport';
 import { parseShowDate, formatShowTime } from '../utils/showDate';
+import { joinNames, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
 import './ShowDetail.css';
@@ -306,6 +307,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       subtitle: 'Names, walk-on music, and social media.',
       accent: 'red',
       count: show.performers.length,
+      preview: joinNames(show.performers.map((p) => p.name)),
       content: <PerformersSection
         performers={show.performers}
         potentialComics={settings.potentialComics}
@@ -321,6 +323,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       subtitle: 'Artist entries with name, type, and music.',
       accent: 'purple',
       count: show.artists.length,
+      preview: joinNames(show.artists.map((a) => a.name)),
       content: <ArtistsSection artists={show.artists} onChange={(artists) => handleUpdate({ artists })} />,
     },
     {
@@ -330,6 +333,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       subtitle: 'Timeline of events with times and descriptions.',
       accent: 'blue',
       count: show.schedule.length,
+      preview: scheduleSummary(show.schedule),
       content: <ScheduleSection
         schedule={show.schedule}
         showName={show.name}
@@ -344,6 +348,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       subtitle: 'Songs and notes for the DJ.',
       accent: 'green',
       count: show.djSongs.length,
+      preview: joinNames(show.djSongs.map((song) => song.title)),
       content: <DJMusicSection songs={show.djSongs} show={show} onChange={(djSongs) => handleUpdate({ djSongs })} />,
     },
     {
@@ -353,6 +358,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       subtitle: 'Roles and assignments for production staff.',
       accent: 'amber',
       count: show.staff.length,
+      preview: staffSummary(show.staff),
       content: <StaffSection staff={show.staff} onChange={(staff) => handleUpdate({ staff })} />,
     },
     {
@@ -362,6 +368,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       subtitle: 'Build a profile for each vendor — contact, cost, and notes.',
       accent: 'green',
       count: (show.vendors || []).length,
+      preview: vendorsSummary(show.vendors || []),
       content: <VendorsSection vendors={show.vendors || []} onChange={(vendors) => handleUpdate({ vendors })} />,
     },
   ];
@@ -582,13 +589,18 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                         </span>
                       )}
                     </span>
-                    {/* The description is for a section you haven't filled in
-                        yet. Once there's something in it, repeating "Names,
-                        walk-on music, and social media" on every card is noise
-                        you have to read past. */}
-                    {!filled && (
-                      <span className="accordion-section__subtitle">{section.subtitle}</span>
-                    )}
+                    {/* One line under the title, doing the most useful job it
+                        can: what's actually in there once the section has
+                        content, and what belongs there while it's empty.
+                        Hidden when open, where the content itself answers it. */}
+                    {!isExpanded &&
+                      (filled ? (
+                        section.preview && (
+                          <span className="accordion-section__preview">{section.preview}</span>
+                        )
+                      ) : (
+                        <span className="accordion-section__subtitle">{section.subtitle}</span>
+                      ))}
                   </span>
                   <svg
                     className="accordion-section__chevron"
