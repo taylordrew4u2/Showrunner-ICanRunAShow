@@ -10,15 +10,15 @@
   --text-soft: #6e6e6e;
   --border: #e0e0e0;
   --border-strong: #c8c8c8;
-  --primary: #dc2626;
-  --primary-pressed: #b91c1c;
-  --primary-bright: #ef4444;
-  --primary-soft: #fef2f2;
-  --primary-soft-border: #fecaca;
+  --primary: #e5194b;
+  --primary-pressed: #b30f36;
+  --primary-bright: #f2416d;
+  --primary-soft: #fff1f4;
+  --primary-soft-border: #ffccd8;
   /* --primary is tuned to be *seen* — as a button fill, a border, a dot. As
      text it lands at 4.4:1, just under AA, and worse on a soft-red fill. These
      are the shades to use whenever the brand colours become type. */
-  --primary-text: #b91c1c;
+  --primary-text: #c2113c;
   --success-text: #15803d;
   --danger-text: #c2410c;
   --on-primary: #ffffff;
@@ -105,24 +105,33 @@
    A minimal pair: Light is the base :root palette (no attribute); Dark is the
    single override, selected via data-theme="dark" on <html>. */
 
+/* Dark is the app's own look and the default: a near-black canvas with panels
+   lifted just enough to read as surfaces, and one crimson accent. The greys are
+   neutral rather than warm so the crimson is the only colour with a voice.
+   --primary is the fill and only the fill: it is the deepest crimson that still
+   reads as the brand red while carrying white text at 4.59:1. The obvious pick
+   (#e8194b) measures 4.495 — visually identical, and a fail. --primary-text is
+   the same crimson opened up for type, since the fill shade as small text on a
+   panel is only 4.1:1. --success-soft is the lightest of the soft fills, so it
+   is what decides whether muted text on a success panel still passes. */
 [data-theme="dark"] {
-  --bg: #111111;
-  --backdrop: #111111;
-  --surface: #1a1a1a;
-  --surface-strong: #222222;
-  --text: #f0f0f0;
+  --bg: #0a0a0b;
+  --backdrop: #0a0a0b;
+  --surface: #141416;
+  --surface-strong: #1c1c1f;
+  --text: #f5f5f6;
   /* Both lift in dark mode: --text-soft was 2.5:1 and --text-muted had to
      move with it to keep the two steps of the hierarchy distinguishable. */
-  --text-muted: #b3b3b3;
-  --text-soft: #8a8a8a;
-  --border: #2a2a2a;
-  --border-strong: #3a3a3a;
-  --primary: #dc2626;
-  --primary-pressed: #b91c1c;
-  --primary-bright: #f87171;
-  --primary-soft: #2a0a0a;
-  --primary-soft-border: #7f1d1d;
-  --primary-text: #f87171;
+  --text-muted: #b3b3b6;
+  --text-soft: #8a8a8e;
+  --border: #232326;
+  --border-strong: #313136;
+  --primary: #e5194b;
+  --primary-pressed: #c2113c;
+  --primary-bright: #ff6b8f;
+  --primary-soft: #2a0912;
+  --primary-soft-border: #7d1030;
+  --primary-text: #f2416d;
   --on-primary: #ffffff;
   --danger: #c2410c;
   --danger-soft: #2a1605;
@@ -132,7 +141,7 @@
   --success-strong: #15803d;
   --success-text: #4ade80;
   --danger-text: #fb923c;
-  --success-soft: #052e16;
+  --success-soft: #03210e;
   --success-soft-border: #14532d;
   --warning: #fbbf24;
   --warning-soft: #291a05;
@@ -140,7 +149,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 34px -8px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.45);
-  --header-bg: #1a1a1a;
+  --header-bg: #141416;
 }
 
 * {
@@ -1576,7 +1585,9 @@
   position: fixed;
   inset: 0;
   z-index: var(--z-runshow);
-  background: #06080c;
+  /* Darker than the app itself — this runs in a dark room — but neutral now,
+     matching the rest of the palette instead of the old blue-black. */
+  background: #08080a;
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -2819,8 +2830,8 @@ body:has([aria-modal='true']) .status-rail {
 
 .artist-signup__live-card {
   position: relative;
-  background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(220, 38, 38, 0.03));
-  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: linear-gradient(135deg, rgba(229, 25, 75, 0.12), rgba(229, 25, 75, 0.03));
+  border: 1px solid rgba(229, 25, 75, 0.35);
   border-radius: var(--radius-md);
   padding: 14px 16px;
   display: flex;
@@ -2831,16 +2842,18 @@ body:has([aria-modal='true']) .status-rail {
   display: inline-flex; align-items: center; gap: 6px;
   align-self: flex-start;
   font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em;
-  color: #dc2626;
+  /* Type, so it takes the type shade — the fill shade sits at 4.1:1 on the
+     tinted card behind it. */
+  color: var(--primary-text);
 }
 .artist-signup__live-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: #dc2626;
+  background: var(--primary);
   animation: livePulse 1.5s ease-in-out infinite;
 }
 @keyframes livePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
-  50%      { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 25, 75, 0.7); }
+  50%      { box-shadow: 0 0 0 6px rgba(229, 25, 75, 0); }
 }
 .artist-signup__live-grid {
   display: grid;

@@ -37,15 +37,23 @@
     color: var(--text);
 }
 
+/* Which show an expense belongs to. The blue was written once for dark and
+   left there: #60a5fa on the pale blue tint is 2.2:1 in the light theme. Each
+   theme needs the shade that reads on its own tint — same split SceneList
+   already makes for its status words. */
 .section-list-item__show-tag {
     display: inline-block;
     background: rgba(59, 130, 246, 0.12);
-    color: #60a5fa;
+    color: #1d4ed8;
     font-size: 0.82rem;
     font-weight: 700;
     padding: 3px 9px;
     border-radius: 5px;
     white-space: nowrap;
+}
+
+[data-theme="dark"] .section-list-item__show-tag {
+    color: #60a5fa;
 }
 
 @media (max-width: 640px) {

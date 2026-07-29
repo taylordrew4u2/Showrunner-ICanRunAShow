@@ -88,7 +88,7 @@
 
 .perf-profile__input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+  box-shadow: 0 0 0 3px rgba(229, 25, 75, 0.14);
 }
 
 .perf-profile__input:disabled {
