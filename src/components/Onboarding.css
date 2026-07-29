@@ -6,10 +6,15 @@
   padding: calc(env(safe-area-inset-top) + 22px) 16px calc(env(safe-area-inset-bottom) + 22px);
   position: relative;
   overflow: hidden;
+  /* The first screen anyone sees, so it carries the palette rather than its own
+     colours. The glow is the brand crimson; the base is a plain lift from --bg
+     to --surface, which reads as depth in dark and stays light in light. It
+     used to hardcode the old red and end on a blue-black (#0d1017) — which in
+     the light theme faded a white page into near-black at the bottom. */
   background:
-    radial-gradient(120% 100% at 100% -10%, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0) 58%),
-    radial-gradient(110% 120% at -10% 110%, rgba(16, 24, 40, 0.25) 0%, rgba(16, 24, 40, 0) 55%),
-    linear-gradient(180deg, var(--bg) 0%, #0d1017 100%);
+    radial-gradient(120% 100% at 100% -10%, rgba(229, 25, 75, 0.16) 0%, rgba(229, 25, 75, 0) 58%),
+    radial-gradient(110% 120% at -10% 110%, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0) 55%),
+    linear-gradient(180deg, var(--bg) 0%, var(--surface) 100%);
 }
 
 .onboarding__container {

@@ -939,6 +939,24 @@ select.show-detail__status--select {
   }
 }
 
+/* The "Open ticket page" link had no rule of its own, so it rendered in the
+   browser's default #0000ee — 1.95:1 on a dark panel, which is close to
+   invisible. Links get the brand's type shade like every other coloured word
+   in the app. */
+.section-field__link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.section-field__link:hover {
+  color: var(--primary-bright);
+}
+
 .section-field__input,
 .section-field__select {
   width: 100%;

@@ -75,6 +75,9 @@ export function SceneList({ scenes, onChange }: SceneListProps) {
               className={`scene-item__status scene-item__status--${scene.status}`}
               value={scene.status}
               onChange={(e) => updateStatus(scene.id, e.target.value as SceneStatus)}
+              // Every scene has one of these, so an unnamed select is announced
+              // as "combo box" N times over with nothing to tell them apart.
+              aria-label={`Status for ${scene.title || `scene ${idx + 1}`}`}
             >
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
