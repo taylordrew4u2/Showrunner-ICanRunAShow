@@ -55,20 +55,10 @@ form compete for the same attention, and there is no way to look before you comm
 
 ## 3. Ease-of-use findings
 
-### P0 — Auto-ads run inside the working app
-`index.html:87-97` loads Google AdSense with `enable_page_level_ads: true` (Auto ads)
-in the SPA shell. Because the whole app boots from that one HTML file and there is **no
-runtime gate** disabling ads once the user is authenticated (no ad-suppression logic
-exists in `src/`), Google can inject ads *over the live run-of-show, the lineup editor,
-and Run Show*. That is:
-- **A usability problem** — ads on a tool you're operating during a live show are hostile, and Auto ads reflow the layout unpredictably.
-- **An AdSense policy risk** — Auto ads on low-content, behind-login application screens are exactly what Google's policies discourage; it can threaten the whole account.
-
-**Fix:** gate ads to public marketing routes only. Either (a) keep the AdSense loader
-out of `index.html` and inject it only on the static `/guides`, `/privacy`, `/terms`
-pages (those already carry their own copy of the script), or (b) in `App.tsx`, when a
-session is active, call `window.adsbygoogle` opt-out / remove the units and set an
-`data-ads="off"` guard. Option (a) is cleaner.
+### P0 — Auto-ads run inside the working app — RESOLVED
+AdSense has since been removed from the project entirely: no loader in the app shell,
+no tags on the static guides, no `ads.txt`. Ads can no longer render over the lineup
+editor or Run Show because there are no ads.
 
 ### P1 — Empty state is a dead end
 `App.tsx:813-819` — a new producer who finishes onboarding lands on:
@@ -132,11 +122,9 @@ The guides (`public/guides/*.html`) are genuinely good SEO content and each link
 - Add **internal cross-links** between guides (they currently only link home) — keeps readers on-site, helps SEO topical clustering.
 - Add the `Article`/`HowTo` structured data to each guide (the app page has `SoftwareApplication` JSON-LD; the guides have none) — eligible for rich results.
 
-### P1 — Ads on the guides may undercut the conversion goal
-`public/guides/index.html:22-29` and the individual guides run Auto ads. On a content
-page whose *job is to funnel to the app*, Auto ads compete with your own CTA for the
-click and cheapen the brand. If ad revenue is a real goal keep them but constrain
-placement; if the goal is growth, the guides convert better ad-free.
+### P1 — Ads on the guides may undercut the conversion goal — RESOLVED
+The guides no longer carry ad tags, so their CTA is the only thing competing for the
+click.
 
 ### P2 — Meta/OG is strong; two gaps
 `index.html` SEO is well done (canonical, OG, Twitter, JSON-LD, `llms.txt`). Gaps:
@@ -144,9 +132,9 @@ placement; if the goal is growth, the guides convert better ad-free.
 - No `og:image` variant featuring the live timer; the current `og-image.png` is generic. A share card showing the countdown UI would lift social CTR.
 
 ### P2 — "Free" is stated but the model isn't
-Landing FAQ says "It's free to use" (`Login.tsx:184-185`). With Auto ads now running,
-the honest framing is "free, ad-supported." Stating the model builds trust and preempts
-the "what's the catch" hesitation.
+Landing FAQ says "It's free to use" (`Login.tsx:184-185`). With ads removed, that is
+now literally true and worth saying plainly — "free, no ads, no tracking" preempts the
+"what's the catch" hesitation better than "free" alone.
 
 ### P2 — Social proof is entirely absent
 No testimonials, no "used to run N shows," no venue logos. Even one real quote from a
@@ -159,13 +147,11 @@ alongside real live shows") would materially lift the landing.
 
 | Change | File(s) | Effort | Payoff |
 |--------|---------|--------|--------|
-| Move AdSense out of the app shell; keep it only on `/guides`, `/privacy`, `/terms` | `index.html`, static pages | S | Fixes P0 UX + policy risk |
 | Embed the existing Run-Show GIF + one screenshot on the landing | `Login.tsx`, `docs/screenshots/*` | S | Biggest marketing lift |
 | Make the empty state a guided first action (pre-filled show + link to checklist guide) | `App.tsx:813` | S | First-run activation |
 | Show the "no password recovery" warning at signup + raise min length to 8 | `Login.tsx` | S | Trust + data-loss prevention |
 | Public read-only **demo show** link on the landing (reuses `?view=` route) | `Login.tsx`, `App.tsx:697` | M | Look-before-signup conversion |
 | Add `HowTo`/`Article` JSON-LD + cross-links to guides | `public/guides/*.html` | S | SEO rich results |
-| State "free, ad-supported" in the FAQ | `Login.tsx:184` | XS | Trust |
 
 ---
 
