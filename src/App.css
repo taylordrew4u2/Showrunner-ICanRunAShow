@@ -10,15 +10,15 @@
   --text-soft: #6e6e6e;
   --border: #e0e0e0;
   --border-strong: #c8c8c8;
-  --primary: #dc2626;
-  --primary-pressed: #b91c1c;
-  --primary-bright: #ef4444;
-  --primary-soft: #fef2f2;
-  --primary-soft-border: #fecaca;
+  --primary: #e5194b;
+  --primary-pressed: #b30f36;
+  --primary-bright: #f2416d;
+  --primary-soft: #fff1f4;
+  --primary-soft-border: #ffccd8;
   /* --primary is tuned to be *seen* — as a button fill, a border, a dot. As
      text it lands at 4.4:1, just under AA, and worse on a soft-red fill. These
      are the shades to use whenever the brand colours become type. */
-  --primary-text: #b91c1c;
+  --primary-text: #c2113c;
   --success-text: #15803d;
   --danger-text: #c2410c;
   --on-primary: #ffffff;
@@ -105,24 +105,33 @@
    A minimal pair: Light is the base :root palette (no attribute); Dark is the
    single override, selected via data-theme="dark" on <html>. */
 
+/* Dark is the app's own look and the default: a near-black canvas with panels
+   lifted just enough to read as surfaces, and one crimson accent. The greys are
+   neutral rather than warm so the crimson is the only colour with a voice.
+   --primary is the fill and only the fill: it is the deepest crimson that still
+   reads as the brand red while carrying white text at 4.59:1. The obvious pick
+   (#e8194b) measures 4.495 — visually identical, and a fail. --primary-text is
+   the same crimson opened up for type, since the fill shade as small text on a
+   panel is only 4.1:1. --success-soft is the lightest of the soft fills, so it
+   is what decides whether muted text on a success panel still passes. */
 [data-theme="dark"] {
-  --bg: #111111;
-  --backdrop: #111111;
-  --surface: #1a1a1a;
-  --surface-strong: #222222;
-  --text: #f0f0f0;
+  --bg: #0a0a0b;
+  --backdrop: #0a0a0b;
+  --surface: #141416;
+  --surface-strong: #1c1c1f;
+  --text: #f5f5f6;
   /* Both lift in dark mode: --text-soft was 2.5:1 and --text-muted had to
      move with it to keep the two steps of the hierarchy distinguishable. */
-  --text-muted: #b3b3b3;
-  --text-soft: #8a8a8a;
-  --border: #2a2a2a;
-  --border-strong: #3a3a3a;
-  --primary: #dc2626;
-  --primary-pressed: #b91c1c;
-  --primary-bright: #f87171;
-  --primary-soft: #2a0a0a;
-  --primary-soft-border: #7f1d1d;
-  --primary-text: #f87171;
+  --text-muted: #b3b3b6;
+  --text-soft: #8a8a8e;
+  --border: #232326;
+  --border-strong: #313136;
+  --primary: #e5194b;
+  --primary-pressed: #c2113c;
+  --primary-bright: #ff6b8f;
+  --primary-soft: #2a0912;
+  --primary-soft-border: #7d1030;
+  --primary-text: #f2416d;
   --on-primary: #ffffff;
   --danger: #c2410c;
   --danger-soft: #2a1605;
@@ -132,7 +141,7 @@
   --success-strong: #15803d;
   --success-text: #4ade80;
   --danger-text: #fb923c;
-  --success-soft: #052e16;
+  --success-soft: #03210e;
   --success-soft-border: #14532d;
   --warning: #fbbf24;
   --warning-soft: #291a05;
@@ -140,7 +149,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 34px -8px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.45);
-  --header-bg: #1a1a1a;
+  --header-bg: #141416;
 }
 
 * {
@@ -1567,10 +1576,18 @@
   --rs-blue: #3b82f6;
   --rs-green: #22c55e;
   --rs-red: #ef4444;
+  /* The same accents, tuned for when they are type rather than a fill. Blue
+     and red both dropped to ~4.1:1 as text on the blue-tinted cue panels —
+     and red is what you read when a segment is running over. Green already
+     clears AA everywhere here, so it has no separate value. */
+  --rs-blue-text: #60a5fa;
+  --rs-red-text: #f87171;
   position: fixed;
   inset: 0;
   z-index: var(--z-runshow);
-  background: #06080c;
+  /* Darker than the app itself — this runs in a dark room — but neutral now,
+     matching the rest of the palette instead of the old blue-black. */
+  background: #08080a;
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -1702,8 +1719,8 @@
   line-height: 1;
   font-size: clamp(3rem, min(12vw, 16vh), 6rem);
 }
-.rs-timer--over { color: var(--rs-red); }
-.rs-timer--warning { color: var(--rs-red); animation: rs-timer-flash 1s ease-in-out infinite; }
+.rs-timer--over { color: var(--rs-red-text); }
+.rs-timer--warning { color: var(--rs-red-text); animation: rs-timer-flash 1s ease-in-out infinite; }
 @keyframes rs-timer-flash {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.25; }
@@ -1743,15 +1760,20 @@
   text-align: center;
   padding: 0 20px;
 }
+/* Every label on this screen sits at 0.55 white, not 0.4. At 0.4 they measured
+   3.8:1 against the stage background — below AA — and this is the one screen
+   read in a dark room, mid-show, at a glance from a few feet away. 0.55 clears
+   4.5:1 on both the stage and the panel while staying well under the
+   countdown, which is what should dominate. */
 .rs-countdown__hint {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.55);
 }
 .rs-showtime {
   font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.55);
   margin-top: 8px;
 }
 .rs-segment {
@@ -1794,7 +1816,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.55);
   margin-bottom: 2px;
 }
 .rs-cell__value {
@@ -1802,7 +1824,7 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.rs-cell__value--over { color: var(--rs-red); }
+.rs-cell__value--over { color: var(--rs-red-text); }
 .rs-cell__sub {
   margin-top: 4px;
   font-size: 0.85rem;
@@ -1816,8 +1838,8 @@
   color: rgba(255, 255, 255, 0.55);
   line-height: 1.3;
 }
-.rs-status--on-time { color: var(--rs-blue); }
-.rs-status--behind { color: var(--rs-red); }
+.rs-status--on-time { color: var(--rs-blue-text); }
+.rs-status--behind { color: var(--rs-red-text); }
 .rs-status--ahead { color: var(--rs-green); }
 
 .rs-controls {
@@ -1831,7 +1853,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.55);
 }
 .rs-controls__row { display: flex; flex-wrap: wrap; gap: 6px; }
 .rs-btn {
@@ -1864,7 +1886,7 @@
 .rs-btn--active {
   background: rgba(91, 140, 255, 0.18);
   border-color: var(--rs-blue);
-  color: var(--rs-blue);
+  color: var(--rs-blue-text);
 }
 .rs-audio-now {
   font-size: 0.78rem;
@@ -1901,7 +1923,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.55);
 }
 .rs-onstage__name {
   font-size: 1.1rem;
@@ -1916,7 +1938,7 @@
 }
 .rs-onstage__social {
   font-size: 0.85rem;
-  color: var(--rs-blue);
+  color: var(--rs-blue-text);
   margin-top: 2px;
 }
 
@@ -1926,7 +1948,7 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.55);
   margin-bottom: 12px;
 }
 .rs-cues__list {
@@ -1992,7 +2014,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--rs-blue);
+  color: var(--rs-blue-text);
 }
 
 @media (max-width: 640px) {
@@ -2808,8 +2830,8 @@ body:has([aria-modal='true']) .status-rail {
 
 .artist-signup__live-card {
   position: relative;
-  background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(220, 38, 38, 0.03));
-  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: linear-gradient(135deg, rgba(229, 25, 75, 0.12), rgba(229, 25, 75, 0.03));
+  border: 1px solid rgba(229, 25, 75, 0.35);
   border-radius: var(--radius-md);
   padding: 14px 16px;
   display: flex;
@@ -2820,16 +2842,18 @@ body:has([aria-modal='true']) .status-rail {
   display: inline-flex; align-items: center; gap: 6px;
   align-self: flex-start;
   font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em;
-  color: #dc2626;
+  /* Type, so it takes the type shade — the fill shade sits at 4.1:1 on the
+     tinted card behind it. */
+  color: var(--primary-text);
 }
 .artist-signup__live-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: #dc2626;
+  background: var(--primary);
   animation: livePulse 1.5s ease-in-out infinite;
 }
 @keyframes livePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
-  50%      { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 25, 75, 0.7); }
+  50%      { box-shadow: 0 0 0 6px rgba(229, 25, 75, 0); }
 }
 .artist-signup__live-grid {
   display: grid;
