@@ -201,26 +201,56 @@
   flex-shrink: 0;
 }
 
+.show-card__meta-venue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Reads inline as one more fact about the night. No separator before it: the
+   row wraps on a phone, and a "·" would be left dangling at the end of a line.
+   The status is uppercase and coloured, so it separates itself. */
+
 /* ── Footer: status + scene count ───────────────────────────── */
 
+/* No rule above it any more — the facts line is part of the card, not a
+   separate compartment. */
 .show-card__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   margin-top: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+  padding-left: 64px; /* aligns under the title, clear of the date block */
+}
+
+@media (max-width: 480px) {
+  .show-card__footer {
+    padding-left: 0;
+  }
+}
+
+/* The things you'd otherwise have to open the show to find out. */
+.show-card__facts {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .show-card__status {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  display: flex;
+  letter-spacing: 0.06em;
+  display: inline-flex;
   align-items: center;
   gap: 5px;
+  flex-shrink: 0;
   color: var(--text-soft);
 }
 
@@ -335,4 +365,17 @@
 .show-card__actions {
   position: relative;
   z-index: 1;
+}
+
+
+/* ── Density ──────────────────────────────────────────────────────────
+   Cards were ~130px tall to show four facts, with the lower half empty, so
+   only about five reached a desktop screen. Tighter, and two across once
+   there's room (the two-column rule lives in App.css beside the base
+   .shows-grid declaration) — the earlier objection to columns was that a wide
+   row-shaped card squeezed its title when narrowed, which is why the title and
+   status now share a line instead of stacking into a taller block. */
+.show-card {
+  padding: 11px 12px 10px 14px;
+  gap: 3px;
 }
