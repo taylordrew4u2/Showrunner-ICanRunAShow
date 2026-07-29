@@ -141,7 +141,7 @@
 }
 
 .shows-cal__day--today .shows-cal__day-num {
-  color: var(--primary);
+  color: var(--primary-text);
   font-weight: 800;
 }
 
@@ -285,8 +285,8 @@
   color: var(--text-soft);
 }
 
-.shows-cal__event--upcoming .shows-cal__event-status    { color: var(--primary); }
-.shows-cal__event--in-progress .shows-cal__event-status { color: var(--success); }
+.shows-cal__event--upcoming .shows-cal__event-status    { color: var(--primary-text); }
+.shows-cal__event--in-progress .shows-cal__event-status { color: var(--success-text); }
 
 /* ── Larger screens: roomier cells, cap grid width ──────────── */
 
