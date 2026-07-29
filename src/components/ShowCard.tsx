@@ -43,14 +43,13 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
   });
 
   return (
-    <div
-      className={`show-card show-card--${show.status}`}
-      role="button"
-      tabIndex={0}
-      aria-label={`Open ${show.name}${fullDateStr ? `, ${fullDateStr}` : ''}`}
-      onClick={e => onSelect(show, e)}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(show, e as unknown as React.MouseEvent); } }}
-    >
+    // The card is a container, not a control. It used to be role="button" with
+    // two real buttons inside it — a control nested in a control, which is
+    // invalid and leaves assistive tech guessing what activating it does. The
+    // title is the control now; it stretches over the card (see the CSS) so
+    // clicking anywhere still opens the show, while Duplicate and Delete stay
+    // separately reachable.
+    <article className={`show-card show-card--${show.status}`}>
       <div className="show-card__top">
         <div
           className={`show-card__date${showDate ? '' : ' show-card__date--tbd'}`}
@@ -74,7 +73,16 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
         </div>
 
         <div className="show-card__main">
-          <h2 className="show-card__title">{show.name}</h2>
+          <h2 className="show-card__title">
+            <button
+              type="button"
+              className="show-card__open"
+              aria-label={`Open ${show.name}${fullDateStr ? `, ${fullDateStr}` : ''}`}
+              onClick={e => onSelect(show, e)}
+            >
+              {show.name}
+            </button>
+          </h2>
           {(show.venueName || timeStr) && (
             <div className="show-card__meta">
               {timeStr && <span className="show-card__meta-time">{timeStr}</span>}
@@ -120,6 +128,6 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
           </div>
         )}
       </div>
-    </div>
+    </article>
   );
 }
