@@ -337,6 +337,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       content: <ScheduleSection
         schedule={show.schedule}
         showName={show.name}
+        showTime={show.time}
         performers={show.performers}
         onChange={(schedule) => handleUpdate({ schedule })}
       />,

@@ -1228,6 +1228,10 @@
   gap: 10px;
   padding: 12px 14px;
   background: var(--surface);
+  /* A <button> does not inherit colour — without this it takes the browser's
+     `buttontext`, which is black, and "Import with AI" rendered at 1.14:1 on
+     the dark surface. Invisible, and only in dark mode. */
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   margin-bottom: 10px;

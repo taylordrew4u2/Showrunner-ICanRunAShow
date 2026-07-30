@@ -4,6 +4,7 @@ import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
 import { Icon } from '../Icon';
+import { ShowTimeline } from '../ShowTimeline';
 
 // Loaded on demand — pulls in the AI/OCR/PDF parsing deps only when the
 // import flow is actually opened, keeping them out of the main bundle.
@@ -14,6 +15,7 @@ const AIImportFlow = lazy(() =>
 interface ScheduleSectionProps {
   schedule: ScheduleItem[];
   showName?: string;
+  showTime?: string;
   performers?: Performer[];
   onChange: (schedule: ScheduleItem[]) => void;
 }
@@ -325,6 +327,7 @@ const CueRow = memo(function CueRow({
 export function ScheduleSection({
   schedule,
   showName,
+  showTime,
   performers = [],
   onChange,
 }: ScheduleSectionProps) {
@@ -435,6 +438,11 @@ export function ScheduleSection({
               </button>
             )}
           </div>
+
+          {/* Above the cue list, because the shape of the night is what you
+              want before you start reading rows — and it's the fastest way to
+              spot a bill that's gone lopsided. */}
+          <ShowTimeline schedule={schedule} showTime={showTime} />
 
           <button className="ai-import-entry" onClick={() => setImportOpen(true)}>
             <span className="ai-import-entry__icon"><Icon name="sparkle" size={14} /></span>
