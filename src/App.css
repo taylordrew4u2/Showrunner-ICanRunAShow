@@ -394,7 +394,11 @@
   margin: 0 auto;
 }
 
-/* Wide enough for two readable cards side by side. */
+/* Wide enough for two readable cards side by side. Three would need the app
+   shell to grow: --desktop-max caps everything at 1400px and the sidebar takes
+   240px of it, so the content column tops out around 1080px however wide the
+   monitor is. The grid asks for as many columns as fit, so raising that cap is
+   all it would take — but that widens every screen, not just this one. */
 @media (min-width: 1000px) {
   .shows-list {
     max-width: 1100px;
@@ -402,22 +406,18 @@
 }
 
 /* ── Shows list ──────────────────────────────────────────────────────────
-   One per row on phones and tablets; two across from 1000px (see
-   ShowCard.css). Three or four across was tried before and squeezed the
-   titles — two keeps each card around 500px, which is wider than a phone. */
+   Columns are decided by how much room a card needs, not by device
+   breakpoints: as many 400px-or-wider cards as fit, and one column when they
+   don't. Three or four across was tried before and squeezed the titles, so
+   400px is the floor — that is wider than a phone, which is the width these
+   cards were designed against. The `min(100%, …)` keeps a narrow screen from
+   demanding 400px it hasn't got and overflowing. */
 
 .shows-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
+  align-items: start;
   gap: 10px;
-}
-
-@media (min-width: 1000px) {
-  .shows-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
 }
 
 /* ── Rolodex Page ──────────────────────────────────────────────────── */

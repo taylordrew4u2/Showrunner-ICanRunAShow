@@ -1,0 +1,183 @@
+/* ── At-a-glance widgets ──────────────────────────────────────────────
+   A responsive tile row above the shows grid. Tiles flow from one column on
+   a phone to four on a wide screen, sized by available width rather than by
+   device breakpoints — the same row sits inside a 700px column on one screen
+   and a 1400px one on another. */
+
+/* Three counters in a row, with "Next up" spanning above them. auto-fit was
+   tried first and left a hole: the row is five slots wide (next counts two)
+   and auto-fit resolved to four columns at the common desktop width, so the
+   last counter wrapped onto an empty line of its own. Three explicit columns
+   divide the counters exactly, at any width. */
+.dash {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+  /* Queried below. The row sits in a content column, not the viewport — on
+     desktop a 240px sidebar is already taken out — so its own width is the
+     honest thing to ask about. */
+  container-type: inline-size;
+}
+
+/* Narrow enough that "shows to sort out" wraps to a second line under an
+   already-wrapped label, turning a one-glance counter into a paragraph. The
+   label and the number say it; the sub-line is the part that can go. It stays
+   on an active tile, because there it carries the way back out. */
+@container (max-width: 520px) {
+  .dash__tile:not(.dash__tile--active) .dash__sub {
+    display: none;
+  }
+
+  .dash__figure {
+    font-size: 1.4rem;
+  }
+}
+
+/* The hero: it carries a name and a venue, so it gets the whole row. */
+.dash__tile--next {
+  grid-column: 1 / -1;
+}
+
+.dash__tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* A tile whose only content is a button lets the button own the padding, so
+   the whole tile is the target rather than a patch inside it. */
+.dash__tile--todo {
+  padding: 0;
+  border-color: var(--primary-soft-border);
+  background: var(--primary-soft);
+  transition:
+    border-color var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.dash__tile--todo:hover {
+  border-color: var(--primary);
+}
+
+.dash__tile--active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.dash__action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash__action:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.dash__label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.dash__figure {
+  margin: 4px 0 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Zero is the good outcome here, so it reads as settled rather than as a
+   number you still have to do something about. */
+.dash__figure--clear {
+  color: var(--success-text);
+}
+
+.dash__tile--todo .dash__figure {
+  color: var(--primary-text);
+}
+
+.dash__sub,
+.dash__quiet {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+/* ── Next up ────────────────────────────────────────────────────────── */
+
+.dash__next-name {
+  display: block;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  word-break: break-word;
+}
+
+.dash__next-name:hover {
+  color: var(--primary-text);
+}
+
+.dash__next-name:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.dash__next-meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* When it is, said in the brand colour — the one thing on this row you look
+   for first. The type shade, not the fill shade. */
+.dash__when {
+  font-weight: 650;
+  color: var(--primary-text);
+}
+
+.dash__sep {
+  color: var(--text-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash__tile--todo {
+    transition: none;
+  }
+}
