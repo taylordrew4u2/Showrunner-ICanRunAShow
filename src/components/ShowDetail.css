@@ -1295,6 +1295,34 @@ select.show-detail__status--select {
   color: var(--text-muted);
 }
 
+/* Confirmation that a new performer was filed in the Rolodex. Quiet — it
+   reports something that went right, so it should be legible and then get out
+   of the way, not compete with the lineup it sits above. */
+.section-filed {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--success-soft-border);
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.section-filed strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.section-filed__mark {
+  flex-shrink: 0;
+  color: var(--success-text);
+  font-weight: 700;
+}
+
 .section-list-item__cost {
   font-weight: 700;
   color: var(--primary-text);
