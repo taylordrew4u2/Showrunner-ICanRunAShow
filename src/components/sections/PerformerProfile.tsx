@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
-import { generateId } from '../../utils/id';
 import { audioUploadSizeError } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
 import { useMediaUrl } from '../../utils/useMediaUrl';
 import { socialLink } from '../../utils/social';
+import { performerToComic } from '../../utils/rolodex';
 import './PerformerProfile.css';
 
 interface PerformerProfileProps {
@@ -218,20 +218,9 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               <button
                 className="btn btn--secondary btn--sm"
                 onClick={() => {
-                  const comic: PotentialComic = {
-                    id: generateId(),
-                    name: performer.name,
-                    socialMedia: performer.socialMedia,
-                    email: performer.email,
-                    credits: performer.credits,
-                    walkOnMusic: performer.walkOnMusic,
-                    walkOnMusicName: performer.walkOnMusicName,
-                    walkOnMusicArtist: performer.walkOnMusicArtist,
-                    walkOnMusicTimestamp: performer.walkOnMusicTimestamp,
-                    walkOnMusicLink: performer.walkOnMusicLink,
-                    notes: undefined,
-                  };
-                  onSaveToRolodex(comic);
+                  // Same conversion the automatic filing uses, so the two can't
+                  // drift into copying different fields across.
+                  onSaveToRolodex(performerToComic(performer));
                   setSavedToRolodex(true);
                   setTimeout(() => setSavedToRolodex(false), 2000);
                 }}

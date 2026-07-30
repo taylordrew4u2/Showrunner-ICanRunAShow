@@ -6,6 +6,7 @@ import { ServerNotConfiguredError } from './utils/api';
 import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
+import { addPerformersToRolodex } from './utils/rolodex';
 import { 
   loadEncryptedShows, 
   saveEncryptedShows,
@@ -948,6 +949,34 @@ export default function App() {
   function handleUpdateShow(updated: Show) {
     setShows((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
     setSelectedShow(updated);
+    fileNewPerformers(updated);
+  }
+
+  /**
+   * Anyone booked onto a show joins the Rolodex, without being filed by hand.
+   *
+   * Every route a performer can arrive by — typed in, picked from the Rolodex,
+   * pulled off an imported schedule — lands in handleUpdateShow, so this is the
+   * one place that needs to know.
+   *
+   * It compares performer **ids** against the show as it was, not names against
+   * the Rolodex. Renaming someone keeps their id, so fixing a spelling doesn't
+   * file a second copy under the corrected name; only a genuinely new row on
+   * the lineup counts as a booking.
+   */
+  function fileNewPerformers(updated: Show) {
+    if (!session) return;
+    const before = shows.find((s) => s.id === updated.id);
+    const alreadyOnBill = new Set(before?.performers.map((p) => p.id) ?? []);
+    const added = updated.performers.filter((p) => !alreadyOnBill.has(p.id));
+    if (added.length === 0) return;
+
+    const merged = addPerformersToRolodex(settings.potentialComics, added);
+    if (!merged) return; // everyone was already filed — no write needed
+
+    const updatedSettings = { ...settings, potentialComics: merged };
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
   }
 
   function handleSelectShow(show: Show, e?: React.MouseEvent) {
