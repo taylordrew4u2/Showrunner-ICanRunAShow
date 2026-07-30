@@ -92,14 +92,14 @@
 }
 
 .scene-item__order {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   background: var(--primary);
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--on-primary);
   font-weight: 700;
   flex-shrink: 0;
