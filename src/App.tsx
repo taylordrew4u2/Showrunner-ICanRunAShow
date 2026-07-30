@@ -1168,12 +1168,15 @@ export default function App() {
                   <div className="backup-nudge" role="status">
                     <Icon name="shield" size={16} className="backup-nudge__icon" aria-hidden />
                     <span className="backup-nudge__text">
-                      Your shows are saved and encrypted. Keep a copy of your own too — one tap,
-                      and the file is yours.
+                      Keep your own copy of your shows.
                     </span>
                     <div className="backup-nudge__actions">
-                      <button className="btn btn--secondary btn--sm" onClick={handleDownloadBackup}>
-                        Download backup
+                      <button
+                        className="btn btn--secondary btn--sm backup-nudge__btn"
+                        onClick={handleDownloadBackup}
+                        aria-label="Download a backup file of your shows"
+                      >
+                        Back up
                       </button>
                       <button
                         className="backup-nudge__close"

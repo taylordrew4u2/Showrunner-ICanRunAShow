@@ -1,49 +1,27 @@
 /* ── At-a-glance widgets ──────────────────────────────────────────────
-   A responsive tile row above the shows grid. Tiles flow from one column on
-   a phone to four on a wide screen, sized by available width rather than by
-   device breakpoints — the same row sits inside a 700px column on one screen
-   and a 1400px one on another. */
+   A tile row above the shows grid. It is chrome sitting between you and your
+   shows, so it has to earn every pixel of height: each tile is one line —
+   label and number side by side — rather than a label stacked over a display
+   figure over a caption. The stacked version cost about 90px a tile, and four
+   of them pushed the first show clean off a phone screen. */
 
-/* Three counters in a row, with "Next up" spanning above them. auto-fit was
-   tried first and left a hole: the row is five slots wide (next counts two)
-   and auto-fit resolved to four columns at the common desktop width, so the
-   last counter wrapped onto an empty line of its own. Three explicit columns
-   divide the counters exactly, at any width. */
 .dash {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
-  /* Queried below. The row sits in a content column, not the viewport — on
-     desktop a 240px sidebar is already taken out — so its own width is the
-     honest thing to ask about. */
-  container-type: inline-size;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-/* Narrow enough that "shows to sort out" wraps to a second line under an
-   already-wrapped label, turning a one-glance counter into a paragraph. The
-   label and the number say it; the sub-line is the part that can go. It stays
-   on an active tile, because there it carries the way back out. */
-@container (max-width: 520px) {
-  .dash__tile:not(.dash__tile--active) .dash__sub {
-    display: none;
-  }
-
-  .dash__figure {
-    font-size: 1.4rem;
-  }
-}
-
-/* The hero: it carries a name and a venue, so it gets the whole row. */
 .dash__tile--next {
   grid-column: 1 / -1;
 }
 
 .dash__tile {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
-  padding: 12px 14px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -72,10 +50,12 @@
 
 .dash__action {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: baseline;
+  gap: 8px;
   width: 100%;
-  padding: 12px 14px;
+  /* The row is short, so the target needs a floor of its own to clear 24px. */
+  min-height: 38px;
+  padding: 8px 12px;
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -91,6 +71,8 @@
 }
 
 .dash__label {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: 0.8rem;
   font-weight: 650;
@@ -99,10 +81,11 @@
 }
 
 .dash__figure {
-  margin: 4px 0 0;
-  font-size: 1.6rem;
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 1.25rem;
   font-weight: 700;
-  line-height: 1.05;
+  line-height: 1.1;
   letter-spacing: -0.02em;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -118,9 +101,8 @@
   color: var(--primary-text);
 }
 
-.dash__sub,
 .dash__quiet {
-  margin: 2px 0 0;
+  margin: 0;
   font-size: 0.8rem;
   line-height: 1.35;
   color: var(--text-muted);
@@ -128,17 +110,29 @@
 
 /* ── Next up ────────────────────────────────────────────────────────── */
 
+.dash__tile--next {
+  align-items: baseline;
+}
+
+.dash__next-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  min-width: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
 .dash__next-name {
-  display: block;
-  margin: 4px 0 0;
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  font-size: 1.15rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
+  letter-spacing: -0.01em;
   color: var(--text);
   text-align: left;
   cursor: pointer;
@@ -155,25 +149,58 @@
   border-radius: var(--radius-xs);
 }
 
-.dash__next-meta {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 4px 0 0;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-/* When it is, said in the brand colour — the one thing on this row you look
-   for first. The type shade, not the fill shade. */
+/* When it is, in the brand colour — the one thing on this row you look for
+   first. The type shade, not the fill shade. */
 .dash__when {
   font-weight: 650;
   color: var(--primary-text);
+  white-space: nowrap;
 }
 
 .dash__sep {
   color: var(--text-soft);
+}
+
+/* The venue is the first thing worth dropping when the line runs out of room:
+   the name and the when are what the tile is for. */
+@container shows-col (max-width: 430px) {
+  .dash__sep,
+  .dash__venue {
+    display: none;
+  }
+}
+
+/* ── Adapting to the column ───────────────────────────────────────────
+   These come after the base rules on purpose. `display: none` below and
+   `.dash__tile { display: flex }` above have the same specificity, so the one
+   declared later wins — with these at the top of the file the hidden tile
+   stayed visible and the row silently kept its extra line. */
+
+/* On a phone, three columns give each label about 110px — enough for "Needs a
+   running order" to wrap to *three* lines, which made every tile in the row
+   108px tall. Two columns give the labels a line or two instead, and the plain
+   Upcoming count steps aside: it is the one tile you can't act on, and its
+   number is a scroll away in the list itself. The two you can act on stay. */
+@container shows-col (max-width: 560px) {
+  .dash {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dash__tile--upcoming {
+    display: none;
+  }
+}
+
+/* Once there is room for four across, the hero joins the same line and the
+   whole row is one ~58px band instead of two stacked ones. */
+@container shows-col (min-width: 700px) {
+  .dash {
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+  }
+
+  .dash__tile--next {
+    grid-column: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

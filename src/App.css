@@ -247,14 +247,17 @@
 /* A suggestion, not an alarm. It used to wear the same red as real problems,
    which taught people to read "everything is fine, keep a spare copy" as
    "something is wrong". */
+/* Reassurance, not a page section. It sits between you and your shows, so it
+   stays on one line wherever it fits — the copy was two sentences that wrapped
+   to three lines on a phone and cost 136px above the first card. */
 .backup-nudge {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
-  padding: 12px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -268,9 +271,11 @@
 
 .backup-nudge__text {
   font-size: 0.85rem;
+  line-height: 1.35;
   color: var(--text);
   flex: 1;
-  min-width: 200px;
+  /* 200px forced a wrap on a 366px column even after the copy was shortened. */
+  min-width: 100px;
 }
 
 .backup-nudge__actions {
@@ -392,6 +397,11 @@
 .shows-list {
   max-width: 700px;
   margin: 0 auto;
+  /* Named so the at-a-glance row can lay itself out against the real content
+     width. A container query can't style its own container, so the row can't
+     answer this from a container declared on itself. */
+  container-type: inline-size;
+  container-name: shows-col;
 }
 
 /* Wide enough for two readable cards side by side. Three would need the app
@@ -617,18 +627,23 @@
 }
 
 @media (max-width: 520px) {
-  /* Wrap the toolbar so search gets a full row and the sort +
-     view toggle stay thumb-sized on a second row. */
+  /* One row, not two. Search flexes and the sort + view controls shrink to
+     what they need — they were each taking a full-width line, which cost ~48px
+     above the shows for no gain. */
   .shows-toolbar {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    margin-bottom: 12px;
   }
 
   .shows-toolbar__search {
-    flex: 1 1 100%;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .shows-toolbar__sort {
-    flex: 1;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 8.5rem;
   }
 
   .rolodex__form {
@@ -4060,4 +4075,12 @@ body:has([aria-modal='true']) .status-rail {
   .status-rail__pill-row {
     padding: 18px 40px 12px;
   }
+}
+
+/* The action side of the backup nudge was 240px of a 340px phone column, which
+   left 64px for the sentence and forced the whole banner onto two rows for
+   112px of height. "Back up" beside a shield says the same thing in a third of
+   the width; the full wording lives on the button's accessible name. */
+.backup-nudge__btn {
+  white-space: nowrap;
 }
