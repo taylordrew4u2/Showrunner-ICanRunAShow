@@ -208,13 +208,15 @@
   }
 }
 
+/* Small-uppercase-tracked is the least legible way to set a word, and this one
+   is a control you can change, not a decoration. Sentence case at a readable
+   size; the pill shape and the chevron still say "badge you can press". */
 .show-detail__status {
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  padding: 5px 12px;
   border-radius: var(--radius-full);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.005em;
   border: 1px solid;
 }
 
@@ -273,10 +275,8 @@ select.show-detail__status--select {
 }
 
 .show-detail__host-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  font-size: 0.8rem;
+  font-weight: 650;
   color: var(--text-muted);
   flex-shrink: 0;
 }
@@ -307,13 +307,17 @@ select.show-detail__status--select {
 /* Separated by a real divider rather than a wide gap, so "8:00 PM  The
    Waypost" reads as two facts instead of one run-on line. The dividers are
    decoration — screen readers get the plain list. */
+/* When and where the show is: the two things you open this page to check, and
+   they were set in the same muted grey as the chrome around them. Full-strength
+   text — the title is bigger and the dividers keep the facts apart, so nothing
+   is lost by letting these read at full contrast. */
 .show-detail__meta {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   align-items: baseline;
-  color: var(--text-muted);
-  font-size: 0.92rem;
+  color: var(--text);
+  font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: -0.005em;
   word-break: break-word;
@@ -560,7 +564,7 @@ select.show-detail__status--select {
    and "0" was shown for every empty section — so a brand-new show opened
    looking like a list of problems. Empty sections now show no badge at all. */
 .accordion-section__count {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 650;
   color: var(--text-muted);
   background: var(--surface-strong);
@@ -922,19 +926,22 @@ select.show-detail__status--select {
   gap: 16px;
 }
 
+/* The page's most-repeated piece of text, and it was set the hardest way to
+   read one: 11.5px, all-caps, tracked out by 0.08em. Capitals strip the
+   ascender/descender shape a reader recognises words by, and the tracking
+   pulls the remaining letters apart. Sentence case, a size up, and weight
+   doing the work the capitals were doing. */
 .section-field__label {
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 650;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   margin-bottom: 8px;
   display: block;
 }
 
 @media (max-width: 768px) {
   .section-field__label {
-    font-size: 0.7rem;
+    font-size: 0.78rem;
     margin-bottom: 6px;
   }
 }
@@ -944,7 +951,11 @@ select.show-detail__status--select {
    invisible. Links get the brand's type shade like every other coloured word
    in the app. */
 .section-field__link {
-  display: inline-block;
+  /* inline-flex with a floor, so the tap target clears 24px (WCAG 2.5.8)
+     rather than being however tall one line of text happens to be. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   margin-top: 8px;
   font-size: 0.9rem;
   font-weight: 600;
@@ -1293,6 +1304,34 @@ select.show-detail__status--select {
 .section-mass-message__hint {
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+/* Confirmation that a new performer was filed in the Rolodex. Quiet — it
+   reports something that went right, so it should be legible and then get out
+   of the way, not compete with the lineup it sits above. */
+.section-filed {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--success-soft-border);
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.section-filed strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.section-filed__mark {
+  flex-shrink: 0;
+  color: var(--success-text);
+  font-weight: 700;
 }
 
 .section-list-item__cost {
@@ -2032,10 +2071,8 @@ select.show-detail__status--select {
 }
 
 .section-rolodex-picker__label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  font-size: 0.8rem;
+  font-weight: 650;
   color: var(--text-muted);
   margin: 0 0 6px;
 }

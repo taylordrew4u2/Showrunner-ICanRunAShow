@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
+import { rolodexKey } from '../../utils/rolodex';
 import { socialLink, bulkMailto, isEmail } from '../../utils/social';
 import { PerformerProfile } from './PerformerProfile';
 
@@ -18,8 +19,18 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
   const [email, setEmail] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showRolodex, setShowRolodex] = useState(false);
+  // Filing happens up in App, out of sight. Saying so once, right after it
+  // happens, is the difference between a helpful default and the app quietly
+  // editing a list you didn't ask it to touch.
+  const [filed, setFiled] = useState<string | null>(null);
 
   const selectedPerformer = performers.find(p => p.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (!filed) return;
+    const timer = setTimeout(() => setFiled(null), 5000);
+    return () => clearTimeout(timer);
+  }, [filed]);
 
   // Booked performers with a usable email, for the "Email all" action.
   const emailablePerformers = performers.filter(p => isEmail(p.email));
@@ -40,6 +51,10 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
       email: email.trim() || undefined,
     };
     onChange([...performers, p]);
+    // Read against the list as it stands *before* the save lands, which is
+    // exactly what the filing upstream will compare against.
+    const isNew = !potentialComics.some(c => rolodexKey(c.name) === rolodexKey(p.name));
+    setFiled(isNew ? p.name : null);
     setName('');
     setInstagram('');
     setEmail('');
@@ -60,6 +75,7 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
     };
     onChange([...performers, p]);
     setShowRolodex(false);
+    setFiled(null); // they came from the Rolodex; nothing was filed
   }
 
   function updatePerformer(updated: Performer) {
@@ -119,6 +135,14 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
           </button>
         )}
       </div>
+
+      {filed && (
+        <p className="section-filed" role="status">
+          <span className="section-filed__mark" aria-hidden="true">✓</span>
+          <strong>{filed}</strong> was added to your Rolodex, so they're there next time you build a
+          lineup.
+        </p>
+      )}
 
       {mailAllHref && (
         <div className="section-mass-message">
