@@ -1,3 +1,4 @@
+import { buildIntroCards, type IntroCard } from "./introCards";
 import type {
   Show,
   AppSettings,
@@ -24,6 +25,48 @@ function esc(text: string | undefined | null): string {
 
 function formatCurrency(amount: number): string {
   return `$${amount.toFixed(2)}`;
+}
+
+/**
+ * A printable page of intro cards, one per act, in the order the host will
+ * read them. Empty bill, no page — a blank sheet headed "Intro cards" is worse
+ * than no sheet at all.
+ */
+function introCardsSection(show: Show): string {
+  const cards = buildIntroCards(show);
+  if (cards.length === 0) return "";
+
+  return `
+  <div class="cards-page">
+    <h2>Intro cards</h2>
+    <p class="cards-note">One per act, in running order. Cut along the boxes.</p>
+    <div class="cards">
+      ${cards.map(renderIntroCard).join("")}
+    </div>
+  </div>`;
+}
+
+/** Only drawn when it has something to say — an empty foot is a stray rule. */
+function renderCardFoot(card: IntroCard): string {
+  const right = card.social ? esc(card.social) : card.kind === "artist" ? "Artist" : "";
+  if (!card.walkOn && !right) return "";
+  return `
+        <div class="card__foot">
+          <span class="card__walkon">${card.walkOn ? `♪ ${esc(card.walkOn)}` : ""}</span>
+          <span class="card__kind">${right}</span>
+        </div>`;
+}
+
+function renderIntroCard(card: IntroCard): string {
+  return `
+      <div class="card">
+        <div class="card__num">${card.order}</div>
+        <div class="card__name">${esc(card.name)}</div>
+        <div class="card__credits${card.credits ? "" : " card__credits--none"}">${
+          card.credits ? esc(card.credits) : "No credits on file"
+        }</div>
+        ${renderCardFoot(card)}
+      </div>`;
 }
 
 export function exportShowToPDF(show: Show, settings: AppSettings): void {
@@ -64,6 +107,91 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     .recap-stat__label { font-size: 11px; color: #6B7280; }
     .recap-stat__value { font-size: 18px; font-weight: 700; color: #1F2937; }
     .recap-notes { margin-top: 10px; font-size: 13px; white-space: pre-wrap; }
+
+    /* ── Intro cards ──────────────────────────────────────────────────
+       The stack the host reads from at the mic. Printed to look like the
+       index cards they replace — ruled lines, a red line under the name —
+       because that is the thing a host already knows how to hold and shuffle.
+
+       Two to a row and a fixed height so a sheet cuts into even cards, and
+       page-break-inside so none of them ever straddles a fold. */
+    .cards-page { page-break-before: always; }
+    .cards-note { color: #6B7280; font-size: 12px; margin: 0 0 14px; }
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .card {
+      position: relative;
+      height: 2.5in;
+      padding: 14px 16px 12px;
+      border: 1px solid #C7CBD1;
+      border-radius: 5px;
+      background: #FFFDF8;
+      /* The faint ruling. Printers strip backgrounds by default, hence the
+         print-color-adjust below — without it these cards come out blank. */
+      background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 27px,
+        #DCE6F1 27px,
+        #DCE6F1 28px
+      );
+      background-position: 0 46px;
+      overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .card__num {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #9CA3AF;
+    }
+    .card__name {
+      font-size: 21px;
+      font-weight: 700;
+      line-height: 1.15;
+      color: #111827;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+      border-bottom: 2px solid #D93025;
+      padding-right: 28px;
+      word-break: break-word;
+    }
+    .card__credits {
+      font-size: 13px;
+      line-height: 28px;
+      color: #1F2937;
+      word-break: break-word;
+    }
+    .card__credits--none { color: #9CA3AF; font-style: italic; }
+    .card__foot {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11px;
+      color: #4B5563;
+      border-top: 1px solid #E5E7EB;
+      padding-top: 6px;
+    }
+    .card__walkon { font-weight: 600; }
+    .card__kind { color: #9CA3AF; white-space: nowrap; }
+
+    @media print {
+      body { padding: 24px; }
+      .card {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
   </style>
 </head>
 <body>
@@ -227,6 +355,8 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <div class="rules-box">${esc(settings.rules)}</div>`
       : ""
   }
+
+  ${introCardsSection(show)}
 
 </body>
 </html>`;
