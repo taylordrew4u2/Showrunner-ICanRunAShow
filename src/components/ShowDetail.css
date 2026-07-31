@@ -1044,6 +1044,14 @@ select.show-detail__status--select {
   max-width: 100%;
 }
 
+/* A one-line note under an add form — what this section feeds elsewhere. */
+.section-hint {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 .section-empty {
   margin: 0;
   font-size: 0.95rem;
