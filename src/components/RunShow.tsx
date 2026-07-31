@@ -18,6 +18,7 @@ import {
   soundboardSources,
   type SoundboardTrack,
 } from '../utils/soundboard';
+import { useMediaUrl } from '../utils/useMediaUrl';
 import { Icon } from './Icon';
 
 interface RunShowProps {
@@ -59,6 +60,9 @@ function TrackButton({
   isPlaying: boolean;
   onToggle: (track: SoundboardTrack) => void;
 }) {
+  // The headshot resolves out of the media store; the initial holds the button
+  // until it lands, so the board is pressable the moment the screen opens.
+  const photoUrl = useMediaUrl(track.photo);
   return (
     <button
       type="button"
@@ -68,7 +72,11 @@ function TrackButton({
       title={isPlaying ? `Stop ${track.label}` : `Play ${track.label}`}
     >
       <span className="rs-pad__face">
-        <span className="rs-pad__initial">{track.initial}</span>
+        {photoUrl ? (
+          <img className="rs-pad__photo" src={photoUrl} alt="" />
+        ) : (
+          <span className="rs-pad__initial">{track.initial}</span>
+        )}
         <span className="rs-pad__state" aria-hidden="true">
           {isPlaying ? (
             <span className="rs-pad__eq">

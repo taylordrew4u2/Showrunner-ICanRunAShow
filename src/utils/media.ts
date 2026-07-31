@@ -1,8 +1,11 @@
-// Walk-on / cue audio is the only media the app uploads — everything else
-// (photos, video, generic files) was removed to keep stored payloads small.
-// Audio doesn't embed in the show payload — it uploads to the chunked media
-// store (see mediaStore.ts) — so it gets a real-world song-sized cap.
+// Audio and performer photos are the only media the app uploads — video and
+// generic files were removed to keep stored payloads small. Neither embeds in
+// the show payload; both upload to the chunked media store (see mediaStore.ts),
+// so audio gets a real-world song-sized cap.
 const MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024;
+// Photos are resized in the browser before upload, so this cap only has to
+// stop a file too big to decode without trouble in the first place.
+const MAX_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 /** Size check for audio going to the media store (not embedded). */
 export function audioUploadSizeError(file: File): string | null {
@@ -10,6 +13,16 @@ export function audioUploadSizeError(file: File): string | null {
     return `That audio file is ${formatBytes(file.size)} — over the ${formatBytes(
       MAX_AUDIO_UPLOAD_BYTES,
     )} limit. Try a compressed format (MP3/AAC) or trim the track.`;
+  }
+  return null;
+}
+
+/** Size check for a photo before it's resized and uploaded. */
+export function imageUploadSizeError(file: File): string | null {
+  if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+    return `That image is ${formatBytes(file.size)} — over the ${formatBytes(
+      MAX_IMAGE_UPLOAD_BYTES,
+    )} limit. Try a smaller photo or a screenshot of it.`;
   }
   return null;
 }
