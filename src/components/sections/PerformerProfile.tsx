@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
-import { audioUploadSizeError } from '../../utils/media';
-import { uploadMedia } from '../../utils/mediaStore';
+import { downscaleImage } from '../../utils/imageResize';
+import { audioUploadSizeError, imageUploadSizeError, pickFile as openFilePicker } from '../../utils/media';
+import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
 import { useMediaUrl } from '../../utils/useMediaUrl';
 import { socialLink } from '../../utils/social';
 import { performerToComic } from '../../utils/rolodex';
@@ -27,11 +28,47 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   const [dirty, setDirty] = useState(false);
   const [savedToRolodex, setSavedToRolodex] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [audioDrag, setAudioDrag] = useState(false);
   // Resolves `media:` store references to a playable URL (passthrough otherwise).
   const walkOnUrl = useMediaUrl(performer.walkOnMusic);
+  const photoUrl = useMediaUrl(performer.photo);
 
   const locked = performer.lockedIn;
+
+  /**
+   * Attach a headshot. It's resized in the browser first — the photo is only
+   * ever shown at thumbnail size, and the full-resolution original would be
+   * encrypted, chunked, uploaded, and fetched again on show day for nothing.
+   */
+  async function pickPhoto() {
+    const file = await openFilePicker('image/*');
+    if (!file) return;
+    const sizeError = imageUploadSizeError(file);
+    if (sizeError) {
+      setPhotoError(sizeError);
+      return;
+    }
+    setPhotoError('Uploading photo…');
+    try {
+      const resized = await downscaleImage(file);
+      const ref = await uploadMedia(resized);
+      const previous = performer.photo;
+      onChange({ ...performer, photo: ref });
+      if (previous) deleteMedia(previous);
+      setPhotoError(null);
+    } catch {
+      setPhotoError("Couldn't use that image. Try a JPEG or PNG.");
+    }
+  }
+
+  function removePhoto() {
+    if (!performer.photo) return;
+    if (!window.confirm(`Remove ${performer.name}'s photo?`)) return;
+    deleteMedia(performer.photo);
+    onChange({ ...performer, photo: undefined });
+    setPhotoError(null);
+  }
 
   function mark() { setDirty(true); }
 
@@ -244,14 +281,34 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
           </div>
         </div>
 
-        {/* Avatar */}
+        {/* Avatar — this is the face on the Run Show button. */}
         <div className="perf-profile__photo-panel">
           <div className="perf-profile__avatar-wrap">
-            <div className="perf-profile__avatar-placeholder">
-              {performer.name.charAt(0).toUpperCase()}
-            </div>
+            {photoUrl ? (
+              <img className="perf-profile__avatar" src={photoUrl} alt={performer.name} />
+            ) : (
+              <div className="perf-profile__avatar-placeholder">
+                {performer.name.charAt(0).toUpperCase()}
+              </div>
+            )}
           </div>
           <p className="perf-profile__photo-name">{performer.name}</p>
+          {photoError && <p className="perf-profile__media-error">{photoError}</p>}
+          {!locked && (
+            <div className="perf-profile__photo-actions">
+              <button className="btn btn--secondary btn--sm" onClick={pickPhoto}>
+                {performer.photo ? 'Replace photo' : 'Add photo'}
+              </button>
+              {performer.photo && (
+                <button className="perf-profile__photo-remove" onClick={removePhoto}>
+                  Remove
+                </button>
+              )}
+            </div>
+          )}
+          <p className="perf-profile__photo-hint">
+            Shown on this performer's Run Show button.
+          </p>
         </div>
       </div>
 
