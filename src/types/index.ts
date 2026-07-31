@@ -187,19 +187,6 @@ export interface Show {
   todos?: TodoItem[];
   viewToken?: string; // public read-only viewer link token
   viewNote?: string; // optional note shown on the viewer page before the show starts
-  artistSignupToken?: string; // public sign-up sheet link token
-  artistPaymentLinks?: { cashApp?: string; venmo?: string; zelle?: string; other?: string };
-  artistScheduleVisible?: boolean; // show the schedule on the public sign-up page
-  artistWelcomeMessage?: string; // intro shown at the top of the public page
-  artistPricingLabels?: { black?: string; color?: string }; // override "Black $60" / "Color $80"
-  artistSections?: {
-    schedule?: boolean;
-    live?: boolean;
-    signups?: boolean;
-    payment?: boolean;
-  };
-  artistHiddenCues?: string[]; // schedule item IDs to hide from public schedule
-  artistNotifyTemplate?: string; // SMS template; supports {name} placeholder
   createdAt: string;
   updatedAt: string;
 }
