@@ -43,7 +43,6 @@ import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
 import { RolodexProfile } from './components/sections/RolodexProfile';
 import { LiveViewer } from './components/LiveViewer';
-import { ArtistSignup } from './components/ArtistSignup';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SyncStatus, type SyncState } from './components/SyncStatus';
 import { Icon } from './components/Icon';
@@ -713,7 +712,6 @@ export default function App() {
       // Drop anything tied to the original instance, not the template.
       viewToken: undefined,
       viewNote: undefined,
-      artistSignupToken: undefined,
       recap: undefined,
     };
     setShows((prev) => [copy, ...prev]);
@@ -1060,10 +1058,6 @@ export default function App() {
   const viewToken = search.get('view');
   if (viewToken) {
     return <LiveViewer token={viewToken} />;
-  }
-  const artistToken = search.get('artist');
-  if (artistToken) {
-    return <ArtistSignup token={artistToken} />;
   }
 
   return (

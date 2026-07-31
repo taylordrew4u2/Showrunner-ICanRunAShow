@@ -15,7 +15,6 @@ Suggested shots (PNG, keep each under ~500 KB):
 | `shows.png` | The shows dashboard — bento summary tiles, search/filter, a few show cards |
 | `show-detail.png` | A show's detail page — host slot, status, the section accordion |
 | `run-show.png` | Run Show full-screen live mode — timer, on-stage card, controls |
-| `artist-signup.png` | The public artist sign-up page (optional) |
 | `viewer.png` | The public read-only viewer link — live on-stage / up-next (optional) |
 
 Tips:

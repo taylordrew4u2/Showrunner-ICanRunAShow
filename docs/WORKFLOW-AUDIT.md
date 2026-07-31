@@ -43,9 +43,8 @@ icanrunashow.com
                       └─ build lineup / import schedule / Run Show
 ```
 
-Public visitors also have two account-free entry points that are strong and should be
-marketed harder: the **live viewer** (`?view=`) and **artist sign-up** (`?artist=`)
-links (App.tsx:697).
+Public visitors also have an account-free entry point that is strong and should be
+marketed harder: the **live viewer** (`?view=`) link.
 
 **The friction is front-loaded.** The landing page and the account wall are the same
 screen (`Login.tsx` renders class `landing`), so the marketing copy and the signup
@@ -159,7 +158,7 @@ alongside real live shows") would materially lift the landing.
 
 - Clean, consistent phone-first single-column model — low cognitive load.
 - Real onboarding that tailors terminology to show type (`Onboarding.tsx`, `terminology.ts`).
-- Account-free public links (viewer + artist sign-up) — a genuine growth loop that's under-marketed.
+- Account-free public viewer link — a genuine growth loop that's under-marketed.
 - Strong technical SEO: canonical, OG, Twitter cards, `SoftwareApplication` JSON-LD, `llms.txt`, sitemap (`index.html`, `vercel.json`).
 - Owned content marketing (four substantive producer guides) — most side-projects have none.
 - Backup nudge + skeleton loading + boot splash — thoughtful retention/perf touches.

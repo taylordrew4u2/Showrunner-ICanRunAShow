@@ -83,22 +83,6 @@ const DDL: string[] = [
      created_at TEXT NOT NULL DEFAULT (datetime('now')),
      PRIMARY KEY (user_id, id, seq)
    )`,
-  `CREATE TABLE IF NOT EXISTS artist_signup (
-     token      TEXT PRIMARY KEY,
-     payload    TEXT NOT NULL,
-     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-   )`,
-  `CREATE TABLE IF NOT EXISTS artist_signup_entries (
-     id            TEXT PRIMARY KEY,
-     token         TEXT NOT NULL,
-     name          TEXT NOT NULL,
-     phone         TEXT,
-     email         TEXT,
-     image_number  INTEGER,
-     color         TEXT,
-     completed     INTEGER DEFAULT 0,
-     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
-   )`,
 ];
 
 // Columns added after the original `users` table shipped. CREATE TABLE IF NOT

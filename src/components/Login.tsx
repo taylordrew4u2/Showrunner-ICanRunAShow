@@ -165,10 +165,6 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
               <p>A full-screen countdown timer with on-stage and up-next cards — plus a public live view your performers can watch from the green room.</p>
             </div>
             <div className="landing__feature">
-              <h3>Artist sign-up links</h3>
-              <p>Share a public link and let performers submit their own name, credits, and music straight into your lineup.</p>
-            </div>
-            <div className="landing__feature">
               <h3>Expenses &amp; recaps</h3>
               <p>Track what each show costs and how it went, so the next one is easier to plan and price.</p>
             </div>
@@ -197,7 +193,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
             <dt>How much does it cost?</dt>
             <dd>It's free to use.</dd>
             <dt>Do my performers need accounts?</dt>
-            <dd>No. Public links — artist sign-up and the live viewer — work in any browser with no account.</dd>
+            <dd>No. The public live viewer link works in any browser with no account.</dd>
             <dt>Does it work on my phone?</dt>
             <dd>Yes. It's built phone-first and installs to your home screen like a native app, and it keeps working when the venue Wi-Fi doesn't.</dd>
             <dt>What happens to my data?</dt>
