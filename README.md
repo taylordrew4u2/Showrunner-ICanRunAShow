@@ -117,7 +117,8 @@ I Can Run A Show handles the full workflow in a single application:
 
 **Show building**
 - Multiple shows with status tracking (upcoming, in-progress, completed, cancelled)
-- Per-show lineup with performer profiles: social media, email, credits, walk-on track, and video link
+- Per-show lineup with performer profiles: headshot, social media, email, credits, walk-on track, and video link
+- Headshots are resized in the browser and stored encrypted in the media store — the photo becomes the face on that performer's Run Show button
 - Clickable contacts — social handles link straight to the profile (bare handles resolve to Instagram); one tap to email a performer
 - "Email all performers" — opens your mail app with the lineup BCC'd and a pre-filled confirmation, for quick booking confirmations
 - Global performer rolodex — save a performer once, reuse across shows; edits sync to all matching performers
@@ -129,7 +130,7 @@ I Can Run A Show handles the full workflow in a single application:
 
 **Run show**
 - Full-screen live mode: a clock, a soundboard, and the lineup — the clock and the sound are independent, so nothing you press changes the time
-- One button per performer. Press it to fade their song in, press it again to fade it out; pressing another button hands over between tracks
+- One button per performer, with their headshot on it. Press it to fade their song in, press it again to fade it out; pressing another button hands over between tracks
 - Separate banks for show tracks (cue uploads) and for the DJ list, so a DJ song is never one press away from a walk-on
 - Per-cue countdown, drift indicator, keyboard navigation, and per-cue duration adjustment
 - Public read-only viewer URL with live on-stage / up-next state
@@ -314,7 +315,7 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 
 1. Open the app and create an account (username + password)
 2. Create a show and fill in basic info (name, date, venue)
-3. Add performers to the lineup; upload walk-on music and add profile data per performer
+3. Add performers to the lineup; upload a headshot and walk-on music, and add profile data per performer
 4. In the Schedule section, import a schedule by uploading a PDF, image, or pasting text — or build it cue-by-cue
 5. (Optional) Generate the public viewer link and the artist sign-up link from the show detail page
 6. (Optional) In the DJ section, upload the audio for a song to give it its own button in Run Show
@@ -411,6 +412,7 @@ A full keyboard-navigation + ARIA + color-contrast audit is a future improvement
 - No password recovery — losing the password means losing access to all data
 - Automatic schedule import depends on a server-side API key; without it, only the OCR + regex fallback runs
 - Error handling is present but not exhaustive — some failure states surface as console errors rather than user-facing messages
+- Headshot uploads rely on the browser decoding the image; an iPhone HEIC won't decode outside Safari, so those need converting to JPEG/PNG first
 
 ---
 

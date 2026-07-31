@@ -58,6 +58,18 @@ describe('stripLegacyShowMedia', () => {
     expect(json).not.toContain('files');
   });
 
+  it('keeps a performer photo that lives in the media store', () => {
+    const show = legacyShow();
+    show.performers[0].photo = 'media:photo123#1';
+    const stripped = stripLegacyShowMedia(show);
+    expect(stripped.performers[0].photo).toBe('media:photo123#1');
+  });
+
+  it('still throws away a photo embedded as base64', () => {
+    const stripped = stripLegacyShowMedia(legacyShow());
+    expect(stripped.performers[0].photo).toBeUndefined();
+  });
+
   it('keeps walk-on music references and links', () => {
     const stripped = stripLegacyShowMedia(legacyShow());
     expect(stripped.performers[0].walkOnMusic).toBe('media:abc123');

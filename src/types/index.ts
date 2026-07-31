@@ -13,6 +13,7 @@ export interface Scene {
 export interface Performer {
   id: string;
   name: string;
+  photo?: string; // headshot (media store reference) — the face on the Run Show button
   socialMedia?: string;
   email?: string; // contact email — used for booking confirmations / mass messages
   walkOnMusic?: string; // file URI

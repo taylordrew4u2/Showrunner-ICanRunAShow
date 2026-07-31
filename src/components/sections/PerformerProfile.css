@@ -151,6 +151,14 @@
   margin: 0;
 }
 
+.perf-profile__photo-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .perf-profile__avatar-wrap {
   width: 110px;
   height: 110px;

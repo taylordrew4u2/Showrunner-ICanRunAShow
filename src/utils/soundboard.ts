@@ -23,8 +23,10 @@ export interface SoundboardTrack {
   label: string;
   /** Secondary label — the track name, or the recording artist. */
   sublabel?: string;
-  /** Letter shown on the round face button when there's no photo. */
+  /** Letter shown on the round face button until a photo loads (or if there is none). */
   initial: string;
+  /** Headshot reference for the face button, when the performer has one. */
+  photo?: string;
   /** Position in the running order, when the track belongs to a cue. */
   cueIndex?: number;
 }
@@ -96,6 +98,7 @@ export function buildSoundboard(
           label: performer.name,
           sublabel: cue.musicName || performer.walkOnMusicName,
           initial: initialOf(performer.name),
+          photo: performer.photo,
           cueIndex: i,
         });
       } else if (!byPerformer.has(performer.id) && performer.walkOnMusic) {
@@ -107,6 +110,7 @@ export function buildSoundboard(
             .filter(Boolean)
             .join(' — ') || undefined,
           initial: initialOf(performer.name),
+          photo: performer.photo,
           cueIndex: i,
         });
       }
@@ -136,6 +140,7 @@ export function buildSoundboard(
       label: p.name,
       sublabel: [p.walkOnMusicName, p.walkOnMusicArtist].filter(Boolean).join(' — ') || undefined,
       initial: initialOf(p.name),
+      photo: p.photo,
     });
   }
 

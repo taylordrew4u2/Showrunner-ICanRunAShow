@@ -80,6 +80,24 @@ describe('buildSoundboard', () => {
     expect(board.performers).toHaveLength(1);
   });
 
+  it('carries the performer’s photo onto their button, whichever song wins', () => {
+    const roster = [
+      performer({ id: 'p1', name: 'Ada Cole', photo: 'media:face1#1', walkOnMusic: 'media:ada#1' }),
+      performer({ id: 'p2', name: 'Jo Park', photo: 'media:face2#1', walkOnMusic: 'media:jo#1' }),
+      performer({ id: 'p3', name: 'Late Add', photo: 'media:face3#1', walkOnMusic: 'media:late#1' }),
+    ];
+    const board = buildSoundboard(
+      [cue({ id: 'c1', performerId: 'p1' }), cue({ id: 'c2', performerId: 'p2', music: 'media:special#1' })],
+      roster,
+    );
+    expect(board.performers.map((t) => t.photo)).toEqual(['media:face1#1', 'media:face2#1', 'media:face3#1']);
+  });
+
+  it('leaves the photo off a track nobody owns', () => {
+    const board = buildSoundboard([cue({ id: 'c1', description: 'Bed', music: 'media:x#1' })], []);
+    expect(board.cues[0].photo).toBeUndefined();
+  });
+
   it('skips performers who have no song at all', () => {
     const board = buildSoundboard(
       [cue({ id: 'c1', performerId: 'p1' })],
