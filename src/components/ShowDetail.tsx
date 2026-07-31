@@ -14,7 +14,6 @@ import { VendorsSection } from './sections/VendorsSection';
 import { ShowRecapSection } from './sections/ShowRecapSection';
 import { RunShow } from './RunShow';
 import { Modal } from './Modal';
-import { ArtistAdmin } from './ArtistAdmin';
 import { exportShowToPDF } from '../utils/pdfExport';
 import { parseShowDate, formatShowTime } from '../utils/showDate';
 import { joinNames, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
@@ -72,7 +71,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerNoteDraft, setViewerNoteDraft] = useState('');
   const [viewerCopied, setViewerCopied] = useState(false);
-  const [artistAdminOpen, setArtistAdminOpen] = useState(false);
   const [tempShowName, setTempShowName] = useState(show.name);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   // Adding and removing sections happens in one deliberate place, so a stray tap
@@ -104,13 +102,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   // or its date has passed.
   const datePassed = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
   const isPastShow = datePassed || show.status === 'completed';
-
-  // The Artist admin tool only makes sense for shows that use artists. If the
-  // producer has removed the Artists section, hide its admin entry point too —
-  // unless a public sign-up link was already generated, so existing queues stay
-  // reachable.
-  const artistsHidden = (show.hiddenSections || []).includes('artists');
-  const showArtistAdmin = !artistsHidden || !!show.artistSignupToken;
 
   // A show that has removed the DJ section has no DJ part to run — Run Show
   // shouldn't offer a bank of buttons for a section this show doesn't use.
@@ -432,7 +423,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   // rather than scattered across the app's navigation.
   const moreItems = [
     { label: 'Viewer link', onSelect: openViewer },
-    ...(showArtistAdmin ? [{ label: 'Artist admin', onSelect: () => setArtistAdminOpen(true) }] : []),
     { label: 'Export PDF', onSelect: () => exportShowToPDF(show, settings) },
     { label: 'Add or remove sections', onSelect: () => setManageSectionsOpen(true) },
   ];
@@ -723,10 +713,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
             </div>
           </div>
         </Modal>
-      )}
-
-      {artistAdminOpen && (
-        <ArtistAdmin show={show} onChange={handleUpdate} onClose={() => setArtistAdminOpen(false)} />
       )}
 
       {viewerOpen && (

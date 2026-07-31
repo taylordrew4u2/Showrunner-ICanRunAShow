@@ -2,7 +2,7 @@
 
 > Live-show management software for comedians, promoters, and stage managers who run recurring live events.
 
-I Can Run A Show is a production tool that covers the full show lifecycle in a single app: build the lineup, import the schedule by photo or PDF (AI-assisted), and operate the show in a full-screen live mode with per-cue countdowns and walk-on music. It also powers a public read-only viewer link for audiences and a sign-up queue for tattoo artist shows.
+I Can Run A Show is a production tool that covers the full show lifecycle in a single app: build the lineup, import the schedule by photo or PDF (AI-assisted), and operate the show in a full-screen live mode with per-cue countdowns and walk-on music. It also powers a public read-only viewer link for audiences.
 
 ## Who it's for
 
@@ -15,7 +15,6 @@ Independent live-show coordinators — comedians who produce their own shows, dr
 - **Schedule import** — upload a photo, PDF, or plain text; GPT-4o-mini Vision extracts the cue list automatically; Tesseract.js OCR + regex fallback runs without an API key
 - **Run Show mode** — full-screen live mode, per-cue countdown timers, drift indicator, keyboard navigation, walk-on music with automatic fade in/out, live broadcast to a public viewer URL
 - **Public viewer** — read-only link showing the current on-stage performer and what's next; updates live during the show
-- **Artist sign-up** — public queue for tattoo/merch shows; artists sign up, see their queue position, and get an email when they're up
 - **Performer rolodex** — global performer directory that syncs across shows
 - **PDF runsheet export** — one tap to export the show as a PDF
 
@@ -25,7 +24,7 @@ React 19, TypeScript, Vite, Vercel, Turso (libSQL), client-side AES encryption, 
 
 ## Pricing
 
-Free to use at icanrunashow.com. No account required to view a public show or join an artist queue.
+Free to use at icanrunashow.com. No account required to view a public show.
 
 ## Links
 

@@ -74,10 +74,9 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These are gener
 <p align="center">
   <img src="docs/screenshots/run-show.png" width="32%" alt="Run Show live mode" />
   <img src="docs/screenshots/viewer.png" width="32%" alt="Public viewer link" />
-  <img src="docs/screenshots/artist-signup.png" width="32%" alt="Public artist sign-up" />
 </p>
 <p align="center">
-  <sub><b>Run Show</b> — full-screen live mode &nbsp;·&nbsp; <b>Public viewer</b> — live lineup / on-stage link &nbsp;·&nbsp; <b>Artist sign-up</b> — public walk-up queue</sub>
+  <sub><b>Run Show</b> — full-screen live mode &nbsp;·&nbsp; <b>Public viewer</b> — live lineup / on-stage link</sub>
 </p>
 
 ---
@@ -103,7 +102,6 @@ I Can Run A Show handles the full workflow in a single application:
 - **Before the show:** build the lineup, attach walk-on music and profile data to each performer, track the budget, coordinate staff and hosts, and export a PDF runsheet
 - **Day of:** upload a photo, PDF, or plain text to import the schedule automatically (with OCR + regex fallback)
 - **During the show:** run a full-screen live mode with per-cue countdowns, manual walk-on music with automatic fade in/out, and live status broadcast to a public viewer URL
-- **Audience-facing:** a separate public sign-up link for tattoo artist queueing, with email notification when an artist is up
 
 ---
 
@@ -112,8 +110,8 @@ I Can Run A Show handles the full workflow in a single application:
 **Personalization**
 - First-run onboarding — name your brand and pick the kinds of shows you produce (comedy, drag, music, variety, …)
 - Show-type-aware wording — the Rolodex adapts to what you book (Comic Rolodex, Queen Rolodex, Artist Rolodex, …), with an editable override in Settings
-- Selectable color schemes — Light and Dark; the choice persists across visits and applies app-wide, including the public viewer + sign-up pages
-- Per-show customizable sections — hide the sections you don't use (e.g. removing Artists also hides the Artist admin)
+- Selectable color schemes — Light and Dark; the choice persists across visits and applies app-wide, including the public viewer page
+- Per-show customizable sections — hide the sections you don't use
 
 **Show building**
 - Multiple shows with status tracking (upcoming, in-progress, completed, cancelled)
@@ -135,11 +133,6 @@ I Can Run A Show handles the full workflow in a single application:
 - Per-cue countdown, drift indicator, keyboard navigation, and per-cue duration adjustment
 - Public read-only viewer URL with live on-stage / up-next state
 
-**Artist sign-up (for tattoo / merch / etc. shows)**
-- Public sign-up link with hero card (live status or "starts at" countdown) + flash sheet + uploaded schedule image
-- Queue position shown on submit; sign-up list updates live
-- Admin panel with Queue / Sign-ups / Settings tabs, including a one-tap "Email 'you're up'" button (sends via Brevo from a dedicated address — no SMS from your personal number)
-
 **Platform**
 - PWA (installable, offline shell)
 - Client-side AES encryption with PBKDF2-derived keys — the server/DB only ever store ciphertext, and the database is reached through server API routes (the DB credential never ships to the browser)
@@ -157,7 +150,6 @@ I Can Run A Show handles the full workflow in a single application:
 - **Encryption:** crypto-js (PBKDF2 key derivation, AES)
 - **Schedule extraction:** server-side proxy for image + text parsing; Tesseract.js OCR fallback
 - **PDF:** PDF.js (pdfjs-dist) — client-side extraction
-- **Email:** Brevo REST API via a Vercel Edge function (`/api/notify-artist`)
 - **Typography:** Inter (Google Fonts) — loaded via `preconnect` with `font-display: swap` fallback
 - **Styling:** Custom CSS with a comprehensive design-token system — no CSS framework
 - **Hosting:** Vercel (web + serverless functions)
@@ -169,8 +161,6 @@ I Can Run A Show handles the full workflow in a single application:
 
 ```
 showrunner/
-├── api/
-│   └── notify-artist.ts         # Vercel Edge function — sends "you're up" emails via Brevo
 ├── src/
 │   ├── App.tsx                  # Root — auth, routing, global state
 │   ├── App.css                  # Design tokens + layout system
@@ -181,8 +171,6 @@ showrunner/
 │   │   ├── ShowDetail.tsx       # Per-show management hub
 │   │   ├── RunShow.tsx          # Full-screen live mode
 │   │   ├── LiveViewer.tsx       # Public read-only viewer (?view=…)
-│   │   ├── ArtistSignup.tsx     # Public artist sign-up page (?artist=…)
-│   │   ├── ArtistAdmin.tsx      # Admin queue + settings page
 │   │   ├── Settings.tsx
 │   │   ├── Expenses.tsx
 │   │   └── sections/            # Per-section components inside ShowDetail
@@ -194,7 +182,6 @@ showrunner/
 │       ├── audioEngine.ts       # Web Audio wrapper with fade + preload
 │       ├── pdfExport.ts         # Client-side PDF generation
 │       ├── liveView.ts          # Live state pub/sub (via the API)
-│       ├── artistSignup.ts      # Public sign-up data layer (via the API)
 │       ├── theme.ts             # Color-scheme tokens + persistence
 │       ├── terminology.ts       # Show-type-aware Rolodex wording
 │       └── social.ts            # Social-handle links + bulk mailto helpers
@@ -204,9 +191,7 @@ showrunner/
 │   ├── shows.ts                 # encrypted show blobs (load / save)
 │   ├── settings.ts             # encrypted settings blob
 │   ├── live.ts                  # live-viewer state
-│   ├── artist.ts / artist-entries.ts  # public sign-up payload + queue
-│   ├── ai-extract.ts            # server-side extraction proxy (key never in the bundle)
-│   └── notify-artist.ts         # "you're up" emails via Brevo
+│   └── ai-extract.ts            # server-side extraction proxy (key never in the bundle)
 └── .github/workflows/ci.yml     # Lint + tests + type-check + build on push/PR
 ```
 
@@ -225,12 +210,11 @@ flowchart LR
     subgraph Edge["Vercel Edge / Serverless (/api)"]
         Auth["/api/auth"]
         Data["/api/shows · /api/settings"]
-        Live["/api/live · /api/artist"]
+        Live["/api/live"]
     end
 
     DB[("Turso<br/>libSQL · ciphertext only")]
     Viewer["📺 Public viewer link<br/>(?view=…)"]
-    Signup["✍️ Artist sign-up<br/>(?artist=…)"]
 
     UI -- "encrypt → ciphertext" --> Data
     UI -- "user id + hash" --> Auth
@@ -238,7 +222,6 @@ flowchart LR
     Auth <--> DB
     UI -- "Run Show publishes live state" --> Live
     Live --> Viewer
-    Live --> Signup
 ```
 
 ---
@@ -272,28 +255,9 @@ Optional (all server-side — **no** `VITE_` prefix):
 
 ```env
 OPENAI_API_KEY=               # automatic schedule import via /api/ai-extract; falls back to OCR + regex without it
-
-# For /api/notify-artist
-BREVO_API_KEY=
-BREVO_SENDER_EMAIL=
-BREVO_SENDER_NAME=I Can Run A Show
 ```
 
 The Turso variables are required for data persistence; the app surfaces a clear error if they are missing.
-
-#### Artist notification emails (free)
-
-The "Email 'you're up'" button in Artist admin sends a real email via [Brevo](https://www.brevo.com) — free tier allows 300 emails/day with no domain verification required.
-
-One-time setup:
-
-1. Sign up at brevo.com → verify your email
-2. Settings → Senders & IP → add a sender email and click the verification link
-3. Settings → SMTP & API → generate a v3 API key
-4. Add `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, and `BREVO_SENDER_NAME` to your Vercel project env vars
-5. Redeploy
-
-Without these, the Email button shows a clear inline error explaining what's missing.
 
 ---
 
@@ -317,7 +281,7 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 2. Create a show and fill in basic info (name, date, venue)
 3. Add performers to the lineup; upload a headshot and walk-on music, and add profile data per performer
 4. In the Schedule section, import a schedule by uploading a PDF, image, or pasting text — or build it cue-by-cue
-5. (Optional) Generate the public viewer link and the artist sign-up link from the show detail page
+5. (Optional) Generate the public viewer link from the show detail page
 6. (Optional) In the DJ section, upload the audio for a song to give it its own button in Run Show
 7. On show day, open Run Show — start the clock, press a performer's face to fade their walk-on in and press it again to fade it out, and the live state is broadcast to anyone with the viewer link
 
@@ -330,7 +294,7 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 - Built the encryption layer: password-derived AES keys via PBKDF2, all data encrypted before reaching Turso; per-show write is debounced 1s
 - Built the schedule import pipeline: server-side image extraction for photos (via a proxy so the key stays off the client), PDF.js for multi-page PDFs in the browser, and a Tesseract.js OCR + regex fallback for plain text
 - Built the Web Audio engine wrapper for cue music — single AudioContext unlocked on Start, fade-in / fade-out on every cue change, buffer preloading for the current and next cue, and context-resume retry to survive iOS Safari auto-suspension
-- Built the public read-only viewer URL and the artist sign-up flow (public sign-up form, admin queue with Mark-paid + Email button, Brevo edge function for notifications)
+- Built the public read-only viewer URL, broadcast live from Run Show
 - Built the performer rolodex with cross-show sync — editing a rolodex entry propagates to all matching performers
 - Set up the CI workflow (lint + type-check on every push/PR) and deployed to Vercel
 
@@ -338,7 +302,7 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 
 ## Technical Decisions
 
-**No CSS framework.** Every component is styled with hand-written CSS using a comprehensive design token system. Tokens cover type scale (`--text-*`), spacing (`--space-*`), z-index layers (`--z-*`), transition timing (`--duration-*`, `--ease-*`), and a radius scale (`--radius-sm` → `--radius-full`). The palette is a clean black-and-white base with a single blue primary accent — no warm tones, no framework overrides. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer/sign-up links — are just a `data-theme` swap.
+**No CSS framework.** Every component is styled with hand-written CSS using a comprehensive design token system. Tokens cover type scale (`--text-*`), spacing (`--space-*`), z-index layers (`--z-*`), transition timing (`--duration-*`, `--ease-*`), and a radius scale (`--radius-sm` → `--radius-full`). The palette is a clean black-and-white base with a single blue primary accent — no warm tones, no framework overrides. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer link — are just a `data-theme` swap.
 
 **Phone-first, one column everywhere.** Rather than maintain separate desktop and mobile layouts, the app renders as a single centered column (capped width) at every screen size, with a bottom navigation. On a desktop it reads as a focused native phone app instead of a sprawling multi-pane dashboard.
 
@@ -347,8 +311,6 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 **Import pipeline with fallback.** Schedule import works without an API key by falling back to OCR + regex matching for common time formats. This makes the feature usable in environments where the extraction key is not configured or hits a rate limit.
 
 **Web Audio API for cue music.** HTMLAudioElement was unreliable across iOS Safari's autoplay rules after auto-advance / pre-roll. The Web Audio path unlocks a single AudioContext on the Start tap, preloads buffers, and explicitly resumes the context on every play — this is the only path that works reliably in the field.
-
-**Email instead of SMS for artist notifications.** SMS from the admin's phone exposes their personal number; commercial SMS APIs are not free at any meaningful volume. The app uses email via Brevo's free tier (300/day, no domain verification needed), with a "check your spam folder" hint on the sign-up form and confirmation screen.
 
 **Debounced auto-save.** Changes to shows are saved to Turso after a 1-second debounce rather than on every keystroke. This avoids hammering the database while keeping data loss risk low. Each per-row form keeps an internal draft state so typing in one row doesn't re-render or re-save the rest of the lineup.
 
@@ -385,7 +347,7 @@ Unit tests (Vitest) cover the pure logic: schedule text parsing, cue timing/form
 - All API keys and database credentials are loaded from environment variables — no fallback values in source
 - The database is reached only through server-side API routes; the Turso credential is a server env var and is never included in the client bundle
 - The stored auth credential is a per-user salted, slow PBKDF2 hash (the client hash is never stored verbatim), compared in constant time, with legacy rows upgraded transparently on next login
-- Authentication is rate-limited (per-account fixed window); public upsert routes cap payload size; sign-up queue mutations are scoped to the show token
+- Authentication is rate-limited (per-account fixed window); public upsert routes cap payload size
 - The optional schedule extractor runs behind a server proxy, so the key stays in the server environment and never ships in the client bundle
 - The encryption KDF uses SHA-256 at 100k iterations; reaching the OWASP 600k target needs migrating from pure-JS crypto-js to native WebCrypto/Argon2 (a tracked follow-up)
 
