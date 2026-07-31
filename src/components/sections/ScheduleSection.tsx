@@ -4,6 +4,8 @@ import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
 import { Icon } from '../Icon';
+import { ShowTimeline } from '../ShowTimeline';
+import { withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
 
 // Loaded on demand — pulls in the AI/OCR/PDF parsing deps only when the
 // import flow is actually opened, keeping them out of the main bundle.
@@ -14,7 +16,15 @@ const AIImportFlow = lazy(() =>
 interface ScheduleSectionProps {
   schedule: ScheduleItem[];
   showName?: string;
+  showTime?: string;
   performers?: Performer[];
+  /**
+   * Everyone this producer has on file — the Rolodex plus this show's own bill.
+   * A cue that only mentions a name in its text gets that name filled in as its
+   * performer, which is what lets Run Show put them on stage and play their
+   * walk-on.
+   */
+  knownNames?: string[];
   onChange: (schedule: ScheduleItem[]) => void;
 }
 
@@ -325,7 +335,9 @@ const CueRow = memo(function CueRow({
 export function ScheduleSection({
   schedule,
   showName,
+  showTime,
   performers = [],
+  knownNames = [],
   onChange,
 }: ScheduleSectionProps) {
   const initialMode: ScheduleMode = schedule.length > 0 ? 'build' : 'choose';
@@ -345,13 +357,33 @@ export function ScheduleSection({
 
   function addItem() {
     if (!desc.trim()) return;
-    onChange([...schedule, { id: generateId(), time: time.trim(), description: desc.trim() }]);
+    const item: ScheduleItem = { id: generateId(), time: time.trim(), description: desc.trim() };
+    // "8:20 Ada Cole (10)" is how run sheets are actually written. If the line
+    // names someone we know, that's who is on stage for this cue.
+    const named = matchKnownName(item.description, knownNames);
+    if (named) item.performer = named;
+    onChange([...schedule, item]);
     setTime('');
     setDesc('');
   }
 
+  // Names in refs so the callback can stay referentially stable — the rows are
+  // memoised on it, and re-creating it would re-render every cue on each edit.
+  const knownNamesRef = useRef(knownNames);
+  useEffect(() => { knownNamesRef.current = knownNames; }, [knownNames]);
+
   const handlePatch = useCallback((id: string, patch: Partial<ScheduleItem>) => {
-    onChangeRef.current(scheduleRef.current.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    onChangeRef.current(scheduleRef.current.map((s) => {
+      if (s.id !== id) return s;
+      const next = { ...s, ...patch };
+      // Rewriting a cue's text can name someone, but only fill a blank — if the
+      // performer field is set, the person editing has already answered this.
+      if (patch.description !== undefined && !next.performer?.trim()) {
+        const named = matchKnownName(next.description, knownNamesRef.current);
+        if (named) next.performer = named;
+      }
+      return next;
+    }));
   }, []);
 
   const handleDelete = useCallback((id: string) => {
@@ -393,7 +425,7 @@ export function ScheduleSection({
   }
 
   function handleApplyImport(items: ScheduleItem[]) {
-    onChange([...schedule, ...items]);
+    onChange([...schedule, ...withMatchedPerformers(items, knownNames)]);
     setImportOpen(false);
     setMode('build');
   }
@@ -435,6 +467,11 @@ export function ScheduleSection({
               </button>
             )}
           </div>
+
+          {/* Above the cue list, because the shape of the night is what you
+              want before you start reading rows — and it's the fastest way to
+              spot a bill that's gone lopsided. */}
+          <ShowTimeline schedule={schedule} showTime={showTime} />
 
           <button className="ai-import-entry" onClick={() => setImportOpen(true)}>
             <span className="ai-import-entry__icon"><Icon name="sparkle" size={14} /></span>
