@@ -242,24 +242,29 @@
   white-space: nowrap;
 }
 
+/* The dot says it fast, the word says it unambiguously — neither on its own.
+   This was 0.68rem (10.9px) in all-caps with 0.06em tracking, which is the
+   least legible way to set the one word on the card that tells you where the
+   show stands. Same floor and same sentence case as the show page. */
 .show-card__status {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.8rem;
+  font-weight: 650;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   flex-shrink: 0;
-  color: var(--text-soft);
+  color: var(--text-muted);
 }
 
 .show-card__status::before {
   content: '';
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--card-accent, var(--border-strong));
+  /* A ring so the dot still reads as a state light against a panel that is
+     nearly the same value as the dot's own fill. */
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--card-accent, var(--border-strong)) 22%, transparent);
   flex-shrink: 0;
 }
 
@@ -370,8 +375,8 @@
 
 /* ── Density ──────────────────────────────────────────────────────────
    Cards were ~130px tall to show four facts, with the lower half empty, so
-   only about five reached a desktop screen. Tighter, and two across once
-   there's room (the two-column rule lives in App.css beside the base
+   only about five reached a desktop screen. Tighter, and as many across as fit
+   at 400px or wider (the column rule lives in App.css beside the base
    .shows-grid declaration) — the earlier objection to columns was that a wide
    row-shaped card squeezed its title when narrowed, which is why the title and
    status now share a line instead of stacking into a taller block. */

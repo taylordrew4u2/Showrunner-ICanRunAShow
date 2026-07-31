@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
@@ -55,6 +55,17 @@ function loadOpenSections(showId: string): Set<string> {
 }
 
 export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }: ShowDetailProps) {
+  // Everyone this producer has on file. The show's own bill comes first so a
+  // name spelled slightly differently in the Rolodex doesn't win over the
+  // spelling actually used on this lineup.
+  const knownNames = useMemo(
+    () => [
+      ...show.performers.map((p) => p.name),
+      ...(show.artists ?? []).map((a) => a.name),
+      ...settings.potentialComics.map((c) => c.name),
+    ].filter((n) => n?.trim()),
+    [show.performers, show.artists, settings.potentialComics],
+  );
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => loadOpenSections(show.id));
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(false);
@@ -337,7 +348,9 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       content: <ScheduleSection
         schedule={show.schedule}
         showName={show.name}
+        showTime={show.time}
         performers={show.performers}
+        knownNames={knownNames}
         onChange={(schedule) => handleUpdate({ schedule })}
       />,
     },

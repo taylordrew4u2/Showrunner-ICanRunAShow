@@ -7,6 +7,7 @@ import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/the
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
 import { addPerformersToRolodex } from './utils/rolodex';
+import { buildOverview } from './utils/showsOverview';
 import { 
   loadEncryptedShows, 
   saveEncryptedShows,
@@ -34,6 +35,7 @@ import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
 import { PageHeader } from './components/PageHeader';
 import { ShowCard } from './components/ShowCard';
+import { ShowsDashboard, type ShowsFocus } from './components/ShowsDashboard';
 import { ShowsCalendar } from './components/ShowsCalendar';
 import { ShowForm } from './components/ShowForm';
 import { ShowDetail } from './components/ShowDetail';
@@ -246,6 +248,8 @@ export default function App() {
   const [newComicNotes, setNewComicNotes] = useState('');
   const [newListEmail, setNewListEmail] = useState('');
   const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
+  // Which follow-up list from the at-a-glance row the grid is narrowed to.
+  const [showsFocus, setShowsFocus] = useState<ShowsFocus>(null);
   const [expandOrigin, setExpandOrigin] = useState({ x: 50, y: 30 });
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'added' | 'date-asc' | 'date-desc' | 'name'>(() => {
@@ -1004,7 +1008,17 @@ export default function App() {
 
   // Search + status filtering for the shows list.
   const normalizedQuery = searchQuery.trim().toLowerCase();
+  // The at-a-glance row narrows this list; the ids come from the same
+  // buildOverview the row counts with, so the count and the grid can't disagree.
+  const focusIds = (() => {
+    if (!showsFocus) return null;
+    const overview = buildOverview(shows);
+    const list = showsFocus === 'lineup' ? overview.needsLineup : overview.needsSchedule;
+    return new Set(list.map((s) => s.id));
+  })();
+
   const filteredShows = shows.filter((show) => {
+    if (focusIds && !focusIds.has(show.id)) return false;
     if (!normalizedQuery) return true;
     return [show.name, show.venueName, show.location]
       .some((field) => field?.toLowerCase().includes(normalizedQuery));
@@ -1033,6 +1047,7 @@ export default function App() {
 
   function clearFilters() {
     setSearchQuery('');
+    setShowsFocus(null);
   }
 
 
@@ -1153,12 +1168,15 @@ export default function App() {
                   <div className="backup-nudge" role="status">
                     <Icon name="shield" size={16} className="backup-nudge__icon" aria-hidden />
                     <span className="backup-nudge__text">
-                      Your shows are saved and encrypted. Keep a copy of your own too — one tap,
-                      and the file is yours.
+                      Keep your own copy of your shows.
                     </span>
                     <div className="backup-nudge__actions">
-                      <button className="btn btn--secondary btn--sm" onClick={handleDownloadBackup}>
-                        Download backup
+                      <button
+                        className="btn btn--secondary btn--sm backup-nudge__btn"
+                        onClick={handleDownloadBackup}
+                        aria-label="Download a backup file of your shows"
+                      >
+                        Back up
                       </button>
                       <button
                         className="backup-nudge__close"
@@ -1216,6 +1234,13 @@ export default function App() {
                   </div>
                 )}
 
+                <ShowsDashboard
+                  shows={shows}
+                  focus={showsFocus}
+                  onFocusChange={setShowsFocus}
+                  onSelectShow={handleSelectShow}
+                />
+
                 {shows.length === 0 ? (
                   <div className="empty-state">
                     <h2 className="empty-state__title">No shows yet</h2>
@@ -1229,9 +1254,13 @@ export default function App() {
                 ) : filteredShows.length === 0 ? (
                   <div className="empty-state">
                     <h2 className="empty-state__title">No matches</h2>
-                    <p className="empty-state__text">No shows match “{searchQuery.trim()}”.</p>
+                    <p className="empty-state__text">
+                      {searchQuery.trim()
+                        ? `No shows match “${searchQuery.trim()}”.`
+                        : 'Nothing left in this list.'}
+                    </p>
                     <button className="btn btn--secondary" onClick={clearFilters}>
-                      Clear search
+                      {searchQuery.trim() ? 'Clear search' : 'Show all'}
                     </button>
                   </div>
                 ) : showsView === 'calendar' ? (

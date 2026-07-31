@@ -1,0 +1,221 @@
+/* ── Shape of the night ───────────────────────────────────────────────
+   A proportional strip above the cue list. It answers questions a list
+   can't: is the bill lopsided, where does the night sag, how much of the
+   evening is actually somebody on stage.
+
+   Two rules it is built around:
+   - It never carries information the list below doesn't also state. It is a
+     second view of the same data, not the only way to reach it.
+   - Set versus turnaround is carried by a hatch as well as by colour, so the
+     split survives a monochrome print or a colour-blind read. */
+
+.timeline {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.timeline__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.timeline__heading {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.timeline__totals {
+  margin: 0;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline__totals-clock {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ── The strip ──────────────────────────────────────────────────────── */
+
+.timeline__strip {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  height: 46px;
+}
+
+.timeline__slot {
+  /* flex-grow carries the proportion; the min-width keeps a 1-minute cue from
+     collapsing into an unclickable sliver. Proportion is the point, but a
+     block you can't hit is worse than one that's slightly too wide. */
+  flex-basis: 0;
+  min-width: 12px;
+  display: flex;
+  /* Each block sizes its own label. A width query, not a viewport query — the
+     same phone shows a 24-minute headliner that easily fits a name next to a
+     2-minute turnaround that fits nothing. */
+  container-type: inline-size;
+}
+
+/* Below this a label truncates to a stub — "M…", "A." — which is noise
+   pretending to be information. The block keeps its accessible name, and
+   tapping it still names the cue underneath. */
+@container (max-width: 58px) {
+  .timeline__seg-text {
+    display: none;
+  }
+}
+
+.timeline__seg {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  border: 1px solid var(--primary-soft-border);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  font: inherit;
+  transition:
+    border-color var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out);
+}
+
+.timeline__seg-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--primary-soft);
+}
+
+/* A turnaround: same footprint, but hatched and unfilled so it reads as dead
+   air at a glance without depending on hue. */
+.timeline__seg--break {
+  border-color: var(--border-strong);
+}
+
+.timeline__seg--break .timeline__seg-fill {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--border) 0 3px,
+    transparent 3px 7px
+  );
+}
+
+/* The longest block sets the eye's reference for everything else. */
+.timeline__seg--longest {
+  border-color: var(--primary);
+}
+
+.timeline__seg--longest .timeline__seg-fill {
+  background: var(--primary-soft);
+  box-shadow: inset 0 -3px 0 var(--primary);
+}
+
+.timeline__seg-text {
+  position: relative;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Decorative: the accessible name on the button carries the same words in
+     full, so clipping this one costs nothing to a screen reader. */
+}
+
+/* Full-strength text, differentiated by weight rather than by colour. Muted
+   grey would land on a hatch stripe at 3.86:1 in the light theme — and because
+   the stripe is a gradient, axe reports that case as undecidable rather than
+   failing it, so it would have shipped looking clean. The unfilled hatch and
+   the border already say "not a set"; the label doesn't have to. */
+.timeline__seg--break .timeline__seg-text {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.timeline__seg:hover {
+  border-color: var(--primary);
+}
+
+.timeline__seg:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.timeline__seg--open {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline__seg {
+    transition: none;
+  }
+  .timeline__seg--open {
+    transform: none;
+  }
+}
+
+/* ── The line underneath ────────────────────────────────────────────── */
+
+.timeline__detail,
+.timeline__hint {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  min-height: 1.45em;
+}
+
+.timeline__detail strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.timeline__detail-sub {
+  color: var(--text-muted);
+}
+
+.timeline__detail-facts {
+  display: block;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* On a phone the strip gets taller rather than narrower — the blocks are
+   already as thin as they can usefully be, and height is what keeps them
+   tappable. */
+@media (max-width: 640px) {
+  .timeline {
+    padding: 12px;
+  }
+
+  .timeline__strip {
+    height: 56px;
+  }
+
+  .timeline__seg-text {
+    font-size: 0.72rem;
+  }
+}

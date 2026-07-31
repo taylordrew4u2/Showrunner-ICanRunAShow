@@ -247,14 +247,17 @@
 /* A suggestion, not an alarm. It used to wear the same red as real problems,
    which taught people to read "everything is fine, keep a spare copy" as
    "something is wrong". */
+/* Reassurance, not a page section. It sits between you and your shows, so it
+   stays on one line wherever it fits — the copy was two sentences that wrapped
+   to three lines on a phone and cost 136px above the first card. */
 .backup-nudge {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
-  padding: 12px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -268,9 +271,11 @@
 
 .backup-nudge__text {
   font-size: 0.85rem;
+  line-height: 1.35;
   color: var(--text);
   flex: 1;
-  min-width: 200px;
+  /* 200px forced a wrap on a 366px column even after the copy was shortened. */
+  min-width: 100px;
 }
 
 .backup-nudge__actions {
@@ -392,9 +397,18 @@
 .shows-list {
   max-width: 700px;
   margin: 0 auto;
+  /* Named so the at-a-glance row can lay itself out against the real content
+     width. A container query can't style its own container, so the row can't
+     answer this from a container declared on itself. */
+  container-type: inline-size;
+  container-name: shows-col;
 }
 
-/* Wide enough for two readable cards side by side. */
+/* Wide enough for two readable cards side by side. Three would need the app
+   shell to grow: --desktop-max caps everything at 1400px and the sidebar takes
+   240px of it, so the content column tops out around 1080px however wide the
+   monitor is. The grid asks for as many columns as fit, so raising that cap is
+   all it would take — but that widens every screen, not just this one. */
 @media (min-width: 1000px) {
   .shows-list {
     max-width: 1100px;
@@ -402,22 +416,18 @@
 }
 
 /* ── Shows list ──────────────────────────────────────────────────────────
-   One per row on phones and tablets; two across from 1000px (see
-   ShowCard.css). Three or four across was tried before and squeezed the
-   titles — two keeps each card around 500px, which is wider than a phone. */
+   Columns are decided by how much room a card needs, not by device
+   breakpoints: as many 400px-or-wider cards as fit, and one column when they
+   don't. Three or four across was tried before and squeezed the titles, so
+   400px is the floor — that is wider than a phone, which is the width these
+   cards were designed against. The `min(100%, …)` keeps a narrow screen from
+   demanding 400px it hasn't got and overflowing. */
 
 .shows-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
+  align-items: start;
   gap: 10px;
-}
-
-@media (min-width: 1000px) {
-  .shows-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
 }
 
 /* ── Rolodex Page ──────────────────────────────────────────────────── */
@@ -617,18 +627,23 @@
 }
 
 @media (max-width: 520px) {
-  /* Wrap the toolbar so search gets a full row and the sort +
-     view toggle stay thumb-sized on a second row. */
+  /* One row, not two. Search flexes and the sort + view controls shrink to
+     what they need — they were each taking a full-width line, which cost ~48px
+     above the shows for no gain. */
   .shows-toolbar {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    margin-bottom: 12px;
   }
 
   .shows-toolbar__search {
-    flex: 1 1 100%;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .shows-toolbar__sort {
-    flex: 1;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 8.5rem;
   }
 
   .rolodex__form {
@@ -1228,6 +1243,10 @@
   gap: 10px;
   padding: 12px 14px;
   background: var(--surface);
+  /* A <button> does not inherit colour — without this it takes the browser's
+     `buttontext`, which is black, and "Import with AI" rendered at 1.14:1 on
+     the dark surface. Invisible, and only in dark mode. */
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   margin-bottom: 10px;
@@ -4056,4 +4075,12 @@ body:has([aria-modal='true']) .status-rail {
   .status-rail__pill-row {
     padding: 18px 40px 12px;
   }
+}
+
+/* The action side of the backup nudge was 240px of a 340px phone column, which
+   left 64px for the sentence and forced the whole banner onto two rows for
+   112px of height. "Back up" beside a shield says the same thing in a third of
+   the width; the full wording lives on the button's accessible name. */
+.backup-nudge__btn {
+  white-space: nowrap;
 }
