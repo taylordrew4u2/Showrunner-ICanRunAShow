@@ -38,7 +38,8 @@ export type IconName =
   | 'shield'
   | 'download'
   | 'alert'
-  | 'cloud';
+  | 'cloud'
+  | 'dollar';
 
 interface IconProps {
   name: IconName;
@@ -327,6 +328,13 @@ export function Icon({ name, size = 20, className, style, ...rest }: IconProps) 
         <svg {...common}>
           <path d="M17.5 19a4.5 4.5 0 0 0 .5-8.97A6 6 0 0 0 6.1 11.2 3.5 3.5 0 0 0 6.5 19z" />
           <polyline points="9 14 11 16 15 12" />
+        </svg>
+      );
+    case 'dollar':
+      return (
+        <svg {...common}>
+          <path d="M12 2v20" />
+          <path d="M17 6.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
         </svg>
       );
     default:
