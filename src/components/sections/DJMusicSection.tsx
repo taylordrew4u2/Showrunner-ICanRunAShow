@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { DJSong, Show } from '../../types';
 import { generateId } from '../../utils/id';
+import { audioUploadSizeError, pickFile } from '../../utils/media';
+import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
 import { exportDJListToPDF } from '../../utils/pdfExport';
 
 interface DJMusicSectionProps {
@@ -17,6 +19,8 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
   const [editTitle, setEditTitle] = useState('');
   const [editArtist, setEditArtist] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  // Per-song upload status, keyed by song id: 'uploading' or an error message.
+  const [uploadState, setUploadState] = useState<Record<string, string>>({});
 
   function addSong() {
     if (!title.trim()) return;
@@ -35,6 +39,7 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
   function deleteSong(id: string) {
     const song = songs.find((s) => s.id === id);
     if (window.confirm(`Delete "${song?.title}"? This cannot be undone.`)) {
+      if (song?.music) deleteMedia(song.music);
       onChange(songs.filter((s) => s.id !== id));
     }
   }
@@ -54,6 +59,48 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
         : s
     ));
     setEditId(null);
+  }
+
+  function setStatus(id: string, message: string | null) {
+    setUploadState((prev) => {
+      const next = { ...prev };
+      if (message) next[id] = message;
+      else delete next[id];
+      return next;
+    });
+  }
+
+  /**
+   * Attach an audio file to a song. It goes to the chunked media store like
+   * walk-on music does — the show payload only carries the small `media:`
+   * reference — and the upload is what gives the song a button in Run Show.
+   */
+  async function attachAudio(song: DJSong) {
+    const file = await pickFile('audio/*');
+    if (!file) return;
+    const sizeError = audioUploadSizeError(file);
+    if (sizeError) {
+      setStatus(song.id, sizeError);
+      return;
+    }
+    setStatus(song.id, 'Uploading audio…');
+    try {
+      const ref = await uploadMedia(file);
+      const previous = song.music;
+      onChange(songs.map((s) => (s.id === song.id ? { ...s, music: ref, musicName: file.name } : s)));
+      if (previous) deleteMedia(previous);
+      setStatus(song.id, null);
+    } catch {
+      setStatus(song.id, 'Could not upload that audio file. Check your connection and try again.');
+    }
+  }
+
+  function removeAudio(song: DJSong) {
+    if (!song.music) return;
+    if (!window.confirm(`Remove the uploaded audio for "${song.title}"?`)) return;
+    deleteMedia(song.music);
+    onChange(songs.map((s) => (s.id === song.id ? { ...s, music: undefined, musicName: undefined } : s)));
+    setStatus(song.id, null);
   }
 
   function exportDJList() {
@@ -106,6 +153,11 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
         <button className="btn btn--primary btn--sm" onClick={addSong}>Add</button>
       </div>
 
+      <p className="section-hint">
+        Upload the audio for a song and it gets its own button on the Run Show soundboard, in a
+        bank of its own next to the performers.
+      </p>
+
       {songs.length === 0 && <p className="section-empty">No songs yet.</p>}
 
       <ul className="section-list">
@@ -124,12 +176,24 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
                 <>
                   <span className="section-list-item__order">{idx + 1}</span>
                   <span className="section-list-item__name">"{s.title}" — {s.artist}</span>
+                  {s.music && <span className="section-list-item__tag">♪ {s.musicName || 'Audio'}</span>}
                   {s.notes && <span className="section-list-item__tag">{s.notes}</span>}
+                  {uploadState[s.id] && (
+                    <span className="section-list-item__tag">{uploadState[s.id]}</span>
+                  )}
                 </>
               )}
             </div>
             {editId !== s.id && (
               <div className="section-list-item__actions">
+                <button className="btn btn--ghost btn--sm" onClick={() => attachAudio(s)}>
+                  {s.music ? 'Replace audio' : 'Upload audio'}
+                </button>
+                {s.music && (
+                  <button className="btn btn--ghost btn--sm" onClick={() => removeAudio(s)}>
+                    Remove audio
+                  </button>
+                )}
                 <button className="btn btn--ghost btn--sm" onClick={() => startEdit(s)}>Edit</button>
                 <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteSong(s.id)}>×</button>
               </div>

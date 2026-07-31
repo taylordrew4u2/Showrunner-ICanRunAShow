@@ -128,10 +128,11 @@ I Can Run A Show handles the full workflow in a single application:
 - On-device OCR fallback (Tesseract.js) + local parsing when the server has no extraction key configured
 
 **Run show**
-- Full-screen live mode with per-cue countdown, drift indicator, and keyboard navigation
-- Manual music start/stop per cue; fade in/out is automatic via Web Audio
+- Full-screen live mode: a clock, a soundboard, and the lineup — the clock and the sound are independent, so nothing you press changes the time
+- One button per performer. Press it to fade their song in, press it again to fade it out; pressing another button hands over between tracks
+- Separate banks for show tracks (cue uploads) and for the DJ list, so a DJ song is never one press away from a walk-on
+- Per-cue countdown, drift indicator, keyboard navigation, and per-cue duration adjustment
 - Public read-only viewer URL with live on-stage / up-next state
-- One-tap restart and per-cue duration adjustment
 
 **Artist sign-up (for tattoo / merch / etc. shows)**
 - Public sign-up link with hero card (live status or "starts at" countdown) + flash sheet + uploaded schedule image
@@ -316,7 +317,8 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 3. Add performers to the lineup; upload walk-on music and add profile data per performer
 4. In the Schedule section, import a schedule by uploading a PDF, image, or pasting text — or build it cue-by-cue
 5. (Optional) Generate the public viewer link and the artist sign-up link from the show detail page
-6. On show day, open Run Show — cues advance with countdown timers, music plays with fades, and the live state is broadcast to anyone with the viewer link
+6. (Optional) In the DJ section, upload the audio for a song to give it its own button in Run Show
+7. On show day, open Run Show — start the clock, press a performer's face to fade their walk-on in and press it again to fade it out, and the live state is broadcast to anyone with the viewer link
 
 ---
 
