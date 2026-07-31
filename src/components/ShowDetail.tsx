@@ -112,6 +112,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const artistsHidden = (show.hiddenSections || []).includes('artists');
   const showArtistAdmin = !artistsHidden || !!show.artistSignupToken;
 
+  // A show that has removed the DJ section has no DJ part to run — Run Show
+  // shouldn't offer a bank of buttons for a section this show doesn't use.
+  const djHidden = (show.hiddenSections || []).includes('dj');
+
   function openViewer() {
     setViewerNoteDraft(show.viewNote ?? '');
     setViewerCopied(false);
@@ -666,6 +670,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           viewToken={show.viewToken}
           schedule={show.schedule}
           performers={show.performers}
+          djSongs={djHidden ? [] : show.djSongs}
           onStart={() => {
             if (show.status !== 'completed' && show.status !== 'in-progress') {
               onUpdate({ ...show, status: 'in-progress' });

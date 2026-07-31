@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Performer, ScheduleItem } from '../types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { DJSong, Performer, ScheduleItem } from '../types';
 import { audioEngine } from '../utils/audioEngine';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
@@ -10,8 +10,14 @@ import {
   fmtCountdown,
   fmtOffset,
   fmtShowTime,
-  nextUpLabel,
 } from '../utils/showTiming';
+import {
+  buildSoundboard,
+  cuePerformerName,
+  resolveCuePerformer,
+  soundboardSources,
+  type SoundboardTrack,
+} from '../utils/soundboard';
 import { Icon } from './Icon';
 
 interface RunShowProps {
@@ -20,6 +26,7 @@ interface RunShowProps {
   viewToken?: string;
   schedule: ScheduleItem[];
   performers?: Performer[];
+  djSongs?: DJSong[];
   onStart?: () => void; // fired once when the show first starts (mark in-progress)
   onFinish?: () => void; // fired when the operator ends the show (mark completed)
   onClose: () => void;
@@ -28,38 +35,90 @@ interface RunShowProps {
 const DRIFT_TOLERANCE = 30; // seconds we still count as "On Time"
 const STEP_SECONDS = 2 * 60; // coarse +/- buttons
 const FINE_STEP_SECONDS = 30; // fine +/- buttons
-const FADE_MS = 800; // audio fade in/out duration
 const WARNING_SECONDS = 60; // timer flashes red at/under this remaining
 
-export function RunShow({ showName, viewToken, schedule, performers = [], onStart, onFinish, onClose }: RunShowProps) {
+// Music comes up under the host's introduction, so it eases in. It comes down
+// when the performer is already at the mic, so it gets out of the way fast.
+const FADE_IN_MS = 1400;
+const FADE_OUT_MS = 350;
+
+/**
+ * One button on the board. Defined out here on purpose: the clock re-renders
+ * every second, and a component declared inside RunShow would be a new type on
+ * each of those renders — remounting every pad and restarting the playing
+ * animation once a second.
+ */
+function TrackButton({
+  track,
+  variant,
+  isPlaying,
+  onToggle,
+}: {
+  track: SoundboardTrack;
+  variant: 'face' | 'disc';
+  isPlaying: boolean;
+  onToggle: (track: SoundboardTrack) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`rs-pad rs-pad--${variant} ${isPlaying ? 'rs-pad--playing' : ''}`}
+      onClick={() => onToggle(track)}
+      aria-pressed={isPlaying}
+      title={isPlaying ? `Stop ${track.label}` : `Play ${track.label}`}
+    >
+      <span className="rs-pad__face">
+        <span className="rs-pad__initial">{track.initial}</span>
+        <span className="rs-pad__state" aria-hidden="true">
+          {isPlaying ? (
+            <span className="rs-pad__eq">
+              <i />
+              <i />
+              <i />
+            </span>
+          ) : (
+            <Icon name="play" size={16} />
+          )}
+        </span>
+      </span>
+      <span className="rs-pad__label">{track.label}</span>
+      {track.sublabel && <span className="rs-pad__sub">{track.sublabel}</span>}
+    </button>
+  );
+}
+
+export function RunShow({
+  showName,
+  viewToken,
+  schedule,
+  performers = [],
+  djSongs = [],
+  onStart,
+  onFinish,
+  onClose,
+}: RunShowProps) {
   const [idx, setIdx] = useState(0);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0); // within current cue
   const [showElapsed, setShowElapsed] = useState(0); // whole show, real wall time
   const [adjust, setAdjust] = useState<Record<number, number>>({});
   const [muted, setMuted] = useState(false);
-  const [showCues, setShowCues] = useState(false);
+  // The button whose track is playing right now — the board's only audio state.
+  // It is deliberately independent of `idx`: the clock and the sound are two
+  // separate instruments and neither one drives the other.
+  const [playingKey, setPlayingKey] = useState<string | null>(null);
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
 
-  // Fire onStart the first time the show is started so it can be marked in-progress.
-  function notifyStart() {
-    if (notifiedStartRef.current) return;
-    notifiedStartRef.current = true;
-    onStart?.();
-  }
-
-  function toggleRunning() {
-    primeAudio();
-    if (!running) notifyStart();
-    setRunning((r) => !r);
-  }
-
-  function finishShow() {
-    if (!window.confirm('End the show and mark it completed?')) return;
-    audioEngine.stop({ fadeMs: FADE_MS });
-    onFinish?.();
-    onClose();
-  }
+  const board = useMemo(
+    () => buildSoundboard(schedule, performers, djSongs),
+    [schedule, performers, djSongs],
+  );
+  const playingTrack = useMemo(() => {
+    if (!playingKey) return null;
+    return (
+      [...board.performers, ...board.cues, ...board.dj].find((t) => t.key === playingKey) ?? null
+    );
+  }, [board, playingKey]);
 
   const base = useMemo(() => baseDurations(schedule), [schedule]);
   const effDurations = useMemo(
@@ -87,61 +146,33 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
   // Drift = real time used vs. where the plan says we should be. Recomputed from
   // current position so Prev / Jump / Reset stay consistent. Capping elapsed at
   // the allocation means an over-running cue reads as Behind.
-  const drift = showElapsed - offsets[idx] - Math.min(elapsed, totalSec);
+  const drift = showElapsed - (offsets[idx] ?? 0) - Math.min(elapsed, totalSec);
   const status: 'On Time' | 'Behind' | 'Ahead' =
     drift > DRIFT_TOLERANCE ? 'Behind' : drift < -DRIFT_TOLERANCE ? 'Ahead' : 'On Time';
 
-  // Resolve the cue's music: an uploaded track wins, then the assigned comic's
-  // walk-on, then a name match in the description (legacy). Duration always
-  // comes from the cue so it stays adjustable per segment.
-  const currentMusic = useMemo<{ src: string; name: string; duration?: number } | null>(() => {
-    if (!current) return null;
-    if (current.music) {
-      return { src: current.music, name: current.musicName || 'Uploaded track', duration: current.musicDuration };
-    }
-    const assigned = current.performerId ? performers.find((p) => p.id === current.performerId) : null;
-    if (assigned?.walkOnMusic) {
-      return { src: assigned.walkOnMusic, name: assigned.walkOnMusicName || assigned.name, duration: current.musicDuration };
-    }
-    const hay = `${current.description} ${current.performer ?? ""}`.toLowerCase();
-    const match = performers.find((p) => p.walkOnMusic && hay.includes(p.name.toLowerCase()));
-    if (match?.walkOnMusic) {
-      return { src: match.walkOnMusic, name: match.walkOnMusicName || match.name, duration: current.musicDuration };
-    }
-    return null;
-  }, [current, performers]);
-  const hasAudio = !!currentMusic;
-
-  // Compute the *next* cue's music too so we can pre-decode it ahead of time.
-  // The end-to-end "music must start exactly when the cue starts" guarantee
-  // hinges on the buffer being ready by then — fetch + decodeAudioData can
-  // otherwise take 100-500ms on first play and cause the audio to come in late.
-  const nextCue = !isLast ? schedule[idx + 1] : null;
-  const nextMusicSrc = useMemo<string | null>(() => {
-    if (!nextCue) return null;
-    if (nextCue.music) return nextCue.music;
-    const assigned = nextCue.performerId ? performers.find((p) => p.id === nextCue.performerId) : null;
-    if (assigned?.walkOnMusic) return assigned.walkOnMusic;
-    const hay = `${nextCue.description} ${nextCue.performer ?? ''}`.toLowerCase();
-    const match = performers.find((p) => p.walkOnMusic && hay.includes(p.name.toLowerCase()));
-    return match?.walkOnMusic ?? null;
-  }, [nextCue, performers]);
-
-  // Who's on stage for this cue: the linked performer record, else a name match.
-  const resolveCuePerformer = useCallback(
-    (cue: ScheduleItem | undefined): Performer | null => {
-      if (!cue) return null;
-      if (cue.performerId) return performers.find((p) => p.id === cue.performerId) ?? null;
-      const n = (cue.performer ?? '').trim().toLowerCase();
-      if (n) return performers.find((p) => p.name.toLowerCase() === n) ?? null;
-      return null;
-    },
-    [performers],
+  const onStagePerformer = useMemo(
+    () => resolveCuePerformer(current, performers),
+    [current, performers],
   );
-  const onStagePerformer = useMemo<Performer | null>(() => resolveCuePerformer(current), [current, resolveCuePerformer]);
-  const onStageName = onStagePerformer?.name || current?.performer || '';
-  const nextPerformer = useMemo<Performer | null>(() => resolveCuePerformer(next), [next, resolveCuePerformer]);
-  const nextName = nextPerformer?.name || next?.performer || '';
+  const onStageName = cuePerformerName(current, performers);
+  const nextName = cuePerformerName(next, performers);
+
+  // ── Timer ────────────────────────────────────────────────────────────────
+  // Start / pause moves the clock and nothing else. No track is started,
+  // stopped, or faded from here.
+  function notifyStart() {
+    if (notifiedStartRef.current) return;
+    notifiedStartRef.current = true;
+    onStart?.();
+  }
+
+  function toggleRunning() {
+    // A tap is a user gesture — the cheapest place to unlock the AudioContext
+    // so the first soundboard press is instant.
+    audioEngine.init();
+    if (!running) notifyStart();
+    setRunning((r) => !r);
+  }
 
   // Tick the clocks while running.
   useEffect(() => {
@@ -162,38 +193,92 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
     }
   }, [running, elapsed, totalSec, isLast, schedule.length]);
 
-  // ── Audio (Web Audio engine) ─────────────────────────────────────────────
-  // Stop any current playback (with fade) when leaving a segment.
+  function goTo(target: number) {
+    const t = Math.max(0, Math.min(schedule.length - 1, target));
+    setIdx(t);
+    setElapsed(0);
+  }
+  function goNext() {
+    if (!isLast) goTo(idx + 1);
+  }
+  function goPrev() {
+    if (idx > 0) goTo(idx - 1);
+  }
+  function resetCueTimer() {
+    setElapsed(0);
+  }
+  function adjustTime(delta: number) {
+    setAdjust((a) => ({ ...a, [idx]: (a[idx] ?? 0) + delta }));
+  }
+
+  function restartShow() {
+    if (!window.confirm('Restart the timer from the top of the show?')) return;
+    setIdx(0);
+    setElapsed(0);
+    setShowElapsed(0);
+    setAdjust({});
+    audioEngine.init();
+    setRunning(true);
+    notifyStart();
+  }
+
+  function finishShow() {
+    if (!window.confirm('End the show and mark it completed?')) return;
+    audioEngine.stop({ fadeMs: FADE_OUT_MS });
+    onFinish?.();
+    onClose();
+  }
+
+  // ── Soundboard ───────────────────────────────────────────────────────────
+  // Every track on the board is decoded up front. A walk-on that has to fetch
+  // and decode on the press lands a half-second late, which on stage is the
+  // difference between a cue and a mistake.
   useEffect(() => {
-    audioEngine.stop({ fadeMs: FADE_MS });
-  }, [idx]);
+    audioEngine.init();
+    let cancelled = false;
+    (async () => {
+      for (const src of soundboardSources(board)) {
+        if (cancelled) return;
+        await audioEngine.preload(src).catch(() => {});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [board]);
 
-  // Pre-decode the current and next cue's music so play() at countdown=0 is
-  // instant. fetch + decodeAudioData would otherwise take 100-500ms on first
-  // play and the music would lag the cue start.
-  useEffect(() => {
-    if (currentMusic?.src) audioEngine.preload(currentMusic.src).catch(() => {});
-    if (nextMusicSrc) audioEngine.preload(nextMusicSrc).catch(() => {});
-  }, [currentMusic?.src, nextMusicSrc]);
+  // Press to start (fades in), press again to stop (fades out fast). Pressing a
+  // different button hands over: the outgoing track fades as the new one rises.
+  function toggleTrack(track: SoundboardTrack) {
+    if (playingKey === track.key) {
+      audioEngine.stop({ fadeMs: FADE_OUT_MS });
+      setPlayingKey(null);
+      return;
+    }
+    setPlayingKey(track.key);
+    audioEngine
+      .play(track.src, {
+        fadeInMs: FADE_IN_MS,
+        fadeOutMs: FADE_OUT_MS,
+        onEnded: () => setPlayingKey((k) => (k === track.key ? null : k)),
+      })
+      .then((ok) => {
+        // A false here is either a track that wouldn't decode or a press that
+        // has since been superseded — only clear if this one is still the
+        // button lit up.
+        if (!ok) setPlayingKey((k) => (k === track.key ? null : k));
+      })
+      .catch(() => setPlayingKey((k) => (k === track.key ? null : k)));
+  }
 
-  // Read the *latest* currentMusic when the trigger fires (avoid stale closure).
-  const currentMusicRef = useRef(currentMusic);
-  useEffect(() => { currentMusicRef.current = currentMusic; }, [currentMusic]);
+  function stopAll() {
+    audioEngine.stop({ fadeMs: FADE_OUT_MS });
+    setPlayingKey(null);
+  }
 
-  // Single source of truth for "start this cue's music now". Always tries to
-  // resume the AudioContext first (Safari can suspend it during the silent
-  // pre-roll). Retries once after a short tick if the first play call fails.
-  const playCurrentMusicRef = useRef(() => {});
-  playCurrentMusicRef.current = () => {
-    const m = currentMusicRef.current;
-    if (!m) return;
-    audioEngine.play(m.src, { fadeMs: FADE_MS, durationSec: m.duration }).catch((err) => {
-      console.warn('cue music: play failed, retrying', err);
-      window.setTimeout(() => {
-        audioEngine.play(m.src, { fadeMs: FADE_MS, durationSec: m.duration }).catch(() => {});
-      }, 120);
-    });
-  };
+  function toggleMute() {
+    setMuted((m) => !m);
+  }
 
   // Keep mute state in sync with the engine.
   useEffect(() => {
@@ -210,11 +295,11 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
   // the show detail page (Viewer link button); we just write to its token here.
   useEffect(() => {
     if (!viewToken) return;
-    const status: LiveViewPayload['status'] =
-      running ? 'running' : (showElapsed > 0 || idx > 0 ? 'paused' : 'idle');
+    const liveStatus: LiveViewPayload['status'] =
+      running ? 'running' : showElapsed > 0 || idx > 0 ? 'paused' : 'idle';
     const payload: LiveViewPayload = {
       showName,
-      status,
+      status: liveStatus,
       theme: loadColorScheme(),
       segment: {
         name: onStageName,
@@ -254,77 +339,18 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function goTo(target: number) {
-    const t = Math.max(0, Math.min(schedule.length - 1, target));
-    setIdx(t);
-    setElapsed(0);
-  }
-
-  function goNext() {
-    if (!isLast) goTo(idx + 1);
-  }
-
-  function goPrev() {
-    if (idx > 0) goTo(idx - 1);
-  }
-
-  function jumpTo(target: number) {
-    goTo(target);
-    setShowCues(false);
-  }
-
-  function resetCueTimer() {
-    setElapsed(0);
-  }
-
-  function adjustTime(delta: number) {
-    setAdjust((a) => ({ ...a, [idx]: (a[idx] ?? 0) + delta }));
-  }
-
-  function restartShow() {
-    if (!window.confirm('Restart the show from the beginning?')) return;
-    // Reset all timer + audio state synchronously.
-    setIdx(0);
-    setElapsed(0);
-    setShowElapsed(0);
-    setAdjust({});
-    setShowCues(false);
-    audioEngine.stop({ fadeMs: FADE_MS });
-    // Re-unlock the AudioContext within this gesture (idempotent), then
-    // kick the show off again so the user doesn't have to press Start a
-    // second time. The countdown-start effect picks this up.
-    audioEngine.init();
-    setRunning(true);
-    notifyStart();
-  }
-
-  // Unlock the Web Audio AudioContext within the Start gesture so that all
-  // later (post-countdown / auto-advance) playback works without a gesture.
-  function primeAudio() {
-    audioEngine.init();
-  }
-
-  function playAudio() {
-    if (currentMusic) {
-      audioEngine.play(currentMusic.src, { fadeMs: FADE_MS, durationSec: currentMusic.duration });
-    }
-  }
-  function stopAudio() {
-    audioEngine.stop({ fadeMs: FADE_MS });
-  }
-  function restartAudio() {
-    playAudio();
-  }
-  function toggleMute() {
-    setMuted((m) => !m);
-  }
-
+  // Keyboard: the clock only. Space would otherwise re-fire whichever
+  // soundboard button was last pressed — preventDefault keeps the press from
+  // reaching it, so the spacebar always means "start / pause the timer".
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null;
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      if (typing) return;
       if (e.key === 'Escape') onClose();
       if (e.key === ' ') {
         e.preventDefault();
-        setRunning((r) => !r);
+        toggleRunning();
       }
       if (e.key === 'ArrowRight') goNext();
       if (e.key === 'ArrowLeft') goPrev();
@@ -332,7 +358,12 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, elapsed, totalSec, isLast]);
+  }, [idx, running, isLast]);
+
+  const started = running || showElapsed > 0 || idx > 0;
+  const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
+  const djWithoutAudio = djSongs.filter((s) => !s.music).length;
+  const hasBoard = board.performers.length > 0 || board.cues.length > 0 || board.dj.length > 0;
 
   if (schedule.length === 0) {
     return (
@@ -351,16 +382,13 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
     );
   }
 
-  const started = running || showElapsed > 0 || idx > 0;
-  const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
-
   return (
     <div className="run-show" role="dialog" aria-modal="true" aria-label="Run show">
       <div className="run-show__bar">
         <span className="run-show__name">{showName}</span>
         <div className="run-show__bar-actions">
-          <button className="run-show__restart" onClick={restartShow} title="Restart show from the top">
-            Restart show
+          <button className="run-show__restart" onClick={restartShow} title="Restart the timer from the top">
+            Restart
           </button>
           <button className="run-show__finish" onClick={finishShow} title="End the show and mark it completed">
             Finish show
@@ -372,185 +400,196 @@ export function RunShow({ showName, viewToken, schedule, performers = [], onStar
       </div>
 
       <div className="run-show__scroll">
-        {/* Timer card */}
-        <div className="rs-card rs-timer-card">
+        {/* ── Clock ───────────────────────────────────────────────────── */}
+        <section className="rs-panel rs-clock">
+          <div className="rs-clock__head">
+            <span className="rs-clock__pos">
+              Cue {idx + 1} / {schedule.length}
+            </span>
+            <span className={`rs-clock__status rs-clock__status--${status.toLowerCase().replace(' ', '-')}`}>
+              {status}
+            </span>
+            <span className="rs-clock__showtime">{fmtShowTime(showElapsed)}</span>
+          </div>
+
           <div
-            className={`rs-timer ${isOver ? 'rs-timer--over' : ''} ${remaining <= WARNING_SECONDS ? 'rs-timer--warning' : ''}`}
+            className={`rs-clock__time ${isOver ? 'rs-clock__time--over' : ''} ${
+              !isOver && remaining <= WARNING_SECONDS ? 'rs-clock__time--warning' : ''
+            }`}
           >
             {fmtCountdown(remaining)}
           </div>
-          <div className="rs-showtime">Show Time: {fmtShowTime(showElapsed)}</div>
-          <div className="rs-segment">
-            {fmtOffset(offsets[idx])}–{fmtOffset(offsets[idx] + totalSec)}
-            {current?.description ? ` | ${current.description}` : ''}
-            {current?.performer ? ` · ${current.performer}` : ''}
+
+          <div className="rs-clock__cue">
+            <span className="rs-clock__cue-desc">{current?.description || 'Untitled cue'}</span>
+            {onStageName && <span className="rs-clock__cue-who">{onStageName}</span>}
           </div>
+          <div className="rs-clock__range">
+            {fmtOffset(offsets[idx] ?? 0)}–{fmtOffset((offsets[idx] ?? 0) + totalSec)}
+            {next ? ` · Next: ${next.description || 'Untitled cue'}${nextName ? ` (${nextName})` : ''}` : ' · Last cue'}
+          </div>
+
           <div className="rs-progress">
             <div
               className={`rs-progress__bar ${isOver ? 'rs-progress__bar--over' : ''}`}
               style={{ width: `${pct}%` }}
             />
           </div>
-        </div>
 
-        {/* On stage */}
-        {onStageName && (
-          <div className="rs-card rs-onstage">
-            <div className="rs-onstage__photo rs-onstage__photo--placeholder">
-              {onStageName.charAt(0).toUpperCase()}
-            </div>
-            <div className="rs-onstage__info">
-              <div className="rs-onstage__label">On stage</div>
-              <div className="rs-onstage__name">{onStageName}</div>
-              {onStagePerformer?.credits && (
-                <div className="rs-onstage__credits">{onStagePerformer.credits}</div>
-              )}
-              {onStagePerformer?.socialMedia && (
-                <div className="rs-onstage__social">{onStagePerformer.socialMedia}</div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Stats */}
-        <div className="rs-card rs-grid">
-          <div className="rs-cell">
-            <div className="rs-cell__label">Allocated Time</div>
-            <div className="rs-cell__value">{Math.max(1, Math.round(totalSec / 60))} min</div>
-          </div>
-          <div className="rs-cell">
-            <div className="rs-cell__label">Time Remaining</div>
-            <div className={`rs-cell__value ${isOver ? 'rs-cell__value--over' : ''}`}>
-              {fmtCountdown(remaining)}
-            </div>
-          </div>
-          <div className="rs-cell">
-            <div className="rs-cell__label">Schedule Status</div>
-            <div
-              className={`rs-cell__value rs-status rs-status--${status.toLowerCase().replace(' ', '-')}`}
+          {/* Transport — the only controls that touch the clock. */}
+          <div className="rs-transport">
+            <button className="rs-btn" onClick={goPrev} disabled={idx === 0} title="Previous cue">
+              <Icon name="back-skip" size={18} />
+              <span>Prev</span>
+            </button>
+            <button
+              className={`rs-btn rs-btn--transport ${running ? 'rs-btn--pause' : 'rs-btn--start'}`}
+              onClick={toggleRunning}
             >
-              {status}
-            </div>
+              <Icon name={running ? 'pause' : 'play'} size={20} />
+              <span>{startLabel}</span>
+            </button>
+            <button className="rs-btn" onClick={goNext} disabled={isLast} title="Next cue">
+              <Icon name="skip" size={18} />
+              <span>Next</span>
+            </button>
           </div>
-          <div className="rs-cell">
-            <div className="rs-cell__label">Position</div>
-            <div className="rs-cell__value">
-              {idx + 1} of {schedule.length}
-            </div>
+          <div className="rs-nudge">
+            <button className="rs-chip" onClick={() => adjustTime(-STEP_SECONDS)}>−2 min</button>
+            <button className="rs-chip" onClick={() => adjustTime(-FINE_STEP_SECONDS)}>−30s</button>
+            <button className="rs-chip" onClick={() => adjustTime(FINE_STEP_SECONDS)}>+30s</button>
+            <button className="rs-chip" onClick={() => adjustTime(STEP_SECONDS)}>+2 min</button>
+            <button className="rs-chip" onClick={resetCueTimer}>Reset cue</button>
           </div>
-          <div className="rs-cell rs-cell--wide">
-            <div className="rs-cell__label">Next Up</div>
-            <div className="rs-cell__value">
-              {next ? nextUpLabel(next.description, effDurations[idx + 1]) : 'End of show'}
-            </div>
-            {nextName && <div className="rs-cell__sub">{nextName}</div>}
-            {nextPerformer?.credits && (
-              <div className="rs-cell__credits">{nextPerformer.credits}</div>
-            )}
-          </div>
-        </div>
+        </section>
 
-        {/* Controls */}
-        <div className="rs-card rs-controls">
-          <div className="rs-controls__group">
-            <div className="rs-controls__label">Timer Controls</div>
-            <div className="rs-controls__row">
-              <button className="rs-btn" onClick={goPrev} disabled={idx === 0}>
-                Prev
+        {/* ── Soundboard ──────────────────────────────────────────────── */}
+        <section className="rs-panel rs-board">
+          <div className="rs-board__head">
+            <h2 className="rs-board__title">Soundboard</h2>
+            <div className="rs-board__actions">
+              <button className="rs-chip" onClick={stopAll} disabled={!playingKey}>
+                Stop audio
               </button>
-              <button
-                className="rs-btn rs-btn--start"
-                onClick={toggleRunning}
-              >
-                {startLabel}
-              </button>
-              <button className="rs-btn rs-btn--next" onClick={goNext} disabled={isLast}>
-                Next
-              </button>
-            </div>
-            <div className="rs-controls__row">
-              <button className="rs-btn" onClick={() => adjustTime(-STEP_SECONDS)}>
-                −2 Min
-              </button>
-              <button className="rs-btn" onClick={() => adjustTime(-FINE_STEP_SECONDS)}>
-                −30s
-              </button>
-              <button className="rs-btn" onClick={() => adjustTime(FINE_STEP_SECONDS)}>
-                +30s
-              </button>
-              <button className="rs-btn" onClick={() => adjustTime(STEP_SECONDS)}>
-                +2 Min
-              </button>
-            </div>
-            <div className="rs-controls__row">
-              <button className="rs-btn" onClick={resetCueTimer}>
-                Reset cue timer
-              </button>
-              <button
-                className={`rs-btn ${showCues ? 'rs-btn--active' : ''}`}
-                onClick={() => setShowCues((v) => !v)}
-              >
-                {showCues ? 'Hide cues' : 'Jump to cue'}
-              </button>
-            </div>
-          </div>
-
-          <div className="rs-controls__group">
-            <div className="rs-controls__label">Audio Controls</div>
-            <div className="rs-controls__row">
-              <button className="rs-btn" onClick={playAudio} disabled={!hasAudio}>
-                Play
-              </button>
-              <button className="rs-btn" onClick={stopAudio} disabled={!hasAudio}>
-                Stop Audio
-              </button>
-              <button className="rs-btn" onClick={restartAudio} disabled={!hasAudio}>
-                Restart
-              </button>
-              <button
-                className={`rs-btn ${muted ? 'rs-btn--active' : ''}`}
-                onClick={toggleMute}
-                disabled={!hasAudio}
-              >
+              <button className={`rs-chip ${muted ? 'rs-chip--active' : ''}`} onClick={toggleMute}>
                 {muted ? 'Unmute' : 'Mute'}
               </button>
             </div>
-            {hasAudio ? (
-              <div className="rs-audio-now">
-                {currentMusic?.name}
-                {currentMusic?.duration ? ` · auto-plays ${currentMusic.duration}s` : ''}
-              </div>
+          </div>
+
+          <div className="rs-board__now" aria-live="polite">
+            {playingTrack ? (
+              <>
+                <span className="rs-board__now-dot" aria-hidden="true" />
+                <span className="rs-board__now-text">
+                  Playing: <strong>{playingTrack.label}</strong>
+                  {playingTrack.sublabel ? ` · ${playingTrack.sublabel}` : ''}
+                </span>
+              </>
             ) : (
-              <div className="rs-audio-now">No music set for this cue.</div>
+              <span className="rs-board__now-text">
+                Nothing playing. Press a face to start their song, press it again to stop.
+              </span>
             )}
           </div>
-        </div>
 
-        {/* Jump-to-cue list */}
-        {showCues && (
-          <div className="rs-card rs-cues">
-            <div className="rs-cues__title">Jump to cue</div>
-            <ul className="rs-cues__list">
-              {schedule.map((cue, i) => (
+          {board.performers.length > 0 && (
+            <div className="rs-bank">
+              <div className="rs-bank__label">Performers</div>
+              <div className="rs-bank__grid">
+                {board.performers.map((t) => (
+                  <TrackButton
+                    key={t.key}
+                    track={t}
+                    variant="face"
+                    isPlaying={playingKey === t.key}
+                    onToggle={toggleTrack}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {board.cues.length > 0 && (
+            <div className="rs-bank">
+              <div className="rs-bank__label">Show tracks</div>
+              <div className="rs-bank__grid">
+                {board.cues.map((t) => (
+                  <TrackButton
+                    key={t.key}
+                    track={t}
+                    variant="disc"
+                    isPlaying={playingKey === t.key}
+                    onToggle={toggleTrack}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {board.dj.length > 0 && (
+            <div className="rs-bank rs-bank--dj">
+              <div className="rs-bank__label">DJ</div>
+              <div className="rs-bank__grid">
+                {board.dj.map((t) => (
+                  <TrackButton
+                    key={t.key}
+                    track={t}
+                    variant="disc"
+                    isPlaying={playingKey === t.key}
+                    onToggle={toggleTrack}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!hasBoard && (
+            <p className="rs-board__empty">
+              No audio uploaded yet. Add walk-on music to a performer, music to a cue, or upload
+              tracks in the DJ section, and each one gets a button here.
+            </p>
+          )}
+          {djWithoutAudio > 0 && (
+            <p className="rs-board__note">
+              {djWithoutAudio} DJ {djWithoutAudio === 1 ? 'song has' : 'songs have'} no audio
+              uploaded — upload the file in the DJ section to get a button.
+            </p>
+          )}
+        </section>
+
+        {/* ── Lineup ──────────────────────────────────────────────────── */}
+        <section className="rs-panel rs-lineup">
+          <h2 className="rs-lineup__title">Lineup</h2>
+          <ol className="rs-lineup__list">
+            {schedule.map((cue, i) => {
+              const who = cuePerformerName(cue, performers);
+              return (
                 <li key={cue.id}>
                   <button
-                    className={`rs-cue ${i === idx ? 'rs-cue--current' : ''}`}
-                    onClick={() => jumpTo(i)}
+                    className={`rs-lineup__row ${i === idx ? 'rs-lineup__row--current' : ''} ${
+                      i < idx ? 'rs-lineup__row--done' : ''
+                    }`}
+                    onClick={() => goTo(i)}
+                    title="Move the timer to this cue"
                   >
-                    <span className="rs-cue__num">{i + 1}</span>
-                    <span className="rs-cue__range">
+                    <span className="rs-lineup__num">{i + 1}</span>
+                    <span className="rs-lineup__range">
                       {fmtOffset(offsets[i])}–{fmtOffset(offsets[i] + effDurations[i])}
                     </span>
-                    <span className="rs-cue__desc">{cue.description || 'Untitled cue'}</span>
-                    {i === idx && <span className="rs-cue__badge">Now</span>}
+                    <span className="rs-lineup__body">
+                      <span className="rs-lineup__desc">{cue.description || 'Untitled cue'}</span>
+                      {who && <span className="rs-lineup__who">{who}</span>}
+                    </span>
+                    <span className="rs-lineup__len">{Math.max(1, Math.round(effDurations[i] / 60))}m</span>
+                    {i === idx && <span className="rs-lineup__badge">Now</span>}
                   </button>
                 </li>
-              ))}
-            </ul>
-          </div>
-        )}
+              );
+            })}
+          </ol>
+        </section>
       </div>
-
     </div>
   );
 }

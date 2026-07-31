@@ -61,6 +61,8 @@ export interface DJSong {
   title: string;
   artist: string;
   notes?: string;
+  music?: string; // uploaded audio (media store reference) — gets its own Run Show button
+  musicName?: string; // original file name of the upload
 }
 
 export interface StaffMember {

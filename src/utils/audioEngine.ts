@@ -2,13 +2,18 @@
  * A small Web Audio API wrapper used by Run Show. HTMLAudioElement was being
  * blocked by autoplay rules — after auto-advance and a 5s pre-roll there's no
  * recent user gesture, so audio.play() silently failed on iOS/Safari. With a
- * single AudioContext unlocked on the Start tap, buffer playback is allowed for
- * the rest of the session, so segment music reliably plays at every cue.
+ * single AudioContext unlocked on the first tap, buffer playback is allowed for
+ * the rest of the session, so the soundboard reliably plays every track.
+ *
+ * Run Show is a soundboard now: one track at a time, started and stopped by the
+ * operator. Pressing a second button while something is playing crossfades —
+ * the outgoing track keeps its own gain node and fades out on its own schedule
+ * while the new one fades in, so a handover never clicks or drops to silence.
  *
  * Use:
- *   audioEngine.init();                      // on Start (user gesture)
- *   audioEngine.play(src, { durationSec });  // fades in; stops + fades out at durationSec
- *   audioEngine.stop();                      // fades out current
+ *   audioEngine.init();                                  // on any user gesture
+ *   audioEngine.play(src, { fadeInMs, fadeOutMs, onEnded });
+ *   audioEngine.stop({ fadeMs });                        // fades out current
  *   audioEngine.setMuted(true|false);
  */
 
@@ -17,21 +22,43 @@ import { isMediaRef, resolveMediaUrl } from './mediaStore';
 type CtxCtor = typeof AudioContext;
 
 interface PlayOptions {
-  fadeMs?: number;
-  durationSec?: number; // total seconds to play (incl. fade out at the end)
+  /** Fade-in for the track being started. */
+  fadeInMs?: number;
+  /** Fade-out applied to whatever is already playing. */
+  fadeOutMs?: number;
+  /** Total seconds to play (incl. the fade out at the end). Full track if unset. */
+  durationSec?: number;
+  /** Called when the track finishes on its own — not when it's stopped or replaced. */
+  onEnded?: () => void;
 }
 
-const DEFAULT_FADE_MS = 800;
+const DEFAULT_FADE_IN_MS = 1200;
+const DEFAULT_FADE_OUT_MS = 400;
+
+interface Playing {
+  src: string;
+  source: AudioBufferSourceNode;
+  gain: GainNode;
+  token: number;
+}
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
-  private currentSource: AudioBufferSourceNode | null = null;
-  private currentGain: GainNode | null = null;
+  private current: Playing | null = null;
   private buffers = new Map<string, AudioBuffer>();
   private muted = false;
+  /**
+   * Bumped on every play() and stop(). A play() that awaits a decode and comes
+   * back to find the token moved on has been superseded — two fast taps must
+   * not leave both tracks running.
+   */
+  private token = 0;
 
-  /** Create + unlock the AudioContext. Must be called from a user gesture. */
+  /**
+   * Create + unlock the AudioContext. Safe to call any time; call it from a
+   * user gesture (a button press) so the context is allowed to run.
+   */
   init(): void {
     if (this.ctx) {
       if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
@@ -54,6 +81,11 @@ class AudioEngine {
     if (this.master) this.master.gain.value = muted ? 0 : 1;
   }
 
+  /** The source currently playing, or null. */
+  get playingSrc(): string | null {
+    return this.current?.src ?? null;
+  }
+
   /**
    * Pre-decode an audio source so the next play() call is instant.
    * Safe to call any time after init() — silently no-ops if there's no ctx
@@ -72,25 +104,33 @@ class AudioEngine {
     }
   }
 
-  /** Play the given audio src (data URL or http url) from the start with a fade in. */
-  async play(src: string, opts: PlayOptions = {}): Promise<void> {
-    if (!this.ctx || !this.master) return;
-    // Safari/iOS can auto-suspend the AudioContext after silence (e.g. the
-    // 5-second pre-roll between cues). Always resume before scheduling a
-    // source — otherwise source.start() is silent.
+  /**
+   * Play `src` from the top with a fade in, fading out anything already
+   * playing. Resolves true once the track is actually running — false if the
+   * source couldn't be decoded, or if a later play()/stop() superseded it.
+   */
+  async play(src: string, opts: PlayOptions = {}): Promise<boolean> {
+    this.init();
+    if (!this.ctx || !this.master) return false;
+    const token = ++this.token;
+    // Release the outgoing track first so the fade starts on the tap, not
+    // after the (possibly slow) decode of the incoming one.
+    this.release(opts.fadeOutMs ?? DEFAULT_FADE_OUT_MS);
+    // Safari/iOS can auto-suspend the AudioContext after a stretch of silence.
+    // Always resume before scheduling a source — otherwise start() is silent.
     await this.ensureRunning();
-    this.stopNow();
     const buffer = await this.getBuffer(src);
-    if (!buffer || !this.ctx || !this.master) return;
-    // Belt-and-suspenders: the decode and resume above are async; the ctx
-    // could have been suspended again in between. Resume one more time so
-    // currentTime advances and start(now) is heard.
+    if (!buffer || this.token !== token || !this.ctx || !this.master) return false;
+    // The decode and resume above are async; the ctx could have been suspended
+    // again in between. Resume once more so currentTime advances.
     await this.ensureRunning();
+    if (this.token !== token || !this.ctx || !this.master) return false;
+
     const source = this.ctx.createBufferSource();
     const gain = this.ctx.createGain();
     source.buffer = buffer;
     source.connect(gain).connect(this.master);
-    const fadeS = (opts.fadeMs ?? DEFAULT_FADE_MS) / 1000;
+    const fadeS = (opts.fadeInMs ?? DEFAULT_FADE_IN_MS) / 1000;
     const now = this.ctx.currentTime;
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(1, now + fadeS);
@@ -102,32 +142,52 @@ class AudioEngine {
       gain.gain.linearRampToValueAtTime(0, end);
       try { source.stop(end + 0.05); } catch { /* ignore */ }
     }
-    this.currentSource = source;
-    this.currentGain = gain;
+    // Only fires for a track that ran to its end — release() detaches this
+    // handler before stopping, so a stop or a handover stays silent.
+    source.onended = () => {
+      if (this.current?.token !== token) return;
+      this.current = null;
+      opts.onEnded?.();
+    };
+    this.current = { src, source, gain, token };
+    return true;
   }
 
-  /** Fade out the current source (or stop instantly if none). */
+  /** Fade out whatever is playing. */
   stop(opts: { fadeMs?: number } = {}): void {
-    if (!this.ctx || !this.currentSource || !this.currentGain) return;
-    const fadeS = (opts.fadeMs ?? DEFAULT_FADE_MS) / 1000;
-    const now = this.ctx.currentTime;
-    const g = this.currentGain.gain;
-    const currentVal = g.value;
-    g.cancelScheduledValues(now);
-    g.setValueAtTime(currentVal, now);
-    g.linearRampToValueAtTime(0, now + fadeS);
-    try { this.currentSource.stop(now + fadeS + 0.05); } catch { /* ignore */ }
-    this.currentSource = null;
-    this.currentGain = null;
+    // Cancel any play() still waiting on a decode, or it would start after the
+    // operator has already asked for silence.
+    this.token++;
+    this.release(opts.fadeMs ?? DEFAULT_FADE_OUT_MS);
   }
 
   /** Stop immediately with no fade. */
   stopNow(): void {
-    if (this.currentSource) {
-      try { this.currentSource.stop(); } catch { /* ignore */ }
-      this.currentSource = null;
+    this.token++;
+    this.release(0);
+  }
+
+  /**
+   * Detach the current track and fade it out over `fadeMs`. The nodes stay
+   * alive until the fade finishes — the engine just stops calling it current.
+   */
+  private release(fadeMs: number): void {
+    const playing = this.current;
+    this.current = null;
+    if (!playing || !this.ctx) return;
+    playing.source.onended = null;
+    if (fadeMs <= 0) {
+      try { playing.source.stop(); } catch { /* ignore */ }
+      return;
     }
-    this.currentGain = null;
+    const fadeS = fadeMs / 1000;
+    const now = this.ctx.currentTime;
+    const g = playing.gain.gain;
+    const currentVal = g.value;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(currentVal, now);
+    g.linearRampToValueAtTime(0, now + fadeS);
+    try { playing.source.stop(now + fadeS + 0.05); } catch { /* ignore */ }
   }
 
   dispose(): void {
