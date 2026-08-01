@@ -20,11 +20,12 @@ export interface FadeSettings {
 }
 
 /**
- * Short enough that a press sounds immediate, long enough not to click. The
- * old 1400ms default is what made a press feel dead, so this is deliberately
- * near the bottom of the range.
+ * Starts on the press. A walk-on is cued to a name being said, so any ramp at
+ * all is a late entrance — even 400ms reads as hesitation from the booth. The
+ * out-fade stays, because killing a track dead mid-bar clicks and sounds like
+ * a mistake rather than a decision.
  */
-export const DEFAULT_FADE: FadeSettings = { fadeInMs: 400, fadeOutMs: 350 };
+export const DEFAULT_FADE: FadeSettings = { fadeInMs: 0, fadeOutMs: 350 };
 
 /** Slider bounds. Five seconds covers a slow music-under-the-host swell. */
 export const MAX_FADE_IN_MS = 5000;
@@ -33,9 +34,9 @@ export const FADE_STEP_MS = 50;
 
 /** Named starting points, so an operator doesn't have to dial in from scratch. */
 export const FADE_PRESETS: { id: string; label: string; hint: string; fade: FadeSettings }[] = [
-  { id: 'instant', label: 'Instant', hint: 'Cuts in and out — stings and drops', fade: { fadeInMs: 0, fadeOutMs: 0 } },
-  { id: 'tight', label: 'Tight', hint: 'Sounds immediate, no click', fade: DEFAULT_FADE },
-  { id: 'smooth', label: 'Smooth', hint: 'Music under the host', fade: { fadeInMs: 1400, fadeOutMs: 600 } },
+  { id: 'snap', label: 'Snap', hint: 'Starts on the press, eases out', fade: DEFAULT_FADE },
+  { id: 'cut', label: 'Hard cut', hint: 'In and out on the frame — stings and drops', fade: { fadeInMs: 0, fadeOutMs: 0 } },
+  { id: 'smooth', label: 'Smooth', hint: 'Swells up under the host', fade: { fadeInMs: 1400, fadeOutMs: 600 } },
 ];
 
 const STORAGE_KEY = 'showrunner:fade';

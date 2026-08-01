@@ -1919,21 +1919,36 @@
 .rs-board__now-text { min-width: 0; }
 .rs-board__now-text--error { color: var(--rs-red-text); font-weight: 600; }
 
-/* Fade control — collapsed behind a chip so the board stays a board. */
+/* Fade control — always on the board. A mix decision made between cues can't
+   live behind a disclosure. */
 .rs-fade {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
+  padding: 10px 12px;
   margin-bottom: 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+.rs-fade__head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rs-fade__title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
 .rs-fade__presets { display: flex; flex-wrap: wrap; gap: 6px; }
-.rs-fade__row { display: flex; align-items: center; gap: 10px; }
+/* Two sliders side by side where there's room, stacked on a phone. */
+.rs-fade__sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px 18px;
+}
+.rs-fade__row { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .rs-fade__label {
-  flex: 0 0 62px;
+  flex: 0 0 26px;
   font-size: 0.82rem;
   color: rgba(255, 255, 255, 0.72);
 }
@@ -1945,11 +1960,6 @@
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
   color: #fff;
-}
-.rs-fade__note {
-  margin: 0;
-  font-size: 0.76rem;
-  color: rgba(255, 255, 255, 0.55);
 }
 .rs-board__now strong { color: #fff; }
 .rs-board__now-dot {

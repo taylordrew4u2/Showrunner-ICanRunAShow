@@ -48,6 +48,8 @@ const DRIFT_TOLERANCE = 30; // seconds we still count as "On Time"
 const STEP_SECONDS = 2 * 60; // coarse +/- buttons
 const FINE_STEP_SECONDS = 30; // fine +/- buttons
 const WARNING_SECONDS = 60; // timer flashes red at/under this remaining
+/** Tracks decoded at once when the board opens. See the preload effect. */
+const PRELOAD_CONCURRENCY = 3;
 
 /** What the operator is told when a press makes no sound. */
 const FAILURE_MESSAGE: Record<string, string> = {
@@ -134,10 +136,11 @@ export function RunShow({
   // A press that couldn't produce sound. Silence is the one thing an operator
   // can't diagnose mid-show, so a track that fails to load says why.
   const [audioError, setAudioError] = useState<string | null>(null);
-  // How the board fades, and whether the sliders are open. Loaded once — the
-  // setting outlives the show, so it's read from storage rather than passed in.
+  // How the board fades. Loaded once — the setting outlives the show, so it's
+  // read from storage rather than passed in.
   const [fade, setFade] = useState<FadeSettings>(loadFadeSettings);
-  const [fadeOpen, setFadeOpen] = useState(false);
+  // How many tracks are decoded and will start on the press with no wait.
+  const [readyCount, setReadyCount] = useState(0);
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
 
   const board = useMemo(
@@ -264,15 +267,27 @@ export function RunShow({
   // Every track on the board is decoded up front. A walk-on that has to fetch
   // and decode on the press lands a half-second late, which on stage is the
   // difference between a cue and a mistake.
+  //
+  // A few at a time rather than one after another: these are whole songs out of
+  // the encrypted media store, and strictly sequential meant the last button on
+  // a big lineup wasn't ready for a long while after the screen opened. Not all
+  // at once either — that stalls the first track, which is the one most likely
+  // to be pressed first.
   useEffect(() => {
     audioEngine.init();
+    const sources = soundboardSources(board);
+    setReadyCount(sources.filter((s) => audioEngine.isReady(s)).length);
     let cancelled = false;
-    (async () => {
-      for (const src of soundboardSources(board)) {
-        if (cancelled) return;
+    const queue = [...sources];
+    const worker = async () => {
+      while (!cancelled) {
+        const src = queue.shift();
+        if (!src) return;
         await audioEngine.preload(src).catch(() => {});
+        if (!cancelled) setReadyCount((n) => n + 1);
       }
-    })();
+    };
+    void Promise.all(Array.from({ length: PRELOAD_CONCURRENCY }, worker));
     return () => {
       cancelled = true;
     };
@@ -414,6 +429,7 @@ export function RunShow({
   const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
   const djWithoutAudio = djSongs.filter((s) => !s.music).length;
   const hasBoard = board.performers.length > 0 || board.cues.length > 0 || board.dj.length > 0;
+  const trackCount = useMemo(() => soundboardSources(board).length, [board]);
 
   if (schedule.length === 0) {
     return (
@@ -524,19 +540,15 @@ export function RunShow({
               <button className={`rs-chip ${muted ? 'rs-chip--active' : ''}`} onClick={toggleMute}>
                 {muted ? 'Unmute' : 'Mute'}
               </button>
-              <button
-                className={`rs-chip ${fadeOpen ? 'rs-chip--active' : ''}`}
-                onClick={() => setFadeOpen((o) => !o)}
-                aria-expanded={fadeOpen}
-                title="How fast tracks come up and go away"
-              >
-                Fade: {fmtFade(fade.fadeInMs)} / {fmtFade(fade.fadeOutMs)}
-              </button>
             </div>
           </div>
 
-          {fadeOpen && (
-            <div className="rs-fade">
+          {/* Fade lives on the board, not behind a menu. It's a mix decision an
+              operator makes between cues — reaching through a disclosure for it
+              mid-show is the same as not having it. */}
+          <div className="rs-fade">
+            <div className="rs-fade__head">
+              <span className="rs-fade__title">Fade</span>
               <div className="rs-fade__presets">
                 {FADE_PRESETS.map((p) => (
                   <button
@@ -549,8 +561,10 @@ export function RunShow({
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="rs-fade__sliders">
               <label className="rs-fade__row">
-                <span className="rs-fade__label">Fade in</span>
+                <span className="rs-fade__label">In</span>
                 <input
                   className="rs-fade__slider"
                   type="range"
@@ -563,7 +577,7 @@ export function RunShow({
                 <span className="rs-fade__value">{fmtFade(fade.fadeInMs)}</span>
               </label>
               <label className="rs-fade__row">
-                <span className="rs-fade__label">Fade out</span>
+                <span className="rs-fade__label">Out</span>
                 <input
                   className="rs-fade__slider"
                   type="range"
@@ -575,11 +589,8 @@ export function RunShow({
                 />
                 <span className="rs-fade__value">{fmtFade(fade.fadeOutMs)}</span>
               </label>
-              <p className="rs-fade__note">
-                Applies to the next press, and is remembered for your next show.
-              </p>
             </div>
-          )}
+          </div>
 
           <div className="rs-board__now" aria-live="polite">
             {audioError ? (
@@ -592,6 +603,13 @@ export function RunShow({
                   {playingTrack.sublabel ? ` · ${playingTrack.sublabel}` : ''}
                 </span>
               </>
+            ) : trackCount > 0 && readyCount < trackCount ? (
+              // Until a track is decoded, its first press has to wait on the
+              // download. Saying so beats an operator wondering why the one
+              // button they tried was slow when the rest are instant.
+              <span className="rs-board__now-text">
+                Loading tracks — {readyCount} of {trackCount} ready to play instantly.
+              </span>
             ) : (
               <span className="rs-board__now-text">
                 Nothing playing. Press a face to start their song, press it again to stop.

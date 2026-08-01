@@ -26,10 +26,16 @@ describe('fade settings', () => {
     vi.unstubAllGlobals();
   });
 
-  it('defaults to a fade short enough that a press sounds immediate', () => {
+  it('starts on the press by default', () => {
     stubStorage();
-    // The 1400ms default is what made a press read as "nothing happened".
-    expect(loadFadeSettings().fadeInMs).toBeLessThanOrEqual(500);
+    // A walk-on is cued to a name being said, so any ramp is a late entrance.
+    // The old 1400ms default is what made a press read as "nothing happened".
+    expect(loadFadeSettings().fadeInMs).toBe(0);
+  });
+
+  it('still eases out by default, so killing a track does not click', () => {
+    stubStorage();
+    expect(loadFadeSettings().fadeOutMs).toBeGreaterThan(0);
   });
 
   it('round-trips a saved setting', () => {
@@ -87,13 +93,25 @@ describe('fade settings', () => {
   });
 
   it('matches the preset a setting came from', () => {
-    const tight = FADE_PRESETS.find((p) => p.id === 'tight')!;
-    expect(matchesPreset(tight.fade, tight.fade)).toBe(true);
-    expect(matchesPreset({ fadeInMs: 123, fadeOutMs: 456 }, tight.fade)).toBe(false);
+    const snap = FADE_PRESETS.find((p) => p.id === 'snap')!;
+    expect(matchesPreset(snap.fade, snap.fade)).toBe(true);
+    expect(matchesPreset({ fadeInMs: 123, fadeOutMs: 456 }, snap.fade)).toBe(false);
   });
 
-  it('offers an instant preset, so a sting can hit on the frame', () => {
-    const instant = FADE_PRESETS.find((p) => p.id === 'instant')!;
-    expect(instant.fade).toEqual({ fadeInMs: 0, fadeOutMs: 0 });
+  it('offers a hard cut, so a sting can hit on the frame both ways', () => {
+    const cut = FADE_PRESETS.find((p) => p.id === 'cut')!;
+    expect(cut.fade).toEqual({ fadeInMs: 0, fadeOutMs: 0 });
+  });
+
+  it('has a preset matching the default, so one chip always reads as selected', () => {
+    stubStorage();
+    const fade = loadFadeSettings();
+    expect(FADE_PRESETS.some((p) => matchesPreset(fade, p.fade))).toBe(true);
+  });
+
+  it('never starts a preset with a ramp long enough to read as dead', () => {
+    // Smooth is deliberately slow, but it's opt-in — nothing defaults to it.
+    const slow = FADE_PRESETS.filter((p) => p.fade.fadeInMs > 500);
+    expect(slow.every((p) => !matchesPreset(DEFAULT_FADE, p.fade))).toBe(true);
   });
 });

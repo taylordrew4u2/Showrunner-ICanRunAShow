@@ -93,8 +93,15 @@ class AudioEngine {
    * not leave both tracks running.
    */
   private token = 0;
-  /** Which half of the last failed load broke — see getBuffer(). */
-  private lastLoadFailure: PlayResult = 'media-unavailable';
+  /** Which half of a load broke, per source — see loadBuffer(). */
+  private loadFailures = new Map<string, PlayResult>();
+  /**
+   * Loads in progress, keyed by source. A press that lands while the up-front
+   * preload is still working on that same track joins the existing decode
+   * instead of starting a second fetch — which on a big file is the difference
+   * between the walk-on landing on the press and landing a second late.
+   */
+  private pending = new Map<string, Promise<AudioBuffer | null>>();
 
   /**
    * Create + unlock the AudioContext. Safe to call any time; call it from a
@@ -161,7 +168,7 @@ class AudioEngine {
     await this.ensureRunning();
     const buffer = await this.getBuffer(src);
     if (this.token !== token || !this.ctx || !this.master) return 'superseded';
-    if (!buffer) return this.lastLoadFailure;
+    if (!buffer) return this.loadFailures.get(src) ?? 'media-unavailable';
     // The decode and resume above are async; the ctx could have been suspended
     // again in between. Resume once more so currentTime advances.
     await this.ensureRunning();
@@ -251,14 +258,29 @@ class AudioEngine {
     this.buffers.clear();
   }
 
-  private async getBuffer(src: string): Promise<AudioBuffer | null> {
-    if (!this.ctx) return null;
+  /** Decoded and ready to start on the next press with no wait. */
+  isReady(src: string): boolean {
+    return this.buffers.has(src);
+  }
+
+  private getBuffer(src: string): Promise<AudioBuffer | null> {
+    if (!this.ctx) return Promise.resolve(null);
     const cached = this.buffers.get(src);
-    if (cached) return cached;
-    // Which half failed, for the caller to report. Set before each step rather
-    // than guessed afterwards, so "the file is missing" never gets reported as
-    // "that isn't audio".
-    this.lastLoadFailure = 'media-unavailable';
+    if (cached) return Promise.resolve(cached);
+    const inFlight = this.pending.get(src);
+    if (inFlight) return inFlight;
+    const load = this.loadBuffer(src).finally(() => this.pending.delete(src));
+    this.pending.set(src, load);
+    return load;
+  }
+
+  private async loadBuffer(src: string): Promise<AudioBuffer | null> {
+    if (!this.ctx) return null;
+    // Which half failed, for the caller to report. Recorded per source before
+    // each step rather than guessed afterwards, so "the file is missing" never
+    // gets reported as "that isn't audio" — and so two concurrent loads don't
+    // overwrite each other's reason.
+    this.loadFailures.set(src, 'media-unavailable');
     try {
       // Large tracks live in the chunked media store and the show only holds
       // a `media:` reference — resolve it to a data URL before decoding.
@@ -268,10 +290,11 @@ class AudioEngine {
       if (!resolved) return null;
       const arr = await readSourceBytes(resolved);
       if (!arr) return null;
-      this.lastLoadFailure = 'decode-failed';
+      this.loadFailures.set(src, 'decode-failed');
       // Older Safari requires the callback form, but modern returns a promise.
       const buf = await this.ctx.decodeAudioData(arr);
       this.buffers.set(src, buf);
+      this.loadFailures.delete(src);
       return buf;
     } catch (e) {
       console.warn('audioEngine: failed to load/decode source', src, e);
