@@ -1917,6 +1917,7 @@
 }
 /* One flex item, or the sentence breaks into columns when it wraps. */
 .rs-board__now-text { min-width: 0; }
+.rs-board__now-text--error { color: var(--rs-red-text); font-weight: 600; }
 .rs-board__now strong { color: #fff; }
 .rs-board__now-dot {
   width: 8px;
