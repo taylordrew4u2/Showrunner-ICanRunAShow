@@ -19,6 +19,17 @@ import {
   type SoundboardTrack,
 } from '../utils/soundboard';
 import { useMediaUrl } from '../utils/useMediaUrl';
+import {
+  FADE_PRESETS,
+  FADE_STEP_MS,
+  MAX_FADE_IN_MS,
+  MAX_FADE_OUT_MS,
+  fmtFade,
+  loadFadeSettings,
+  matchesPreset,
+  saveFadeSettings,
+  type FadeSettings,
+} from '../utils/audioSettings';
 import { Icon } from './Icon';
 
 interface RunShowProps {
@@ -38,10 +49,15 @@ const STEP_SECONDS = 2 * 60; // coarse +/- buttons
 const FINE_STEP_SECONDS = 30; // fine +/- buttons
 const WARNING_SECONDS = 60; // timer flashes red at/under this remaining
 
-// Music comes up under the host's introduction, so it eases in. It comes down
-// when the performer is already at the mic, so it gets out of the way fast.
-const FADE_IN_MS = 1400;
-const FADE_OUT_MS = 350;
+/** What the operator is told when a press makes no sound. */
+const FAILURE_MESSAGE: Record<string, string> = {
+  'media-unavailable': "the audio file couldn't be loaded. Re-upload the track and try again.",
+  'decode-failed': "this browser can't play that audio format. Try re-uploading it as MP3 or M4A.",
+  'no-audio-support': 'this browser has no audio support.',
+  blocked:
+    'the browser is blocking audio. Press Start on the timer once, then try again — ' +
+    'and on iPhone check the side switch is off silent.',
+};
 
 /**
  * One button on the board. Defined out here on purpose: the clock re-renders
@@ -116,8 +132,12 @@ export function RunShow({
   // separate instruments and neither one drives the other.
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   // A press that couldn't produce sound. Silence is the one thing an operator
-  // can't diagnose mid-show, so a track that fails to load says so.
+  // can't diagnose mid-show, so a track that fails to load says why.
   const [audioError, setAudioError] = useState<string | null>(null);
+  // How the board fades, and whether the sliders are open. Loaded once — the
+  // setting outlives the show, so it's read from storage rather than passed in.
+  const [fade, setFade] = useState<FadeSettings>(loadFadeSettings);
+  const [fadeOpen, setFadeOpen] = useState(false);
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
 
   const board = useMemo(
@@ -235,7 +255,7 @@ export function RunShow({
 
   function finishShow() {
     if (!window.confirm('End the show and mark it completed?')) return;
-    audioEngine.stop({ fadeMs: FADE_OUT_MS });
+    audioEngine.stop({ fadeMs: fade.fadeOutMs });
     onFinish?.();
     onClose();
   }
@@ -258,41 +278,52 @@ export function RunShow({
     };
   }, [board]);
 
-  // Press to start (fades in), press again to stop (fades out fast). Pressing a
-  // different button hands over: the outgoing track fades as the new one rises.
+  // Press to start, press again to stop. Pressing a different button hands
+  // over: the outgoing track fades as the new one rises. Both fades are the
+  // operator's setting — see the Fade control in the board header.
   function toggleTrack(track: SoundboardTrack) {
     if (playingKey === track.key) {
-      audioEngine.stop({ fadeMs: FADE_OUT_MS });
+      audioEngine.stop({ fadeMs: fade.fadeOutMs });
       setPlayingKey(null);
       return;
     }
     setPlayingKey(track.key);
     setAudioError(null);
-    // A press that didn't make sound — either a track that wouldn't load or a
-    // press since superseded. Only act if this button is still the lit one:
-    // superseding it is normal and shouldn't raise an error.
-    const failed = () =>
+    // Only report if this button is still the lit one — being superseded by a
+    // later press is normal and must not raise an error.
+    const failed = (reason: string) =>
       setPlayingKey((k) => {
         if (k !== track.key) return k;
-        setAudioError(`${track.label} wouldn't play — the audio file didn't load.`);
+        const why = FAILURE_MESSAGE[reason] ?? "it didn't play.";
+        setAudioError(`${track.label} — ${why}`);
         return null;
       });
     audioEngine
       .play(track.src, {
-        fadeInMs: FADE_IN_MS,
-        fadeOutMs: FADE_OUT_MS,
+        fadeInMs: fade.fadeInMs,
+        fadeOutMs: fade.fadeOutMs,
         onEnded: () => setPlayingKey((k) => (k === track.key ? null : k)),
       })
-      .then((ok) => {
-        if (!ok) failed();
+      .then((result) => {
+        if (result !== 'started' && result !== 'superseded') failed(result);
       })
-      .catch(failed);
+      .catch(() => failed('media-unavailable'));
   }
 
   function stopAll() {
-    audioEngine.stop({ fadeMs: FADE_OUT_MS });
+    audioEngine.stop({ fadeMs: fade.fadeOutMs });
     setPlayingKey(null);
     setAudioError(null);
+  }
+
+  // Persist whenever the operator moves a slider or picks a preset. Applies to
+  // the next press — a fade already scheduled on a running track is left alone.
+  function updateFade(next: Partial<FadeSettings>) {
+    setFade((f) => {
+      const merged = { ...f, ...next };
+      saveFadeSettings(merged);
+      return merged;
+    });
   }
 
   function toggleMute() {
@@ -493,8 +524,62 @@ export function RunShow({
               <button className={`rs-chip ${muted ? 'rs-chip--active' : ''}`} onClick={toggleMute}>
                 {muted ? 'Unmute' : 'Mute'}
               </button>
+              <button
+                className={`rs-chip ${fadeOpen ? 'rs-chip--active' : ''}`}
+                onClick={() => setFadeOpen((o) => !o)}
+                aria-expanded={fadeOpen}
+                title="How fast tracks come up and go away"
+              >
+                Fade: {fmtFade(fade.fadeInMs)} / {fmtFade(fade.fadeOutMs)}
+              </button>
             </div>
           </div>
+
+          {fadeOpen && (
+            <div className="rs-fade">
+              <div className="rs-fade__presets">
+                {FADE_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    className={`rs-chip ${matchesPreset(fade, p.fade) ? 'rs-chip--active' : ''}`}
+                    onClick={() => updateFade(p.fade)}
+                    title={p.hint}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <label className="rs-fade__row">
+                <span className="rs-fade__label">Fade in</span>
+                <input
+                  className="rs-fade__slider"
+                  type="range"
+                  min={0}
+                  max={MAX_FADE_IN_MS}
+                  step={FADE_STEP_MS}
+                  value={fade.fadeInMs}
+                  onChange={(e) => updateFade({ fadeInMs: Number(e.target.value) })}
+                />
+                <span className="rs-fade__value">{fmtFade(fade.fadeInMs)}</span>
+              </label>
+              <label className="rs-fade__row">
+                <span className="rs-fade__label">Fade out</span>
+                <input
+                  className="rs-fade__slider"
+                  type="range"
+                  min={0}
+                  max={MAX_FADE_OUT_MS}
+                  step={FADE_STEP_MS}
+                  value={fade.fadeOutMs}
+                  onChange={(e) => updateFade({ fadeOutMs: Number(e.target.value) })}
+                />
+                <span className="rs-fade__value">{fmtFade(fade.fadeOutMs)}</span>
+              </label>
+              <p className="rs-fade__note">
+                Applies to the next press, and is remembered for your next show.
+              </p>
+            </div>
+          )}
 
           <div className="rs-board__now" aria-live="polite">
             {audioError ? (

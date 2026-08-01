@@ -1918,6 +1918,39 @@
 /* One flex item, or the sentence breaks into columns when it wraps. */
 .rs-board__now-text { min-width: 0; }
 .rs-board__now-text--error { color: var(--rs-red-text); font-weight: 600; }
+
+/* Fade control — collapsed behind a chip so the board stays a board. */
+.rs-fade {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rs-fade__presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.rs-fade__row { display: flex; align-items: center; gap: 10px; }
+.rs-fade__label {
+  flex: 0 0 62px;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+.rs-fade__slider { flex: 1; min-width: 0; accent-color: var(--rs-blue); }
+/* Tabular figures, or the row twitches as the readout changes width. */
+.rs-fade__value {
+  flex: 0 0 58px;
+  text-align: right;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.rs-fade__note {
+  margin: 0;
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.55);
+}
 .rs-board__now strong { color: #fff; }
 .rs-board__now-dot {
   width: 8px;

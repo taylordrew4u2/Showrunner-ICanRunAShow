@@ -22,6 +22,26 @@ import { isMediaRef, resolveMediaUrl } from './mediaStore';
 
 type CtxCtor = typeof AudioContext;
 
+/**
+ * Why a press did or didn't make sound. `play()` used to answer with a bare
+ * false, which left the board unable to tell "that file is gone" from "you
+ * pressed something else first" — and left the operator staring at silence
+ * with nothing to act on.
+ */
+export type PlayResult =
+  /** Running. */
+  | 'started'
+  /** A later press or a stop took over. Normal; not an error. */
+  | 'superseded'
+  /** No Web Audio in this browser at all. */
+  | 'no-audio-support'
+  /** The track's file couldn't be fetched or decrypted out of the media store. */
+  | 'media-unavailable'
+  /** Fetched, but not audio this browser can decode. */
+  | 'decode-failed'
+  /** The AudioContext wouldn't start — the browser is still holding audio back. */
+  | 'blocked';
+
 interface PlayOptions {
   /** Fade-in for the track being started. */
   fadeInMs?: number;
@@ -73,6 +93,8 @@ class AudioEngine {
    * not leave both tracks running.
    */
   private token = 0;
+  /** Which half of the last failed load broke — see getBuffer(). */
+  private lastLoadFailure: PlayResult = 'media-unavailable';
 
   /**
    * Create + unlock the AudioContext. Safe to call any time; call it from a
@@ -125,12 +147,11 @@ class AudioEngine {
 
   /**
    * Play `src` from the top with a fade in, fading out anything already
-   * playing. Resolves true once the track is actually running — false if the
-   * source couldn't be decoded, or if a later play()/stop() superseded it.
+   * playing. The result says what actually happened — see PlayResult.
    */
-  async play(src: string, opts: PlayOptions = {}): Promise<boolean> {
+  async play(src: string, opts: PlayOptions = {}): Promise<PlayResult> {
     this.init();
-    if (!this.ctx || !this.master) return false;
+    if (!this.ctx || !this.master) return 'no-audio-support';
     const token = ++this.token;
     // Release the outgoing track first so the fade starts on the tap, not
     // after the (possibly slow) decode of the incoming one.
@@ -139,20 +160,31 @@ class AudioEngine {
     // Always resume before scheduling a source — otherwise start() is silent.
     await this.ensureRunning();
     const buffer = await this.getBuffer(src);
-    if (!buffer || this.token !== token || !this.ctx || !this.master) return false;
+    if (this.token !== token || !this.ctx || !this.master) return 'superseded';
+    if (!buffer) return this.lastLoadFailure;
     // The decode and resume above are async; the ctx could have been suspended
     // again in between. Resume once more so currentTime advances.
     await this.ensureRunning();
-    if (this.token !== token || !this.ctx || !this.master) return false;
+    if (this.token !== token || !this.ctx || !this.master) return 'superseded';
+    // A context still not running after two resume attempts means the browser
+    // is holding audio back — scheduling a source here would be silent, and
+    // reporting that is more use to an operator than a dead button.
+    if (this.ctx.state !== 'running') return 'blocked';
 
     const source = this.ctx.createBufferSource();
     const gain = this.ctx.createGain();
     source.buffer = buffer;
     source.connect(gain).connect(this.master);
-    const fadeS = (opts.fadeInMs ?? DEFAULT_FADE_IN_MS) / 1000;
+    const fadeS = Math.max(0, opts.fadeInMs ?? DEFAULT_FADE_IN_MS) / 1000;
     const now = this.ctx.currentTime;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(1, now + fadeS);
+    // A zero fade starts at full volume: an operator who asked for instant
+    // wants the transient, and a ramp to "now" would swallow it.
+    if (fadeS > 0) {
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(1, now + fadeS);
+    } else {
+      gain.gain.setValueAtTime(1, now);
+    }
     source.start(now);
     if (opts.durationSec && opts.durationSec > 0) {
       const end = now + opts.durationSec;
@@ -169,7 +201,7 @@ class AudioEngine {
       opts.onEnded?.();
     };
     this.current = { src, source, gain, token };
-    return true;
+    return 'started';
   }
 
   /** Fade out whatever is playing. */
@@ -223,6 +255,10 @@ class AudioEngine {
     if (!this.ctx) return null;
     const cached = this.buffers.get(src);
     if (cached) return cached;
+    // Which half failed, for the caller to report. Set before each step rather
+    // than guessed afterwards, so "the file is missing" never gets reported as
+    // "that isn't audio".
+    this.lastLoadFailure = 'media-unavailable';
     try {
       // Large tracks live in the chunked media store and the show only holds
       // a `media:` reference — resolve it to a data URL before decoding.
@@ -232,12 +268,13 @@ class AudioEngine {
       if (!resolved) return null;
       const arr = await readSourceBytes(resolved);
       if (!arr) return null;
+      this.lastLoadFailure = 'decode-failed';
       // Older Safari requires the callback form, but modern returns a promise.
       const buf = await this.ctx.decodeAudioData(arr);
       this.buffers.set(src, buf);
       return buf;
     } catch (e) {
-      console.warn('audioEngine: failed to load/decode source', e);
+      console.warn('audioEngine: failed to load/decode source', src, e);
       return null;
     }
   }
