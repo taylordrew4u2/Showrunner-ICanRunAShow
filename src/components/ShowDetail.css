@@ -2,9 +2,13 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  /* Same readable column as every other screen. */
-  max-width: 760px;
+  /* Wider than the 760px reading column the rest of the app uses: this page is
+     a dashboard for one show, and the tiles and section cards below need the
+     room to sit side by side. The shell caps the real width anyway
+     (--desktop-max minus the sidebar), so this only bites on wide screens. */
+  max-width: 1120px;
   margin: 0 auto;
+  width: 100%;
 }
 
 @media (max-width: 768px) {
@@ -404,17 +408,293 @@ select.show-detail__status--select {
    One column at every width. As a two-column grid, sections with a `span 2`
    left ragged holes and the running order changed between phone and desktop —
    so a show read as a different page depending on the device. */
+/* One column on phones — the bento only makes sense once there is width to
+   spend, and below the sidebar breakpoint there isn't. */
 .show-detail__sections-accordion {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 10px;
   margin: 8px 0;
+  align-items: start;
 }
 
 @media (max-width: 768px) {
   .show-detail__sections-accordion {
     gap: 6px;
     margin: 8px 0;
+  }
+}
+
+
+/* ─── Overview: count tiles + accent cards ─────────────────────────────────── */
+.show-overview {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 700px) {
+  .show-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1040px) {
+  /* Two count groups then the accents, matching how they're read: the numbers
+     first, the two totals as a pair on the end. */
+  .show-overview {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.62fr);
+  }
+}
+
+/* A group is one card holding four tiles in a 2x2, split by hairlines rather
+   than gaps, so four numbers cost one card's worth of chrome instead of four. */
+.show-overview__group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.show-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px 14px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Only the seams between tiles get a rule — the card edge already closes the
+   outside. */
+.show-tile:nth-child(2n) {
+  border-right: 0;
+}
+
+.show-tile:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.show-tile__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  color: var(--primary-text);
+}
+
+.show-tile__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.show-tile__value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.show-tile__label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Full width on a phone. Side by side, a half of 390px leaves about 100px for
+   the figure once the icon and padding are paid for, which truncated "$1240.50"
+   to "$124…" — the one number on the card, unreadable. */
+.show-overview__accents {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 560px) {
+  .show-overview__accents {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1040px) {
+  /* Stacked beside the groups, so the two totals line up as one column. */
+  .show-overview__accents {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Tinted, not filled. A solid crimson card for "total spend" would read as an
+   alert — this file already learned that lesson once with the section accent
+   bars. The soft/soft-border/text triples are the documented pairs that hold
+   their contrast in both themes. */
+.show-accent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-sm);
+}
+
+.show-accent--spend {
+  background: var(--primary-soft);
+  border-color: var(--primary-soft-border);
+  color: var(--primary-text);
+}
+
+.show-accent--runtime {
+  background: var(--success-soft);
+  border-color: var(--success-soft-border);
+  color: var(--success-text);
+}
+
+.show-accent__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.show-accent__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.show-accent__value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The label rides the card's own accent colour rather than --text-muted, which
+   would sit on a tinted fill it was never contrast-checked against. */
+.show-accent__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* ─── Overview: readiness bars ─────────────────────────────────────────────── */
+.show-progress {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 900px) {
+  .show-progress {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.show-progress__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.show-progress__label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.show-progress__figure {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.show-progress__value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.show-progress__of {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.show-progress__pct {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.show-progress__track {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--surface-strong);
+  overflow: hidden;
+}
+
+.show-progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  transition: width 0.25s ease;
+}
+
+/* Four bars in a row all in one colour read as a single meter. Giving each its
+   own hue makes them four separate answers — using the theme's own tokens, so
+   they stay legible against the track in both schemes. */
+.show-progress__bar--walkon {
+  background: var(--success-strong);
+}
+
+.show-progress__bar--cues {
+  background: var(--warning);
+}
+
+/* The palette has exactly one more distinguishable hue than this row needs, so
+   the fourth bar goes neutral rather than repeating a red already used above. */
+.show-progress__bar--vendors {
+  background: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .show-progress__bar {
+    transition: none;
   }
 }
 
@@ -460,7 +740,7 @@ select.show-detail__status--select {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   padding: 14px 18px;
   background: none;
   border: 0;
@@ -486,6 +766,20 @@ select.show-detail__status--select {
     padding: 13px 15px;
     gap: 10px;
   }
+}
+
+/* Names the card by what it holds, so a grid of cards is scannable by shape
+   before you read a word of it. */
+.accordion-section__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  color: var(--primary-text);
 }
 
 .accordion-section__header-left {
@@ -2298,19 +2592,17 @@ select.show-detail__status--select {
    window empty. Collapsed cards now pack two-up — but an open one spans the
    full width, so its content is never squeezed into half a column. */
 @media (min-width: 1100px) {
-  .show-detail {
-    max-width: 1040px;
-  }
-
   .show-detail__sections-accordion {
-    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    gap: 10px;
+    gap: 14px;
   }
 
-  .show-detail__sections-accordion:has(.accordion-section__header[aria-expanded='true'])
-    .accordion-section:has(.accordion-section__header[aria-expanded='true']) {
+  /* An open section takes the full row: its contents are forms and lists built
+     for a column, and squeezing them into half the grid would make the grid the
+     point rather than the editing. The component sets this class from the same
+     state that drives aria-expanded, so it can't drift out of sync — it
+     replaces a pair of :has() selectors that encoded the same thing. */
+  .accordion-section--expanded {
     grid-column: 1 / -1;
   }
 }
