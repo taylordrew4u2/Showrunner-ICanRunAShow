@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { MoreMenu } from './MoreMenu';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
@@ -19,7 +19,22 @@ import { parseShowDate, formatShowTime } from '../utils/showDate';
 import { joinNames, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
+import { buildShowStats, progressPercent, formatRunTime, formatMoney } from '../utils/showStats';
 import './ShowDetail.css';
+
+// Each section card wears the icon for what it holds, so the grid is scannable
+// by shape once you know the page — a wall of same-looking cards is the failure
+// mode of a bento layout.
+const SECTION_ICONS: Record<string, IconName> = {
+  basic: 'file',
+  performers: 'users',
+  artists: 'sparkle',
+  schedule: 'schedule',
+  dj: 'music',
+  staff: 'wrench',
+  vendors: 'bolt',
+  recap: 'check',
+};
 
 interface ShowDetailProps {
   show: Show;
@@ -65,6 +80,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     ].filter((n) => n?.trim()),
     [show.performers, show.artists, settings.potentialComics],
   );
+  // The overview tiles read straight off the show, so they can't drift from the
+  // sections below them.
+  const stats = useMemo(() => buildShowStats(show), [show]);
+
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => loadOpenSections(show.id));
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(false);
@@ -427,6 +446,24 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     { label: 'Add or remove sections', onSelect: () => setManageSectionsOpen(true) },
   ];
 
+  // Two groups of four, so the counts read as two related clusters rather than
+  // one undifferentiated row of eight: who and what is on stage, then what it
+  // takes to put them there.
+  const tileGroups: Array<Array<{ icon: IconName; value: number; label: string }>> = [
+    [
+      { icon: 'users', value: stats.counts.performers, label: 'Performers' },
+      { icon: 'sparkle', value: stats.counts.artists, label: 'Artists' },
+      { icon: 'schedule', value: stats.counts.cues, label: 'Cues' },
+      { icon: 'music', value: stats.counts.songs, label: 'DJ songs' },
+    ],
+    [
+      { icon: 'wrench', value: stats.counts.staff, label: 'Staff' },
+      { icon: 'bolt', value: stats.counts.vendors, label: 'Vendors' },
+      { icon: 'file', value: stats.counts.expenses, label: 'Expenses' },
+      { icon: 'check', value: stats.counts.todos, label: 'To-dos' },
+    ],
+  ];
+
   return (
     <div className="show-detail">
       <div className="show-detail__hero">
@@ -564,6 +601,80 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         )}
       </div>
 
+      {/* At a glance. The page used to open on a stack of closed sections, which
+          told you the show existed but nothing about its state. These read
+          straight off the same data the sections edit. */}
+      <section className="show-overview" aria-label="Show at a glance">
+        {tileGroups.map((group, index) => (
+          <div className="show-overview__group" key={index}>
+            {group.map((tile) => (
+              <div className="show-tile" key={tile.label}>
+                <span className="show-tile__icon">
+                  <Icon name={tile.icon} size={20} />
+                </span>
+                <span className="show-tile__body">
+                  <span className="show-tile__value">{tile.value}</span>
+                  <span className="show-tile__label">{tile.label}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+
+        <div className="show-overview__accents">
+          <div className="show-accent show-accent--spend">
+            <span className="show-accent__icon">
+              <Icon name="dollar" size={22} />
+            </span>
+            <span className="show-accent__body">
+              <span className="show-accent__value">{formatMoney(stats.spend)}</span>
+              <span className="show-accent__label">Total spend</span>
+            </span>
+          </div>
+          <div className="show-accent show-accent--runtime">
+            <span className="show-accent__icon">
+              <Icon name="clock" size={22} />
+            </span>
+            <span className="show-accent__body">
+              <span className="show-accent__value">{formatRunTime(stats.runMinutes)}</span>
+              <span className="show-accent__label">Run time</span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* How ready the show is, in the four things that are actually checkable.
+          Each bar is a real ratio — no invented targets. */}
+      <section className="show-progress" aria-label="Show readiness">
+        {stats.progress.map((stat) => {
+          const percent = progressPercent(stat);
+          return (
+            <div className="show-progress__card" key={stat.key}>
+              <span className="show-progress__label">{stat.label}</span>
+              <span className="show-progress__figure">
+                <strong className="show-progress__value">
+                  {stat.done}<span className="show-progress__of">/{stat.total}</span>
+                </strong>
+                <span className="show-progress__pct">{percent}%</span>
+              </span>
+              <span
+                className="show-progress__track"
+                role="progressbar"
+                aria-valuenow={percent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={stat.label}
+              >
+                <span
+                  className={`show-progress__bar show-progress__bar--${stat.key}`}
+                  style={{ width: `${percent}%` }}
+                />
+              </span>
+            </div>
+          );
+        })}
+      </section>
+
       <div className="show-detail__sections-accordion">
         {sections.filter((section) => !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
           const isExpanded = expandedSections.has(section.key);
@@ -572,7 +683,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           const filled = typeof section.count === 'number' && section.count > 0;
 
           return (
-            <section key={section.key} className="accordion-section">
+            <section
+              key={section.key}
+              className={`accordion-section${isExpanded ? ' accordion-section--expanded' : ''}`}
+            >
               {/* The whole header is one button, wrapped in the heading. It used
                   to be a div with a click handler and a separate arrow button,
                   so the only thing a keyboard could reach was the arrow — the
@@ -586,6 +700,9 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                   aria-expanded={isExpanded}
                   aria-controls={panelId}
                 >
+                  <span className="accordion-section__icon">
+                    <Icon name={SECTION_ICONS[section.key] ?? 'file'} size={18} />
+                  </span>
                   <span className="accordion-section__header-left">
                     <span className="accordion-section__title-row">
                       <span className="accordion-section__title">{section.title}</span>
