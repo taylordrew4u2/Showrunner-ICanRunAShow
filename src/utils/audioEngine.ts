@@ -17,6 +17,7 @@
  *   audioEngine.setMuted(true|false);
  */
 
+import { dataUrlToBytes } from './media';
 import { isMediaRef, resolveMediaUrl } from './mediaStore';
 
 type CtxCtor = typeof AudioContext;
@@ -34,6 +35,24 @@ interface PlayOptions {
 
 const DEFAULT_FADE_IN_MS = 1200;
 const DEFAULT_FADE_OUT_MS = 400;
+
+/**
+ * The bytes behind an already-resolved source, ready for decodeAudioData.
+ *
+ * Uploaded tracks resolve to a `data:` URL, and those are decoded in-process:
+ * fetch() answers to CSP `connect-src`, which doesn't allow data:, so fetching
+ * one is a blocked request and a soundboard button that does nothing. Anything
+ * else (an http link) is a real network resource and still goes over fetch.
+ */
+async function readSourceBytes(url: string): Promise<ArrayBuffer | null> {
+  if (url.startsWith('data:')) {
+    const bytes = dataUrlToBytes(url);
+    return bytes ? (bytes.buffer as ArrayBuffer) : null;
+  }
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  return res.arrayBuffer();
+}
 
 interface Playing {
   src: string;
@@ -211,10 +230,10 @@ class AudioEngine {
       // under the original src, so a track only resolves once per session.
       const resolved = isMediaRef(src) ? await resolveMediaUrl(src) : src;
       if (!resolved) return null;
-      const res = await fetch(resolved);
-      const arr = await res.arrayBuffer();
+      const arr = await readSourceBytes(resolved);
+      if (!arr) return null;
       // Older Safari requires the callback form, but modern returns a promise.
-      const buf = await this.ctx.decodeAudioData(arr.slice(0));
+      const buf = await this.ctx.decodeAudioData(arr);
       this.buffers.set(src, buf);
       return buf;
     } catch (e) {

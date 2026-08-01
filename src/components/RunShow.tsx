@@ -115,6 +115,9 @@ export function RunShow({
   // It is deliberately independent of `idx`: the clock and the sound are two
   // separate instruments and neither one drives the other.
   const [playingKey, setPlayingKey] = useState<string | null>(null);
+  // A press that couldn't produce sound. Silence is the one thing an operator
+  // can't diagnose mid-show, so a track that fails to load says so.
+  const [audioError, setAudioError] = useState<string | null>(null);
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
 
   const board = useMemo(
@@ -264,6 +267,16 @@ export function RunShow({
       return;
     }
     setPlayingKey(track.key);
+    setAudioError(null);
+    // A press that didn't make sound — either a track that wouldn't load or a
+    // press since superseded. Only act if this button is still the lit one:
+    // superseding it is normal and shouldn't raise an error.
+    const failed = () =>
+      setPlayingKey((k) => {
+        if (k !== track.key) return k;
+        setAudioError(`${track.label} wouldn't play — the audio file didn't load.`);
+        return null;
+      });
     audioEngine
       .play(track.src, {
         fadeInMs: FADE_IN_MS,
@@ -271,17 +284,15 @@ export function RunShow({
         onEnded: () => setPlayingKey((k) => (k === track.key ? null : k)),
       })
       .then((ok) => {
-        // A false here is either a track that wouldn't decode or a press that
-        // has since been superseded — only clear if this one is still the
-        // button lit up.
-        if (!ok) setPlayingKey((k) => (k === track.key ? null : k));
+        if (!ok) failed();
       })
-      .catch(() => setPlayingKey((k) => (k === track.key ? null : k)));
+      .catch(failed);
   }
 
   function stopAll() {
     audioEngine.stop({ fadeMs: FADE_OUT_MS });
     setPlayingKey(null);
+    setAudioError(null);
   }
 
   function toggleMute() {
@@ -486,7 +497,9 @@ export function RunShow({
           </div>
 
           <div className="rs-board__now" aria-live="polite">
-            {playingTrack ? (
+            {audioError ? (
+              <span className="rs-board__now-text rs-board__now-text--error">{audioError}</span>
+            ) : playingTrack ? (
               <>
                 <span className="rs-board__now-dot" aria-hidden="true" />
                 <span className="rs-board__now-text">

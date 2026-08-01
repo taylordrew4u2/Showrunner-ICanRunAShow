@@ -33,6 +33,56 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Decode a `data:` URL to its raw bytes, in-process.
+ *
+ * Web Audio needs an ArrayBuffer, and the obvious way to get one out of a data
+ * URL is `fetch(dataUrl).arrayBuffer()`. But a fetch — of any scheme, data:
+ * included — is governed by the CSP `connect-src` directive, and ours lists
+ * only 'self' and https:. So every soundboard press was blocked at the fetch
+ * and the track never played, while the same performer's photo rendered fine
+ * because images go through `img-src`, which does allow data:. Decoding here
+ * keeps the bytes in-process, where no CSP directive applies.
+ *
+ * Returns null for anything that isn't a data URL this can decode.
+ */
+export function dataUrlToBytes(dataUrl: string): Uint8Array | null {
+  if (!dataUrl.startsWith('data:')) return null;
+  const comma = dataUrl.indexOf(',');
+  if (comma < 0) return null;
+  const meta = dataUrl.slice('data:'.length, comma);
+  const body = dataUrl.slice(comma + 1);
+
+  if (!/;base64$/i.test(meta)) {
+    // Percent-encoded payload. Never what an upload produces — FileReader
+    // always gives us base64 — but it is a valid data URL, so decode it.
+    try {
+      const text = decodeURIComponent(body);
+      const out = new Uint8Array(text.length);
+      for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i) & 0xff;
+      return out;
+    } catch {
+      return null;
+    }
+  }
+
+  let binary: string;
+  try {
+    binary = atob(body);
+  } catch {
+    // Some encoders wrap base64 at a fixed column. Retry without the padding
+    // whitespace rather than copying a multi-megabyte string on every track.
+    try {
+      binary = atob(body.replace(/\s+/g, ''));
+    } catch {
+      return null;
+    }
+  }
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
 export function readFileAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
