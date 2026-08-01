@@ -6,6 +6,7 @@ import { ServerNotConfiguredError } from './utils/api';
 import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
+import { expandOriginFrom } from './utils/expandOrigin';
 import { addPerformersToRolodex } from './utils/rolodex';
 import { buildOverview } from './utils/showsOverview';
 import { 
@@ -982,19 +983,26 @@ export default function App() {
   }
 
   function handleSelectShow(show: Show, e?: React.MouseEvent) {
-    if (e) {
-      const main = document.querySelector('.app-main');
-      const cardEl = e.currentTarget as HTMLElement;
-      if (main) {
-        const mainRect = main.getBoundingClientRect();
-        const cardRect = cardEl.getBoundingClientRect();
-        const x = ((cardRect.left + cardRect.width / 2 - mainRect.left) / mainRect.width) * 100;
-        const y = ((cardRect.top + cardRect.height / 2 - mainRect.top) / mainRect.height) * 100;
-        setExpandOrigin({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
-      }
-    }
+    // Open the show first. Measuring the card to set the expand animation's
+    // origin is decoration, and it used to run ahead of the navigation it
+    // decorates — so anything it touched (a missing .app-main, an element
+    // already detached from the DOM) threw inside the click handler and the
+    // show simply never opened. React does not route event-handler errors to
+    // an error boundary, which made that failure completely silent: no error
+    // screen, no blank page, just a tap that did nothing.
     setSelectedShow(show);
     setView('detail');
+
+    if (!e) return;
+    try {
+      const origin = expandOriginFrom(
+        (e.currentTarget as HTMLElement | null)?.getBoundingClientRect(),
+        document.querySelector('.app-main')?.getBoundingClientRect(),
+      );
+      if (origin) setExpandOrigin(origin);
+    } catch {
+      // The animation is the only thing that can be lost here.
+    }
   }
 
   function handleBack() {
