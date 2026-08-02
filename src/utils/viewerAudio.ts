@@ -51,6 +51,36 @@ export interface ViewerPlayback {
   fadeOutMs: number;
 }
 
+/**
+ * What the viewer should do with the instruction it just polled.
+ *
+ * Pulled out of the component because this is where a cue gets dropped. The
+ * subtlety is 'wait': a press can reach the viewer before that track has
+ * finished downloading, and the wrong move is to treat the cue as handled —
+ * the download lands a moment later and nothing restarts it, so the walk-on is
+ * gone until the operator presses something else. 'wait' leaves the caller's
+ * "currently playing" untouched so the next poll retries.
+ */
+export type PlaybackAction =
+  | { action: 'none' }
+  | { action: 'wait'; key: string }
+  | { action: 'play'; key: string }
+  | { action: 'stop' };
+
+export function nextPlaybackAction(
+  playing: string | null,
+  playback: ViewerPlayback | undefined,
+  isDownloaded: (key: string) => boolean,
+): PlaybackAction {
+  if (!playback) return { action: 'none' };
+  const wanted = playback.key;
+  // Silence: only worth acting on if something is actually running.
+  if (!wanted) return playing === null ? { action: 'none' } : { action: 'stop' };
+  if (wanted === playing) return { action: 'none' };
+  if (!isDownloaded(wanted)) return { action: 'wait', key: wanted };
+  return { action: 'play', key: wanted };
+}
+
 /** A fresh per-show key. 32 bytes of CSPRNG, base64url so it survives a URL. */
 export function generateViewerKey(): string {
   const bytes = new Uint8Array(32);

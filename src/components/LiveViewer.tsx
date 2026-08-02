@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fetchLiveView, type LiveViewPayload } from '../utils/liveView';
 import { applyColorScheme } from '../utils/theme';
 import { audioEngine } from '../utils/audioEngine';
-import { fetchViewerTrack, readViewerKeyFromHash } from '../utils/viewerAudio';
+import { fetchViewerTrack, nextPlaybackAction, readViewerKeyFromHash } from '../utils/viewerAudio';
 
 interface LiveViewerProps {
   token: string;
@@ -96,26 +96,23 @@ export function LiveViewer({ token }: LiveViewerProps) {
     if (!soundOn || !viewerKey) return;
     const playback = payload?.playback;
     if (!playback) return;
-    const wanted = playback.key;
-    if (!wanted) {
-      if (playingRef.current !== null) {
-        playingRef.current = null;
-        audioEngine.stop({ fadeMs: playback.fadeOutMs });
-      }
-      return;
+    const next = nextPlaybackAction(playingRef.current, playback, (k) =>
+      trackUrls.current.has(k),
+    );
+    // 'wait' deliberately falls through without touching playingRef — the next
+    // poll retries and the track starts the moment its download lands.
+    if (next.action === 'stop') {
+      playingRef.current = null;
+      audioEngine.stop({ fadeMs: playback.fadeOutMs });
+    } else if (next.action === 'play') {
+      playingRef.current = next.key;
+      audioEngine
+        .play(trackUrls.current.get(next.key)!, {
+          fadeInMs: playback.fadeInMs,
+          fadeOutMs: playback.fadeOutMs,
+        })
+        .catch(() => {});
     }
-    if (wanted === playingRef.current) return;
-    const url = trackUrls.current.get(wanted);
-    // Still downloading. Deliberately leave playingRef alone rather than
-    // marking this cue handled: every poll delivers a fresh payload, so the
-    // next one retries and the track starts the moment it lands. Marking it
-    // played here would drop the walk-on until the operator pressed something
-    // else — silence with no way to recover it.
-    if (!url) return;
-    playingRef.current = wanted;
-    audioEngine
-      .play(url, { fadeInMs: playback.fadeInMs, fadeOutMs: playback.fadeOutMs })
-      .catch(() => {});
   }, [soundOn, viewerKey, payload?.playback]);
 
   // Never leave a track running on a screen nobody is looking at.

@@ -3,10 +3,17 @@ import {
   ensureViewerKey,
   generateViewerKey,
   loadViewerKey,
+  nextPlaybackAction,
   readViewerKeyFromHash,
   splitIntoChunks,
   viewerUrl,
+  type ViewerPlayback,
 } from './viewerAudio';
+
+function cue(key: string | null): ViewerPlayback {
+  return { key, atMs: 1_000, fadeInMs: 0, fadeOutMs: 350 };
+}
+const downloaded = (...keys: string[]) => (k: string) => keys.includes(k);
 
 function stubStorage() {
   const map = new Map<string, string>();
@@ -91,5 +98,51 @@ describe('viewer audio keys', () => {
     const chunks = splitIntoChunks(text, 1000);
     expect(chunks).toHaveLength(3);
     expect(chunks.join('')).toBe(text);
+  });
+});
+
+describe('what the viewer plays next', () => {
+  it('starts a track the board asked for', () => {
+    expect(nextPlaybackAction(null, cue('a'), downloaded('a'))).toEqual({ action: 'play', key: 'a' });
+  });
+
+  it('waits — and stays unhandled — for a cue that beat its download', () => {
+    // The bug this exists to prevent: press a face before the track has
+    // reached the viewer, and treating the cue as handled loses the walk-on
+    // entirely. 'wait' means the caller leaves its state alone.
+    expect(nextPlaybackAction(null, cue('a'), downloaded())).toEqual({ action: 'wait', key: 'a' });
+  });
+
+  it('plays that same cue once the download lands', () => {
+    // Same instruction, one poll later, now downloaded.
+    expect(nextPlaybackAction(null, cue('a'), downloaded('a'))).toEqual({ action: 'play', key: 'a' });
+  });
+
+  it('does nothing when it is already playing what was asked for', () => {
+    // Every poll repeats the instruction; re-firing would restart the track
+    // from the top under a performer already walking on.
+    expect(nextPlaybackAction('a', cue('a'), downloaded('a'))).toEqual({ action: 'none' });
+  });
+
+  it('hands over to a different track', () => {
+    expect(nextPlaybackAction('a', cue('b'), downloaded('a', 'b'))).toEqual({ action: 'play', key: 'b' });
+  });
+
+  it('keeps the current track running while the next one downloads', () => {
+    // Cutting to silence early would be worse than a late handover.
+    expect(nextPlaybackAction('a', cue('b'), downloaded('a'))).toEqual({ action: 'wait', key: 'b' });
+  });
+
+  it('stops when the board stops', () => {
+    expect(nextPlaybackAction('a', cue(null), downloaded('a'))).toEqual({ action: 'stop' });
+  });
+
+  it('does not re-stop silence on every poll', () => {
+    expect(nextPlaybackAction(null, cue(null), downloaded())).toEqual({ action: 'none' });
+  });
+
+  it('does nothing when the board has published no instruction', () => {
+    // A show whose board never turned viewer audio on.
+    expect(nextPlaybackAction(null, undefined, downloaded())).toEqual({ action: 'none' });
   });
 });
