@@ -19,9 +19,11 @@ import {
   authenticateUser,
   healSettings,
   PayloadTooLargeError,
+  type EncryptedShowRow,
 } from './utils/secure-storage';
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from './utils/trash';
 import { stripLegacyShowMedia, stripLegacySettingsMedia } from './utils/stripMedia';
+import { healShow } from './utils/showHealing';
 import { initMediaStore, clearMediaStore } from './utils/mediaStore';
 import {
   type SessionCredentials,
@@ -138,6 +140,37 @@ function writeLastSync(username: string, at: number): void {
   }
 }
 
+/**
+ * Says so when the list you're looking at isn't all of your shows.
+ *
+ * The at-a-glance tiles and the search box both narrow the grid, and until now
+ * the only sign of it was a pressed tile above the fold. Tap "Needs a running
+ * order", scroll down, and two of your twelve shows are on screen with nothing
+ * to say why — which reads exactly like the app losing the other ten. The count
+ * and the way back belong next to the list they apply to.
+ */
+function NarrowedNotice({
+  shown,
+  total,
+  onClear,
+}: {
+  shown: number;
+  total: number;
+  onClear: () => void;
+}) {
+  if (shown >= total) return null;
+  return (
+    <div className="shows-narrowed" role="status">
+      <span className="shows-narrowed__text">
+        Showing {shown} of {total} shows
+      </span>
+      <button type="button" className="shows-narrowed__clear" onClick={onClear}>
+        Show all
+      </button>
+    </div>
+  );
+}
+
 /** True when the user has 3+ shows and hasn't exported a backup in 30 days. */
 function shouldNudgeBackup(showCount: number, lastBackupAt: string | null): boolean {
   if (showCount < 3) return false;
@@ -245,6 +278,10 @@ export default function App() {
     }
   });
   const dataLoaded = useRef(false);
+  // Rows the last load couldn't decrypt, held as ciphertext so every save can
+  // write them back untouched. Never rendered — only carried.
+  const unreadableRowsRef = useRef<EncryptedShowRow[]>([]);
+  const [unreadableCount, setUnreadableCount] = useState(0);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [onboardingSaving, setOnboardingSaving] = useState(false);
@@ -345,13 +382,18 @@ export default function App() {
     if (!dataLoaded.current) setLoadingData(true);
     async function loadData() {
       try {
-        const [loadedShows, loadedSettings] = await Promise.all([
+        const [loaded, loadedSettings] = await Promise.all([
           loadEncryptedShows(currentSession),
           loadEncryptedSettings(currentSession),
         ]);
+        // Rows this device couldn't decrypt. They're not in the list, so hold
+        // their ciphertext for the saver to write straight back — otherwise the
+        // next edit to any other show would delete them off the account.
+        unreadableRowsRef.current = loaded.unreadable;
+        setUnreadableCount(loaded.unreadable.length);
         // Scrub legacy embedded media (photos, videos, files) that older saves
         // still carry — the next save writes the slimmed-down payload.
-        const migratedShows = loadedShows.map((show) => stripLegacyShowMedia(show));
+        const migratedShows = loaded.shows.map((show) => stripLegacyShowMedia(show));
 
         // Migrate per-show expenses into global settings.expenses
         let migratedSettings = stripLegacySettingsMedia({ ...loadedSettings, expenses: loadedSettings.expenses || [] });
@@ -382,7 +424,14 @@ export default function App() {
         // prefer that local backup — it's strictly newer than what the server
         // has. Setting state marks it dirty, so the auto-save re-persists it.
         const rawPendingShows = readPending<Show[]>(PENDING_SHOWS_KEY, currentSession.username);
-        const pendingShows = rawPendingShows ? rawPendingShows.map((s) => stripLegacyShowMedia(s)) : null;
+        // Same healing as the server rows: a local backup written by an older
+        // build can be missing list fields the list renders without checking.
+        const pendingShows = rawPendingShows
+          ? rawPendingShows
+              .map((s) => healShow(s))
+              .filter((s): s is Show => s !== null)
+              .map((s) => stripLegacyShowMedia(s))
+          : null;
         // Pending backups bypass loadEncryptedSettings, so run them through the
         // same healing (trash media stripping, oversized-audio removal) —
         // otherwise a poisoned backup keeps the account unsavable forever.
@@ -500,7 +549,7 @@ export default function App() {
           let saved: Show[] | null = null;
           while (latestShowsRef.current !== saved) {
             saved = latestShowsRef.current;
-            await saveEncryptedShows(saved, currentSession);
+            await saveEncryptedShows(saved, currentSession, unreadableRowsRef.current);
           }
           clearPending(PENDING_SHOWS_KEY);
           setHasLocalCopy(false);
@@ -1116,6 +1165,33 @@ export default function App() {
           {/* Everything that reports on the state of your data, in one stack:
               problems that need you first, then the always-on sync pill. */}
           <div className="status-rail">
+            {/* Some rows came back but wouldn't decrypt on this device. Say so
+                plainly — a short list with no explanation reads as lost data,
+                and these shows are neither lost nor at risk: they're carried
+                back to the server untouched on every save. */}
+            {unreadableCount > 0 && (
+              <div className="system-notice" role="alert">
+                <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />
+                <div className="system-notice__body">
+                  <span className="system-notice__text">
+                    {unreadableCount === 1
+                      ? "1 show couldn't be opened on this device, so it isn't in the list below."
+                      : `${unreadableCount} shows couldn't be opened on this device, so they aren't in the list below.`}
+                  </span>
+                  <span className="system-notice__reassurance">
+                    They're still on your account and nothing here will overwrite them. Try
+                    refreshing, or signing out and back in.
+                  </span>
+                </div>
+                <button
+                  className="system-notice__close"
+                  onClick={() => setUnreadableCount(0)}
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            )}
             {loadError && (
               <div className="system-notice" role="alert">
                 <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />
@@ -1279,19 +1355,33 @@ export default function App() {
                     </button>
                   </div>
                 ) : showsView === 'calendar' ? (
-                  <ShowsCalendar shows={filteredShows} onSelectShow={handleSelectShow} />
+                  <>
+                    <NarrowedNotice
+                      shown={filteredShows.length}
+                      total={shows.length}
+                      onClear={clearFilters}
+                    />
+                    <ShowsCalendar shows={filteredShows} onSelectShow={handleSelectShow} />
+                  </>
                 ) : (
-                  <div className="shows-grid">
-                    {sortedShows.map((show) => (
-                      <ShowCard
-                        key={show.id}
-                        show={show}
-                        onSelect={handleSelectShow}
-                        onDelete={handleDeleteShow}
-                        onDuplicate={handleDuplicateShow}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <NarrowedNotice
+                      shown={filteredShows.length}
+                      total={shows.length}
+                      onClear={clearFilters}
+                    />
+                    <div className="shows-grid">
+                      {sortedShows.map((show) => (
+                        <ShowCard
+                          key={show.id}
+                          show={show}
+                          onSelect={handleSelectShow}
+                          onDelete={handleDeleteShow}
+                          onDuplicate={handleDuplicateShow}
+                        />
+                      ))}
+                    </div>
+                  </>
                 )}
 
               </div>

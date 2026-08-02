@@ -430,6 +430,42 @@
   gap: 10px;
 }
 
+/* "Showing 2 of 12 shows — Show all". Sits directly above the list it
+   describes, because that's where the question gets asked. */
+.shows-narrowed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-strong);
+}
+
+.shows-narrowed__text {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.shows-narrowed__clear {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.shows-narrowed__clear:hover {
+  border-color: var(--primary);
+  color: var(--primary-text);
+}
+
 /* ── Rolodex Page ──────────────────────────────────────────────────── */
 
 .rolodex-page {

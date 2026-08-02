@@ -5,6 +5,7 @@ import type { SessionCredentials } from "./session-vault";
 import { api, type ApiError } from "./api";
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from "./trash";
 import { describeLargestMedia } from "./showSize";
+import { healShow } from "./showHealing";
 
 /**
  * Secure storage. All data is encrypted in the browser (the password-derived
@@ -84,20 +85,54 @@ export async function authenticateUser(
   return res.ok;
 }
 
+/** One row exactly as the server stores it: an id and an opaque blob. */
+export interface EncryptedShowRow {
+  id: string;
+  encryptedData: string;
+}
+
+export interface LoadedShows {
+  /** Every row this device could read. */
+  shows: Show[];
+  /**
+   * Rows it couldn't, kept as the ciphertext that came back. They're handed
+   * straight back to the next save so a row we can't read is never a row we
+   * silently delete.
+   */
+  unreadable: EncryptedShowRow[];
+}
+
 /**
  * Load encrypted shows from the backend and decrypt them client-side.
+ *
+ * Row by row, deliberately. This used to be a single `.map`, which meant one
+ * corrupt or unreadable blob threw before the second row was even attempted and
+ * the account rendered as "couldn't load your shows" with an empty list — every
+ * other show lost to one bad one. Now a row that won't decrypt is set aside and
+ * everything else loads.
  */
-export async function loadEncryptedShows(creds: SessionCredentials): Promise<Show[]> {
-  const { shows } = await api.get<{ shows: { id: string; encryptedData: string }[] }>(
-    "/api/shows",
-    auth(creds),
-  );
+export async function loadEncryptedShows(creds: SessionCredentials): Promise<LoadedShows> {
+  const { shows } = await api.get<{ shows: EncryptedShowRow[] }>("/api/shows", auth(creds));
   // Keys were derived once at sign-in — PBKDF2 is deliberately slow, so it must
   // not run per row. decryptWithKeys tries the current key, then the legacy key,
   // so shows saved before the KDF upgrade still decrypt (and re-encrypt on the
   // next save).
   const keys = readKeys(creds);
-  return shows.map((row) => decryptWithKeys<Show>(row.encryptedData, keys));
+  const readable: Show[] = [];
+  const unreadable: EncryptedShowRow[] = [];
+
+  for (const row of shows) {
+    let show: Show | null = null;
+    try {
+      show = healShow(decryptWithKeys<unknown>(row.encryptedData, keys));
+    } catch {
+      show = null; // wrong key, truncated blob, non-JSON plaintext
+    }
+    if (show) readable.push(show);
+    else unreadable.push(row);
+  }
+
+  return { shows: readable, unreadable };
 }
 
 /**
@@ -116,9 +151,16 @@ const showCipherCache = new WeakMap<Show, { key: string; cipher: string }>();
 export async function saveEncryptedShows(
   shows: Show[],
   creds: SessionCredentials,
+  /**
+   * Rows loadEncryptedShows couldn't decrypt. Every save replaces the whole
+   * set, so these have to be written back verbatim — otherwise a row this
+   * device merely failed to *read* gets deleted the moment anything else is
+   * edited. Untouched ciphertext in, untouched ciphertext out.
+   */
+  unreadable: EncryptedShowRow[] = [],
 ): Promise<void> {
   const key = creds.key;
-  const payload = shows.map((show) => {
+  const encrypted = shows.map((show) => {
     const cached = showCipherCache.get(show);
     if (cached && cached.key === key) {
       return { id: show.id, encryptedData: cached.cipher };
@@ -127,10 +169,17 @@ export async function saveEncryptedShows(
     showCipherCache.set(show, { key, cipher });
     return { id: show.id, encryptedData: cipher };
   });
+  // A row that has since become readable (and is now in `shows`) wins over the
+  // carried copy, so an id can never appear twice — the id column is a primary
+  // key, and a duplicate would fail the whole write.
+  const known = new Set(shows.map((show) => show.id));
+  const carried = unreadable.filter((row) => !known.has(row.id));
+  const payload = [...encrypted, ...carried];
   // An empty list is a deliberate "delete everything" from the app (saves only
   // run after the initial load), so tell the server it's intentional — without
-  // the flag it refuses empty saves as a safety net against bugs.
-  const deleteAll = shows.length === 0;
+  // the flag it refuses empty saves as a safety net against bugs. Carried rows
+  // count: with one of those still to write, this isn't an empty save.
+  const deleteAll = payload.length === 0;
   const a = auth(creds);
   const body = JSON.stringify({ shows: payload, deleteAll });
   if (body.length <= MAX_SAVE_BYTES) {
@@ -149,7 +198,7 @@ export async function saveEncryptedShows(
   if (oversized.length > 0) {
     const details = oversized.map((row) => {
       const show = shows.find((s) => s.id === row.id);
-      if (!show) return "an unknown show";
+      if (!show) return "a show this device couldn't open";
       const files = describeLargestMedia(show);
       return `"${show.name}"${files ? ` — biggest files: ${files}` : ""}`;
     });
@@ -187,7 +236,7 @@ export async function saveEncryptedShows(
  * Returns a Blob URL the caller can use for a download link.
  */
 export async function exportUserData(creds: SessionCredentials): Promise<string> {
-  const shows = await loadEncryptedShows(creds);
+  const { shows } = await loadEncryptedShows(creds);
   const settings = await loadEncryptedSettings(creds);
   const payload = JSON.stringify({ shows, settings, exportedAt: new Date().toISOString() }, null, 2);
   const blob = new Blob([payload], { type: "application/json" });
