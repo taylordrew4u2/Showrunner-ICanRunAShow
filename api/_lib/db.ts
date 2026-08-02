@@ -83,6 +83,20 @@ const DDL: string[] = [
      created_at TEXT NOT NULL DEFAULT (datetime('now')),
      PRIMARY KEY (user_id, id, seq)
    )`,
+  // Soundboard audio published to a show's live viewers, so the machine
+  // plugged into the PA can play the walk-ons. Keyed by the viewer token
+  // rather than a user, because the reader is anonymous. Still ciphertext:
+  // it's encrypted under a per-show key that only ever exists in the viewer
+  // link's fragment, so the server holds bytes it cannot read.
+  `CREATE TABLE IF NOT EXISTS live_media (
+     token      TEXT NOT NULL,
+     id         TEXT NOT NULL,
+     seq        INTEGER NOT NULL,
+     total      INTEGER NOT NULL,
+     data       TEXT NOT NULL,
+     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+     PRIMARY KEY (token, id, seq)
+   )`,
 ];
 
 // Columns added after the original `users` table shipped. CREATE TABLE IF NOT

@@ -20,6 +20,7 @@ import { joinNames, scheduleSummary, staffSummary, vendorsSummary } from '../uti
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
 import { buildShowStats, progressPercent, formatRunTime, formatMoney } from '../utils/showStats';
+import { loadViewerKey, viewerUrl as buildViewerUrl } from '../utils/viewerAudio';
 import './ShowDetail.css';
 
 // Each section card wears the icon for what it holds, so the grid is scannable
@@ -240,7 +241,11 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   }
 
   function viewerUrl(token: string): string {
-    return `${window.location.origin}/?view=${token}`;
+    // Carries this show's audio key in the fragment once Run Show has published
+    // a board to the viewer — without it the viewer can still show the running
+    // order, it just can't decode the music. The fragment never leaves the
+    // browser, so the server storing that audio still can't read it.
+    return buildViewerUrl(window.location.origin, token, loadViewerKey(token));
   }
 
   // The lineup the public viewer shows pre-show — performers in their list order.
