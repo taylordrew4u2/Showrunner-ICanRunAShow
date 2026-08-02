@@ -276,15 +276,19 @@ export function RunShow({
   useEffect(() => {
     audioEngine.init();
     const sources = soundboardSources(board);
-    setReadyCount(sources.filter((s) => audioEngine.isReady(s)).length);
     let cancelled = false;
+    // Counted from the engine rather than incremented: re-opening the board, or
+    // an edit to the running order mid-show, re-runs this effect over tracks
+    // that are already decoded, and a counter would tick past the total.
+    const recount = () => setReadyCount(sources.filter((s) => audioEngine.isReady(s)).length);
+    recount();
     const queue = [...sources];
     const worker = async () => {
       while (!cancelled) {
         const src = queue.shift();
         if (!src) return;
         await audioEngine.preload(src).catch(() => {});
-        if (!cancelled) setReadyCount((n) => n + 1);
+        if (!cancelled) recount();
       }
     };
     void Promise.all(Array.from({ length: PRELOAD_CONCURRENCY }, worker));
@@ -410,13 +414,23 @@ export function RunShow({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement | null;
-      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      // A fade slider is an <input>, but it isn't typing — and once the
+      // operator has touched one it holds focus. Treating it as a text field
+      // would mean the spacebar silently stopped starting and pausing the
+      // show, which is the one key that has to work every time.
+      const isSlider = el instanceof HTMLInputElement && el.type === 'range';
+      const typing =
+        !!el &&
+        ((el.tagName === 'INPUT' && !isSlider) || el.tagName === 'TEXTAREA' || el.isContentEditable);
       if (typing) return;
       if (e.key === 'Escape') onClose();
       if (e.key === ' ') {
         e.preventDefault();
         toggleRunning();
       }
+      // Arrows belong to a focused slider — nudging a fade must never move the
+      // running order.
+      if (isSlider) return;
       if (e.key === 'ArrowRight') goNext();
       if (e.key === 'ArrowLeft') goPrev();
     }

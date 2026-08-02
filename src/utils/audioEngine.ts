@@ -144,10 +144,17 @@ class AudioEngine {
     await this.getBuffer(src);
   }
 
-  /** Resume the AudioContext if it was auto-suspended (Safari/iOS especially). */
+  /**
+   * Resume the AudioContext if it isn't running.
+   *
+   * iOS Safari has a non-standard 'interrupted' state it drops into after a
+   * phone call, Siri, or another app taking audio — which on a show night is
+   * exactly when the next walk-on is due. Anything that isn't 'running' gets a
+   * resume(), not just 'suspended'.
+   */
   private async ensureRunning(): Promise<void> {
     if (!this.ctx) return;
-    if (this.ctx.state === 'suspended') {
+    if (this.ctx.state !== 'running') {
       try { await this.ctx.resume(); } catch { /* ignore */ }
     }
   }
@@ -173,10 +180,12 @@ class AudioEngine {
     // again in between. Resume once more so currentTime advances.
     await this.ensureRunning();
     if (this.token !== token || !this.ctx || !this.master) return 'superseded';
-    // A context still not running after two resume attempts means the browser
-    // is holding audio back — scheduling a source here would be silent, and
-    // reporting that is more use to an operator than a dead button.
-    if (this.ctx.state !== 'running') return 'blocked';
+    // A context still suspended after two resume attempts means the browser is
+    // holding audio back, and reporting that is more use than a dead button.
+    // Only 'suspended' though — never refuse to try on a state we don't
+    // recognise. Being wrong here costs a cue, and starting a source that
+    // turns out to be silent costs nothing.
+    if (this.ctx.state === 'suspended') return 'blocked';
 
     const source = this.ctx.createBufferSource();
     const gain = this.ctx.createGain();

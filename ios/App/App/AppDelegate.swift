@@ -18,10 +18,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     /// (which is most phones, most of the time) gets a lit button and no
     /// sound. `.playback` is the category for audio that *is* the point of the
     /// app, so it plays through the switch, like any music app.
+    ///
+    /// The category is set but the session is deliberately *not* activated
+    /// here. Activating at launch would interrupt whatever else the phone is
+    /// playing — house music off the same handset, say — just for opening the
+    /// app. iOS activates the session on its own when a track actually starts.
     private func configureAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             // Not fatal: audio still plays, it just obeys the silent switch.
             print("Audio session setup failed: \(error)")
