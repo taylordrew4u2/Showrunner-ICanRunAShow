@@ -1,5 +1,6 @@
 import { api } from './api';
 import type { ColorScheme } from './theme';
+import type { ViewerPlayback, ViewerTrack } from './viewerAudio';
 
 // What viewers see. Kept small so we can push it cheaply on state changes; the
 // viewer ticks the timer locally between updates using lastUpdateMs.
@@ -23,6 +24,15 @@ export interface LiveViewPayload {
   totalSec?: number;
   remainingAtLastUpdate?: number; // seconds left when this payload was written
   lastUpdateMs: number; // host wall-clock time of the write
+  /**
+   * Tracks the board has published for the viewer to play — just ids and chunk
+   * counts, so the manifest stays inside the payload's size cap however big
+   * the audio is. The audio itself is in /api/live-media, and the key to read
+   * it is in the viewer link's fragment, never here.
+   */
+  audio?: ViewerTrack[];
+  /** What the viewer should be playing right now, if anything. */
+  playback?: ViewerPlayback;
 }
 
 export async function publishLiveView(token: string, payload: LiveViewPayload): Promise<void> {

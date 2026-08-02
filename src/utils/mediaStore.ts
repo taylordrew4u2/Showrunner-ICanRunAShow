@@ -50,6 +50,15 @@ export function clearMediaStore(): void {
   urlCache.clear();
 }
 
+/**
+ * The signed-in session, for callers that need to upload alongside the media
+ * store — publishing a show's audio to its live viewers, say. Null when signed
+ * out. Same values set at login; the raw password is never held here.
+ */
+export function getMediaCredentials(): SessionCredentials | null {
+  return creds;
+}
+
 function authOpts() {
   if (!creds) throw new Error('Media store not initialized (no session)');
   return { authUserId: creds.userId, authHash: creds.authHash };

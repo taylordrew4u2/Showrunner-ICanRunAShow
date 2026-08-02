@@ -1918,6 +1918,56 @@
 /* One flex item, or the sentence breaks into columns when it wraps. */
 .rs-board__now-text { min-width: 0; }
 .rs-board__now-text--error { color: var(--rs-red-text); font-weight: 600; }
+
+/* Fade control — always on the board. A mix decision made between cues can't
+   live behind a disclosure. */
+.rs-fade {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rs-fade__head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rs-fade__title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.rs-fade__presets { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Two sliders side by side where there's room, stacked on a phone. */
+.rs-fade__viewer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rs-fade__viewer-note {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+.rs-fade__sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px 18px;
+}
+.rs-fade__row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rs-fade__label {
+  flex: 0 0 26px;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+.rs-fade__slider { flex: 1; min-width: 0; accent-color: var(--rs-blue); }
+/* Tabular figures, or the row twitches as the readout changes width. */
+.rs-fade__value {
+  flex: 0 0 58px;
+  text-align: right;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
 .rs-board__now strong { color: #fff; }
 .rs-board__now-dot {
   width: 8px;
@@ -2376,6 +2426,28 @@ body:has([aria-modal='true']) .status-rail {
   padding: 3px 8px;
   border-radius: 999px;
   background: var(--surface-strong);
+}
+/* Arming sound on the viewer. Deliberately a big target — it gets tapped once,
+   in a dark room, usually by someone who isn't the operator. */
+.live-viewer__sound {
+  display: block;
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.live-viewer__sound--on {
+  background: transparent;
+  border-color: rgba(127, 127, 127, 0.35);
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: default;
+  text-align: center;
 }
 .live-viewer__status--running { color: var(--success-text); background: rgba(22, 163, 74, 0.12); }
 .live-viewer__status--paused { color: var(--primary-text); background: rgba(37, 99, 235, 0.10); }

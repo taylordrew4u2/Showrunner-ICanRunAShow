@@ -19,6 +19,24 @@ import {
   type SoundboardTrack,
 } from '../utils/soundboard';
 import { useMediaUrl } from '../utils/useMediaUrl';
+import { getMediaCredentials } from '../utils/mediaStore';
+import {
+  ensureViewerKey,
+  publishTrack,
+  unpublishAll,
+  type ViewerTrack,
+} from '../utils/viewerAudio';
+import {
+  FADE_PRESETS,
+  FADE_STEP_MS,
+  MAX_FADE_IN_MS,
+  MAX_FADE_OUT_MS,
+  fmtFade,
+  loadFadeSettings,
+  matchesPreset,
+  saveFadeSettings,
+  type FadeSettings,
+} from '../utils/audioSettings';
 import { Icon } from './Icon';
 
 interface RunShowProps {
@@ -37,11 +55,18 @@ const DRIFT_TOLERANCE = 30; // seconds we still count as "On Time"
 const STEP_SECONDS = 2 * 60; // coarse +/- buttons
 const FINE_STEP_SECONDS = 30; // fine +/- buttons
 const WARNING_SECONDS = 60; // timer flashes red at/under this remaining
+/** Tracks decoded at once when the board opens. See the preload effect. */
+const PRELOAD_CONCURRENCY = 3;
 
-// Music comes up under the host's introduction, so it eases in. It comes down
-// when the performer is already at the mic, so it gets out of the way fast.
-const FADE_IN_MS = 1400;
-const FADE_OUT_MS = 350;
+/** What the operator is told when a press makes no sound. */
+const FAILURE_MESSAGE: Record<string, string> = {
+  'media-unavailable': "the audio file couldn't be loaded. Re-upload the track and try again.",
+  'decode-failed': "this browser can't play that audio format. Try re-uploading it as MP3 or M4A.",
+  'no-audio-support': 'this browser has no audio support.',
+  blocked:
+    'the browser is blocking audio. Press Start on the timer once, then try again — ' +
+    'and on iPhone check the side switch is off silent.',
+};
 
 /**
  * One button on the board. Defined out here on purpose: the clock re-renders
@@ -116,8 +141,20 @@ export function RunShow({
   // separate instruments and neither one drives the other.
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   // A press that couldn't produce sound. Silence is the one thing an operator
-  // can't diagnose mid-show, so a track that fails to load says so.
+  // can't diagnose mid-show, so a track that fails to load says why.
   const [audioError, setAudioError] = useState<string | null>(null);
+  // How the board fades. Loaded once — the setting outlives the show, so it's
+  // read from storage rather than passed in.
+  const [fade, setFade] = useState<FadeSettings>(loadFadeSettings);
+  // How many tracks are decoded and will start on the press with no wait.
+  const [readyCount, setReadyCount] = useState(0);
+  // Publishing the board's audio to the viewer, so the machine wired to the PA
+  // plays the walk-ons instead of this device. Off unless the operator asks:
+  // it re-uploads every track, and it makes the show's music readable by
+  // anyone holding the viewer link.
+  const [viewerAudio, setViewerAudio] = useState<ViewerTrack[] | null>(null);
+  const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'error'>('idle');
+  const [publishDone, setPublishDone] = useState(0);
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
 
   const board = useMemo(
@@ -235,7 +272,7 @@ export function RunShow({
 
   function finishShow() {
     if (!window.confirm('End the show and mark it completed?')) return;
-    audioEngine.stop({ fadeMs: FADE_OUT_MS });
+    audioEngine.stop({ fadeMs: fade.fadeOutMs });
     onFinish?.();
     onClose();
   }
@@ -244,55 +281,120 @@ export function RunShow({
   // Every track on the board is decoded up front. A walk-on that has to fetch
   // and decode on the press lands a half-second late, which on stage is the
   // difference between a cue and a mistake.
+  //
+  // A few at a time rather than one after another: these are whole songs out of
+  // the encrypted media store, and strictly sequential meant the last button on
+  // a big lineup wasn't ready for a long while after the screen opened. Not all
+  // at once either — that stalls the first track, which is the one most likely
+  // to be pressed first.
   useEffect(() => {
     audioEngine.init();
+    const sources = soundboardSources(board);
     let cancelled = false;
-    (async () => {
-      for (const src of soundboardSources(board)) {
-        if (cancelled) return;
+    // Counted from the engine rather than incremented: re-opening the board, or
+    // an edit to the running order mid-show, re-runs this effect over tracks
+    // that are already decoded, and a counter would tick past the total.
+    const recount = () => setReadyCount(sources.filter((s) => audioEngine.isReady(s)).length);
+    recount();
+    const queue = [...sources];
+    const worker = async () => {
+      while (!cancelled) {
+        const src = queue.shift();
+        if (!src) return;
         await audioEngine.preload(src).catch(() => {});
+        if (!cancelled) recount();
       }
-    })();
+    };
+    void Promise.all(Array.from({ length: PRELOAD_CONCURRENCY }, worker));
     return () => {
       cancelled = true;
     };
   }, [board]);
 
-  // Press to start (fades in), press again to stop (fades out fast). Pressing a
-  // different button hands over: the outgoing track fades as the new one rises.
+  // Press to start, press again to stop. Pressing a different button hands
+  // over: the outgoing track fades as the new one rises. Both fades are the
+  // operator's setting — see the Fade control in the board header.
   function toggleTrack(track: SoundboardTrack) {
     if (playingKey === track.key) {
-      audioEngine.stop({ fadeMs: FADE_OUT_MS });
+      audioEngine.stop({ fadeMs: fade.fadeOutMs });
       setPlayingKey(null);
       return;
     }
     setPlayingKey(track.key);
     setAudioError(null);
-    // A press that didn't make sound — either a track that wouldn't load or a
-    // press since superseded. Only act if this button is still the lit one:
-    // superseding it is normal and shouldn't raise an error.
-    const failed = () =>
+    // Only report if this button is still the lit one — being superseded by a
+    // later press is normal and must not raise an error.
+    const failed = (reason: string) =>
       setPlayingKey((k) => {
         if (k !== track.key) return k;
-        setAudioError(`${track.label} wouldn't play — the audio file didn't load.`);
+        const why = FAILURE_MESSAGE[reason] ?? "it didn't play.";
+        setAudioError(`${track.label} — ${why}`);
         return null;
       });
     audioEngine
       .play(track.src, {
-        fadeInMs: FADE_IN_MS,
-        fadeOutMs: FADE_OUT_MS,
+        fadeInMs: fade.fadeInMs,
+        fadeOutMs: fade.fadeOutMs,
         onEnded: () => setPlayingKey((k) => (k === track.key ? null : k)),
       })
-      .then((ok) => {
-        if (!ok) failed();
+      .then((result) => {
+        if (result !== 'started' && result !== 'superseded') failed(result);
       })
-      .catch(failed);
+      .catch(() => failed('media-unavailable'));
   }
 
   function stopAll() {
-    audioEngine.stop({ fadeMs: FADE_OUT_MS });
+    audioEngine.stop({ fadeMs: fade.fadeOutMs });
     setPlayingKey(null);
     setAudioError(null);
+  }
+
+  // ── Viewer audio ─────────────────────────────────────────────────────────
+  // Re-encrypt every board track under this show's viewer key and upload it,
+  // so the viewer can play on cue. Sequential on purpose: these are whole
+  // songs, and saturating the uplink before a show helps nobody.
+  async function publishViewerAudio() {
+    const creds = getMediaCredentials();
+    if (!viewToken || !creds) {
+      setPublishState('error');
+      return;
+    }
+    const key = ensureViewerKey(viewToken);
+    const tracks = [...board.performers, ...board.cues, ...board.dj];
+    setPublishState('publishing');
+    setPublishDone(0);
+    const published: ViewerTrack[] = [];
+    try {
+      for (const track of tracks) {
+        // A stable id per board key, so re-publishing overwrites rather than
+        // piling up a second copy of every track under the token.
+        const mediaId = `t-${track.key.replace(/[^a-zA-Z0-9]/g, '-')}`.slice(0, 60);
+        const total = await publishTrack(viewToken, key, track.src, mediaId, creds);
+        published.push({ key: track.key, mediaId, total });
+        setPublishDone((n) => n + 1);
+      }
+      setViewerAudio(published);
+      setPublishState('idle');
+    } catch {
+      setPublishState('error');
+    }
+  }
+
+  async function stopViewerAudio() {
+    setViewerAudio(null);
+    setPublishState('idle');
+    const creds = getMediaCredentials();
+    if (viewToken && creds) await unpublishAll(viewToken, creds).catch(() => {});
+  }
+
+  // Persist whenever the operator moves a slider or picks a preset. Applies to
+  // the next press — a fade already scheduled on a running track is left alone.
+  function updateFade(next: Partial<FadeSettings>) {
+    setFade((f) => {
+      const merged = { ...f, ...next };
+      saveFadeSettings(merged);
+      return merged;
+    });
   }
 
   function toggleMute() {
@@ -332,10 +434,24 @@ export function RunShow({
       totalSec,
       remainingAtLastUpdate: totalSec - elapsed,
       lastUpdateMs: Date.now(),
+      ...(viewerAudio
+        ? {
+            audio: viewerAudio,
+            playback: {
+              key: playingKey,
+              atMs: Date.now(),
+              fadeInMs: fade.fadeInMs,
+              fadeOutMs: fade.fadeOutMs,
+            },
+          }
+        : {}),
     };
     publishLiveView(viewToken, payload).catch(() => { /* swallow */ });
+    // playingKey is in the deps on purpose: when the viewer is carrying the
+    // sound, a press has to reach it immediately rather than waiting for the
+    // next cue change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewToken, idx, running, totalSec, showName]);
+  }, [viewToken, idx, running, totalSec, showName, playingKey, viewerAudio]);
 
   // On Run Show close, mark the live view ended so viewers see the final state.
   useEffect(() => () => {
@@ -364,13 +480,23 @@ export function RunShow({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement | null;
-      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      // A fade slider is an <input>, but it isn't typing — and once the
+      // operator has touched one it holds focus. Treating it as a text field
+      // would mean the spacebar silently stopped starting and pausing the
+      // show, which is the one key that has to work every time.
+      const isSlider = el instanceof HTMLInputElement && el.type === 'range';
+      const typing =
+        !!el &&
+        ((el.tagName === 'INPUT' && !isSlider) || el.tagName === 'TEXTAREA' || el.isContentEditable);
       if (typing) return;
       if (e.key === 'Escape') onClose();
       if (e.key === ' ') {
         e.preventDefault();
         toggleRunning();
       }
+      // Arrows belong to a focused slider — nudging a fade must never move the
+      // running order.
+      if (isSlider) return;
       if (e.key === 'ArrowRight') goNext();
       if (e.key === 'ArrowLeft') goPrev();
     }
@@ -383,6 +509,11 @@ export function RunShow({
   const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
   const djWithoutAudio = djSongs.filter((s) => !s.music).length;
   const hasBoard = board.performers.length > 0 || board.cues.length > 0 || board.dj.length > 0;
+  // Distinct audio files — what gets decoded, so what the ready count counts.
+  const trackCount = useMemo(() => soundboardSources(board).length, [board]);
+  // Buttons on the board. Publishing walks these, not the distinct files, so
+  // two performers sharing a track would otherwise overrun the progress count.
+  const padCount = board.performers.length + board.cues.length + board.dj.length;
 
   if (schedule.length === 0) {
     return (
@@ -496,6 +627,78 @@ export function RunShow({
             </div>
           </div>
 
+          {/* Fade lives on the board, not behind a menu. It's a mix decision an
+              operator makes between cues — reaching through a disclosure for it
+              mid-show is the same as not having it. */}
+          <div className="rs-fade">
+            <div className="rs-fade__head">
+              <span className="rs-fade__title">Fade</span>
+              <div className="rs-fade__presets">
+                {FADE_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    className={`rs-chip ${matchesPreset(fade, p.fade) ? 'rs-chip--active' : ''}`}
+                    onClick={() => updateFade(p.fade)}
+                    title={p.hint}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {viewToken && (
+              <div className="rs-fade__viewer">
+                <button
+                  className={`rs-chip ${viewerAudio ? 'rs-chip--active' : ''}`}
+                  onClick={viewerAudio ? stopViewerAudio : publishViewerAudio}
+                  disabled={publishState === 'publishing' || !hasBoard}
+                >
+                  {publishState === 'publishing'
+                    ? `Sending ${publishDone}/${padCount}…`
+                    : viewerAudio
+                      ? 'Playing on viewer screen'
+                      : 'Play through viewer screen'}
+                </button>
+                <span className="rs-fade__viewer-note">
+                  {publishState === 'error'
+                    ? "Couldn't send the audio — check your connection and try again."
+                    : viewerAudio
+                      ? 'The viewer link plays the walk-ons. Anyone with that link can hear them.'
+                      : 'Send this board to the viewer link, for the machine wired to the PA.'}
+                </span>
+              </div>
+            )}
+
+            <div className="rs-fade__sliders">
+              <label className="rs-fade__row">
+                <span className="rs-fade__label">In</span>
+                <input
+                  className="rs-fade__slider"
+                  type="range"
+                  min={0}
+                  max={MAX_FADE_IN_MS}
+                  step={FADE_STEP_MS}
+                  value={fade.fadeInMs}
+                  onChange={(e) => updateFade({ fadeInMs: Number(e.target.value) })}
+                />
+                <span className="rs-fade__value">{fmtFade(fade.fadeInMs)}</span>
+              </label>
+              <label className="rs-fade__row">
+                <span className="rs-fade__label">Out</span>
+                <input
+                  className="rs-fade__slider"
+                  type="range"
+                  min={0}
+                  max={MAX_FADE_OUT_MS}
+                  step={FADE_STEP_MS}
+                  value={fade.fadeOutMs}
+                  onChange={(e) => updateFade({ fadeOutMs: Number(e.target.value) })}
+                />
+                <span className="rs-fade__value">{fmtFade(fade.fadeOutMs)}</span>
+              </label>
+            </div>
+          </div>
+
           <div className="rs-board__now" aria-live="polite">
             {audioError ? (
               <span className="rs-board__now-text rs-board__now-text--error">{audioError}</span>
@@ -507,6 +710,13 @@ export function RunShow({
                   {playingTrack.sublabel ? ` · ${playingTrack.sublabel}` : ''}
                 </span>
               </>
+            ) : trackCount > 0 && readyCount < trackCount ? (
+              // Until a track is decoded, its first press has to wait on the
+              // download. Saying so beats an operator wondering why the one
+              // button they tried was slow when the rest are instant.
+              <span className="rs-board__now-text">
+                Loading tracks — {readyCount} of {trackCount} ready to play instantly.
+              </span>
             ) : (
               <span className="rs-board__now-text">
                 Nothing playing. Press a face to start their song, press it again to stop.

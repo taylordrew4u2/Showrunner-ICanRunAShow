@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 import Capacitor
 
 @UIApplicationMain
@@ -7,8 +8,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        configureAudioSession()
         return true
+    }
+
+    /// Run Show's soundboard is Web Audio inside the webview, and a webview
+    /// defaults to the ambient audio category — which the ring/silent switch
+    /// silences. An operator running a walk-on with the side switch flipped
+    /// (which is most phones, most of the time) gets a lit button and no
+    /// sound. `.playback` is the category for audio that *is* the point of the
+    /// app, so it plays through the switch, like any music app.
+    ///
+    /// The category is set but the session is deliberately *not* activated
+    /// here. Activating at launch would interrupt whatever else the phone is
+    /// playing — house music off the same handset, say — just for opening the
+    /// app. iOS activates the session on its own when a track actually starts.
+    private func configureAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        } catch {
+            // Not fatal: audio still plays, it just obeys the silent switch.
+            print("Audio session setup failed: \(error)")
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
