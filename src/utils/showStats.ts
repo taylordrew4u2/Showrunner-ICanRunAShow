@@ -21,8 +21,6 @@ export interface ShowStats {
     expenses: number;
     todos: number;
   };
-  /** Everything this show costs: line-item expenses plus booked vendor costs. */
-  spend: number;
   /** Sum of every cue that carries a duration. */
   runMinutes: number;
   progress: ProgressStat[];
@@ -50,9 +48,6 @@ export function buildShowStats(show: Show): ShowStats {
   const expenses = show.expenses ?? [];
   const todos = show.todos ?? [];
 
-  const lineupTotal = performers.length + artists.length;
-  const lineupLocked =
-    performers.filter((p) => p.lockedIn).length + artists.filter((a) => a.lockedIn).length;
 
   return {
     counts: {
@@ -65,12 +60,15 @@ export function buildShowStats(show: Show): ShowStats {
       expenses: expenses.length,
       todos: todos.length,
     },
-    spend:
-      expenses.reduce((sum, e) => sum + num(e.cost), 0) +
-      vendors.reduce((sum, v) => sum + num(v.cost), 0),
     runMinutes: schedule.reduce((sum, cue) => sum + num(cue.durationMin), 0),
     progress: [
-      { key: 'lineup', label: 'Lineup locked in', done: lineupLocked, total: lineupTotal },
+      // Only meaningful once a target is set; total 0 drops the bar entirely.
+      {
+        key: 'lineup',
+        label: 'Lineup booked',
+        done: performers.length,
+        total: num(show.performerTarget),
+      },
       {
         key: 'walkon',
         label: 'Walk-on music set',
@@ -93,10 +91,19 @@ export function buildShowStats(show: Show): ShowStats {
   };
 }
 
-/** An empty section is 0%, not a division by zero. */
+/**
+ * An empty section is 0%, not a division by zero. Over-full is 100%, not 120% —
+ * a bar wider than its track, and booking one act too many is not "more than
+ * complete".
+ */
 export function progressPercent(stat: ProgressStat): number {
   if (stat.total <= 0) return 0;
-  return Math.round((stat.done / stat.total) * 100);
+  return Math.min(100, Math.round((stat.done / stat.total) * 100));
+}
+
+/** Whether a target has been met — the "the lineup is full" signal. */
+export function isComplete(stat: ProgressStat): boolean {
+  return stat.total > 0 && stat.done >= stat.total;
 }
 
 export function formatRunTime(minutes: number): string {
@@ -107,9 +114,4 @@ export function formatRunTime(minutes: number): string {
   if (hours === 0) return `${mins}m`;
   if (mins === 0) return `${hours}h`;
   return `${hours}h ${mins}m`;
-}
-
-/** Matches the `$0.00` the expenses and recap screens already use. */
-export function formatMoney(amount: number): string {
-  return `$${num(amount).toFixed(2)}`;
 }

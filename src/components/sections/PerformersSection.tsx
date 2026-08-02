@@ -9,11 +9,22 @@ interface PerformersSectionProps {
   performers: Performer[];
   potentialComics?: PotentialComic[];
   showName?: string;
+  /** How many performers this show is booking for, if a target is set. */
+  performerTarget?: number;
   onSaveToRolodex?: (comic: PotentialComic) => void;
   onChange: (performers: Performer[]) => void;
+  onTargetChange: (target: number | undefined) => void;
 }
 
-export function PerformersSection({ performers, potentialComics = [], showName, onSaveToRolodex, onChange }: PerformersSectionProps) {
+export function PerformersSection({
+  performers,
+  potentialComics = [],
+  showName,
+  performerTarget,
+  onSaveToRolodex,
+  onChange,
+  onTargetChange,
+}: PerformersSectionProps) {
   const [name, setName] = useState('');
   const [instagram, setInstagram] = useState('');
   const [email, setEmail] = useState('');
@@ -97,8 +108,46 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
     onChange(next);
   }
 
+  const targetSet = typeof performerTarget === 'number' && performerTarget > 0;
+  const spotsLeft = targetSet ? performerTarget - performers.length : 0;
+
   return (
     <div className="section-body">
+      {/* How many this show is booking for. Without it a lineup has no "full",
+          so the count below is just a number that keeps going up. */}
+      <div className="lineup-target">
+        <label className="lineup-target__label" htmlFor="performer-target">
+          Performers wanted
+        </label>
+        <input
+          id="performer-target"
+          className="section-field__input lineup-target__input"
+          type="number"
+          min={0}
+          inputMode="numeric"
+          value={performerTarget ?? ''}
+          onChange={(e) => {
+            const raw = e.target.value.trim();
+            if (raw === '') return onTargetChange(undefined);
+            const next = Math.max(0, Math.floor(Number(raw)));
+            onTargetChange(Number.isFinite(next) && next > 0 ? next : undefined);
+          }}
+          placeholder="—"
+        />
+        {targetSet && (
+          <span
+            className={`lineup-target__status${spotsLeft <= 0 ? ' lineup-target__status--full' : ''}`}
+            role="status"
+          >
+            {spotsLeft > 0
+              ? `${performers.length} of ${performerTarget} booked · ${spotsLeft} spot${spotsLeft === 1 ? '' : 's'} left`
+              : spotsLeft === 0
+                ? `Full — ${performers.length} of ${performerTarget} booked`
+                : `Full — ${performers.length} booked, ${Math.abs(spotsLeft)} over`}
+          </span>
+        )}
+      </div>
+
       <div className="section-add-row">
         <input
           className="section-field__input"
@@ -175,11 +224,10 @@ export function PerformersSection({ performers, potentialComics = [], showName, 
 
       <ul className="section-list">
         {performers.map((p, idx) => (
-          <li key={p.id} className={`section-list-item ${p.lockedIn ? 'section-list-item--locked' : ''} ${selectedId === p.id ? 'section-list-item--active' : ''}`}>
+          <li key={p.id} className={`section-list-item ${selectedId === p.id ? 'section-list-item--active' : ''}`}>
             <div className="section-list-item__content">
               <div className="section-list-item__body">
                 <span className="section-list-item__order">{idx + 1}</span>
-                {p.lockedIn && <span className="section-list-item__lock-badge">Locked</span>}
                 <span className="section-list-item__name">{p.name}</span>
                 {p.socialMedia && (
                   socialLink(p.socialMedia) ? (

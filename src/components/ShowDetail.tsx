@@ -19,7 +19,7 @@ import { parseShowDate, formatShowTime } from '../utils/showDate';
 import { joinNames, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
-import { buildShowStats, progressPercent, formatRunTime, formatMoney } from '../utils/showStats';
+import { buildShowStats, progressPercent, isComplete, formatRunTime } from '../utils/showStats';
 import { loadViewerKey, viewerUrl as buildViewerUrl } from '../utils/viewerAudio';
 import './ShowDetail.css';
 
@@ -342,8 +342,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         performers={show.performers}
         potentialComics={settings.potentialComics}
         showName={show.name}
+        performerTarget={show.performerTarget}
         onSaveToRolodex={onSaveToRolodex}
         onChange={(performers) => handleUpdate({ performers })}
+        onTargetChange={(performerTarget) => handleUpdate({ performerTarget })}
       />,
     },
     {
@@ -651,15 +653,6 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         ))}
 
         <div className="show-overview__accents">
-          <div className="show-accent show-accent--spend">
-            <span className="show-accent__icon">
-              <Icon name="dollar" size={22} />
-            </span>
-            <span className="show-accent__body">
-              <span className="show-accent__value">{formatMoney(stats.spend)}</span>
-              <span className="show-accent__label">Total spend</span>
-            </span>
-          </div>
           <div className="show-accent show-accent--runtime">
             <span className="show-accent__icon">
               <Icon name="clock" size={22} />
@@ -679,14 +672,22 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       <section className="show-progress" aria-label="Show readiness">
         {progressStats.map((stat) => {
           const percent = progressPercent(stat);
+          const full = isComplete(stat);
           return (
-            <div className="show-progress__card" key={stat.key}>
+            <div
+              className={`show-progress__card${full ? ' show-progress__card--full' : ''}`}
+              key={stat.key}
+            >
               <span className="show-progress__label">{stat.label}</span>
               <span className="show-progress__figure">
                 <strong className="show-progress__value">
                   {stat.done}<span className="show-progress__of">/{stat.total}</span>
                 </strong>
-                <span className="show-progress__pct">{percent}%</span>
+                {/* "100%" tells you the ratio; "Full" tells you to stop
+                    booking. On the lineup that is the whole question. */}
+                <span className={`show-progress__pct${full ? ' show-progress__pct--full' : ''}`}>
+                  {full ? 'Full' : `${percent}%`}
+                </span>
               </span>
               <span
                 className="show-progress__track"

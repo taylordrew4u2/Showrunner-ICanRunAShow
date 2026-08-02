@@ -23,8 +23,6 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
   // Resolves `media:` store references to a playable URL (passthrough otherwise).
   const walkOnUrl = useMediaUrl(artist.walkOnMusic);
 
-  const locked = artist.lockedIn;
-
   function mark() { setDirty(true); }
 
   function handleSave() {
@@ -82,7 +80,6 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
     <div className="perf-profile">
       <div className="perf-profile__topbar">
         <button className="btn btn--ghost btn--sm" onClick={onBack}>← Back</button>
-        {locked && <span className="pill pill--red pill--dot">Locked In</span>}
       </div>
 
       <h3 className="perf-profile__heading">Artist Profile</h3>
@@ -99,7 +96,6 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                 value={name}
                 onChange={e => { setName(e.target.value); mark(); }}
                 placeholder="Artist name"
-                disabled={locked}
               />
             </div>
             <div className="perf-profile__field">
@@ -109,7 +105,6 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                 value={artistType}
                 onChange={e => { setArtistType(e.target.value); mark(); }}
                 placeholder="Painter, Musician, Photographer…"
-                disabled={locked}
               />
             </div>
             <div className="perf-profile__field">
@@ -119,7 +114,6 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                 value={socialMedia}
                 onChange={e => { setSocialMedia(e.target.value); mark(); }}
                 placeholder="@username"
-                disabled={locked}
               />
             </div>
             <div className="perf-profile__field perf-profile__field--full">
@@ -129,36 +123,28 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                 value={credits}
                 onChange={e => { setCredits(e.target.value); mark(); }}
                 placeholder="Bio, credits, intro notes…"
-                disabled={locked}
               />
             </div>
           </div>
 
           <div className="perf-profile__actions">
-            {!locked && (
-              <button className="btn btn--primary" onClick={handleSave} disabled={!dirty}>
-                Save Changes
-              </button>
-            )}
-            <button
-              className={`btn ${locked ? 'btn--secondary' : 'btn--ghost'}`}
-              onClick={() => onChange({ ...artist, lockedIn: !locked })}
-            >
-              {locked ? 'Unlock' : 'Lock In'}
+            {/* Always here. Locking an artist used to hide this button and
+                disable every field, so the way to mark a booking settled was
+                also the way to lose an edit you had already typed. */}
+            <button className="btn btn--primary" onClick={handleSave} disabled={!dirty}>
+              Save Changes
             </button>
-            {!locked && (
-              <button
-                className="btn btn--danger btn--sm"
-                onClick={() => {
-                  if (window.confirm(`Delete "${artist.name}"? This cannot be undone.`)) {
-                    onDelete(artist.id);
-                    onBack();
-                  }
-                }}
-              >
-                Delete
-              </button>
-            )}
+            <button
+              className="btn btn--danger btn--sm"
+              onClick={() => {
+                if (window.confirm(`Delete "${artist.name}"? This cannot be undone.`)) {
+                  onDelete(artist.id);
+                  onBack();
+                }
+              }}
+            >
+              Delete
+            </button>
           </div>
         </div>
 
@@ -194,25 +180,23 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                 ) : (
                   <p className="perf-profile__media-empty">Loading audio…</p>
                 )}
-                {!locked && (
-                  <div className="perf-profile__media-actions">
-                    <button
-                      className="btn btn--secondary btn--sm"
-                      onClick={() => pickFile('audio/*', (result, file) =>
-                        onChange({ ...artist, walkOnMusic: result, walkOnMusicName: file.name }))}
-                    >
-                      Replace
-                    </button>
-                    <button
-                      className="btn btn--ghost btn--sm"
-                      onClick={() => onChange({ ...artist, walkOnMusic: undefined, walkOnMusicName: undefined })}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
+                <div className="perf-profile__media-actions">
+                  <button
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => pickFile('audio/*', (result, file) =>
+                      onChange({ ...artist, walkOnMusic: result, walkOnMusicName: file.name }))}
+                  >
+                    Replace
+                  </button>
+                  <button
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => onChange({ ...artist, walkOnMusic: undefined, walkOnMusicName: undefined })}
+                  >
+                    Remove
+                  </button>
+                </div>
               </>
-            ) : !locked ? (
+            ) : (
               <div
                 className={`perf-profile__dropzone${audioDrag ? ' perf-profile__dropzone--active' : ''}`}
                 onDragOver={e => e.preventDefault()}
@@ -228,22 +212,18 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                 </span>
                 <span className="perf-profile__dropzone-sub">MP3, WAV, AAC, M4A</span>
               </div>
-            ) : (
-              <p className="perf-profile__media-empty">No audio uploaded.</p>
             )}
           </div>
 
           {/* Video */}
           <div className="perf-profile__media-tile">
             <p className="perf-profile__media-label">Video</p>
-            {!locked && (
-              <input
-                className="perf-profile__input perf-profile__video-link"
-                value={artist.videoLink || ''}
-                onChange={e => onChange({ ...artist, videoLink: e.target.value.trim() || undefined })}
-                placeholder="Paste video link (YouTube, Vimeo, Drive…)"
-              />
-            )}
+            <input
+              className="perf-profile__input perf-profile__video-link"
+              value={artist.videoLink || ''}
+              onChange={e => onChange({ ...artist, videoLink: e.target.value.trim() || undefined })}
+              placeholder="Paste video link (YouTube, Vimeo, Drive…)"
+            />
             {artist.videoLink && (
               <a href={artist.videoLink} target="_blank" rel="noopener noreferrer" className="perf-profile__music-link">
                 Open video link

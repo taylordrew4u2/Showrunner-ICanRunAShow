@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildShowStats, progressPercent, formatRunTime, formatMoney } from './showStats';
+import { buildShowStats, progressPercent, isComplete, formatRunTime } from './showStats';
 import type { Show } from '../types';
 
 const show = (over: Partial<Show>): Show => ({
@@ -31,35 +31,7 @@ describe('buildShowStats — counts', () => {
     const stats = buildShowStats(show({}));
     expect(stats.counts.vendors).toBe(0);
     expect(stats.counts.todos).toBe(0);
-    expect(stats.spend).toBe(0);
     expect(stats.runMinutes).toBe(0);
-  });
-});
-
-describe('buildShowStats — spend', () => {
-  it('adds vendor costs to line-item expenses', () => {
-    const stats = buildShowStats(show({
-      expenses: [
-        { id: 'e1', category: 'Venue', itemName: 'Rent', cost: 250 },
-        { id: 'e2', category: 'Print', itemName: 'Flyers', cost: 40.5 },
-      ],
-      vendors: [{ id: 'v1', name: 'Bar', cost: 100 }],
-    }));
-    expect(stats.spend).toBe(390.5);
-  });
-
-  // Costs come from imports and free-typed fields, so one bad value must not
-  // turn the whole tile into NaN.
-  it('counts a missing or unparseable cost as zero', () => {
-    const stats = buildShowStats(show({
-      expenses: [
-        { id: 'e1', category: 'Venue', itemName: 'Rent', cost: 100 },
-        { id: 'e2', category: '?', itemName: 'Mystery', cost: undefined as unknown as number },
-        { id: 'e3', category: '?', itemName: 'Typo', cost: 'abc' as unknown as number },
-      ],
-      vendors: [{ id: 'v1', name: 'Bar' }],
-    }));
-    expect(stats.spend).toBe(100);
   });
 });
 
@@ -80,12 +52,19 @@ describe('buildShowStats — progress', () => {
   const find = (stats: ReturnType<typeof buildShowStats>, key: string) =>
     stats.progress.find((p) => p.key === key)!;
 
-  it('counts locked-in performers and artists together', () => {
+  it('measures the lineup against the show\'s target', () => {
     const stats = buildShowStats(show({
-      performers: [{ id: 'p1', name: 'Ada', lockedIn: true }, { id: 'p2', name: 'Bea' }],
-      artists: [{ id: 'a1', name: 'Cal', lockedIn: true }],
+      performers: [{ id: 'p1', name: 'Ada' }, { id: 'p2', name: 'Bea' }],
+      performerTarget: 5,
     }));
-    expect(find(stats, 'lineup')).toMatchObject({ done: 2, total: 3 });
+    expect(find(stats, 'lineup')).toMatchObject({ done: 2, total: 5 });
+  });
+
+  // With no target there is no "full", so the bar has nothing to say and the
+  // zero-total filter drops it.
+  it('gives the lineup a zero total when no target is set', () => {
+    const stats = buildShowStats(show({ performers: [{ id: 'p1', name: 'Ada' }] }));
+    expect(find(stats, 'lineup').total).toBe(0);
   });
 
   it('accepts any of the walk-on music fields as "set"', () => {
@@ -130,6 +109,32 @@ describe('progressPercent', () => {
   it('reaches 100 when everything is done', () => {
     expect(progressPercent({ key: 'k', label: '', done: 4, total: 4 })).toBe(100);
   });
+
+  // Booking one act too many is not "more than complete", and a 120% bar would
+  // render wider than its own track.
+  it('clamps at 100 when the target is overshot', () => {
+    expect(progressPercent({ key: 'k', label: '', done: 7, total: 5 })).toBe(100);
+  });
+});
+
+describe('isComplete', () => {
+  it('is true once the target is met', () => {
+    expect(isComplete({ key: 'k', label: '', done: 5, total: 5 })).toBe(true);
+  });
+
+  it('is true past the target too — the lineup is still full', () => {
+    expect(isComplete({ key: 'k', label: '', done: 6, total: 5 })).toBe(true);
+  });
+
+  it('is false below the target', () => {
+    expect(isComplete({ key: 'k', label: '', done: 4, total: 5 })).toBe(false);
+  });
+
+  // No target means no "full" to reach, so an empty section must not read as
+  // complete just because 0 >= 0.
+  it('is false when there is no target at all', () => {
+    expect(isComplete({ key: 'k', label: '', done: 0, total: 0 })).toBe(false);
+  });
 });
 
 describe('formatRunTime', () => {
@@ -151,13 +156,3 @@ describe('formatRunTime', () => {
   });
 });
 
-describe('formatMoney', () => {
-  it('matches the $0.00 form used on the expenses screen', () => {
-    expect(formatMoney(0)).toBe('$0.00');
-    expect(formatMoney(1240.5)).toBe('$1240.50');
-  });
-
-  it('does not render NaN', () => {
-    expect(formatMoney(NaN)).toBe('$0.00');
-  });
-});

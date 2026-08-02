@@ -212,7 +212,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       ? `
   <h2>Performers</h2>
   <table>
-    <tr><th>#</th><th>Name</th><th>Social Media</th><th>Walk-On Music</th><th>Walk-On Timestamp</th><th>Credits</th><th>Locked In</th></tr>
+    <tr><th>#</th><th>Name</th><th>Social Media</th><th>Walk-On Music</th><th>Walk-On Timestamp</th><th>Credits</th></tr>
     ${show.performers.map((p: Performer, i: number) => `
     <tr>
       <td>${i + 1}</td>
@@ -221,7 +221,6 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       <td>${p.walkOnMusicName ? esc(p.walkOnMusicName) : "—"}</td>
       <td>${esc(p.walkOnMusicTimestamp)}</td>
       <td>${esc(p.credits)}</td>
-      <td>${p.lockedIn ? '<span class="badge badge--green">✓ Yes</span>' : "No"}</td>
     </tr>`).join("")}
   </table>`
       : ""

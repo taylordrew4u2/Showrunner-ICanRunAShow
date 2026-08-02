@@ -2632,3 +2632,71 @@ select.show-detail__status--select {
     grid-column: 1 / -1;
   }
 }
+
+/* ─── Lineup target ─────────────────────────────────────────────────────────
+   How many performers this show is booking for. A lineup with no target has no
+   "full", so the count alone can't answer the only question worth asking about
+   it on booking day. */
+.lineup-target {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.lineup-target__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.lineup-target__input {
+  width: 88px;
+  flex: 0 0 auto;
+}
+
+.lineup-target__status {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.lineup-target__status--full {
+  color: var(--success-text);
+  font-weight: 700;
+}
+
+/* A met target reads as done at a glance, rather than as one more percentage
+   to compare against the others. */
+.show-progress__card--full {
+  border-color: var(--success-soft-border);
+  background: var(--success-soft);
+}
+
+.show-progress__pct--full {
+  color: var(--success-text);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.show-progress__card--full .show-progress__label,
+.show-progress__card--full .show-progress__value,
+.show-progress__card--full .show-progress__of {
+  color: var(--success-text);
+}
+
+.show-progress__card--full .show-progress__track {
+  background: var(--surface);
+}
+
+/* The per-bar hues exist to tell four in-progress bars apart. Once a bar is
+   done it has left that conversation, and an amber fill inside a green "Full"
+   card just reads as a mistake. */
+.show-progress__card--full .show-progress__bar {
+  background: var(--success-strong);
+}
