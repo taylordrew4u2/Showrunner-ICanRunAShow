@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchLiveView, type LiveViewPayload } from '../utils/liveView';
 import { applyColorScheme } from '../utils/theme';
+import { audioEngine } from '../utils/audioEngine';
+import { fetchViewerTrack, readViewerKeyFromHash } from '../utils/viewerAudio';
 
 interface LiveViewerProps {
   token: string;
@@ -22,7 +24,20 @@ export function LiveViewer({ token }: LiveViewerProps) {
   const [now, setNow] = useState<number>(() => Date.now());
   const initial = useRef(true);
 
-  // Poll the live view payload. Frequent so segment changes show up quickly.
+  // The per-show audio key, if this link carries one. It lives in the fragment,
+  // so it reached this page without ever going to the server.
+  const viewerKey = useRef<string | null>(readViewerKeyFromHash(window.location.hash)).current;
+  // Browsers won't start audio without a gesture, so the operator (or whoever
+  // set up the room) taps once to arm this screen.
+  const [soundOn, setSoundOn] = useState(false);
+  const playingRef = useRef<string | null>(null);
+  const trackUrls = useRef(new Map<string, string>());
+
+  const hasAudio = !!viewerKey && !!payload?.audio?.length;
+
+  // Poll the live view payload. Faster once this screen is carrying the sound:
+  // a walk-on landing a beat late is worse than a countdown doing so.
+  const pollMs = soundOn && hasAudio ? 500 : 1500;
   useEffect(() => {
     let alive = true;
     async function tick() {
@@ -43,12 +58,61 @@ export function LiveViewer({ token }: LiveViewerProps) {
       }
     }
     tick();
-    const id = window.setInterval(tick, 1500);
+    const id = window.setInterval(tick, pollMs);
     return () => {
       alive = false;
       window.clearInterval(id);
     };
-  }, [token]);
+  }, [token, pollMs]);
+
+  // Pull down and decrypt every published track once the screen is armed, so a
+  // cue doesn't arrive to find nothing decoded.
+  useEffect(() => {
+    if (!soundOn || !viewerKey || !payload?.audio) return;
+    let cancelled = false;
+    (async () => {
+      for (const track of payload.audio!) {
+        if (cancelled) return;
+        if (trackUrls.current.has(track.key)) continue;
+        const url = await fetchViewerTrack(token, viewerKey, track);
+        if (cancelled || !url) continue;
+        trackUrls.current.set(track.key, url);
+        await audioEngine.preload(url).catch(() => {});
+      }
+    })();
+    return () => { cancelled = true; };
+    // Re-runs when the board publishes a different set of tracks.
+  }, [soundOn, viewerKey, token, payload?.audio]);
+
+  // Follow the board. `playback.key` is the whole instruction — which track,
+  // or null for silence — so the screen simply matches whatever it last said.
+  useEffect(() => {
+    if (!soundOn || !viewerKey) return;
+    const playback = payload?.playback;
+    if (!playback) return;
+    const wanted = playback.key;
+    if (wanted === playingRef.current) return;
+    playingRef.current = wanted;
+    if (!wanted) {
+      audioEngine.stop({ fadeMs: playback.fadeOutMs });
+      return;
+    }
+    const url = trackUrls.current.get(wanted);
+    // Not downloaded yet — leave playingRef set so it doesn't retrigger in a
+    // loop, and let the next instruction sort it out.
+    if (!url) return;
+    audioEngine
+      .play(url, { fadeInMs: playback.fadeInMs, fadeOutMs: playback.fadeOutMs })
+      .catch(() => {});
+  }, [soundOn, viewerKey, payload?.playback]);
+
+  // Never leave a track running on a screen nobody is looking at.
+  useEffect(() => () => audioEngine.stopNow(), []);
+
+  function armSound() {
+    audioEngine.init();
+    setSoundOn(true);
+  }
 
   // Match the producer's color scheme on the public viewer (don't persist it to
   // the visitor's device).
@@ -162,6 +226,19 @@ export function LiveViewer({ token }: LiveViewerProps) {
         <span className="live-viewer__show">{payload.showName}</span>
         <span className={`live-viewer__status live-viewer__status--${payload.status}`}>{payload.status}</span>
       </div>
+
+      {/* Only when the board has actually published audio to this link. A
+          viewer with no sound to play should look exactly as it always did. */}
+      {hasAudio && !soundOn && (
+        <button className="live-viewer__sound" onClick={armSound}>
+          Tap to enable sound on this screen
+        </button>
+      )}
+      {hasAudio && soundOn && (
+        <div className="live-viewer__sound live-viewer__sound--on" aria-live="polite">
+          Sound on — this screen plays the walk-ons
+        </div>
+      )}
 
       <div className={`live-viewer__timer ${isOver ? 'live-viewer__timer--over' : ''} ${warning ? 'live-viewer__timer--warning' : ''}`}>
         {fmtCountdown(remaining)}

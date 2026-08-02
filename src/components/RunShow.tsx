@@ -19,6 +19,13 @@ import {
   type SoundboardTrack,
 } from '../utils/soundboard';
 import { useMediaUrl } from '../utils/useMediaUrl';
+import { getMediaCredentials } from '../utils/mediaStore';
+import {
+  ensureViewerKey,
+  publishTrack,
+  unpublishAll,
+  type ViewerTrack,
+} from '../utils/viewerAudio';
 import {
   FADE_PRESETS,
   FADE_STEP_MS,
@@ -141,6 +148,13 @@ export function RunShow({
   const [fade, setFade] = useState<FadeSettings>(loadFadeSettings);
   // How many tracks are decoded and will start on the press with no wait.
   const [readyCount, setReadyCount] = useState(0);
+  // Publishing the board's audio to the viewer, so the machine wired to the PA
+  // plays the walk-ons instead of this device. Off unless the operator asks:
+  // it re-uploads every track, and it makes the show's music readable by
+  // anyone holding the viewer link.
+  const [viewerAudio, setViewerAudio] = useState<ViewerTrack[] | null>(null);
+  const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'error'>('idle');
+  const [publishDone, setPublishDone] = useState(0);
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
 
   const board = useMemo(
@@ -335,6 +349,44 @@ export function RunShow({
     setAudioError(null);
   }
 
+  // ── Viewer audio ─────────────────────────────────────────────────────────
+  // Re-encrypt every board track under this show's viewer key and upload it,
+  // so the viewer can play on cue. Sequential on purpose: these are whole
+  // songs, and saturating the uplink before a show helps nobody.
+  async function publishViewerAudio() {
+    const creds = getMediaCredentials();
+    if (!viewToken || !creds) {
+      setPublishState('error');
+      return;
+    }
+    const key = ensureViewerKey(viewToken);
+    const tracks = [...board.performers, ...board.cues, ...board.dj];
+    setPublishState('publishing');
+    setPublishDone(0);
+    const published: ViewerTrack[] = [];
+    try {
+      for (const track of tracks) {
+        // A stable id per board key, so re-publishing overwrites rather than
+        // piling up a second copy of every track under the token.
+        const mediaId = `t-${track.key.replace(/[^a-zA-Z0-9]/g, '-')}`.slice(0, 60);
+        const total = await publishTrack(viewToken, key, track.src, mediaId, creds);
+        published.push({ key: track.key, mediaId, total });
+        setPublishDone((n) => n + 1);
+      }
+      setViewerAudio(published);
+      setPublishState('idle');
+    } catch {
+      setPublishState('error');
+    }
+  }
+
+  async function stopViewerAudio() {
+    setViewerAudio(null);
+    setPublishState('idle');
+    const creds = getMediaCredentials();
+    if (viewToken && creds) await unpublishAll(viewToken, creds).catch(() => {});
+  }
+
   // Persist whenever the operator moves a slider or picks a preset. Applies to
   // the next press — a fade already scheduled on a running track is left alone.
   function updateFade(next: Partial<FadeSettings>) {
@@ -382,10 +434,24 @@ export function RunShow({
       totalSec,
       remainingAtLastUpdate: totalSec - elapsed,
       lastUpdateMs: Date.now(),
+      ...(viewerAudio
+        ? {
+            audio: viewerAudio,
+            playback: {
+              key: playingKey,
+              atMs: Date.now(),
+              fadeInMs: fade.fadeInMs,
+              fadeOutMs: fade.fadeOutMs,
+            },
+          }
+        : {}),
     };
     publishLiveView(viewToken, payload).catch(() => { /* swallow */ });
+    // playingKey is in the deps on purpose: when the viewer is carrying the
+    // sound, a press has to reach it immediately rather than waiting for the
+    // next cue change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewToken, idx, running, totalSec, showName]);
+  }, [viewToken, idx, running, totalSec, showName, playingKey, viewerAudio]);
 
   // On Run Show close, mark the live view ended so viewers see the final state.
   useEffect(() => () => {
@@ -576,6 +642,29 @@ export function RunShow({
                 ))}
               </div>
             </div>
+            {viewToken && (
+              <div className="rs-fade__viewer">
+                <button
+                  className={`rs-chip ${viewerAudio ? 'rs-chip--active' : ''}`}
+                  onClick={viewerAudio ? stopViewerAudio : publishViewerAudio}
+                  disabled={publishState === 'publishing' || !hasBoard}
+                >
+                  {publishState === 'publishing'
+                    ? `Sending ${publishDone}/${trackCount}…`
+                    : viewerAudio
+                      ? 'Playing on viewer screen'
+                      : 'Play through viewer screen'}
+                </button>
+                <span className="rs-fade__viewer-note">
+                  {publishState === 'error'
+                    ? "Couldn't send the audio — check your connection and try again."
+                    : viewerAudio
+                      ? 'The viewer link plays the walk-ons. Anyone with that link can hear them.'
+                      : 'Send this board to the viewer link, for the machine wired to the PA.'}
+                </span>
+              </div>
+            )}
+
             <div className="rs-fade__sliders">
               <label className="rs-fade__row">
                 <span className="rs-fade__label">In</span>

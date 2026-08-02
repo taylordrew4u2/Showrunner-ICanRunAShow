@@ -1941,6 +1941,13 @@
 }
 .rs-fade__presets { display: flex; flex-wrap: wrap; gap: 6px; }
 /* Two sliders side by side where there's room, stacked on a phone. */
+.rs-fade__viewer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rs-fade__viewer-note {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.55);
+}
 .rs-fade__sliders {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -2419,6 +2426,28 @@ body:has([aria-modal='true']) .status-rail {
   padding: 3px 8px;
   border-radius: 999px;
   background: var(--surface-strong);
+}
+/* Arming sound on the viewer. Deliberately a big target — it gets tapped once,
+   in a dark room, usually by someone who isn't the operator. */
+.live-viewer__sound {
+  display: block;
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.live-viewer__sound--on {
+  background: transparent;
+  border-color: rgba(127, 127, 127, 0.35);
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: default;
+  text-align: center;
 }
 .live-viewer__status--running { color: var(--success-text); background: rgba(22, 163, 74, 0.12); }
 .live-viewer__status--paused { color: var(--primary-text); background: rgba(37, 99, 235, 0.10); }
