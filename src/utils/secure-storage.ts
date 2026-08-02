@@ -236,9 +236,22 @@ export async function saveEncryptedShows(
  * Returns a Blob URL the caller can use for a download link.
  */
 export async function exportUserData(creds: SessionCredentials): Promise<string> {
-  const { shows } = await loadEncryptedShows(creds);
+  const { shows, unreadable } = await loadEncryptedShows(creds);
   const settings = await loadEncryptedSettings(creds);
-  const payload = JSON.stringify({ shows, settings, exportedAt: new Date().toISOString() }, null, 2);
+  const payload = JSON.stringify(
+    {
+      shows,
+      settings,
+      // Rows this device couldn't decrypt, exported as the ciphertext they are.
+      // This file is the user's own copy of their account — quietly leaving
+      // rows out of it is the one place that omission really costs something.
+      // The key is absent entirely when there's nothing to report.
+      ...(unreadable.length > 0 ? { unreadableShows: unreadable } : {}),
+      exportedAt: new Date().toISOString(),
+    },
+    null,
+    2,
+  );
   const blob = new Blob([payload], { type: "application/json" });
   return URL.createObjectURL(blob);
 }

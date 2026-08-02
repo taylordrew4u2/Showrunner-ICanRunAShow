@@ -47,6 +47,8 @@ describe('healShow', () => {
 
   it('names an unnamed show rather than listing a blank row', () => {
     expect(healShow({ id: 'a' })!.name).toBe('Untitled show');
+    expect(healShow({ id: 'a', name: '   ' })!.name).toBe('Untitled show');
+    expect(healShow({ id: 'a', name: 42 })!.name).toBe('Untitled show');
   });
 
   it('drops a list field that came back as something other than a list', () => {

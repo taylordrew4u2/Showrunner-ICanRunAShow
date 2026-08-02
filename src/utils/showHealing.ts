@@ -38,6 +38,9 @@ const STATUSES = new Set<ShowStatus>(['upcoming', 'in-progress', 'completed', 'c
  * Returns a renderable show, or null when the blob can't be one. Callers should
  * treat null as "this row is unreadable" and keep its ciphertext rather than
  * dropping the row — see loadEncryptedShows.
+ *
+ * Repairs in place and hands back the same object. Every caller passes a blob
+ * fresh out of JSON.parse, so there's nothing else holding a reference to it.
  */
 export function healShow(raw: unknown): Show | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -54,8 +57,9 @@ export function healShow(raw: unknown): Show | null {
     if (typeof show[field] !== 'string') show[field] = '';
   }
   // An unnamed show is indistinguishable from every other unnamed show in a
-  // list, so give it something to be called rather than a blank row.
-  if (show.name === '') show.name = 'Untitled show';
+  // list, so give it something to be called rather than a blank row. A name
+  // that's only spaces reads as blank too.
+  if ((show.name as string).trim() === '') show.name = 'Untitled show';
   if (!STATUSES.has(show.status as ShowStatus)) show.status = 'upcoming';
 
   const now = new Date().toISOString();

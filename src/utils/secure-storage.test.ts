@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadEncryptedShows, saveEncryptedShows, type EncryptedShowRow } from './secure-storage';
+import {
+  exportUserData,
+  loadEncryptedShows,
+  saveEncryptedShows,
+  type EncryptedShowRow,
+} from './secure-storage';
 import { encryptWithKey } from './encryption';
 import type { Show } from '../types';
 import type { SessionCredentials } from './session-vault';
@@ -137,5 +142,51 @@ describe('saveEncryptedShows', () => {
     const sent = bodies[0].shows as EncryptedShowRow[];
     expect(sent).toHaveLength(1);
     expect(sent[0].encryptedData).not.toBe('stale');
+  });
+});
+
+describe('exportUserData', () => {
+  /** Both GET routes the export hits, with the show rows it should carry. */
+  function mockExport(rows: EncryptedShowRow[]) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((path: string) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () =>
+            path === '/api/shows' ? { shows: rows } : { encryptedData: null },
+        } as Response),
+      ),
+    );
+    const written: string[] = [];
+    vi.stubGlobal('Blob', class {
+      constructor(parts: string[]) {
+        written.push(parts.join(''));
+      }
+    });
+    vi.stubGlobal('URL', { createObjectURL: () => 'blob:x' });
+    return written;
+  }
+
+  it('includes rows it could not read, as the ciphertext they are', async () => {
+    // The backup file is the user's own copy of the account. Leaving rows out
+    // of it silently is the one omission that really costs something.
+    const bad: EncryptedShowRow = { id: 'b', encryptedData: 'not-ciphertext' };
+    const written = mockExport([row(show({ id: 'a', name: 'Late Night' })), bad]);
+
+    await exportUserData(CREDS);
+
+    const backup = JSON.parse(written[0]);
+    expect(backup.shows.map((s: Show) => s.name)).toEqual(['Late Night']);
+    expect(backup.unreadableShows).toEqual([bad]);
+  });
+
+  it('leaves the key out entirely when every row read cleanly', async () => {
+    const written = mockExport([row(show({ id: 'a' }))]);
+
+    await exportUserData(CREDS);
+
+    expect(JSON.parse(written[0])).not.toHaveProperty('unreadableShows');
   });
 });

@@ -164,7 +164,11 @@ function NarrowedNotice({
       <span className="shows-narrowed__text">
         Showing {shown} of {total} shows
       </span>
-      <button type="button" className="shows-narrowed__clear" onClick={onClear}>
+      <button
+        type="button"
+        className="btn btn--secondary btn--sm shows-narrowed__clear"
+        onClick={onClear}
+      >
         Show all
       </button>
     </div>
@@ -1175,8 +1179,8 @@ export default function App() {
                 <div className="system-notice__body">
                   <span className="system-notice__text">
                     {unreadableCount === 1
-                      ? "1 show couldn't be opened on this device, so it isn't in the list below."
-                      : `${unreadableCount} shows couldn't be opened on this device, so they aren't in the list below.`}
+                      ? "1 show couldn't be opened on this device, so it isn't in your shows list."
+                      : `${unreadableCount} shows couldn't be opened on this device, so they aren't in your shows list.`}
                   </span>
                   <span className="system-notice__reassurance">
                     They're still on your account and nothing here will overwrite them. Try
@@ -1354,33 +1358,30 @@ export default function App() {
                       {searchQuery.trim() ? 'Clear search' : 'Show all'}
                     </button>
                   </div>
-                ) : showsView === 'calendar' ? (
-                  <>
-                    <NarrowedNotice
-                      shown={filteredShows.length}
-                      total={shows.length}
-                      onClear={clearFilters}
-                    />
-                    <ShowsCalendar shows={filteredShows} onSelectShow={handleSelectShow} />
-                  </>
                 ) : (
                   <>
+                    {/* Above both views: whichever one you're in, the question
+                        "where are the rest of my shows?" is the same. */}
                     <NarrowedNotice
                       shown={filteredShows.length}
                       total={shows.length}
                       onClear={clearFilters}
                     />
-                    <div className="shows-grid">
-                      {sortedShows.map((show) => (
-                        <ShowCard
-                          key={show.id}
-                          show={show}
-                          onSelect={handleSelectShow}
-                          onDelete={handleDeleteShow}
-                          onDuplicate={handleDuplicateShow}
-                        />
-                      ))}
-                    </div>
+                    {showsView === 'calendar' ? (
+                      <ShowsCalendar shows={filteredShows} onSelectShow={handleSelectShow} />
+                    ) : (
+                      <div className="shows-grid">
+                        {sortedShows.map((show) => (
+                          <ShowCard
+                            key={show.id}
+                            show={show}
+                            onSelect={handleSelectShow}
+                            onDelete={handleDeleteShow}
+                            onDuplicate={handleDuplicateShow}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </>
                 )}
 
