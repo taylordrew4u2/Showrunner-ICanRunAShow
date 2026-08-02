@@ -509,7 +509,11 @@ export function RunShow({
   const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
   const djWithoutAudio = djSongs.filter((s) => !s.music).length;
   const hasBoard = board.performers.length > 0 || board.cues.length > 0 || board.dj.length > 0;
+  // Distinct audio files — what gets decoded, so what the ready count counts.
   const trackCount = useMemo(() => soundboardSources(board).length, [board]);
+  // Buttons on the board. Publishing walks these, not the distinct files, so
+  // two performers sharing a track would otherwise overrun the progress count.
+  const padCount = board.performers.length + board.cues.length + board.dj.length;
 
   if (schedule.length === 0) {
     return (
@@ -650,7 +654,7 @@ export function RunShow({
                   disabled={publishState === 'publishing' || !hasBoard}
                 >
                   {publishState === 'publishing'
-                    ? `Sending ${publishDone}/${trackCount}…`
+                    ? `Sending ${publishDone}/${padCount}…`
                     : viewerAudio
                       ? 'Playing on viewer screen'
                       : 'Play through viewer screen'}

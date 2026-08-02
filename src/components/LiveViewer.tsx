@@ -67,11 +67,16 @@ export function LiveViewer({ token }: LiveViewerProps) {
 
   // Pull down and decrypt every published track once the screen is armed, so a
   // cue doesn't arrive to find nothing decoded.
+  const manifest = payload?.audio;
+  // Every poll parses a fresh payload, so the array is a new object each time
+  // even when the board has published nothing new. Keying the effect on the
+  // contents stops it tearing down and restarting the downloads twice a second.
+  const manifestKey = manifest?.map((t) => `${t.mediaId}:${t.total}`).join(',') ?? '';
   useEffect(() => {
-    if (!soundOn || !viewerKey || !payload?.audio) return;
+    if (!soundOn || !viewerKey || !manifest?.length) return;
     let cancelled = false;
     (async () => {
-      for (const track of payload.audio!) {
+      for (const track of manifest) {
         if (cancelled) return;
         if (trackUrls.current.has(track.key)) continue;
         const url = await fetchViewerTrack(token, viewerKey, track);
@@ -81,8 +86,9 @@ export function LiveViewer({ token }: LiveViewerProps) {
       }
     })();
     return () => { cancelled = true; };
-    // Re-runs when the board publishes a different set of tracks.
-  }, [soundOn, viewerKey, token, payload?.audio]);
+    // manifestKey stands in for manifest — see above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [soundOn, viewerKey, token, manifestKey]);
 
   // Follow the board. `playback.key` is the whole instruction — which track,
   // or null for silence — so the screen simply matches whatever it last said.
@@ -91,16 +97,22 @@ export function LiveViewer({ token }: LiveViewerProps) {
     const playback = payload?.playback;
     if (!playback) return;
     const wanted = playback.key;
-    if (wanted === playingRef.current) return;
-    playingRef.current = wanted;
     if (!wanted) {
-      audioEngine.stop({ fadeMs: playback.fadeOutMs });
+      if (playingRef.current !== null) {
+        playingRef.current = null;
+        audioEngine.stop({ fadeMs: playback.fadeOutMs });
+      }
       return;
     }
+    if (wanted === playingRef.current) return;
     const url = trackUrls.current.get(wanted);
-    // Not downloaded yet — leave playingRef set so it doesn't retrigger in a
-    // loop, and let the next instruction sort it out.
+    // Still downloading. Deliberately leave playingRef alone rather than
+    // marking this cue handled: every poll delivers a fresh payload, so the
+    // next one retries and the track starts the moment it lands. Marking it
+    // played here would drop the walk-on until the operator pressed something
+    // else — silence with no way to recover it.
     if (!url) return;
+    playingRef.current = wanted;
     audioEngine
       .play(url, { fadeInMs: playback.fadeInMs, fadeOutMs: playback.fadeOutMs })
       .catch(() => {});
