@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Show, AppSettings, PotentialComic } from './types';
+import type { Show, AppSettings, PotentialComic, MusicTrack } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
 import { ServerNotConfiguredError } from './utils/api';
@@ -44,12 +44,13 @@ import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
 import { RolodexProfile } from './components/sections/RolodexProfile';
 import { LiveViewer } from './components/LiveViewer';
+import { MusicLibrary } from './components/MusicLibrary';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SyncStatus, type SyncState } from './components/SyncStatus';
 import { Icon } from './components/Icon';
 import './App.css';
 
-type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails';
+type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music';
 
 /**
  * The app's destinations. Keeping this a plain list — rather than hand-written
@@ -74,6 +75,12 @@ const NAV_ITEMS: {
     label: 'Rolodex',
     views: ['rolodex'],
     icon: 'M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z',
+  },
+  {
+    id: 'music',
+    label: 'Music',
+    views: ['music'],
+    icon: 'M18 3a1 1 0 00-1.196-.98l-8 1.6A1 1 0 008 4.6v6.735A3.5 3.5 0 1010 14V8.42l6-1.2v3.115A3.5 3.5 0 1018 13V3z',
   },
   {
     id: 'emails',
@@ -772,6 +779,12 @@ export default function App() {
     saveSettings(updatedSettings);
   }
 
+  function handleUpdateMusicLibrary(musicLibrary: MusicTrack[]) {
+    const updatedSettings = { ...settings, musicLibrary };
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
+  }
+
   function handleEmptyTrash() {
     const updatedSettings = { ...settings, trash: [] };
     setSettings(updatedSettings);
@@ -1282,6 +1295,15 @@ export default function App() {
                 )}
 
               </div>
+            )}
+
+            {view === 'music' && (
+              <MusicLibrary
+                tracks={settings.musicLibrary ?? []}
+                shows={shows}
+                onChange={handleUpdateMusicLibrary}
+                onBack={handleBack}
+              />
             )}
 
             {view === 'emails' && (

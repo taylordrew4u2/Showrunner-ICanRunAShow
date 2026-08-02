@@ -64,6 +64,29 @@ export interface DJSong {
   notes?: string;
   music?: string; // uploaded audio (media store reference) — gets its own Run Show button
   musicName?: string; // original file name of the upload
+  /**
+   * Set when this song came from the global music library. The audio is then
+   * *shared* with the library rather than owned by this show, so removing the
+   * song must not delete the underlying media — other shows are pointing at
+   * the same reference.
+   */
+  libraryId?: string;
+}
+
+/**
+ * A track in the account-wide music library: uploaded once, then added to any
+ * show's DJ list without uploading again. Shows reference the same media, so
+ * the audio is stored once no matter how many shows use it.
+ */
+export interface MusicTrack {
+  id: string;
+  title: string;
+  artist: string;
+  notes?: string;
+  /** Media-store reference. A library track exists to carry audio. */
+  music: string;
+  musicName?: string;
+  addedAt: string;
 }
 
 export interface StaffMember {
@@ -208,6 +231,7 @@ export interface AppSettings {
   potentialComics: PotentialComic[];
   expenses: Expense[];
   emailList: EmailListEntry[]; // collected audience emails — storage only, no sending
+  musicLibrary: MusicTrack[]; // account-wide DJ tracks, addable to any show
   showTypes: string[]; // kinds of shows this producer makes (set during onboarding)
   onboarded: boolean; // whether the account has completed the welcome onboarding
   rolodexTermSingular?: string; // override for the Rolodex noun, e.g. "Comic" / "Queen"
@@ -224,6 +248,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   potentialComics: [],
   expenses: [],
   emailList: [],
+  musicLibrary: [],
   showTypes: [],
   onboarded: false,
 };

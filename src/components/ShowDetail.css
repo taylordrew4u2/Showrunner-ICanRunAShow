@@ -447,6 +447,24 @@ select.show-detail__status--select {
   }
 }
 
+/* An empty show has no counts worth showing, so the totals are the whole row
+   and shouldn't sit squeezed into a third of it. */
+.show-overview--accents-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 700px) {
+  .show-overview--accents-only {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 1040px) {
+  .show-overview--accents-only {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* A group is one card holding four tiles in a 2x2, split by hairlines rather
    than gaps, so four numbers cost one card's worth of chrome instead of four. */
 .show-overview__group {
@@ -476,6 +494,14 @@ select.show-detail__status--select {
 }
 
 .show-tile:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+/* Groups are no longer always full: a tile only appears once the show has some
+   of that thing, so a group can hold one, two, or three. The last tile never
+   has a neighbour below or to the right of it, whatever the count. */
+.show-tile:last-child {
+  border-right: 0;
   border-bottom: 0;
 }
 

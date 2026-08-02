@@ -381,7 +381,14 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       accent: 'green',
       count: show.djSongs.length,
       preview: joinNames(show.djSongs.map((song) => song.title)),
-      content: <DJMusicSection songs={show.djSongs} show={show} onChange={(djSongs) => handleUpdate({ djSongs })} />,
+      content: (
+        <DJMusicSection
+          songs={show.djSongs}
+          show={show}
+          library={settings.musicLibrary ?? []}
+          onChange={(djSongs) => handleUpdate({ djSongs })}
+        />
+      ),
     },
     {
       key: 'staff',
@@ -454,20 +461,34 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   // Two groups of four, so the counts read as two related clusters rather than
   // one undifferentiated row of eight: who and what is on stage, then what it
   // takes to put them there.
-  const tileGroups: Array<Array<{ icon: IconName; value: number; label: string }>> = [
+  //
+  // A tile only appears once the show actually has some of that thing. A row of
+  // zeroes is not a summary — it's a list of everything this show isn't, and it
+  // pushed the parts that do exist off the top of the screen.
+  const hiddenKeys = new Set(show.hiddenSections ?? []);
+  const allTileGroups: Array<Array<{ icon: IconName; value: number; label: string; sectionKey?: SectionKey }>> = [
     [
-      { icon: 'users', value: stats.counts.performers, label: 'Performers' },
-      { icon: 'sparkle', value: stats.counts.artists, label: 'Artists' },
-      { icon: 'schedule', value: stats.counts.cues, label: 'Cues' },
-      { icon: 'music', value: stats.counts.songs, label: 'DJ songs' },
+      { icon: 'users', value: stats.counts.performers, label: 'Performers', sectionKey: 'performers' },
+      { icon: 'sparkle', value: stats.counts.artists, label: 'Artists', sectionKey: 'artists' },
+      { icon: 'schedule', value: stats.counts.cues, label: 'Cues', sectionKey: 'schedule' },
+      { icon: 'music', value: stats.counts.songs, label: 'DJ songs', sectionKey: 'dj' },
     ],
     [
-      { icon: 'wrench', value: stats.counts.staff, label: 'Staff' },
-      { icon: 'bolt', value: stats.counts.vendors, label: 'Vendors' },
-      { icon: 'file', value: stats.counts.expenses, label: 'Expenses' },
+      { icon: 'wrench', value: stats.counts.staff, label: 'Staff', sectionKey: 'staff' },
+      { icon: 'bolt', value: stats.counts.vendors, label: 'Vendors', sectionKey: 'vendors' },
+      { icon: 'file', value: stats.counts.expenses, label: 'Expenses', sectionKey: 'expenses' },
       { icon: 'check', value: stats.counts.todos, label: 'To-dos' },
     ],
   ];
+  const tileGroups = allTileGroups
+    .map((group) =>
+      group.filter((tile) => tile.value > 0 && !(tile.sectionKey && hiddenKeys.has(tile.sectionKey))),
+    )
+    .filter((group) => group.length > 0);
+
+  // Same rule for the readiness bars: "Vendors booked 0/0 — 0%" measures
+  // nothing. A bar earns its place once there is something to be ready about.
+  const progressStats = stats.progress.filter((stat) => stat.total > 0);
 
   return (
     <div className="show-detail">
@@ -609,7 +630,10 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       {/* At a glance. The page used to open on a stack of closed sections, which
           told you the show existed but nothing about its state. These read
           straight off the same data the sections edit. */}
-      <section className="show-overview" aria-label="Show at a glance">
+      <section
+        className={`show-overview${tileGroups.length === 0 ? ' show-overview--accents-only' : ''}`}
+        aria-label="Show at a glance"
+      >
         {tileGroups.map((group, index) => (
           <div className="show-overview__group" key={index}>
             {group.map((tile) => (
@@ -648,10 +672,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         </div>
       </section>
 
-      {/* How ready the show is, in the four things that are actually checkable.
-          Each bar is a real ratio — no invented targets. */}
+      {/* How ready the show is, in the things that are actually checkable. Each
+          bar is a real ratio — no invented targets, and none for a section this
+          show doesn't use. */}
+      {progressStats.length > 0 && (
       <section className="show-progress" aria-label="Show readiness">
-        {stats.progress.map((stat) => {
+        {progressStats.map((stat) => {
           const percent = progressPercent(stat);
           return (
             <div className="show-progress__card" key={stat.key}>
@@ -679,6 +705,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           );
         })}
       </section>
+      )}
 
       <div className="show-detail__sections-accordion">
         {sections.filter((section) => !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {

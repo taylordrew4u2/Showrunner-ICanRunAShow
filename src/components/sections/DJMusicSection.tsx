@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import type { DJSong, Show } from '../../types';
+import type { DJSong, MusicTrack, Show } from '../../types';
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
+import { availableTracks, songFromTrack, songOwnsItsMedia } from '../../utils/musicLibrary';
 import { exportDJListToPDF } from '../../utils/pdfExport';
 
 interface DJMusicSectionProps {
   songs: DJSong[];
   show: Show;
+  /** The account-wide library, so a track can be added without re-uploading. */
+  library: MusicTrack[];
   onChange: (songs: DJSong[]) => void;
 }
 
-export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
+export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectionProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [notes, setNotes] = useState('');
@@ -36,10 +40,19 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
     setNotes('');
   }
 
+  const unusedTracks = availableTracks(library, songs);
+
+  function addFromLibrary(track: MusicTrack) {
+    onChange([...songs, songFromTrack(track, generateId())]);
+  }
+
   function deleteSong(id: string) {
     const song = songs.find((s) => s.id === id);
     if (window.confirm(`Delete "${song?.title}"? This cannot be undone.`)) {
-      if (song?.music) deleteMedia(song.music);
+      // A song added from the library shares its audio with the library and
+      // with every other show using it — removing it here must not delete the
+      // media out from under them.
+      if (song && songOwnsItsMedia(song)) deleteMedia(song.music!);
       onChange(songs.filter((s) => s.id !== id));
     }
   }
@@ -86,9 +99,15 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
     setStatus(song.id, 'Uploading audio…');
     try {
       const ref = await uploadMedia(file);
+      // Uploading over a library track detaches this song from the library —
+      // the audio is now this show's own, and the shared reference it used to
+      // point at stays untouched for everyone else.
+      const replacingOwnMedia = songOwnsItsMedia(song);
       const previous = song.music;
-      onChange(songs.map((s) => (s.id === song.id ? { ...s, music: ref, musicName: file.name } : s)));
-      if (previous) deleteMedia(previous);
+      onChange(songs.map((s) =>
+        s.id === song.id ? { ...s, music: ref, musicName: file.name, libraryId: undefined } : s,
+      ));
+      if (previous && replacingOwnMedia) deleteMedia(previous);
       setStatus(song.id, null);
     } catch {
       setStatus(song.id, 'Could not upload that audio file. Check your connection and try again.');
@@ -97,9 +116,15 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
 
   function removeAudio(song: DJSong) {
     if (!song.music) return;
-    if (!window.confirm(`Remove the uploaded audio for "${song.title}"?`)) return;
-    deleteMedia(song.music);
-    onChange(songs.map((s) => (s.id === song.id ? { ...s, music: undefined, musicName: undefined } : s)));
+    const fromLibrary = !!song.libraryId;
+    const question = fromLibrary
+      ? `Remove the library track from "${song.title}"? The track stays in your Music library.`
+      : `Remove the uploaded audio for "${song.title}"?`;
+    if (!window.confirm(question)) return;
+    if (songOwnsItsMedia(song)) deleteMedia(song.music);
+    onChange(songs.map((s) =>
+      s.id === song.id ? { ...s, music: undefined, musicName: undefined, libraryId: undefined } : s,
+    ));
     setStatus(song.id, null);
   }
 
@@ -152,6 +177,41 @@ export function DJMusicSection({ songs, show, onChange }: DJMusicSectionProps) {
         />
         <button className="btn btn--primary btn--sm" onClick={addSong}>Add</button>
       </div>
+
+      <div className="section-actions">
+        <button className="btn btn--secondary btn--sm" onClick={() => setPickerOpen((open) => !open)}>
+          {pickerOpen ? 'Close library' : 'Add from Music library'}
+        </button>
+      </div>
+
+      {pickerOpen && (
+        <div className="dj-library">
+          <div className="dj-library__head">
+            <span className="dj-library__title">Your Music library</span>
+          </div>
+          {library.length === 0 ? (
+            <p className="dj-library__empty">
+              Nothing in the library yet. Upload tracks on the Music tab and they'll be available to
+              every show — no re-uploading.
+            </p>
+          ) : unusedTracks.length === 0 ? (
+            <p className="dj-library__empty">Every track in your library is already in this show.</p>
+          ) : (
+            <ul className="dj-library__list">
+              {unusedTracks.map((track) => (
+                <li key={track.id} className="dj-library__item">
+                  <span className="dj-library__name">
+                    {track.title}{track.artist ? ` — ${track.artist}` : ''}
+                  </span>
+                  <button className="btn btn--ghost btn--sm" onClick={() => addFromLibrary(track)}>
+                    Add
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <p className="section-hint">
         Upload the audio for a song and it gets its own button on the Run Show soundboard, in a
