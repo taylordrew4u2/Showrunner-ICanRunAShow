@@ -22,7 +22,6 @@ export interface Performer {
   walkOnMusicTimestamp?: string;
   walkOnMusicLink?: string; // YouTube or Spotify URL
   credits?: string;
-  lockedIn?: boolean;
   videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
 }
 
@@ -35,7 +34,6 @@ export interface Artist {
   walkOnMusic?: string;
   walkOnMusicName?: string;
   videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
-  lockedIn?: boolean;
 }
 
 export interface ScheduleItem {
@@ -206,6 +204,11 @@ export interface Show {
   recap?: ShowRecap;
   completions?: SectionCompletions;
   hiddenSections?: SectionKey[];
+  /**
+   * How many performers this show is booking for. Optional: with no target the
+   * lineup has no "full", and nothing about it is shown.
+   */
+  performerTarget?: number;
   host?: string; // host name (free text, or set from a performer)
   todos?: TodoItem[];
   viewToken?: string; // public read-only viewer link token

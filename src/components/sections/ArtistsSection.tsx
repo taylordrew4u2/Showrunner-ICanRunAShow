@@ -63,12 +63,11 @@ export function ArtistsSection({ artists, onChange }: ArtistsSectionProps) {
         {artists.map((a, idx) => (
           <li
             key={a.id}
-            className={`section-list-item ${a.lockedIn ? 'section-list-item--locked' : ''} ${selectedId === a.id ? 'section-list-item--active' : ''}`}
+            className={`section-list-item ${selectedId === a.id ? 'section-list-item--active' : ''}`}
           >
             <div className="section-list-item__content">
               <div className="section-list-item__body">
                 <span className="section-list-item__order">{idx + 1}</span>
-                {a.lockedIn && <span className="section-list-item__lock-badge">Locked</span>}
                 <span className="section-list-item__name">
                   {a.name}
                   {a.artistType && <span className="section-list-item__subtext"> ({a.artistType})</span>}
