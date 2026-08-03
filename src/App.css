@@ -430,6 +430,36 @@
   gap: 10px;
 }
 
+/* "Showing 2 of 12 shows — Show all". Sits directly above the list it
+   describes, because that's where the question gets asked. Built to the same
+   measurements as .backup-nudge: they're the same kind of object, and they can
+   appear on the same screen. */
+.shows-narrowed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.shows-narrowed__text {
+  flex: 1;
+  min-width: 100px;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.shows-narrowed__clear {
+  white-space: nowrap;
+}
+
 /* ── Rolodex Page ──────────────────────────────────────────────────── */
 
 .rolodex-page {
