@@ -3,6 +3,7 @@ import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
 import { rolodexKey } from '../../utils/rolodex';
 import { socialLink, bulkMailto, isEmail } from '../../utils/social';
+import { lineupProgress } from '../../utils/lineupTarget';
 import { PerformerProfile } from './PerformerProfile';
 
 interface PerformersSectionProps {
@@ -108,8 +109,9 @@ export function PerformersSection({
     onChange(next);
   }
 
-  const targetSet = typeof performerTarget === 'number' && performerTarget > 0;
-  const spotsLeft = targetSet ? performerTarget - performers.length : 0;
+  // Shared with the show card on the grid so the two can't disagree about
+  // whether a bill is full.
+  const progress = lineupProgress(performers.length, performerTarget);
 
   return (
     <div className="section-body">
@@ -134,16 +136,12 @@ export function PerformersSection({
           }}
           placeholder="—"
         />
-        {targetSet && (
+        {progress.targetSet && (
           <span
-            className={`lineup-target__status${spotsLeft <= 0 ? ' lineup-target__status--full' : ''}`}
+            className={`lineup-target__status${progress.full ? ' lineup-target__status--full' : ''}`}
             role="status"
           >
-            {spotsLeft > 0
-              ? `${performers.length} of ${performerTarget} booked · ${spotsLeft} spot${spotsLeft === 1 ? '' : 's'} left`
-              : spotsLeft === 0
-                ? `Full — ${performers.length} of ${performerTarget} booked`
-                : `Full — ${performers.length} booked, ${Math.abs(spotsLeft)} over`}
+            {progress.label}
           </span>
         )}
       </div>
