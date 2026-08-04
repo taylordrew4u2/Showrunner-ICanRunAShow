@@ -114,6 +114,15 @@
   align-items: baseline;
 }
 
+/* The shared .dash__label carries min-width: 0 so "Needs a running order" can
+   wrap inside a narrow count tile. In the hero that same rule let the label be
+   squeezed to nothing by the line beside it — "Next up" overlapped the show's
+   name once the line grew. Here the label is two short words and should hold
+   its ground; the line beside it is the part with somewhere to wrap to. */
+.dash__tile--next .dash__label {
+  min-width: max-content;
+}
+
 .dash__next-line {
   display: flex;
   align-items: baseline;
@@ -161,6 +170,17 @@
   color: var(--text-soft);
 }
 
+/* Hidden until the Upcoming tile stands down (see the container query below),
+   so the count is shown once and only once at every width. It flows as one
+   more item on the wrapped line — pushing it right with margin-left:auto made
+   it demand width, which squeezed the "Next up" label until it overlapped the
+   show's name. */
+.dash__hero-count {
+  display: none;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
 /* The venue is the first thing worth dropping when the line runs out of room:
    the name and the when are what the tile is for. */
 @container shows-col (max-width: 430px) {
@@ -188,6 +208,13 @@
 
   .dash__tile--upcoming {
     display: none;
+  }
+
+  /* …but the number it carried comes back in the hero, which has the width.
+     Losing the tile was a layout decision; losing the count was a side effect
+     of it, and the two don't have to travel together. */
+  .dash__hero-count {
+    display: inline;
   }
 }
 
