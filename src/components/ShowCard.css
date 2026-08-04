@@ -179,10 +179,17 @@
 
 /* ── Metadata row ───────────────────────────────────────────── */
 
+/* No "·" between these items, by design. This row wraps, and a separator glyph
+   has no correct home on a wrapping row: written between the items it gets
+   stranded at the end of a line ("9:30 PM ·"), and moved onto the following
+   item it starts the next line looking like a bullet. Both were tried here.
+   Space is the one separator that survives a wrap, so the items are spaced
+   instead — they already differ in weight and colour, which is what was
+   carrying the distinction anyway. */
 .show-card__meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px 10px;
   flex-wrap: wrap;
   font-size: 0.83rem;
   color: var(--text-muted);
@@ -196,21 +203,24 @@
   font-variant-numeric: tabular-nums;
 }
 
-.show-card__meta-sep {
-  opacity: 0.4;
-  flex-shrink: 0;
-}
-
-.show-card__meta-venue {
+/* Long venue names and addresses wrap onto the next line rather than being cut
+   off mid-word. The row already wraps; there was no reason for this one item
+   to lose its text instead. */
+.show-card__meta-venue,
+.show-card__meta-place {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* Reads inline as one more fact about the night. No separator before it: the
-   row wraps on a phone, and a "·" would be left dangling at the end of a line.
-   The status is uppercase and coloured, so it separates itself. */
+/* How long you've got, in the same words the Next-up tile uses. Weighted so it
+   reads as the answer to "when", not as another piece of venue text. */
+.show-card__meta-when {
+  font-weight: 600;
+  color: var(--card-accent-text, var(--text-muted));
+}
+
+.show-card__meta-place {
+  color: var(--text-soft);
+}
 
 /* ── Footer: status + scene count ───────────────────────────── */
 
@@ -231,15 +241,22 @@
   }
 }
 
-/* The things you'd otherwise have to open the show to find out. */
+/* The things you'd otherwise have to open the show to find out — and they
+   wrap rather than truncate. With nowrap + ellipsis a phone-width card cut
+   the line off mid-fact — "Host Marcus …" — which is the one thing a summary
+   line must never do: the host's name is why you looked. Facts are cheap to
+   wrap and expensive to lose. */
 .show-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  /* Wider than the meta row's gap: these facts are all the same weight and
+     colour, so spacing is doing all the separating on its own. */
+  gap: 2px 14px;
   font-size: 0.8rem;
   color: var(--text-muted);
   line-height: 1.4;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* A booked-out bill, in the same soft-green the show page uses for a met
