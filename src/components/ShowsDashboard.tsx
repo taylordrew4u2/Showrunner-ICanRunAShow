@@ -59,6 +59,11 @@ export function ShowsDashboard({ shows, focus, onFocusChange, onSelectShow, toda
                   <span className="dash__venue">{nextShow.venueName}</span>
                 </>
               )}
+              {/* The standalone Upcoming tile steps aside on a phone to make
+                  room for the two you can act on. The count itself shouldn't
+                  vanish with it — the hero has width to spare, so it carries
+                  the number at exactly the widths the tile doesn't. */}
+              <span className="dash__hero-count">{upcomingCount} upcoming</span>
             </p>
           </>
         ) : (

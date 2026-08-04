@@ -3,6 +3,7 @@ import { parseShowDate, formatShowTime } from '../utils/showDate';
 import { formatRuntime } from '../utils/sectionSummary';
 import { baseDurations } from '../utils/showTiming';
 import { lineupProgress } from '../utils/lineupTarget';
+import { whenLabel } from '../utils/showsOverview';
 import './ShowCard.css';
 
 interface ShowCardProps {
@@ -10,6 +11,8 @@ interface ShowCardProps {
   onSelect: (show: Show, e: React.MouseEvent) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  /** Injected in tests and previews; the real grid just uses now. */
+  today?: Date;
 }
 
 const STATUS_LABELS: Record<Show['status'], string> = {
@@ -19,7 +22,7 @@ const STATUS_LABELS: Record<Show['status'], string> = {
   cancelled: 'Cancelled',
 };
 
-export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProps) {
+export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowCardProps) {
   const sceneCount = show.scenes?.length ?? 0;
   const doneCount = show.scenes?.filter((s) => s.status === 'done').length ?? 0;
 
@@ -59,6 +62,18 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
   const showDate = parseShowDate(show.date);
   const isCurrentYear = showDate?.getFullYear() === new Date().getFullYear();
   const timeStr = formatShowTime(show.time);
+  // "Tonight", "In 6 days", "Yesterday". The date block gives you Aug 14; this
+  // gives you how long you've got, which is the thing you were working out in
+  // your head every time you read one. Same wording as the Next-up tile.
+  const whenStr = showDate && show.status !== 'completed' && show.status !== 'cancelled'
+    ? whenLabel(showDate, today ?? new Date())
+    : null;
+  // The city, when it isn't just restating the venue. Search already looks at
+  // it, so it's a field people fill in — the card was the one place it never
+  // reached.
+  const place = show.location?.trim() && show.location.trim() !== show.venueName?.trim()
+    ? show.location.trim()
+    : null;
   const fullDateStr = showDate?.toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
@@ -113,10 +128,17 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
               {show.name}
             </button>
           </h2>
+          {/* Separators are drawn by CSS on the *following* item, not written
+              between items as their own elements. A standalone "·" is a flex
+              child that can be left stranded at the end of a wrapped line —
+              which is exactly what a phone-width card used to show. */}
           <div className="show-card__meta">
-            {timeStr && <span className="show-card__meta-time">{timeStr}</span>}
-            {timeStr && show.venueName && <span className="show-card__meta-sep">·</span>}
-            {show.venueName && <span className="show-card__meta-venue">{show.venueName}</span>}
+            {timeStr && <span className="show-card__meta-item show-card__meta-time">{timeStr}</span>}
+            {whenStr && <span className="show-card__meta-item show-card__meta-when">{whenStr}</span>}
+            {show.venueName && (
+              <span className="show-card__meta-item show-card__meta-venue">{show.venueName}</span>
+            )}
+            {place && <span className="show-card__meta-item show-card__meta-place">{place}</span>}
             <span className="show-card__status">{STATUS_LABELS[show.status]}</span>
           </div>
         </div>
@@ -147,30 +169,35 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
             <span className="show-card__facts">
               {lineupFact && (
                 <span
-                  className={`show-card__lineup${lineup.full ? ' show-card__lineup--full' : ''}`}
+                  className={`show-card__fact show-card__lineup${lineup.full ? ' show-card__lineup--full' : ''}`}
                 >
                   {lineupFact}
                 </span>
               )}
-              {facts.map((fact, i) => (
-                <span key={fact}>
-                  {(i > 0 || lineupFact) && (
-                    <span className="show-card__meta-sep" aria-hidden="true"> · </span>
-                  )}
-                  {fact}
-                </span>
+              {facts.map((fact) => (
+                <span key={fact} className="show-card__fact">{fact}</span>
               ))}
             </span>
           )}
           {sceneCount > 0 && (
             <div className="show-card__progress-wrap">
-              <div className="show-card__progress">
+              <div
+                className="show-card__progress"
+                role="progressbar"
+                aria-valuenow={doneCount}
+                aria-valuemin={0}
+                aria-valuemax={sceneCount}
+                aria-label={`${doneCount} of ${sceneCount} scenes done`}
+              >
                 <div
                   className="show-card__progress-bar"
                   style={{ width: `${(doneCount / sceneCount) * 100}%` }}
                 />
               </div>
-              <span className="show-card__progress-label">{doneCount}/{sceneCount}</span>
+              {/* "2/3" on its own was a fraction of nothing in particular. */}
+              <span className="show-card__progress-label" aria-hidden="true">
+                {doneCount}/{sceneCount} scenes
+              </span>
             </div>
           )}
         </div>
