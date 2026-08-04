@@ -2,6 +2,7 @@ import type { Show } from '../types';
 import { parseShowDate, formatShowTime } from '../utils/showDate';
 import { formatRuntime } from '../utils/sectionSummary';
 import { baseDurations } from '../utils/showTiming';
+import { lineupProgress } from '../utils/lineupTarget';
 import './ShowCard.css';
 
 interface ShowCardProps {
@@ -26,14 +27,22 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
   // how big the bill is, how long the night runs, who's hosting. The card knew
   // all of it and showed none of it.
   const lineupCount = show.performers.length + show.artists.length;
+  // With a target set, "how big is the bill" stops being the useful number and
+  // "how close is it to booked" takes over. Same calculation the Performers
+  // section runs, so a card can't call a bill full that the section doesn't.
+  const lineup = lineupProgress(show.performers.length, show.performerTarget);
   const runtime = show.schedule.length
     ? formatRuntime(baseDurations(show.schedule).reduce((sum, sec) => sum + sec, 0))
     : null;
   const facts = [
-    lineupCount > 0 ? `${lineupCount} on the bill` : null,
     runtime,
     show.host?.trim() ? `Host ${show.host.trim()}` : null,
   ].filter((f): f is string => !!f);
+  const lineupFact = lineup.targetSet
+    ? lineup.shortLabel
+    : lineupCount > 0
+      ? `${lineupCount} on the bill`
+      : null;
 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
@@ -64,7 +73,13 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
     // title is the control now; it stretches over the card (see the CSS) so
     // clicking anywhere still opens the show, while Duplicate and Delete stay
     // separately reachable.
-    <article className={`show-card show-card--${show.status}`}>
+    // A full bill is the one thing on this card that's an *outcome* rather than
+    // a property, so it gets the card's colour. It rides alongside the status
+    // rather than replacing it — the left stripe still says upcoming or
+    // completed, because a full show can be either.
+    <article
+      className={`show-card show-card--${show.status}${lineup.full ? ' show-card--full' : ''}`}
+    >
       <div className="show-card__top">
         <div
           className={`show-card__date${showDate ? '' : ' show-card__date--tbd'}`}
@@ -126,13 +141,22 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate }: ShowCardProp
         </div>
       </div>
 
-      {(facts.length > 0 || sceneCount > 0) && (
+      {(lineupFact || facts.length > 0 || sceneCount > 0) && (
         <div className="show-card__footer">
-          {facts.length > 0 && (
+          {(lineupFact || facts.length > 0) && (
             <span className="show-card__facts">
+              {lineupFact && (
+                <span
+                  className={`show-card__lineup${lineup.full ? ' show-card__lineup--full' : ''}`}
+                >
+                  {lineupFact}
+                </span>
+              )}
               {facts.map((fact, i) => (
                 <span key={fact}>
-                  {i > 0 && <span className="show-card__meta-sep" aria-hidden="true"> · </span>}
+                  {(i > 0 || lineupFact) && (
+                    <span className="show-card__meta-sep" aria-hidden="true"> · </span>
+                  )}
                   {fact}
                 </span>
               ))}

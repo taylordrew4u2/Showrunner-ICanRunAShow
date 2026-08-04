@@ -242,6 +242,34 @@
   white-space: nowrap;
 }
 
+/* A booked-out bill, in the same soft-green the show page uses for a met
+   target. The tint is on the card rather than only the words so a full show is
+   findable while scanning the grid, without stealing the left stripe — that
+   still has to say upcoming or completed, which a full show can equally be. */
+.show-card--full {
+  background: var(--success-soft);
+  border-color: var(--success-soft-border);
+  /* border-color is shorthand and would repaint the left edge too, which is
+     the status stripe — an upcoming show that filled up would stop looking
+     upcoming. Full and upcoming are independent facts; the card shows both. */
+  border-left-color: var(--card-accent, var(--border-strong));
+}
+
+.show-card--full:hover,
+.show-card--full:focus-within {
+  border-color: var(--success);
+  border-left-color: var(--card-accent, var(--border-strong));
+  /* Keep the fill; the grid's other cards go lighter on hover, and a full card
+     losing its colour on the way to being clicked is the one moment you're
+     most sure you want it. */
+  background: var(--success-soft);
+}
+
+.show-card__lineup--full {
+  color: var(--success-text);
+  font-weight: 700;
+}
+
 /* The dot says it fast, the word says it unambiguously — neither on its own.
    This was 0.68rem (10.9px) in all-caps with 0.06em tracking, which is the
    least legible way to set the one word on the card that tells you where the

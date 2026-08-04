@@ -26,6 +26,11 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
   const [venueName, setVenueName] = useState(initial?.venueName ?? '');
   const [location, setLocation] = useState(initial?.location ?? '');
   const [status, setStatus] = useState<ShowStatus>(initial?.status ?? 'upcoming');
+  // Kept as the raw string so the field can be cleared. '' means no target,
+  // which is a real state: a lineup with no target has no "full".
+  const [performerTarget, setPerformerTarget] = useState(
+    initial?.performerTarget ? String(initial.performerTarget) : '',
+  );
   const [selectedBlocks, setSelectedBlocks] = useState<Set<SectionKey>>(() => {
     // New show: start with nothing selected so the producer opts into exactly
     // the sections they want — a show that only checks "Performers" gets only
@@ -52,6 +57,7 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
     const hiddenSections = SELECTABLE_BLOCKS
       .map(b => b.key)
       .filter(key => !selectedBlocks.has(key));
+    const target = Math.floor(Number(performerTarget.trim()));
     onSave({
       name: name.trim(),
       date,
@@ -59,6 +65,8 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
       venueName: venueName.trim(),
       location: location.trim(),
       status,
+      performerTarget:
+        performerTarget.trim() !== '' && Number.isFinite(target) && target > 0 ? target : undefined,
       performers: initial?.performers ?? [],
       artists: initial?.artists ?? [],
       schedule: initial?.schedule ?? [],
@@ -126,6 +134,19 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           placeholder="City, address, or location details"
+        />
+      </label>
+
+      <label className="show-form__label">
+        Performers Wanted
+        <input
+          className="show-form__input"
+          type="number"
+          min={1}
+          inputMode="numeric"
+          value={performerTarget}
+          onChange={(e) => setPerformerTarget(e.target.value)}
+          placeholder="How many you're booking (optional)"
         />
       </label>
 
