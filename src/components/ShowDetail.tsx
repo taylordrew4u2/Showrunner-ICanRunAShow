@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
@@ -22,6 +22,7 @@ import { loadColorScheme } from '../utils/theme';
 import { buildShowStats, progressPercent, isComplete, formatRunTime } from '../utils/showStats';
 import { loadViewerKey, viewerUrl as buildViewerUrl } from '../utils/viewerAudio';
 import './ShowDetail.css';
+import { useConfirm } from './useConfirm';
 
 // Each section card wears the icon for what it holds, so the grid is scannable
 // by shape once you know the page — a wall of same-looking cards is the failure
@@ -70,6 +71,7 @@ function loadOpenSections(showId: string): Set<string> {
 }
 
 export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }: ShowDetailProps) {
+  const { confirm, confirmDialog } = useConfirm();
   // Everyone this producer has on file. The show's own bill comes first so a
   // name spelled slightly differently in the Rolodex doesn't win over the
   // spelling actually used on this lineup.
@@ -91,6 +93,8 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerNoteDraft, setViewerNoteDraft] = useState('');
   const [viewerCopied, setViewerCopied] = useState(false);
+  const [viewerCopyFailed, setViewerCopyFailed] = useState(false);
+  const viewerUrlRef = useRef<HTMLInputElement>(null);
   const [tempShowName, setTempShowName] = useState(show.name);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   // Adding and removing sections happens in one deliberate place, so a stray tap
@@ -130,6 +134,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   function openViewer() {
     setViewerNoteDraft(show.viewNote ?? '');
     setViewerCopied(false);
+    setViewerCopyFailed(false);
     setViewerOpen(true);
   }
 
@@ -285,10 +290,19 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     if (!token) return;
     const url = viewerUrl(token);
     navigator.clipboard?.writeText(url).then(() => {
+      setViewerCopyFailed(false);
       setViewerCopied(true);
       setTimeout(() => setViewerCopied(false), 1800);
     }).catch(() => {
-      window.prompt('Copy this viewer link:', url);
+      // The link is already on screen, in a read-only field an inch away. The
+      // old fallback opened a window.prompt to show the same string again —
+      // a blocking dialog, in the one situation most likely to be the
+      // installed app, where blocking dialogs are what hang the page. Select
+      // the field it's already in instead.
+      setViewerCopyFailed(true);
+      const field = viewerUrlRef.current;
+      field?.focus();
+      field?.select();
     });
   }
 
@@ -312,9 +326,9 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     triggerSaveIndicator();
   }
 
-  function handleDeleteTodo(todoId: string) {
+  async function handleDeleteTodo(todoId: string) {
     const todo = (show.todos || []).find((t) => t.id === todoId);
-    if (window.confirm(`Delete to-do "${todo?.text}"? This cannot be undone.`)) {
+    if (await confirm(`Delete to-do "${todo?.text}"? This cannot be undone.`)) {
       const todos = (show.todos || []).filter((t) => t.id !== todoId);
       onUpdate({ ...show, todos });
       triggerSaveIndicator();
@@ -878,6 +892,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
             {show.viewToken ? (
               <div className="viewer-link-modal__url-row">
                 <input
+                  ref={viewerUrlRef}
                   className="section-field__input"
                   readOnly
                   value={viewerUrl(show.viewToken)}
@@ -887,6 +902,11 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                   {viewerCopied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
+            ) : null}
+            {show.viewToken && viewerCopyFailed ? (
+              <p className="viewer-link-modal__hint" role="status">
+                Couldn't reach the clipboard — the link is selected above, so copy it by hand.
+              </p>
             ) : (
               <p className="viewer-link-modal__hint">
                 Save to generate the link.
@@ -912,6 +932,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           </div>
         </Modal>
       )}
+      {confirmDialog}
     </div>
   );
 }

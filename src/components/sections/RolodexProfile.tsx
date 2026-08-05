@@ -5,6 +5,7 @@ import { uploadMedia } from '../../utils/mediaStore';
 import { useMediaUrl } from '../../utils/useMediaUrl';
 import { socialLink } from '../../utils/social';
 import './PerformerProfile.css';
+import { useConfirm } from '../useConfirm';
 
 interface RolodexProfileProps {
   comic: PotentialComic;
@@ -14,6 +15,7 @@ interface RolodexProfileProps {
 }
 
 export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexProfileProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [name, setName] = useState(comic.name);
   const [notes, setNotes] = useState(comic.notes || '');
   const [socialMedia, setSocialMedia] = useState(comic.socialMedia || '');
@@ -203,8 +205,8 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
             </button>
             <button
               className="btn btn--danger btn--sm"
-              onClick={() => {
-                if (window.confirm(`Remove "${comic.name}" from the Rolodex? This cannot be undone.`)) {
+              onClick={async () => {
+                if (await confirm(`Remove "${comic.name}" from the Rolodex? This cannot be undone.`)) {
                   onDelete(comic.id);
                   onBack();
                 }
@@ -302,6 +304,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
           {mediaError && <p className="perf-profile__media-error">{mediaError}</p>}
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 }
