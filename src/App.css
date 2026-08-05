@@ -1251,6 +1251,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Two buttons where there was one, so they wrap together rather than the
+   second one squeezing the run-of-show line on a phone. */
+.schedule-summary__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 .schedule-summary__clear { color: var(--danger-text); flex-shrink: 0; }
 .schedule-summary__label {
