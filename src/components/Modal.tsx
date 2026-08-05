@@ -26,7 +26,13 @@ export function Modal({ onClose, children, labelledBy }: ModalProps) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      // The Escape that closes this dialog is spent closing it. Run Show keeps
+      // a keydown listener on window for its own shortcuts, and window is
+      // downstream of document — without this, one Escape both dismissed the
+      // confirmation and closed the whole Run Show screen behind it.
+      e.stopPropagation();
+      onClose();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);

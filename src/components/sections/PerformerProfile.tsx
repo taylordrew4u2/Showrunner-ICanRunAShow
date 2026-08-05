@@ -64,7 +64,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
 
   async function removePhoto() {
     if (!performer.photo) return;
-    if (!(await confirm(`Remove ${performer.name}'s photo?`))) return;
+    if (!(await confirm({ message: `Remove ${performer.name}'s photo?`, confirmLabel: 'Remove photo' }))) return;
     deleteMedia(performer.photo);
     onChange({ ...performer, photo: undefined });
     setPhotoError(null);

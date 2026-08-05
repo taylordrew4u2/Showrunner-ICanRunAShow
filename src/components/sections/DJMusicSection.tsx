@@ -122,7 +122,7 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
     const question = fromLibrary
       ? `Remove the library track from "${song.title}"? The track stays in your Music library.`
       : `Remove the uploaded audio for "${song.title}"?`;
-    if (!(await confirm(question))) return;
+    if (!(await confirm({ message: question, confirmLabel: 'Remove' }))) return;
     if (songOwnsItsMedia(song)) deleteMedia(song.music);
     onChange(songs.map((s) =>
       s.id === song.id ? { ...s, music: undefined, musicName: undefined, libraryId: undefined } : s,

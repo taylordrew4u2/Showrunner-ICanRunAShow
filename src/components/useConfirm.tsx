@@ -27,10 +27,12 @@ export interface ConfirmOptions {
   /** The question. Say what will happen, and whether it can be undone. */
   message: string;
   title?: string;
+  /** The verb on the confirm button. Name the action — a button that says
+   *  "Delete" on a prompt about ending a show is worse than no label. */
   confirmLabel?: string;
   cancelLabel?: string;
-  /** Styles the confirm button as destructive. Defaults to true — everything
-   *  that asks first is deleting something. */
+  /** Styles the confirm button as destructive. Defaults to true, since most of
+   *  these are deletions — pass false for anything that doesn't destroy data. */
   danger?: boolean;
 }
 
@@ -72,10 +74,21 @@ export function useConfirm() {
   // dialog's behaviour depend on whatever card or panel happened to contain it.
   const confirmDialog = pending ? createPortal(
     <Modal onClose={() => settle(false)} labelledBy="confirm-dialog-title">
-      <h2 className="confirm-dialog__title" id="confirm-dialog-title">
-        {pending.title ?? 'Are you sure?'}
-      </h2>
-      <p className="confirm-dialog__message">{pending.message}</p>
+      {/* No stock "Are you sure?" above a message that already asks a
+          question — it just pushed the real words down a line. A caller with
+          something to add sets a title; otherwise the question is the heading
+          as far as assistive tech is concerned. */}
+      {pending.title && (
+        <h2 className="confirm-dialog__title" id="confirm-dialog-title">
+          {pending.title}
+        </h2>
+      )}
+      <p
+        className="confirm-dialog__message"
+        id={pending.title ? undefined : 'confirm-dialog-title'}
+      >
+        {pending.message}
+      </p>
       <div className="confirm-dialog__actions">
         {/* Cancel comes first in the DOM so it takes the modal's initial
             focus. On a destructive prompt the safe answer is the one that
@@ -95,5 +108,10 @@ export function useConfirm() {
     document.body,
   ) : null;
 
-  return { confirm, confirmDialog };
+  // For callers that run their own global keyboard shortcuts. A rendered
+  // dialog doesn't stop a window-level keydown listener the way the old
+  // blocking window.confirm did — that one froze the event loop, which is
+  // precisely what made it safe and what made it unusable. Anything listening
+  // outside the dialog has to know to stand down while a question is on screen.
+  return { confirm, confirmDialog, confirmOpen: pending !== null };
 }
