@@ -370,7 +370,11 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       accent: 'purple',
       count: show.artists.length,
       preview: joinNames(show.artists.map((a) => a.name)),
-      content: <ArtistsSection artists={show.artists} onChange={(artists) => handleUpdate({ artists })} />,
+      content: <ArtistsSection
+        artists={show.artists}
+        potentialComics={settings.potentialComics}
+        onChange={(artists) => handleUpdate({ artists })}
+      />,
     },
     {
       key: 'schedule',
