@@ -4,6 +4,7 @@ import { formatRuntime } from '../utils/sectionSummary';
 import { baseDurations } from '../utils/showTiming';
 import { lineupProgress } from '../utils/lineupTarget';
 import { whenLabel } from '../utils/showsOverview';
+import { useConfirm } from './useConfirm';
 import './ShowCard.css';
 
 interface ShowCardProps {
@@ -23,6 +24,7 @@ const STATUS_LABELS: Record<Show['status'], string> = {
 };
 
 export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowCardProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const sceneCount = show.scenes?.length ?? 0;
   const doneCount = show.scenes?.filter((s) => s.status === 'done').length ?? 0;
 
@@ -47,11 +49,13 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
       ? `${lineupCount} on the bill`
       : null;
 
-  function handleDelete(e: React.MouseEvent) {
+  async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
-    if (window.confirm(`Delete show "${show.name}"? It will be moved to trash where you can recover it.`)) {
-      onDelete(show.id);
-    }
+    const ok = await confirm({
+      title: `Delete "${show.name}"?`,
+      message: 'It will be moved to trash, where you can recover it.',
+    });
+    if (ok) onDelete(show.id);
   }
 
   function handleDuplicate(e: React.MouseEvent) {
@@ -202,6 +206,7 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
           )}
         </div>
       )}
+      {confirmDialog}
     </article>
   );
 }

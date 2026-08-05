@@ -7,6 +7,7 @@ import { useMediaUrl } from '../../utils/useMediaUrl';
 import { socialLink } from '../../utils/social';
 import { performerToComic } from '../../utils/rolodex';
 import './PerformerProfile.css';
+import { useConfirm } from '../useConfirm';
 
 interface PerformerProfileProps {
   performer: Performer;
@@ -17,6 +18,7 @@ interface PerformerProfileProps {
 }
 
 export function PerformerProfile({ performer, onBack, onChange, onDelete, onSaveToRolodex }: PerformerProfileProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [name, setName] = useState(performer.name);
   const [socialMedia, setSocialMedia] = useState(performer.socialMedia || '');
   const [email, setEmail] = useState(performer.email || '');
@@ -60,9 +62,9 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
     }
   }
 
-  function removePhoto() {
+  async function removePhoto() {
     if (!performer.photo) return;
-    if (!window.confirm(`Remove ${performer.name}'s photo?`)) return;
+    if (!(await confirm(`Remove ${performer.name}'s photo?`))) return;
     deleteMedia(performer.photo);
     onChange({ ...performer, photo: undefined });
     setPhotoError(null);
@@ -251,8 +253,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
             )}
             <button
               className="btn btn--danger btn--sm"
-              onClick={() => {
-                if (window.confirm(`Delete "${performer.name}"? This cannot be undone.`)) {
+              onClick={async () => {
+                if (await confirm(`Delete "${performer.name}"? This cannot be undone.`)) {
                   onDelete(performer.id);
                   onBack();
                 }
@@ -392,6 +394,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
 
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 }

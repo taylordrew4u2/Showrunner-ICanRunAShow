@@ -38,6 +38,7 @@ import {
   type FadeSettings,
 } from '../utils/audioSettings';
 import { Icon } from './Icon';
+import { useConfirm } from './useConfirm';
 
 interface RunShowProps {
   showName: string;
@@ -130,6 +131,7 @@ export function RunShow({
   onFinish,
   onClose,
 }: RunShowProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [idx, setIdx] = useState(0);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0); // within current cue
@@ -259,8 +261,8 @@ export function RunShow({
     setAdjust((a) => ({ ...a, [idx]: (a[idx] ?? 0) + delta }));
   }
 
-  function restartShow() {
-    if (!window.confirm('Restart the timer from the top of the show?')) return;
+  async function restartShow() {
+    if (!(await confirm('Restart the timer from the top of the show?'))) return;
     setIdx(0);
     setElapsed(0);
     setShowElapsed(0);
@@ -270,8 +272,8 @@ export function RunShow({
     notifyStart();
   }
 
-  function finishShow() {
-    if (!window.confirm('End the show and mark it completed?')) return;
+  async function finishShow() {
+    if (!(await confirm('End the show and mark it completed?'))) return;
     audioEngine.stop({ fadeMs: fade.fadeOutMs });
     onFinish?.();
     onClose();
@@ -821,6 +823,7 @@ export function RunShow({
           </ol>
         </section>
       </div>
+      {confirmDialog}
     </div>
   );
 }

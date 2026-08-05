@@ -5,6 +5,7 @@ import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
 import { availableTracks, songFromTrack, songOwnsItsMedia } from '../../utils/musicLibrary';
 import { exportDJListToPDF } from '../../utils/pdfExport';
+import { useConfirm } from '../useConfirm';
 
 interface DJMusicSectionProps {
   songs: DJSong[];
@@ -15,6 +16,7 @@ interface DJMusicSectionProps {
 }
 
 export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectionProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
@@ -46,9 +48,9 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
     onChange([...songs, songFromTrack(track, generateId())]);
   }
 
-  function deleteSong(id: string) {
+  async function deleteSong(id: string) {
     const song = songs.find((s) => s.id === id);
-    if (window.confirm(`Delete "${song?.title}"? This cannot be undone.`)) {
+    if (await confirm(`Delete "${song?.title}"? This cannot be undone.`)) {
       // A song added from the library shares its audio with the library and
       // with every other show using it — removing it here must not delete the
       // media out from under them.
@@ -114,13 +116,13 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
     }
   }
 
-  function removeAudio(song: DJSong) {
+  async function removeAudio(song: DJSong) {
     if (!song.music) return;
     const fromLibrary = !!song.libraryId;
     const question = fromLibrary
       ? `Remove the library track from "${song.title}"? The track stays in your Music library.`
       : `Remove the uploaded audio for "${song.title}"?`;
-    if (!window.confirm(question)) return;
+    if (!(await confirm(question))) return;
     if (songOwnsItsMedia(song)) deleteMedia(song.music);
     onChange(songs.map((s) =>
       s.id === song.id ? { ...s, music: undefined, musicName: undefined, libraryId: undefined } : s,
@@ -272,6 +274,7 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
           </button>
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }

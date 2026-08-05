@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Scene, SceneStatus } from '../types';
 import { generateId } from '../utils/id';
 import './SceneList.css';
+import { useConfirm } from './useConfirm';
 
 interface SceneListProps {
   scenes: Scene[];
@@ -11,6 +12,7 @@ interface SceneListProps {
 const STATUS_OPTIONS: SceneStatus[] = ['planned', 'rehearsed', 'filmed', 'done'];
 
 export function SceneList({ scenes, onChange }: SceneListProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [newTitle, setNewTitle] = useState('');
 
   function addScene() {
@@ -31,9 +33,9 @@ export function SceneList({ scenes, onChange }: SceneListProps) {
     onChange(scenes.map((s) => (s.id === id ? { ...s, status } : s)));
   }
 
-  function deleteScene(id: string) {
+  async function deleteScene(id: string) {
     const scene = scenes.find((s) => s.id === id);
-    if (window.confirm(`Delete scene "${scene?.title}"? This cannot be undone.`)) {
+    if (await confirm(`Delete scene "${scene?.title}"? This cannot be undone.`)) {
       onChange(scenes.filter((s) => s.id !== id));
     }
   }
@@ -95,6 +97,7 @@ export function SceneList({ scenes, onChange }: SceneListProps) {
           </li>
         ))}
       </ul>
+      {confirmDialog}
     </div>
   );
 }

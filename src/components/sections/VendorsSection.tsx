@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Vendor } from '../../types';
 import { VENDOR_CATEGORIES } from '../../types';
 import { generateId } from '../../utils/id';
+import { useConfirm } from '../useConfirm';
 
 interface VendorsSectionProps {
   vendors: Vendor[];
@@ -13,6 +14,7 @@ function normalizeUrl(url: string): string {
 }
 
 export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [name, setName] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Vendor | null>(null);
@@ -31,9 +33,9 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
     startEdit(v); // open the profile straight away so it can be filled out
   }
 
-  function deleteVendor(id: string) {
+  async function deleteVendor(id: string) {
     const v = vendors.find((x) => x.id === id);
-    if (window.confirm(`Delete vendor "${v?.name}"? This cannot be undone.`)) {
+    if (await confirm(`Delete vendor "${v?.name}"? This cannot be undone.`)) {
       onChange(vendors.filter((x) => x.id !== id));
       if (editId === id) cancelEdit();
     }
@@ -230,6 +232,7 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
           );
         })}
       </ul>
+      {confirmDialog}
     </div>
   );
 }

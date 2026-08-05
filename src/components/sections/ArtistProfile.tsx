@@ -4,6 +4,7 @@ import { audioUploadSizeError } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
 import { useMediaUrl } from '../../utils/useMediaUrl';
 import './PerformerProfile.css';
+import { useConfirm } from '../useConfirm';
 
 interface ArtistProfileProps {
   artist: Artist;
@@ -13,6 +14,7 @@ interface ArtistProfileProps {
 }
 
 export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProfileProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [name, setName] = useState(artist.name);
   const [artistType, setArtistType] = useState(artist.artistType || '');
   const [socialMedia, setSocialMedia] = useState(artist.socialMedia || '');
@@ -136,8 +138,8 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
             </button>
             <button
               className="btn btn--danger btn--sm"
-              onClick={() => {
-                if (window.confirm(`Delete "${artist.name}"? This cannot be undone.`)) {
+              onClick={async () => {
+                if (await confirm(`Delete "${artist.name}"? This cannot be undone.`)) {
                   onDelete(artist.id);
                   onBack();
                 }
@@ -236,6 +238,7 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
 
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 }

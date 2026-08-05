@@ -6,6 +6,7 @@ import { uploadMedia } from '../../utils/mediaStore';
 import { Icon } from '../Icon';
 import { ShowTimeline } from '../ShowTimeline';
 import { withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
+import { useConfirm } from '../useConfirm';
 
 // Loaded on demand — pulls in the AI/OCR/PDF parsing deps only when the
 // import flow is actually opened, keeping them out of the main bundle.
@@ -340,6 +341,7 @@ export function ScheduleSection({
   knownNames = [],
   onChange,
 }: ScheduleSectionProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const initialMode: ScheduleMode = schedule.length > 0 ? 'build' : 'choose';
   const [mode, setMode] = useState<ScheduleMode>(initialMode);
   const [time, setTime] = useState('');
@@ -386,12 +388,12 @@ export function ScheduleSection({
     }));
   }, []);
 
-  const handleDelete = useCallback((id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     const item = scheduleRef.current.find((s) => s.id === id);
-    if (window.confirm(`Delete schedule item "${item?.description}"?`)) {
+    if (await confirm(`Delete schedule item "${item?.description}"?`)) {
       onChangeRef.current(scheduleRef.current.filter((s) => s.id !== id));
     }
-  }, []);
+  }, [confirm]);
 
   const handleMove = useCallback((idx: number, dir: -1 | 1) => {
     const arr = [...scheduleRef.current];
@@ -417,9 +419,9 @@ export function ScheduleSection({
     }
   }, []);
 
-  function clearAll() {
+  async function clearAll() {
     if (schedule.length === 0) return;
-    if (window.confirm(`Delete all ${schedule.length} cues and start over? This can't be undone.`)) {
+    if (await confirm(`Delete all ${schedule.length} cues and start over? This can't be undone.`)) {
       onChange([]);
     }
   }
@@ -541,6 +543,7 @@ export function ScheduleSection({
           />
         </Suspense>
       )}
+      {confirmDialog}
     </div>
   );
 }
