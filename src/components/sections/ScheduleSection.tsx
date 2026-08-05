@@ -1,5 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Performer, ScheduleItem } from '../../types';
+import type { Performer, PotentialComic, ScheduleItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
@@ -27,6 +27,14 @@ interface ScheduleSectionProps {
    * walk-on.
    */
   knownNames?: string[];
+  /** Everyone on file who isn't on this show's bill yet. */
+  unbookedComics?: PotentialComic[];
+  /**
+   * Book someone from the Rolodex onto this show and hand back their new
+   * performer record, so the cue can link to it. Attaching a name to a cue is
+   * saying they're performing, so they belong on the bill.
+   */
+  onBookPerformer?: (comic: PotentialComic) => Performer;
   onChange: (schedule: ScheduleItem[]) => void;
 }
 
@@ -93,6 +101,8 @@ interface CueRowProps {
   durationText: string | null;
   musicLabel: string | null;
   performers: Performer[];
+  unbookedComics: PotentialComic[];
+  onBookPerformer?: (comic: PotentialComic) => Performer;
   onPatch: (id: string, patch: Partial<ScheduleItem>) => void;
   onDelete: (id: string) => void;
   onMove: (idx: number, dir: -1 | 1) => void;
@@ -101,7 +111,7 @@ interface CueRowProps {
 
 const CueRow = memo(function CueRow({
   item, idx, isFirst, isLast, durationText, musicLabel, performers,
-  onPatch, onDelete, onMove, onPickMusic,
+  unbookedComics, onBookPerformer, onPatch, onDelete, onMove, onPickMusic,
 }: CueRowProps) {
   const [editing, setEditing] = useState(false);
   const [editTime, setEditTime] = useState(item.time);
@@ -198,24 +208,52 @@ const CueRow = memo(function CueRow({
                 aria-label="Who's on stage"
                 placeholder="On stage"
               />
-              {performers.length > 0 && (
+              {/* The bill first, then everyone else on file. This used to list
+                  the bill alone, so a cue could only be attached to someone
+                  already booked — and attaching is what gives Run Show the
+                  walk-on and the face on the soundboard. Picking someone off
+                  the Rolodex books them onto the show as well, because a name
+                  against a cue means they're performing. */}
+              {(performers.length > 0 || unbookedComics.length > 0) && (
                 <select
                   className="section-field__select cue__edit-input--perfsel"
                   value={editPerformerId}
                   onChange={(e) => {
-                    const id = e.target.value;
-                    const perf = id ? performers.find((p) => p.id === id) : null;
-                    setEditPerformerId(id);
+                    const value = e.target.value;
+                    if (value.startsWith('rolodex:')) {
+                      const comic = unbookedComics.find((c) => c.id === value.slice(8));
+                      const booked = comic && onBookPerformer?.(comic);
+                      if (booked) {
+                        setEditPerformerId(booked.id);
+                        setEditPerformer(booked.name);
+                      }
+                      return;
+                    }
+                    const perf = value ? performers.find((p) => p.id === value) : null;
+                    setEditPerformerId(value);
                     if (perf) setEditPerformer(perf.name);
                   }}
                   aria-label="Attach a performer"
                 >
                   <option value="">Attach performer…</option>
-                  {performers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}{p.walkOnMusic ? ' (walk-on)' : ''}
-                    </option>
-                  ))}
+                  {performers.length > 0 && (
+                    <optgroup label="On this bill">
+                      {performers.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}{p.walkOnMusic ? ' (walk-on)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {onBookPerformer && unbookedComics.length > 0 && (
+                    <optgroup label="From your Rolodex — adds them to the bill">
+                      {unbookedComics.map((c) => (
+                        <option key={c.id} value={`rolodex:${c.id}`}>
+                          {c.name}{c.walkOnMusic ? ' (walk-on)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               )}
               <input
@@ -340,6 +378,8 @@ export function ScheduleSection({
   showTime,
   performers = [],
   knownNames = [],
+  unbookedComics = [],
+  onBookPerformer,
   onChange,
 }: ScheduleSectionProps) {
   const { confirm, confirmDialog } = useConfirm();
@@ -546,6 +586,8 @@ export function ScheduleSection({
                   durationText={durationLabel(schedule, idx)}
                   musicLabel={cueMusicLabelFor(item, performers)}
                   performers={performers}
+                  unbookedComics={unbookedComics}
+                  onBookPerformer={onBookPerformer}
                   onPatch={handlePatch}
                   onDelete={handleDelete}
                   onMove={handleMove}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem } from '../types';
+import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem, Performer, PotentialComic } from '../types';
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
 import { Icon, type IconName } from './Icon';
@@ -137,6 +137,38 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     setViewerCopyFailed(false);
     setViewerOpen(true);
   }
+
+  /**
+   * Book someone off the Rolodex onto this show, and hand their new record
+   * back so a cue can link to it.
+   *
+   * Everything the Rolodex holds comes with them — most importantly the
+   * walk-on, which is the whole reason a cue links to a performer rather than
+   * just naming one in text.
+   */
+  function bookFromRolodex(comic: PotentialComic): Performer {
+    const performer: Performer = {
+      id: generateId(),
+      name: comic.name,
+      socialMedia: comic.socialMedia,
+      email: comic.email,
+      credits: comic.credits,
+      walkOnMusic: comic.walkOnMusic,
+      walkOnMusicName: comic.walkOnMusicName,
+      walkOnMusicArtist: comic.walkOnMusicArtist,
+      walkOnMusicTimestamp: comic.walkOnMusicTimestamp,
+      walkOnMusicLink: comic.walkOnMusicLink,
+    };
+    handleUpdate({ performers: [...show.performers, performer] });
+    return performer;
+  }
+
+  // Everyone on file who isn't already on this bill — matched on name, since a
+  // performer booked from the Rolodex is a copy rather than a reference.
+  const unbookedComics = useMemo(() => {
+    const onBill = new Set(show.performers.map((p) => p.name.trim().toLowerCase()));
+    return settings.potentialComics.filter((c) => !onBill.has(c.name.trim().toLowerCase()));
+  }, [settings.potentialComics, show.performers]);
 
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
@@ -370,7 +402,11 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
       accent: 'purple',
       count: show.artists.length,
       preview: joinNames(show.artists.map((a) => a.name)),
-      content: <ArtistsSection artists={show.artists} onChange={(artists) => handleUpdate({ artists })} />,
+      content: <ArtistsSection
+        artists={show.artists}
+        potentialComics={settings.potentialComics}
+        onChange={(artists) => handleUpdate({ artists })}
+      />,
     },
     {
       key: 'schedule',
@@ -386,6 +422,8 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         showTime={show.time}
         performers={show.performers}
         knownNames={knownNames}
+        unbookedComics={unbookedComics}
+        onBookPerformer={bookFromRolodex}
         onChange={(schedule) => handleUpdate({ schedule })}
       />,
     },
