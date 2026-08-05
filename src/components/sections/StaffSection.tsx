@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { StaffMember } from '../../types';
 import { STAFF_ROLES } from '../../types';
 import { generateId } from '../../utils/id';
+import { useConfirm } from '../useConfirm';
 
 interface StaffSectionProps {
   staff: StaffMember[];
@@ -9,6 +10,7 @@ interface StaffSectionProps {
 }
 
 export function StaffSection({ staff, onChange }: StaffSectionProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [role, setRole] = useState(STAFF_ROLES[0]);
   const [customRole, setCustomRole] = useState('');
   const [personName, setPersonName] = useState('');
@@ -33,9 +35,9 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
     setPhone('');
   }
 
-  function deleteStaff(id: string) {
+  async function deleteStaff(id: string) {
     const member = staff.find((s) => s.id === id);
-    if (window.confirm(`Delete "${member?.personName}" (${member?.role})? This cannot be undone.`)) {
+    if (await confirm(`Delete "${member?.personName}" (${member?.role})? This cannot be undone.`)) {
       onChange(staff.filter((s) => s.id !== id));
     }
   }
@@ -128,6 +130,7 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
           </li>
         ))}
       </ul>
+      {confirmDialog}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { deleteMedia, uploadMedia } from '../utils/mediaStore';
 import { canDeleteMedia, titleFromFileName, usageCount } from '../utils/musicLibrary';
 import { PageHeader } from './PageHeader';
 import './MusicLibrary.css';
+import { useConfirm } from './useConfirm';
 
 interface MusicLibraryProps {
   tracks: MusicTrack[];
@@ -23,6 +24,7 @@ interface MusicLibraryProps {
  * Here it goes up once and any show adds it from the list.
  */
 export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [status, setStatus] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -83,14 +85,14 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
    * shows share this reference, so deleting it out from under them would kill
    * playback in a show that has nothing to do with this page.
    */
-  function removeTrack(track: MusicTrack) {
+  async function removeTrack(track: MusicTrack) {
     const used = usageCount(track, shows);
     const warning = used
       ? `Remove "${track.title}" from the library?\n\n${used} show${used === 1 ? '' : 's'} already added it — ` +
         `${used === 1 ? 'that show keeps' : 'those shows keep'} the track and ${used === 1 ? 'its' : 'their'} audio still plays. ` +
         `You just won't be able to add it to new shows from here.`
       : `Remove "${track.title}" from the library? The audio is deleted and this cannot be undone.`;
-    if (!window.confirm(warning)) return;
+    if (!(await confirm(warning))) return;
 
     if (canDeleteMedia(track, shows)) deleteMedia(track.music);
     onChange(tracks.filter((t) => t.id !== track.id));
@@ -194,6 +196,7 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
           })}
         </ul>
       )}
+      {confirmDialog}
     </div>
   );
 }

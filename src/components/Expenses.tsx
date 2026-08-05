@@ -4,6 +4,7 @@ import { EXPENSE_CATEGORIES } from '../types';
 import { generateId } from '../utils/id';
 import { PageHeader } from './PageHeader';
 import './Expenses.css';
+import { useConfirm } from './useConfirm';
 
 interface ExpensesProps {
   settings: AppSettings;
@@ -28,6 +29,7 @@ const EMPTY_DRAFT: ExpenseDraft = {
 };
 
 export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [addDraft, setAddDraft] = useState<ExpenseDraft>(EMPTY_DRAFT);
   const [editId, setEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<ExpenseDraft>(EMPTY_DRAFT);
@@ -51,9 +53,9 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
     setAddDraft(EMPTY_DRAFT);
   }
 
-  function deleteExpense(expenseId: string) {
+  async function deleteExpense(expenseId: string) {
     const expense = expenses.find((e) => e.id === expenseId);
-    if (window.confirm(`Delete expense "${expense?.itemName}" ($${expense?.cost})? This cannot be undone.`)) {
+    if (await confirm(`Delete expense "${expense?.itemName}" ($${expense?.cost})? This cannot be undone.`)) {
       onUpdateSettings({ ...settings, expenses: expenses.filter((e) => e.id !== expenseId) });
     }
   }
@@ -213,6 +215,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
           <strong>Total:</strong> <span>${displayTotal.toFixed(2)}</span>
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }

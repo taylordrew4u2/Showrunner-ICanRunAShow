@@ -1,0 +1,24 @@
+.confirm-dialog__title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.confirm-dialog__message {
+  margin: 0 0 18px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: break-word;
+}
+
+/* Confirm sits on the right, where the primary action sits everywhere else in
+   the app. Cancel is still the one that holds focus — see the DOM order. */
+.confirm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}

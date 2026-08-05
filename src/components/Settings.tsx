@@ -7,6 +7,7 @@ import { generateId } from '../utils/id';
 import { PageHeader } from './PageHeader';
 import { Icon } from './Icon';
 import './Settings.css';
+import { useConfirm } from './useConfirm';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -44,6 +45,7 @@ export function Settings({
   onDeleteForever,
   onEmptyTrash,
 }: SettingsProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
   const [newProducerName, setNewProducerName] = useState('');
   const [newProducerRole, setNewProducerRole] = useState('');
@@ -286,8 +288,8 @@ export function Settings({
                       </button>
                       <button
                         className="btn btn--danger btn--sm"
-                        onClick={() => {
-                          if (window.confirm(`Permanently delete "${item.data.name}"? This can't be undone.`)) {
+                        onClick={async () => {
+                          if (await confirm(`Permanently delete "${item.data.name}"? This can't be undone.`)) {
                             onDeleteForever(item.id);
                           }
                         }}
@@ -301,8 +303,8 @@ export function Settings({
               {onEmptyTrash && (
                 <button
                   className="btn btn--ghost btn--sm settings__trash-empty"
-                  onClick={() => {
-                    if (window.confirm(`Permanently delete all ${trash.length} item(s)? This can't be undone.`)) {
+                  onClick={async () => {
+                    if (await confirm(`Permanently delete all ${trash.length} item(s)? This can't be undone.`)) {
                       onEmptyTrash();
                     }
                   }}
@@ -403,6 +405,7 @@ export function Settings({
           )}
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 }
