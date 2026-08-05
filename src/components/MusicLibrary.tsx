@@ -92,7 +92,7 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
         `${used === 1 ? 'that show keeps' : 'those shows keep'} the track and ${used === 1 ? 'its' : 'their'} audio still plays. ` +
         `You just won't be able to add it to new shows from here.`
       : `Remove "${track.title}" from the library? The audio is deleted and this cannot be undone.`;
-    if (!(await confirm(warning))) return;
+    if (!(await confirm({ message: warning, confirmLabel: 'Remove' }))) return;
 
     if (canDeleteMedia(track, shows)) deleteMedia(track.music);
     onChange(tracks.filter((t) => t.id !== track.id));

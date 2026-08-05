@@ -131,7 +131,7 @@ export function RunShow({
   onFinish,
   onClose,
 }: RunShowProps) {
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, confirmDialog, confirmOpen } = useConfirm();
   const [idx, setIdx] = useState(0);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0); // within current cue
@@ -262,7 +262,15 @@ export function RunShow({
   }
 
   async function restartShow() {
-    if (!(await confirm('Restart the timer from the top of the show?'))) return;
+    const ok = await confirm({
+      title: 'Restart from the top?',
+      message:
+        'The clock goes back to cue one and any time you added or took off is cleared. ' +
+        'The running order itself is untouched.',
+      confirmLabel: 'Restart',
+      danger: false,
+    });
+    if (!ok) return;
     setIdx(0);
     setElapsed(0);
     setShowElapsed(0);
@@ -273,7 +281,15 @@ export function RunShow({
   }
 
   async function finishShow() {
-    if (!(await confirm('End the show and mark it completed?'))) return;
+    const ok = await confirm({
+      title: 'End the show?',
+      message:
+        'The audio fades out and the show is marked completed. Your running order, lineup ' +
+        'and timings are kept.',
+      confirmLabel: 'End show',
+      danger: false,
+    });
+    if (!ok) return;
     audioEngine.stop({ fadeMs: fade.fadeOutMs });
     onFinish?.();
     onClose();
@@ -481,6 +497,11 @@ export function RunShow({
   // reaching it, so the spacebar always means "start / pause the timer".
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // A confirmation is on screen and hasn't been answered. Every shortcut
+      // below acts on the show behind it: Escape closed the whole Run Show out
+      // from under the prompt, and the spacebar started the clock while
+      // "restart from the top?" was still waiting for an answer.
+      if (confirmOpen) return;
       const el = e.target as HTMLElement | null;
       // A fade slider is an <input>, but it isn't typing — and once the
       // operator has touched one it holds focus. Treating it as a text field
@@ -505,7 +526,7 @@ export function RunShow({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, running, isLast]);
+  }, [idx, running, isLast, confirmOpen]);
 
   const started = running || showElapsed > 0 || idx > 0;
   const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
