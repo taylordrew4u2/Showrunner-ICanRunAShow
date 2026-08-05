@@ -9,11 +9,55 @@
 import type { ScheduleItem } from "../types";
 import { generateId } from "./id";
 import { api } from "./api";
+import { borrowMeridiem, minutesBetweenClock, parseDurationSeconds } from "./showTiming";
 
 interface AIScheduleRow {
   time?: string;
   description?: string;
   performer?: string;
+  /** Minutes the segment runs, when the source said so. Never estimated. */
+  durationMin?: number;
+}
+
+/** A whole positive number of minutes, or undefined. Anything a model can hand
+ *  back that isn't one — a string, a fraction, a negative, a whole day — is not
+ *  a cue length, and a bad one is worse than none: it would silently reshape
+ *  the running order's timings. */
+function cleanDuration(value: unknown): number | undefined {
+  const n = typeof value === 'string' ? Number(value) : value;
+  if (typeof n !== 'number' || !Number.isFinite(n)) return undefined;
+  const mins = Math.round(n);
+  if (mins <= 0 || mins > 12 * 60) return undefined;
+  return mins;
+}
+
+/**
+ * How long a cue runs, when the row itself says so.
+ *
+ * The importer used to store no length at all, so every imported show opened
+ * with "Cues timed 0/N" and a blank minutes field on every row — even when the
+ * schedule it came from stated the length on the page. Read in order of how
+ * explicit the source was: what the model returned, then a time range in the
+ * text ("8:00–8:20"), then a stated duration ("15 min set").
+ *
+ * Nothing is invented. A row that doesn't say is left undefined, which is what
+ * lets baseDurations keep inferring from the gap to the next cue.
+ */
+export function deriveDurationMin(
+  fromModel: unknown,
+  text: string | undefined,
+  rangeEnd?: string,
+  startTime?: string,
+): number | undefined {
+  const stated = cleanDuration(fromModel);
+  if (stated) return stated;
+
+  const span = minutesBetweenClock(startTime, rangeEnd);
+  if (span) return span;
+
+  const seconds = parseDurationSeconds(text);
+  if (seconds != null && seconds > 0) return Math.max(1, Math.round(seconds / 60));
+  return undefined;
 }
 
 /** Call the server proxy; returns mapped items (throws on any failure so callers can fall back). */
@@ -23,16 +67,26 @@ async function extractViaProxy(body: { mode: "text"; text: string } | { mode: "i
   return items.map(mapAIItem);
 }
 
-function mapAIItem(item: {
-  time?: string;
-  description?: string;
-  performer?: string;
-}): ScheduleItem {
+function mapAIItem(item: AIScheduleRow): ScheduleItem {
+  const time = item.time || "";
+  // The model is asked for a start time, but it can hand back the whole range
+  // in that field ("8:00-8:20"). Split it so the row keeps a clean start and
+  // the span still becomes a length rather than being thrown away.
+  const range = time.match(/^(.*?)\s*(?:[-–—]|to)\s*(\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?)$/i);
+  // Same meridiem borrowing as the text parser: "8:00-8:20 PM" states the PM
+  // once, at the end, and a bare "8:00" start reads as morning.
+  const start = borrowMeridiem(range ? range[1].trim() : time, range?.[2]);
   return {
     id: generateId(),
-    time: item.time || "",
+    time: start,
     description: item.description || "",
     performer: item.performer || undefined,
+    durationMin: deriveDurationMin(
+      item.durationMin,
+      `${item.description ?? ""} ${item.time ?? ""}`,
+      range?.[2],
+      start,
+    ),
   };
 }
 
@@ -223,13 +277,19 @@ export function parseScheduleManually(text: string): ScheduleItem[] {
     const time = match[1].replace(/\s+/g, " ").replace(/\.\s*/g, "").trim();
     let description = line.slice(0, match.index) + line.slice(match.index + match[0].length);
 
-    // Drop a leftover range-end time ("8:00–8:20 PM Devon" → after removing
-    // "8:00" → "–8:20 PM Devon" → "Devon"). Requires a real range separator so
-    // a description that simply starts with a number (e.g. "5 min break") is kept.
-    description = description.replace(
-      /^[\s•·*>]*(?:[-–—]|to)\s*\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?(?=\s|$)/i,
-      "",
+    // Take the range-end time out of the description ("8:00–8:20 PM Devon" →
+    // after removing "8:00" → "–8:20 PM Devon" → "Devon"). Requires a real range
+    // separator so a description that simply starts with a number (e.g. "5 min
+    // break") is kept.
+    //
+    // It's captured rather than discarded: the end of the range is the one
+    // place a plain-text schedule states how long a segment runs, and throwing
+    // it away is why every imported cue arrived with no minutes on it.
+    const rangeMatch = description.match(
+      /^[\s•·*>]*(?:[-–—]|to)\s*(\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?)(?=\s|$)/i,
     );
+    const rangeEnd = rangeMatch?.[1]?.replace(/\s+/g, " ").replace(/\.\s*/g, "").trim();
+    if (rangeMatch) description = description.slice(rangeMatch[0].length);
     // Trim leading bullets/separators and trailing separators.
     description = description
       .replace(/^[\s\-–—:|•·*.>]+/, "")
@@ -237,7 +297,17 @@ export function parseScheduleManually(text: string): ScheduleItem[] {
       .trim();
 
     if (description) {
-      items.push({ id: generateId(), time, description });
+      // A range writes the meridiem once, at the end, so the captured start of
+      // "8:00-8:20 PM" is a bare "8:00" that reads as morning. Store it with
+      // the meridiem it was always meant to have — otherwise the cue sorts and
+      // times itself twelve hours out.
+      const start = borrowMeridiem(time, rangeEnd);
+      items.push({
+        id: generateId(),
+        time: start,
+        description,
+        durationMin: deriveDurationMin(undefined, description, rangeEnd, start),
+      });
     }
   }
 
