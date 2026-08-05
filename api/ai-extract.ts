@@ -16,8 +16,10 @@ const SYSTEM_PROMPT = `You are a run-of-show schedule extractor. Extract each li
 - time: string (start time, e.g. "7:00 PM", "19:00"; "" if none)
 - description: string (the segment / what happens — e.g. "Opening set", "Host intro", "Intermission")
 - performer: string (who is on stage for that segment — a person/act name; "" if it's not a performance, like doors/intermission)
+- durationMin: number (how many minutes the segment runs, ONLY when the source says so — "15 min set" → 15, a range "8:00–8:20" → 20. Omit it or use 0 when the source does not say. Never estimate a length.)
 
 Separate the performer's name from the segment when both are present (e.g. "8:00 Maya — opening set" → performer "Maya", description "opening set").
+When a row gives a time range, "time" is the start of the range and durationMin is its length.
 Return ONLY a valid JSON array, no markdown. If no schedule data is found, return []`;
 
 interface ExtractBody {

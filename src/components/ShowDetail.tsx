@@ -454,17 +454,20 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   // same show doesn't read as "9/18/2026 20:00" in one place and
   // "Sep 18 · 8:00 PM" in another.
   const detailDate = parseShowDate(show.date);
-  const metaParts = [
-    detailDate?.toLocaleDateString(undefined, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: detailDate.getFullYear() === new Date().getFullYear() ? undefined : 'numeric',
-    }),
-    formatShowTime(show.time),
-    show.venueName,
-    show.location,
-  ].filter((part): part is string => !!part);
+  const metaParts: { text: string; kind: 'when' | 'place' }[] = [
+    {
+      text: detailDate?.toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: detailDate.getFullYear() === new Date().getFullYear() ? undefined : 'numeric',
+      }),
+      kind: 'when' as const,
+    },
+    { text: formatShowTime(show.time), kind: 'when' as const },
+    { text: show.venueName, kind: 'place' as const },
+    { text: show.location, kind: 'place' as const },
+  ].filter((part): part is { text: string; kind: 'when' | 'place' } => !!part.text);
 
   // Every secondary action for this show, in one menu attached to the show —
   // rather than scattered across the app's navigation.
@@ -482,18 +485,24 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   // zeroes is not a summary — it's a list of everything this show isn't, and it
   // pushed the parts that do exist off the top of the screen.
   const hiddenKeys = new Set(show.hiddenSections ?? []);
-  const allTileGroups: Array<Array<{ icon: IconName; value: number; label: string; sectionKey?: SectionKey }>> = [
+  // Each tile carries both forms of its noun. A tile only shows once its count
+  // is at least one, so the count of one is a case that reaches the screen
+  // constantly — and it was reading "1 DJ songs" and "1 Vendors".
+  const allTileGroups: Array<Array<{
+    icon: IconName; value: number; label: string; labelOne?: string; sectionKey?: SectionKey;
+  }>> = [
     [
-      { icon: 'users', value: stats.counts.performers, label: 'Performers', sectionKey: 'performers' },
-      { icon: 'sparkle', value: stats.counts.artists, label: 'Artists', sectionKey: 'artists' },
-      { icon: 'schedule', value: stats.counts.cues, label: 'Cues', sectionKey: 'schedule' },
-      { icon: 'music', value: stats.counts.songs, label: 'DJ songs', sectionKey: 'dj' },
+      { icon: 'users', value: stats.counts.performers, label: 'Performers', labelOne: 'Performer', sectionKey: 'performers' },
+      { icon: 'sparkle', value: stats.counts.artists, label: 'Artists', labelOne: 'Artist', sectionKey: 'artists' },
+      { icon: 'schedule', value: stats.counts.cues, label: 'Cues', labelOne: 'Cue', sectionKey: 'schedule' },
+      { icon: 'music', value: stats.counts.songs, label: 'DJ songs', labelOne: 'DJ song', sectionKey: 'dj' },
     ],
     [
-      { icon: 'wrench', value: stats.counts.staff, label: 'Staff', sectionKey: 'staff' },
-      { icon: 'bolt', value: stats.counts.vendors, label: 'Vendors', sectionKey: 'vendors' },
-      { icon: 'file', value: stats.counts.expenses, label: 'Expenses', sectionKey: 'expenses' },
-      { icon: 'check', value: stats.counts.todos, label: 'To-dos' },
+      // "Staff" is already a plural; one of them is a staff member.
+      { icon: 'wrench', value: stats.counts.staff, label: 'Staff', labelOne: 'Staff member', sectionKey: 'staff' },
+      { icon: 'bolt', value: stats.counts.vendors, label: 'Vendors', labelOne: 'Vendor', sectionKey: 'vendors' },
+      { icon: 'file', value: stats.counts.expenses, label: 'Expenses', labelOne: 'Expense', sectionKey: 'expenses' },
+      { icon: 'check', value: stats.counts.todos, label: 'To-dos', labelOne: 'To-do' },
     ],
   ];
   const tileGroups = allTileGroups
@@ -607,7 +616,12 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         {metaParts.length > 0 && (
           <div className="show-detail__meta">
             {metaParts.map((part) => (
-              <span key={part}>{part}</span>
+              <span
+                key={part.text}
+                className={part.kind === 'place' ? 'show-detail__meta-place' : undefined}
+              >
+                {part.text}
+              </span>
             ))}
           </div>
         )}
@@ -659,7 +673,9 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
                 </span>
                 <span className="show-tile__body">
                   <span className="show-tile__value">{tile.value}</span>
-                  <span className="show-tile__label">{tile.label}</span>
+                  <span className="show-tile__label">
+                    {tile.value === 1 ? tile.labelOne ?? tile.label : tile.label}
+                  </span>
                 </span>
               </div>
             ))}

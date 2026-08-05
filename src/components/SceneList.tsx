@@ -58,6 +58,9 @@ export function SceneList({ scenes, onChange }: SceneListProps) {
           onChange={(e) => setNewTitle(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Add a scene or segment…"
+          // The placeholder was the only thing naming this field, and a
+          // placeholder isn't a name — it goes away the moment you type.
+          aria-label="Add a scene or segment"
         />
         <button className="btn btn--primary" onClick={addScene}>
           Add

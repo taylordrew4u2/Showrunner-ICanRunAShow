@@ -29,6 +29,44 @@ export function parseDurationSeconds(text: string | undefined): number | null {
 }
 
 /**
+ * Whole minutes from one clock time to another, or null if either won't parse
+ * or the pair doesn't describe a forward span.
+ *
+ * A schedule that says "8:00–8:20" has already stated how long that segment
+ * runs; this is what reads it. An end earlier than the start is treated as
+ * crossing midnight, because a late show genuinely does — "11:40 PM–12:10 AM"
+ * is thirty minutes, not a negative number. Anything longer than a night is
+ * refused rather than guessed at.
+ */
+const MINUTES_IN_DAY = 24 * 60;
+const MAX_SPAN_MINUTES = 12 * 60;
+
+/**
+ * "8:00" alongside "8:20 PM" → "8:00 PM".
+ *
+ * A written range states the meridiem once, at the end — nobody types
+ * "8:00 PM–8:20 PM". Read literally the start of that range is eight in the
+ * morning, which turns a twenty-minute set into a twelve-hour one.
+ */
+export function borrowMeridiem(start: string, end: string | undefined): string {
+  if (!end || /[ap]\.?m\.?/i.test(start)) return start;
+  const meridiem = end.match(/([ap])\.?m\.?/i)?.[1];
+  return meridiem ? `${start.trim()} ${meridiem.toLowerCase()}m` : start;
+}
+
+export function minutesBetweenClock(
+  start: string | undefined,
+  end: string | undefined,
+): number | null {
+  const a = parseClockToMinutes(start ? borrowMeridiem(start, end) : start);
+  const b = parseClockToMinutes(end);
+  if (a == null || b == null) return null;
+  const span = b >= a ? b - a : b + MINUTES_IN_DAY - a;
+  if (span <= 0 || span > MAX_SPAN_MINUTES) return null;
+  return span;
+}
+
+/**
  * The base (pre-adjustment) length in seconds for each cue. An explicit
  * per-segment length wins; otherwise the gap to the next clock time; otherwise
  * a duration parsed from the description; otherwise the default.

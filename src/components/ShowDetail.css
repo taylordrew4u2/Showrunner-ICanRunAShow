@@ -315,9 +315,14 @@ select.show-detail__status--select {
    they were set in the same muted grey as the chrome around them. Full-strength
    text — the title is bigger and the dividers keep the facts apart, so nothing
    is lost by letting these read at full contrast. */
+/* No "·" between these, for the same reason the show card has none: the row
+   wraps, and a separator glyph has nowhere correct to live on a wrapping row.
+   Hung off the preceding item — which is what this did — it gets stranded at
+   the end of a line, and a phone showed "Sat, Aug 15 · 9:30 PM ·" with nothing
+   after the dot. Space survives a wrap; the parts are given room instead. */
 .show-detail__meta {
   display: flex;
-  gap: 10px;
+  gap: 2px 16px;
   flex-wrap: wrap;
   align-items: baseline;
   color: var(--text);
@@ -328,15 +333,17 @@ select.show-detail__status--select {
   overflow-wrap: break-word;
 }
 
-.show-detail__meta > span:not(:last-child)::after {
-  content: '·';
-  margin-left: 10px;
-  color: var(--text-soft);
+/* Where the show is reads as context for when it is, so it steps back a shade
+   — with the dots gone, that difference is what keeps the four parts from
+   running together as one grey line. */
+.show-detail__meta-place {
+  color: var(--text-muted);
+  font-weight: 400;
 }
 
 @media (max-width: 640px) {
   .show-detail__meta {
-    gap: 12px;
+    gap: 2px 14px;
     font-size: 0.9rem;
   }
 }
