@@ -87,18 +87,23 @@
   --ease-default: ease;
   --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
 
-  /* Z-index layers — never use raw integers outside this list */
+  /* Z-index layers — never use raw integers outside this list.
+     Ordered by what has to be in front of what. A modal is last because it is
+     raised *from* the surfaces below it and has to be reachable once it is:
+     sitting at 100, under the drawer, the confirmation for deleting a performer
+     opened behind the profile drawer that asked for it, and the drawer's own
+     fields swallowed every click at the Delete button. */
   --z-base: 0;
   --z-raised: 1;
   --z-sticky: 60;
   --z-overlay: 80;
   --z-runshow: 90;
-  --z-modal: 100;
   --z-runshow-ui: 120;
   --z-loading: 150;
   --z-banner: 200;
   --z-drawer: 201;
   --z-lightbox: 1000;
+  --z-modal: 1100;
 }
 
 /* ── Color scheme ────────────────────────────────────────────────────
