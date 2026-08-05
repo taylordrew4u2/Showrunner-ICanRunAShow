@@ -84,6 +84,41 @@ export function baseDurations(schedule: ScheduleItem[]): number[] {
   });
 }
 
+/** A cue with no length of its own. */
+export function isUntimed(cue: ScheduleItem): boolean {
+  return !(cue.durationMin && cue.durationMin > 0);
+}
+
+/**
+ * Write the length the show is *already* running each cue at into the cue.
+ *
+ * baseDurations always returns a number — from the gap to the next cue, from a
+ * duration in the text, or from the default — so a cue with an empty minutes
+ * field is not an untimed cue, it's a cue whose timing is implied and invisible.
+ * That's why an imported show reads "Cues timed 0/N" while Run Show counts it
+ * down quite happily.
+ *
+ * Filling them in changes nothing about how the show runs: every value written
+ * here is the value that was going to be used anyway. What it changes is that
+ * you can now see the numbers, edit them, and have the readiness count tell the
+ * truth. Deliberately not automatic — freezing a length that was tracking the
+ * gap to the next cue is a real change of behaviour once you edit a time
+ * afterwards, and that should be a decision, not a side effect of opening a
+ * show.
+ */
+export function fillCueDurations(
+  schedule: ScheduleItem[],
+): { schedule: ScheduleItem[]; filled: number } {
+  const seconds = baseDurations(schedule);
+  let filled = 0;
+  const next = schedule.map((cue, i) => {
+    if (!isUntimed(cue)) return cue;
+    filled++;
+    return { ...cue, durationMin: Math.max(1, Math.round(seconds[i] / 60)) };
+  });
+  return { schedule: filled > 0 ? next : schedule, filled };
+}
+
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
 }

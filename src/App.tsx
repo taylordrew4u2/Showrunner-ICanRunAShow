@@ -299,6 +299,8 @@ export default function App() {
   // Which follow-up list from the at-a-glance row the grid is narrowed to.
   const [showsFocus, setShowsFocus] = useState<ShowsFocus>(null);
   const [expandOrigin, setExpandOrigin] = useState({ x: 50, y: 30 });
+  /** Where the shows grid was scrolled to when you last left it. */
+  const listScrollRef = useRef(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'added' | 'date-asc' | 'date-desc' | 'name'>(() => {
     try {
@@ -1049,6 +1051,9 @@ export default function App() {
   }
 
   function handleSelectShow(show: Show, e?: React.MouseEvent) {
+    // Remember where the list was, so Back returns you to the show you tapped
+    // rather than the top of a long grid.
+    listScrollRef.current = window.scrollY;
     // Open the show first. Measuring the card to set the expand animation's
     // origin is decoration, and it used to run ahead of the navigation it
     // decorates — so anything it touched (a missing .app-main, an element
@@ -1075,6 +1080,24 @@ export default function App() {
     setView('list');
     setSelectedShow(null);
   }
+
+  /**
+   * Opening something puts you at the top of it.
+   *
+   * Nothing reset the scroll position when the view changed, and the whole app
+   * lives in one scrolling document — so tapping a show inherited wherever the
+   * shows grid happened to be. On a phone the grid is a single very tall
+   * column, so a show a few rows down opened with its title and its Back
+   * button a thousand pixels above the viewport: you'd be looking at the
+   * bottom of the show page, which reads exactly like the tap having done
+   * nothing at all.
+   *
+   * Going back is the one direction that shouldn't jump — returning to the
+   * list drops you where you left it, next to the show you just opened.
+   */
+  useEffect(() => {
+    window.scrollTo(0, view === 'list' ? listScrollRef.current : 0);
+  }, [view, selectedShow?.id]);
 
   // totalSceneCount retained for future use
 
