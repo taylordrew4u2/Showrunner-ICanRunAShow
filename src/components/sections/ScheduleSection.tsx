@@ -7,6 +7,7 @@ import { Icon } from '../Icon';
 import { ShowTimeline } from '../ShowTimeline';
 import { withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
 import { useConfirm } from '../useConfirm';
+import { fillCueDurations, isUntimed } from '../../utils/showTiming';
 
 // Loaded on demand — pulls in the AI/OCR/PDF parsing deps only when the
 // import flow is actually opened, keeping them out of the main bundle.
@@ -356,6 +357,9 @@ export function ScheduleSection({
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   const totalLabel = useMemo(() => totalRuntimeLabel(schedule), [schedule]);
+  // Cues whose length is implied rather than written down — the ones the
+  // readiness count on the show page treats as untimed.
+  const untimedCount = useMemo(() => schedule.filter(isUntimed).length, [schedule]);
 
   function addItem() {
     if (!desc.trim()) return;
@@ -419,6 +423,14 @@ export function ScheduleSection({
     }
   }, []);
 
+  // Make the timings the show already runs on visible and editable. Not a
+  // confirm: nothing is destroyed, every number written is the one that was
+  // already in use, and each is editable on the row right afterwards.
+  function fillLengths() {
+    const result = fillCueDurations(schedule);
+    if (result.filled > 0) onChange(result.schedule);
+  }
+
   async function clearAll() {
     if (schedule.length === 0) return;
     if (await confirm(`Delete all ${schedule.length} cues and start over? This can't be undone.`)) {
@@ -459,15 +471,26 @@ export function ScheduleSection({
               </div>
               {totalLabel && <div className="schedule-summary__meta">{totalLabel}</div>}
             </div>
-            {schedule.length > 0 && (
-              <button
-                className="btn btn--ghost btn--sm schedule-summary__clear"
-                onClick={clearAll}
-                title="Delete every cue and start over"
-              >
-                Clear all
-              </button>
-            )}
+            <div className="schedule-summary__actions">
+              {untimedCount > 0 && (
+                <button
+                  className="btn btn--secondary btn--sm"
+                  onClick={fillLengths}
+                  title="Write in the length this show already runs each cue at, so you can see and edit them"
+                >
+                  Fill in {untimedCount} length{untimedCount === 1 ? '' : 's'}
+                </button>
+              )}
+              {schedule.length > 0 && (
+                <button
+                  className="btn btn--ghost btn--sm schedule-summary__clear"
+                  onClick={clearAll}
+                  title="Delete every cue and start over"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Above the cue list, because the shape of the night is what you

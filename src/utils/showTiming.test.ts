@@ -3,6 +3,8 @@ import type { ScheduleItem } from '../types';
 import {
   DEFAULT_CUE_SECONDS,
   baseDurations,
+  fillCueDurations,
+  isUntimed,
   fmtCountdown,
   fmtOffset,
   fmtShowTime,
@@ -87,5 +89,54 @@ describe('formatting helpers', () => {
   it('nextUpLabel appends a minute estimate unless one is present', () => {
     expect(nextUpLabel('Opening set', 180)).toBe('Opening set (3 min)');
     expect(nextUpLabel('Break 5 min', 300)).toBe('Break 5 min');
+  });
+});
+
+
+describe('fillCueDurations', () => {
+  const cue = (over: Partial<ScheduleItem> = {}): ScheduleItem => ({
+    id: Math.random().toString(36).slice(2), time: '', description: '', ...over,
+  });
+
+  it('writes the length the show was already running the cue at', () => {
+    // The gap to the next cue is what baseDurations was using; filling in has
+    // to produce that same number, or the show changes shape when you press it.
+    const schedule = [cue({ time: '8:00 PM' }), cue({ time: '8:30 PM' })];
+    const before = baseDurations(schedule);
+    const { schedule: after, filled } = fillCueDurations(schedule);
+    expect(filled).toBe(2);
+    expect(after[0].durationMin).toBe(30);
+    expect(baseDurations(after)).toEqual(before);
+  });
+
+  it('leaves a cue that already has a length alone', () => {
+    const schedule = [cue({ time: '8:00 PM', durationMin: 12 }), cue({ time: '8:30 PM' })];
+    const { schedule: after, filled } = fillCueDurations(schedule);
+    expect(filled).toBe(1);
+    expect(after[0].durationMin).toBe(12);
+    expect(after[0]).toBe(schedule[0]); // untouched, same reference
+  });
+
+  it('reads a length stated in the description', () => {
+    const { schedule: after } = fillCueDurations([cue({ description: 'Intermission (15 min)' })]);
+    expect(after[0].durationMin).toBe(15);
+  });
+
+  it('does nothing, and keeps the same array, when every cue is timed', () => {
+    const schedule = [cue({ durationMin: 5 }), cue({ durationMin: 10 })];
+    const result = fillCueDurations(schedule);
+    expect(result.filled).toBe(0);
+    expect(result.schedule).toBe(schedule);
+  });
+
+  it('never writes a zero — a cue of no length is not a cue', () => {
+    const { schedule: after } = fillCueDurations([cue({ description: 'Sting 20 sec' })]);
+    expect(after[0].durationMin).toBeGreaterThanOrEqual(1);
+  });
+
+  it('agrees with isUntimed about what needs filling', () => {
+    const schedule = [cue(), cue({ durationMin: 5 }), cue({ durationMin: 0 })];
+    expect(schedule.filter(isUntimed)).toHaveLength(2);
+    expect(fillCueDurations(schedule).filled).toBe(2);
   });
 });
