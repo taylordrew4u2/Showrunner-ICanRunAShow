@@ -93,7 +93,9 @@
 .expenses-page .receipt-lightbox {
     position: fixed;
     inset: 0;
-    z-index: 9999;
+    /* Was a raw 9999, which the scale in App.css says not to do — and it meant
+       this one lightbox outranked the modal layer on its own terms. */
+    z-index: var(--z-lightbox);
     background: rgba(0, 0, 0, 0.85);
     display: flex;
     flex-direction: column;
