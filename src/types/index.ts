@@ -221,6 +221,16 @@ export interface Show {
   schedule: ScheduleItem[];
   hosts: Host[];
   djSongs: DJSong[];
+  /**
+   * Library tracks this show has opted out of.
+   *
+   * Every track in the account's music library appears in every show, so a
+   * show's own `djSongs` holds only what's specific to it. Removing a library
+   * track from one show can't be a deletion — the track belongs to the
+   * library and the other shows still want it — so it's recorded here as an
+   * exclusion for this show alone.
+   */
+  djHiddenLibraryIds?: string[];
   staff: StaffMember[];
   vendors?: Vendor[];
   expenses: Expense[];

@@ -1,7 +1,8 @@
 // Roll a show up into the numbers the show page's overview tiles display.
 // Kept out of the component so the arithmetic is testable on its own and the
 // component stays about layout.
-import type { Show } from '../types';
+import type { MusicTrack, Show } from '../types';
+import { showDJSongs } from './musicLibrary';
 
 export interface ProgressStat {
   key: string;
@@ -38,11 +39,13 @@ function hasWalkOn(performer: Show['performers'][number]): boolean {
   return !!(performer.walkOnMusic || performer.walkOnMusicName || performer.walkOnMusicLink);
 }
 
-export function buildShowStats(show: Show): ShowStats {
+export function buildShowStats(show: Show, library: MusicTrack[] = []): ShowStats {
   const performers = show.performers ?? [];
   const artists = show.artists ?? [];
   const schedule = show.schedule ?? [];
-  const songs = show.djSongs ?? [];
+  // The library counts: a show with the crate in it is ready, whether or not
+  // anyone added the tracks to this show by hand.
+  const songs = showDJSongs(show, library);
   const staff = show.staff ?? [];
   const vendors = show.vendors ?? [];
   const expenses = show.expenses ?? [];
