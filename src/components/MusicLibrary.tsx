@@ -107,7 +107,7 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
     <div className="music-page">
       <PageHeader
         title="Music"
-        subtitle="Upload a track once, then add it to any show's DJ list."
+        subtitle="Upload a track once and it's in every show's DJ list — this one and every one after it."
         onBack={onBack}
         backLabel="Shows"
         actions={
@@ -133,7 +133,8 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
           <h2 className="empty-state__title">No tracks yet</h2>
           <p className="empty-state__text">
             Upload the songs you reach for every show — walk-on beds, intermission music, play-off
-            stings. Each one gets its own button on the Run Show soundboard once it's in a show.
+            stings. Every track here shows up in every show's DJ list automatically, and each one
+            gets its own button on the Run Show soundboard.
           </p>
           <button className="btn btn--primary" onClick={addTracks} disabled={busy}>
             + Upload track

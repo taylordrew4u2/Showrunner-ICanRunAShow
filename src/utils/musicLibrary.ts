@@ -27,6 +27,38 @@ export function canDeleteMedia(track: MusicTrack, shows: Show[]): boolean {
   return usageCount(track, shows) === 0;
 }
 
+/**
+ * The DJ list a show actually runs on: its own songs, plus every library track.
+ *
+ * The library is the producer's crate — the walk-on beds, the intermission
+ * music, the outro sting are the same every night — so a track uploaded once
+ * belongs to every show without being added to each of them by hand.
+ *
+ * Show-owned songs come first and stay in the order they were put in; library
+ * tracks follow. A track already in `djSongs` (added by hand, or before the
+ * library filled shows automatically) is not repeated, and one this show has
+ * removed is left out entirely.
+ *
+ * This is a view, not stored data: nothing is written to the show when the
+ * library changes, so adding a track adds it everywhere and removing it from
+ * the library removes it everywhere, with no per-show cleanup.
+ */
+export function showDJSongs(show: Show, library: MusicTrack[]): DJSong[] {
+  const own = show.djSongs ?? [];
+  const hidden = new Set(show.djHiddenLibraryIds ?? []);
+  const auto = availableTracks(library, own)
+    .filter((track) => !hidden.has(track.id))
+    // A stable id derived from the track keeps React keys and the soundboard
+    // steady across renders, and makes the entry recognisable as library-owned.
+    .map((track) => songFromTrack(track, `library:${track.id}`));
+  return [...own, ...auto];
+}
+
+/** True for a row that comes from the library rather than this show. */
+export function isAutoLibrarySong(song: DJSong): boolean {
+  return song.id.startsWith('library:');
+}
+
 /** Library tracks not already in this show's DJ list. */
 export function availableTracks(library: MusicTrack[], songs: DJSong[]): MusicTrack[] {
   const taken = new Set(songs.map((song) => song.libraryId).filter(Boolean));

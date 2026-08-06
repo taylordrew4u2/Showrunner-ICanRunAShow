@@ -1,4 +1,5 @@
 import { buildIntroCards, type IntroCard } from "./introCards";
+import { showDJSongs } from "./musicLibrary";
 import type {
   Show,
   AppSettings,
@@ -7,6 +8,7 @@ import type {
   ScheduleItem,
   Host,
   DJSong,
+  MusicTrack,
   StaffMember,
   Vendor,
   Expense,
@@ -70,6 +72,8 @@ function renderIntroCard(card: IntroCard): string {
 }
 
 export function exportShowToPDF(show: Show, settings: AppSettings): void {
+  // The same list the show runs on: its own songs plus the music library.
+  const djSongs = showDJSongs(show, settings.musicLibrary ?? []);
   const totalExpenses = show.expenses.reduce(
     (sum, e) => sum + (Number(e.cost) || 0),
     0,
@@ -266,12 +270,12 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   }
 
   ${
-    show.djSongs.length > 0
+    djSongs.length > 0
       ? `
   <h2>DJ Music List</h2>
   <table>
     <tr><th>#</th><th>Title</th><th>Artist</th><th>Notes</th></tr>
-    ${show.djSongs.map((s: DJSong, i: number) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
+    ${djSongs.map((s: DJSong, i: number) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -368,8 +372,9 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   }
 }
 
-export function exportDJListToPDF(show: Show): void {
-  if (show.djSongs.length === 0) return;
+export function exportDJListToPDF(show: Show, library: MusicTrack[] = []): void {
+  const djSongs = showDJSongs(show, library);
+  if (djSongs.length === 0) return;
 
   const html = `
 <!DOCTYPE html>
@@ -398,7 +403,7 @@ export function exportDJListToPDF(show: Show): void {
   <h2>Song List</h2>
   <table>
     <tr><th>#</th><th>Title</th><th>Artist</th><th>Notes</th></tr>
-    ${show.djSongs.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
+    ${djSongs.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
   </table>
 </body>
 </html>`;
