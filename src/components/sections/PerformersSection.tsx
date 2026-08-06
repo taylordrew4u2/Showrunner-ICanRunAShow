@@ -173,14 +173,17 @@ export function PerformersSection({
           aria-label="Email address"
         />
         <button className="btn btn--primary btn--sm" onClick={addPerformer}>Add</button>
-        {potentialComics.length > 0 && (
-          <button
-            className="btn btn--secondary btn--sm"
-            onClick={() => setShowRolodex(v => !v)}
-          >
-            From Rolodex
-          </button>
-        )}
+        {/* Always here, even with nobody on file. Hiding it left a first-time
+            producer with no sign the Rolodex has anything to do with building
+            a lineup — the only Rolodex-looking thing on screen was the nav
+            tab, which navigates away rather than picking anyone. */}
+        <button
+          className="btn btn--secondary btn--sm"
+          onClick={() => setShowRolodex(v => !v)}
+          aria-expanded={showRolodex}
+        >
+          From Rolodex
+        </button>
       </div>
 
       {filed && (
@@ -203,6 +206,13 @@ export function PerformersSection({
       {showRolodex && (
         <div className="section-rolodex-picker">
           <p className="section-rolodex-picker__label">Pick from Rolodex</p>
+          {potentialComics.length === 0 ? (
+            <p className="section-rolodex-picker__empty">
+              Nobody on file yet. Everyone you add to a show is filed here
+              automatically, so this fills up as you book.
+            </p>
+          ) : (
+            <>
           {potentialComics.map(comic => (
             <button
               key={comic.id}
@@ -214,6 +224,8 @@ export function PerformersSection({
               {comic.walkOnMusicName && <span className="section-list-item__tag">{comic.walkOnMusicName}</span>}
             </button>
           ))}
+            </>
+          )}
         </div>
       )}
 
