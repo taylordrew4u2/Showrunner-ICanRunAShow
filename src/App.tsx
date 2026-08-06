@@ -1601,7 +1601,12 @@ export default function App() {
                   backLabel="Shows"
                 />
 
-                <div className="rolodex__form">
+                {/* A form rather than a div: a name box beside an Add button
+                    should take Enter, which is how everyone tries it first. */}
+                <form
+                  className="rolodex__form"
+                  onSubmit={(e) => { e.preventDefault(); handleAddPotentialComic(); }}
+                >
                   <input
                     className="rolodex__input"
                     value={newComicName}
@@ -1616,13 +1621,12 @@ export default function App() {
                   />
                   <button
                     className="btn btn--secondary"
-                    type="button"
-                    onClick={handleAddPotentialComic}
+                    type="submit"
                     disabled={!newComicName.trim()}
                   >
                     Add
                   </button>
-                </div>
+                </form>
 
                 {settings.potentialComics.length === 0 ? (
                   <div className="empty-state">
