@@ -87,6 +87,21 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
     ].filter((n) => n?.trim()),
     [show.host, show.performers, show.artists, settings.potentialComics],
   );
+  /**
+   * The show as it is *now*, for anything that resolves after an await.
+   *
+   * Every section funnels its edits through handleUpdate, which merges them
+   * into the show. Merging into the render-time prop meant an operation that
+   * started before an edit and finished after it — a photo or an audio upload,
+   * a confirmation still waiting to be answered — wrote back a copy of the show
+   * from before that edit, and the edit was gone. The longer the upload, the
+   * more work it took with it.
+   */
+  const showRef = useRef(show);
+  useEffect(() => {
+    showRef.current = show;
+  }, [show]);
+
   // The overview tiles read straight off the show, so they can't drift from the
   // sections below them.
   const stats = useMemo(() => buildShowStats(show), [show]);
@@ -189,12 +204,13 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   }
 
   function handleUpdate(updates: Partial<Show>) {
-    const merged = { ...show, ...updates };
+    const base = showRef.current;
+    const merged = { ...base, ...updates };
 
     // Auto-add walk-on music to DJ list when performers/artists get new songs
     if (updates.performers || updates.artists) {
-      const previousPerformers = show.performers;
-      const previousArtists = show.artists;
+      const previousPerformers = base.performers;
+      const previousArtists = base.artists;
       const newPerformers = merged.performers;
       const newArtists = merged.artists;
       const newDJSongs = [...merged.djSongs];
