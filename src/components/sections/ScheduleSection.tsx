@@ -49,8 +49,9 @@ interface ScheduleSectionProps {
 
 type ScheduleMode = 'choose' | 'build';
 
-/** Sentinel value for the host in the attach picker — they have no record. */
+/** Sentinel values in the on-stage picker for people with no record to link. */
 const HOST_OPTION = 'host:';
+const CUSTOM_OPTION = 'custom:';
 
 function timeToMinutes(time: string): number | null {
   if (!time) return null;
@@ -131,6 +132,8 @@ const CueRow = memo(function CueRow({
   const [editDesc, setEditDesc] = useState(item.description);
   const [editPerformer, setEditPerformer] = useState(item.performer ?? '');
   const [editPerformerId, setEditPerformerId] = useState(item.performerId ?? '');
+  // "Someone else" is chosen but nothing typed yet — see isCustom below.
+  const [typingName, setTypingName] = useState(false);
   const [editLength, setEditLength] = useState(item.durationMin != null ? String(item.durationMin) : '');
   const [mediaOpen, setMediaOpen] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
@@ -143,6 +146,7 @@ const CueRow = memo(function CueRow({
     setEditPerformer(item.performer ?? '');
     setEditPerformerId(item.performerId ?? '');
     setEditLength(item.durationMin != null ? String(item.durationMin) : '');
+    setTypingName(false);
     setEditing(true);
   }
 
@@ -181,12 +185,31 @@ const CueRow = memo(function CueRow({
     ? performers.find((p) => p.name.trim().toLowerCase() === hostName.toLowerCase())
     : undefined;
   const hostOnly = !!hostName && !hostPerformer;
-  // The select has to show the host as chosen once they're on the cue. There's
-  // no performer id to hold in that case, so the name standing in for one is
-  // what the sentinel value tracks.
-  const selectValue =
-    editPerformerId ||
-    (hostOnly && editPerformer.trim().toLowerCase() === hostName.toLowerCase() ? HOST_OPTION : '');
+  const typedName = editPerformer.trim();
+  const isHostPick = hostOnly && typedName.toLowerCase() === hostName.toLowerCase();
+  // A name with nothing behind it: no booking, not the host. Cues imported off
+  // a run sheet arrive like this, and so does anyone typed in by hand.
+  //
+  // typingName is what keeps the box open before there's anything in it. Read
+  // off the name alone, picking "someone else" on an empty cue put nothing on
+  // screen — the option needs a box to type into, and the box only exists once
+  // a name has been typed into it.
+  const isCustom = !editPerformerId && !isHostPick && (typedName !== '' || typingName);
+  // What the one control shows. A pick with no record — the host, or a typed
+  // name — has no id to hold, so a sentinel stands in for it; otherwise the
+  // select would snap back to "nobody" as though nothing had been chosen.
+  const selectValue = editPerformerId || (isHostPick ? HOST_OPTION : isCustom ? CUSTOM_OPTION : '');
+
+  // Choosing "someone else" should land the cursor in the box it reveals — but
+  // only when it was just chosen. Re-opening a cue that already has a typed
+  // name must leave focus on the segment field where editing starts.
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const focusNameRef = useRef(false);
+  useEffect(() => {
+    if (!focusNameRef.current) return;
+    focusNameRef.current = false;
+    nameInputRef.current?.focus();
+  }, [isCustom]);
 
   return (
     <div className="cue-row">
@@ -225,81 +248,105 @@ const CueRow = memo(function CueRow({
                 aria-label="Edit segment"
                 placeholder="Segment"
               />
-              <input
-                className="cue__edit-input cue__edit-input--perf"
-                value={editPerformer}
-                onChange={(e) => setEditPerformer(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveEdit();
-                  if (e.key === 'Escape') setEditing(false);
+              {/* One control for one question. "On stage" used to be a text
+                  box with a separate "Attach performer…" dropdown beside it,
+                  which asked who was on stage twice and let the two disagree —
+                  a name typed in one and a different person picked in the
+                  other. This is the field now; typing a name is the last
+                  option in it rather than a rival to it. */}
+              <select
+                className="section-field__select cue__edit-input--perfsel"
+                value={selectValue}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === CUSTOM_OPTION) {
+                    // Someone with no record anywhere — a guest, a drop-in, a
+                    // name off a run sheet. Keep whatever is already typed and
+                    // put the cursor in the box.
+                    setEditPerformerId('');
+                    setTypingName(true);
+                    focusNameRef.current = true;
+                    setEditPerformer(typedName);
+                    return;
+                  }
+                  setTypingName(false);
+                  if (value === '') {
+                    setEditPerformerId('');
+                    setEditPerformer('');
+                    return;
+                  }
+                  if (value === HOST_OPTION) {
+                    // The host isn't on the bill, so there's no record to
+                    // link — the name is the whole attachment, and Run Show
+                    // reads it to put them on stage.
+                    setEditPerformerId('');
+                    setEditPerformer(hostName);
+                    return;
+                  }
+                  if (value.startsWith('rolodex:')) {
+                    const comic = unbookedComics.find((c) => c.id === value.slice(8));
+                    const booked = comic && onBookPerformer?.(comic);
+                    if (booked) {
+                      setEditPerformerId(booked.id);
+                      setEditPerformer(booked.name);
+                    }
+                    return;
+                  }
+                  const perf = performers.find((p) => p.id === value) ?? null;
+                  setEditPerformerId(value);
+                  if (perf) setEditPerformer(perf.name);
                 }}
                 aria-label="Who's on stage"
-                placeholder="On stage"
-              />
-              {/* The bill first, then everyone else on file. This used to list
-                  the bill alone, so a cue could only be attached to someone
-                  already booked — and attaching is what gives Run Show the
-                  walk-on and the face on the soundboard. Picking someone off
-                  the Rolodex books them onto the show as well, because a name
-                  against a cue means they're performing. */}
-              {(performers.length > 0 || unbookedComics.length > 0 || hostOnly) && (
-                <select
-                  className="section-field__select cue__edit-input--perfsel"
-                  value={selectValue}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === HOST_OPTION) {
-                      // The host isn't on the bill, so there's no record to
-                      // link — the name is the whole attachment, and Run Show
-                      // reads it to put them on stage.
-                      setEditPerformerId('');
-                      setEditPerformer(hostName);
-                      return;
-                    }
-                    if (value.startsWith('rolodex:')) {
-                      const comic = unbookedComics.find((c) => c.id === value.slice(8));
-                      const booked = comic && onBookPerformer?.(comic);
-                      if (booked) {
-                        setEditPerformerId(booked.id);
-                        setEditPerformer(booked.name);
-                      }
-                      return;
-                    }
-                    const perf = value ? performers.find((p) => p.id === value) : null;
-                    setEditPerformerId(value);
-                    if (perf) setEditPerformer(perf.name);
+              >
+                <option value="">On stage: nobody</option>
+                {/* First, because on most nights the host works more cues
+                    than anybody on the bill does. */}
+                {hostOnly && (
+                  <optgroup label="Hosting">
+                    <option value={HOST_OPTION}>{hostName}</option>
+                  </optgroup>
+                )}
+                {performers.length > 0 && (
+                  <optgroup label="On this bill">
+                    {performers.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                        {p.id === hostPerformer?.id ? ' (host)' : ''}
+                        {p.walkOnMusic ? ' (walk-on)' : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {onBookPerformer && unbookedComics.length > 0 && (
+                  <optgroup label="From your Rolodex — adds them to the bill">
+                    {unbookedComics.map((c) => (
+                      <option key={c.id} value={`rolodex:${c.id}`}>
+                        {c.name}{c.walkOnMusic ? ' (walk-on)' : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="Not on file">
+                  {/* Reads back the name when there is one, so the closed
+                      select still says who is on stage rather than "someone". */}
+                  <option value={CUSTOM_OPTION}>
+                    {typedName || 'Someone else — type a name'}
+                  </option>
+                </optgroup>
+              </select>
+              {isCustom && (
+                <input
+                  ref={nameInputRef}
+                  className="cue__edit-input cue__edit-input--perf"
+                  value={editPerformer}
+                  onChange={(e) => setEditPerformer(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveEdit();
+                    if (e.key === 'Escape') setEditing(false);
                   }}
-                  aria-label="Attach a performer"
-                >
-                  <option value="">Attach performer…</option>
-                  {/* First, because on most nights the host works more cues
-                      than anybody on the bill does. */}
-                  {hostOnly && (
-                    <optgroup label="Hosting">
-                      <option value={HOST_OPTION}>{hostName}</option>
-                    </optgroup>
-                  )}
-                  {performers.length > 0 && (
-                    <optgroup label="On this bill">
-                      {performers.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                          {p.id === hostPerformer?.id ? ' (host)' : ''}
-                          {p.walkOnMusic ? ' (walk-on)' : ''}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {onBookPerformer && unbookedComics.length > 0 && (
-                    <optgroup label="From your Rolodex — adds them to the bill">
-                      {unbookedComics.map((c) => (
-                        <option key={c.id} value={`rolodex:${c.id}`}>
-                          {c.name}{c.walkOnMusic ? ' (walk-on)' : ''}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
+                  aria-label="Name of who's on stage"
+                  placeholder="Their name"
+                />
               )}
               <input
                 className="cue__edit-input cue__edit-input--len"
