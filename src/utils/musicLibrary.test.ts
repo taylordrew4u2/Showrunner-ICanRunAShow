@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  showDJSongs,
+  isAutoLibrarySong,
   usageCount,
   canDeleteMedia,
   availableTracks,
@@ -114,5 +116,69 @@ describe('titleFromFileName', () => {
 
   it('does not reduce a dotfile to nothing', () => {
     expect(titleFromFileName('.mp3')).toBe('.mp3');
+  });
+});
+
+describe('showDJSongs', () => {
+  const bed = track({ id: 't1', title: 'Intro Bed' });
+  const sting = track({ id: 't2', title: 'Outro Sting' });
+
+  it('puts the whole library in a show that has nothing of its own', () => {
+    const result = showDJSongs(show('s1', []), [bed, sting]);
+    expect(result.map((s) => s.title)).toEqual(['Intro Bed', 'Outro Sting']);
+    expect(result.every(isAutoLibrarySong)).toBe(true);
+  });
+
+  it("keeps the show's own songs first, then the library", () => {
+    const own: DJSong = { id: 'own1', title: 'Birthday song', artist: 'Dana' };
+    const result = showDJSongs(show('s1', [own]), [bed]);
+    expect(result.map((s) => s.title)).toEqual(['Birthday song', 'Intro Bed']);
+    expect(isAutoLibrarySong(result[0])).toBe(false);
+  });
+
+  it('does not list a track twice when the show already added it by hand', () => {
+    const added = songFromTrack(bed, 'added1');
+    const result = showDJSongs(show('s1', [added]), [bed, sting]);
+    expect(result.map((s) => s.title)).toEqual(['Intro Bed', 'Outro Sting']);
+    expect(result.filter((s) => s.libraryId === bed.id)).toHaveLength(1);
+  });
+
+  it('leaves out a track this show removed, without touching other shows', () => {
+    const dropped = { ...show('s1', []), djHiddenLibraryIds: [bed.id] };
+    expect(showDJSongs(dropped, [bed, sting]).map((s) => s.title)).toEqual(['Outro Sting']);
+    // Another show is unaffected — the exclusion is per show.
+    expect(showDJSongs(show('s2', []), [bed, sting])).toHaveLength(2);
+  });
+
+  it('carries the library audio through, so the soundboard can play it', () => {
+    const [song] = showDJSongs(show('s1', []), [bed]);
+    expect(song.music).toBe(bed.music);
+    expect(song.libraryId).toBe(bed.id);
+  });
+
+  it('gives library rows a stable id across renders', () => {
+    const a = showDJSongs(show('s1', []), [bed])[0].id;
+    const b = showDJSongs(show('s1', []), [bed])[0].id;
+    expect(a).toBe(b);
+  });
+
+  it('survives a show with no djSongs array', () => {
+    const bare = { ...show('s1', []), djSongs: undefined as unknown as DJSong[] };
+    expect(showDJSongs(bare, [bed])).toHaveLength(1);
+  });
+
+  it('is empty when there is no library and no songs', () => {
+    expect(showDJSongs(show('s1', []), [])).toEqual([]);
+  });
+});
+
+describe('usageCount, now that the library fills every show', () => {
+  it('still counts only explicit adds, so tidying the library can free its media', () => {
+    // Auto-included rows are a view of the library, not a reference to it. If
+    // they counted, every track would look used by every show and its audio
+    // could never be cleaned up.
+    const bed = track({ id: 't1' });
+    expect(usageCount(bed, [show('s1', []), show('s2', [])])).toBe(0);
+    expect(canDeleteMedia(bed, [show('s1', []), show('s2', [])])).toBe(true);
   });
 });

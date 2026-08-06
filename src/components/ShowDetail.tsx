@@ -20,6 +20,7 @@ import { joinNames, scheduleSummary, staffSummary, vendorsSummary } from '../uti
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
 import { buildShowStats, progressPercent, isComplete, formatRunTime } from '../utils/showStats';
+import { showDJSongs } from '../utils/musicLibrary';
 import { loadViewerKey, viewerUrl as buildViewerUrl } from '../utils/viewerAudio';
 import './ShowDetail.css';
 import { useConfirm } from './useConfirm';
@@ -114,7 +115,10 @@ export function ShowDetail({
 
   // The overview tiles read straight off the show, so they can't drift from the
   // sections below them.
-  const stats = useMemo(() => buildShowStats(show), [show]);
+  const stats = useMemo(
+    () => buildShowStats(show, settings.musicLibrary ?? []),
+    [show, settings.musicLibrary],
+  );
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => loadOpenSections(show.id));
   const [editingShowName, setEditingShowName] = useState(false);
@@ -168,7 +172,17 @@ export function ShowDetail({
    * (buildSoundboard drops the rest), so surfacing them can't conjure a bank
    * out of a section nobody filled in.
    */
-  const runnableDJSongs = show.djSongs;
+  /**
+   * The DJ list this show actually runs on: its own songs plus the whole music
+   * library. Everything that reads the list — the section, the readiness
+   * count, Run Show's soundboard, the exports — reads this one, so a library
+   * track is present in all of them or none.
+   */
+  const djSongs = useMemo(
+    () => showDJSongs(show, settings.musicLibrary ?? []),
+    [show, settings.musicLibrary],
+  );
+  const runnableDJSongs = djSongs;
 
   function openViewer() {
     setViewerNoteDraft(show.viewNote ?? '');
@@ -477,14 +491,14 @@ export function ShowDetail({
       title: 'DJ Music',
       subtitle: 'Songs and notes for the DJ.',
       accent: 'green',
-      count: show.djSongs.length,
-      preview: joinNames(show.djSongs.map((song) => song.title)),
+      count: djSongs.length,
+      preview: joinNames(djSongs.map((song) => song.title)),
       content: (
         <DJMusicSection
-          songs={show.djSongs}
+
           show={show}
           library={settings.musicLibrary ?? []}
-          onChange={(djSongs) => handleUpdate({ djSongs })}
+          onUpdate={handleUpdate}
         />
       ),
     },

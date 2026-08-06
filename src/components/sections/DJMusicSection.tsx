@@ -3,7 +3,7 @@ import type { DJSong, MusicTrack, Show } from '../../types';
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
-import { availableTracks, songFromTrack, songOwnsItsMedia } from '../../utils/musicLibrary';
+import { isAutoLibrarySong, showDJSongs, songFromTrack, songOwnsItsMedia } from '../../utils/musicLibrary';
 import { exportDJListToPDF } from '../../utils/pdfExport';
 import { Icon } from '../Icon';
 import { TrackPreviewButton } from '../TrackPreview';
@@ -12,14 +12,13 @@ import { useTrackPreview } from '../../utils/useTrackPreview';
 import { useConfirm } from '../useConfirm';
 
 interface DJMusicSectionProps {
-  songs: DJSong[];
   show: Show;
-  /** The account-wide library, so a track can be added without re-uploading. */
+  /** The account-wide library. Every track in it is in every show. */
   library: MusicTrack[];
-  onChange: (songs: DJSong[]) => void;
+  onUpdate: (patch: Partial<Show>) => void;
 }
 
-export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectionProps) {
+export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps) {
   const { confirm, confirmDialog } = useConfirm();
   const preview = useTrackPreview();
   /**
@@ -28,11 +27,19 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
    * from the array captured when the button was pressed put the list back the
    * way it was and lost whatever had been added or edited meanwhile.
    */
-  const songsRef = useRef(songs);
+  // What this show owns. Library tracks are a view over it, so every write
+  // goes here rather than to the rendered list.
+  const own = show.djSongs ?? [];
+  const hidden = show.djHiddenLibraryIds ?? [];
+  const songs = showDJSongs(show, library);
+  // Library tracks this show has dropped, so they can be put back.
+  const hiddenFromShow = library.filter((track) => hidden.includes(track.id));
+  const ownRef = useRef(own);
+  const hiddenRef = useRef(hidden);
   useEffect(() => {
-    songsRef.current = songs;
-  }, [songs]);
-  const [pickerOpen, setPickerOpen] = useState(false);
+    ownRef.current = show.djSongs ?? [];
+    hiddenRef.current = show.djHiddenLibraryIds ?? [];
+  }, [show.djSongs, show.djHiddenLibraryIds]);
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [notes, setNotes] = useState('');
@@ -51,27 +58,53 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
       artist: artist.trim(),
       notes: notes.trim() || undefined,
     };
-    onChange([...songs, song]);
+    onUpdate({ djSongs: [...own, song] });
     setTitle('');
     setArtist('');
     setNotes('');
   }
 
-  const unusedTracks = availableTracks(library, songs);
-
-  function addFromLibrary(track: MusicTrack) {
-    onChange([...songs, songFromTrack(track, generateId())]);
+  /**
+   * Turn a library row into one this show owns, so it can be edited here
+   * without the change leaking to every other show. Copy-on-write: until you
+   * touch it, the row is just the library's track showing through.
+   */
+  function materialize(song: DJSong, patch: Partial<DJSong> = {}): DJSong[] {
+    const track = library.find((t) => t.id === song.libraryId);
+    const base = track ? songFromTrack(track, generateId()) : { ...song, id: generateId() };
+    return [...ownRef.current, { ...base, ...patch }];
   }
 
   async function deleteSong(id: string) {
     const song = songs.find((s) => s.id === id);
-    if (await confirm(`Delete "${song?.title}"? This cannot be undone.`)) {
-      // A song added from the library shares its audio with the library and
-      // with every other show using it — removing it here must not delete the
-      // media out from under them.
-      if (song && songOwnsItsMedia(song)) deleteMedia(song.music!);
-      onChange(songsRef.current.filter((s) => s.id !== id));
+    if (!song) return;
+
+    // A library track can't be deleted from inside a show — it belongs to the
+    // library, and every other show still wants it. It's dropped from this
+    // show only, and says so.
+    if (song.libraryId) {
+      const ok = await confirm({
+        message: `Remove "${song.title}" from this show? It stays in your Music library and in your other shows.`,
+        title: 'Remove from this show',
+        confirmLabel: 'Remove',
+      });
+      if (!ok) return;
+      onUpdate({
+        djSongs: ownRef.current.filter((s) => s.id !== id),
+        djHiddenLibraryIds: [...new Set([...hiddenRef.current, song.libraryId])],
+      });
+      return;
     }
+
+    if (await confirm(`Delete "${song.title}"? This cannot be undone.`)) {
+      if (songOwnsItsMedia(song)) deleteMedia(song.music!);
+      onUpdate({ djSongs: ownRef.current.filter((s) => s.id !== id) });
+    }
+  }
+
+  /** Put a library track this show removed back into it. */
+  function restoreTrack(trackId: string) {
+    onUpdate({ djHiddenLibraryIds: hiddenRef.current.filter((id) => id !== trackId) });
   }
 
   function startEdit(s: DJSong) {
@@ -83,11 +116,18 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
 
   function saveEdit() {
     if (!editTitle.trim() || !editId) return;
-    onChange(songs.map((s) =>
-      s.id === editId
-        ? { ...s, title: editTitle.trim(), artist: editArtist.trim(), notes: editNotes.trim() || undefined }
-        : s
-    ));
+    const patch = {
+      title: editTitle.trim(),
+      artist: editArtist.trim(),
+      notes: editNotes.trim() || undefined,
+    };
+    const song = songs.find((s) => s.id === editId);
+    if (song && isAutoLibrarySong(song)) {
+      // Editing a library row here rewrites it for this show only.
+      onUpdate({ djSongs: materialize(song, patch) });
+    } else {
+      onUpdate({ djSongs: own.map((s) => (s.id === editId ? { ...s, ...patch } : s)) });
+    }
     setEditId(null);
   }
 
@@ -121,9 +161,21 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
       // point at stays untouched for everyone else.
       const replacingOwnMedia = songOwnsItsMedia(song);
       const previous = song.music;
-      onChange(songsRef.current.map((s) =>
-        s.id === song.id ? { ...s, music: ref, musicName: file.name, libraryId: undefined } : s,
-      ));
+      const audio = { music: ref, musicName: file.name, libraryId: undefined };
+      if (isAutoLibrarySong(song)) {
+        // The row was the library's; giving it this show's own file makes it
+        // this show's, and hides the library original so it isn't listed twice.
+        onUpdate({
+          djSongs: materialize(song, audio),
+          djHiddenLibraryIds: song.libraryId
+            ? [...new Set([...hiddenRef.current, song.libraryId])]
+            : hiddenRef.current,
+        });
+      } else {
+        onUpdate({
+          djSongs: ownRef.current.map((s) => (s.id === song.id ? { ...s, ...audio } : s)),
+        });
+      }
       if (previous && replacingOwnMedia) deleteMedia(previous);
       setStatus(song.id, null);
     } catch {
@@ -139,9 +191,11 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
       : `Remove the uploaded audio for "${song.title}"?`;
     if (!(await confirm({ message: question, confirmLabel: 'Remove' }))) return;
     if (songOwnsItsMedia(song)) deleteMedia(song.music);
-    onChange(songsRef.current.map((s) =>
-      s.id === song.id ? { ...s, music: undefined, musicName: undefined, libraryId: undefined } : s,
-    ));
+    onUpdate({
+      djSongs: ownRef.current.map((s) =>
+        s.id === song.id ? { ...s, music: undefined, musicName: undefined, libraryId: undefined } : s,
+      ),
+    });
     setStatus(song.id, null);
   }
 
@@ -195,45 +249,34 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
         <button className="btn btn--primary btn--sm" onClick={addSong}>Add</button>
       </div>
 
-      <div className="section-actions">
-        <button className="btn btn--secondary btn--sm" onClick={() => setPickerOpen((open) => !open)}>
-          {pickerOpen ? 'Close library' : 'Add from Music library'}
-        </button>
-      </div>
-
-      {pickerOpen && (
+      {/* Removed from this show, and one tap from coming back. Without this a
+          track dropped here would be gone with no way to see or undo it. */}
+      {hiddenFromShow.length > 0 && (
         <div className="dj-library">
           <div className="dj-library__head">
-            <span className="dj-library__title">Your Music library</span>
+            <span className="dj-library__title">Removed from this show</span>
           </div>
-          {library.length === 0 ? (
-            <p className="dj-library__empty">
-              Nothing in the library yet. Upload tracks on the Music tab and they'll be available to
-              every show — no re-uploading.
-            </p>
-          ) : unusedTracks.length === 0 ? (
-            <p className="dj-library__empty">Every track in your library is already in this show.</p>
-          ) : (
-            <ul className="dj-library__list">
-              {unusedTracks.map((track) => (
-                <li key={track.id} className="dj-library__item">
-                  <span className="dj-library__name">
-                    {track.title}{track.artist ? ` — ${track.artist}` : ''}
-                  </span>
-                  <button className="btn btn--ghost btn--sm" onClick={() => addFromLibrary(track)}>
-                    Add
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="dj-library__list">
+            {hiddenFromShow.map((track) => (
+              <li key={track.id} className="dj-library__item">
+                <span className="dj-library__name">
+                  {track.title}{track.artist ? ` — ${track.artist}` : ''}
+                </span>
+                <button className="btn btn--ghost btn--sm" onClick={() => restoreTrack(track.id)}>
+                  Put back
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
       <p className="section-hint">
-        Upload the audio for a song and it gets its own button on the Run Show soundboard, in a
-        bank of its own next to the performers. Press ▶ here to hear it first — same player, same
-        fade, so nothing is a surprise on the night.
+        Every track in your Music library is already here, in this show and every other one — the
+        crate is the same each night, so there's nothing to add show by show. Songs you add below
+        belong to this show alone. Upload audio and a song gets its own button on the Run Show
+        soundboard; press ▶ to hear it first — same player, same fade, so nothing is a surprise on
+        the night.
       </p>
 
       {preview.error && (
@@ -307,7 +350,7 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
           <button className="btn btn--secondary" onClick={exportDJList}>
             Share / Export DJ List (Text)
           </button>
-          <button className="btn btn--secondary" onClick={() => exportDJListToPDF(show)}>
+          <button className="btn btn--secondary" onClick={() => exportDJListToPDF(show, library)}>
             Export DJ List (PDF)
           </button>
         </div>
