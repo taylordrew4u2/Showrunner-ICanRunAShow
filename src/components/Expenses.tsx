@@ -140,6 +140,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
             value={addDraft.itemName}
             onChange={(e) => setAddDraft(d => ({ ...d, itemName: e.target.value }))}
             placeholder="Item or service name"
+            aria-label="Item or service name"
           />
           <input
             className="section-field__input"
@@ -148,6 +149,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
             value={addDraft.cost}
             onChange={(e) => setAddDraft(d => ({ ...d, cost: e.target.value }))}
             placeholder="Cost ($)"
+            aria-label="Cost in dollars"
           />
           <input
             className="section-field__input"
@@ -162,6 +164,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
             onChange={(e) => setAddDraft(d => ({ ...d, notes: e.target.value }))}
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addExpense())}
             placeholder="Notes (optional)"
+            aria-label="Notes"
           />
           <button className="btn btn--primary btn--sm" onClick={addExpense}>Add</button>
         </div>

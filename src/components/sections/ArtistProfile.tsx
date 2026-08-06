@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Artist } from '../../types';
 import { audioUploadSizeError } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
@@ -14,6 +14,10 @@ interface ArtistProfileProps {
 }
 
 export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProfileProps) {
+  // Labels have to point at the field they name: written as a plain <label>
+  // beside an input they are decoration — not announced as the field's name,
+  // and not tappable to focus it.
+  const fieldId = useId();
   const { confirm, confirmDialog } = useConfirm();
   const [name, setName] = useState(artist.name);
   const [artistType, setArtistType] = useState(artist.artistType || '');
@@ -92,8 +96,8 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
           <p className="perf-profile__section-label">Profile</p>
           <div className="perf-profile__fields">
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Name</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-name`}>Name</label>
+              <input id={`${fieldId}-name`}
                 className="perf-profile__input"
                 value={name}
                 onChange={e => { setName(e.target.value); mark(); }}
@@ -101,8 +105,8 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
               />
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Artist Type</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-artist-type`}>Artist Type</label>
+              <input id={`${fieldId}-artist-type`}
                 className="perf-profile__input"
                 value={artistType}
                 onChange={e => { setArtistType(e.target.value); mark(); }}
@@ -110,8 +114,8 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
               />
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Social Media</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-social-media`}>Social Media</label>
+              <input id={`${fieldId}-social-media`}
                 className="perf-profile__input"
                 value={socialMedia}
                 onChange={e => { setSocialMedia(e.target.value); mark(); }}
@@ -119,8 +123,8 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
               />
             </div>
             <div className="perf-profile__field perf-profile__field--full">
-              <label className="perf-profile__label">Credits / Notes</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-credits-notes`}>Credits / Notes</label>
+              <input id={`${fieldId}-credits-notes`}
                 className="perf-profile__input"
                 value={credits}
                 onChange={e => { setCredits(e.target.value); mark(); }}

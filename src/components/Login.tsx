@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Icon } from './Icon';
 import './Login.css';
 
@@ -10,6 +10,10 @@ interface LoginProps {
 }
 
 export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }: LoginProps) {
+  // Labels have to point at the field they name: written as a plain <label>
+  // beside an input they are decoration — not announced as the field's name,
+  // and not tappable to focus it.
+  const fieldId = useId();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -75,8 +79,8 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
 
           <form className="login__form" onSubmit={handleSubmit}>
             <div className="login__field">
-              <label className="login__label">Username</label>
-              <input
+              <label className="login__label" htmlFor={`${fieldId}-username`}>Username</label>
+              <input id={`${fieldId}-username`}
                 className="login__input"
                 type="text"
                 value={username}
@@ -88,8 +92,8 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
             </div>
 
             <div className="login__field">
-              <label className="login__label">Password</label>
-              <input
+              <label className="login__label" htmlFor={`${fieldId}-password`}>Password</label>
+              <input id={`${fieldId}-password`}
                 className="login__input"
                 type="password"
                 value={password}
