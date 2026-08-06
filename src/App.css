@@ -1261,7 +1261,10 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  flex-shrink: 0;
+  /* Must be allowed to narrow, or its own flex-wrap never engages: a
+     shrink-proof row sizes to its content and runs off the card instead of
+     wrapping. Two full-width labels on a phone is exactly that case. */
+  min-width: 0;
 }
 .schedule-summary__clear { color: var(--danger-text); flex-shrink: 0; }
 .schedule-summary__label {

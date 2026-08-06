@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Show, AppSettings, PotentialComic, MusicTrack } from './types';
+import type { Show, AppSettings, PotentialComic, MusicTrack, ScheduleTemplateItem } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
 import { ServerNotConfiguredError } from './utils/api';
@@ -1054,6 +1054,30 @@ export default function App() {
     );
   }
 
+  /** Save the current run-of-show as a reusable template (account-wide). */
+  function handleSaveScheduleTemplate(name: string, items: ScheduleTemplateItem[]) {
+    if (!session) return;
+    const updatedSettings: AppSettings = {
+      ...settings,
+      scheduleTemplates: [
+        { id: generateId(), name, items, createdAt: new Date().toISOString() },
+        ...(settings.scheduleTemplates || []),
+      ],
+    };
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
+  }
+
+  function handleDeleteScheduleTemplate(id: string) {
+    if (!session) return;
+    const updatedSettings: AppSettings = {
+      ...settings,
+      scheduleTemplates: (settings.scheduleTemplates || []).filter((t) => t.id !== id),
+    };
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
+  }
+
   function handleRemovePotentialComic(id: string) {
     if (!session) return;
 
@@ -1548,6 +1572,8 @@ export default function App() {
                   onBack={handleBack}
                   onUpdate={handleUpdateShow}
                   onSaveToRolodex={handleSavePerformerToRolodex}
+                  onSaveScheduleTemplate={handleSaveScheduleTemplate}
+                  onDeleteScheduleTemplate={handleDeleteScheduleTemplate}
                 />
               </div>
             )}
