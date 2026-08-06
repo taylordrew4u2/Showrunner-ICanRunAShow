@@ -48,6 +48,11 @@ interface RunShowProps {
   schedule: ScheduleItem[];
   performers?: Performer[];
   djSongs?: DJSong[];
+  /**
+   * How many tracks are in the account-wide Music library. Only used to tell
+   * an empty board apart from an empty library — see the empty state below.
+   */
+  libraryCount?: number;
   onStart?: () => void; // fired once when the show first starts (mark in-progress)
   onFinish?: () => void; // fired when the operator ends the show (mark completed)
   onClose: () => void;
@@ -135,6 +140,7 @@ export function RunShow({
   schedule,
   performers = [],
   djSongs = [],
+  libraryCount = 0,
   onStart,
   onFinish,
   onClose,
@@ -888,10 +894,28 @@ export function RunShow({
             </div>
           )}
 
+          {/* An empty board is the app telling the truth — a pad exists only
+              where an audio file is actually attached. But "no audio uploaded"
+              reads as a bug to someone who has spent an evening uploading
+              tracks to the Music library, because a library track does nothing
+              for a show until it's added to that show's DJ list. So the empty
+              state says which of the two situations this is. */}
           {!hasBoard && (
             <p className="rs-board__empty">
-              No audio uploaded yet. Add walk-on music to a performer, music to a cue, or upload
-              tracks in the DJ section, and each one gets a button here.
+              {libraryCount > 0 ? (
+                <>
+                  Nothing on the board yet — this show has no audio attached.
+                  You have {libraryCount} track{libraryCount === 1 ? '' : 's'} in your Music
+                  library, but a library track only plays here once it's added to this show:
+                  open the DJ section and use <strong>Add from Music library</strong>. Walk-on
+                  music on a performer and music on a cue get a button here too.
+                </>
+              ) : (
+                <>
+                  No audio uploaded yet. Add walk-on music to a performer, music to a cue, or
+                  upload tracks in the DJ section, and each one gets a button here.
+                </>
+              )}
             </p>
           )}
           {djWithoutAudio > 0 && (

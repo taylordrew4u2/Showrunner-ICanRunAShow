@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { downscaleImage } from '../../utils/imageResize';
 import { audioUploadSizeError, imageUploadSizeError, pickFile as openFilePicker } from '../../utils/media';
@@ -36,6 +36,18 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [audioDrag, setAudioDrag] = useState(false);
+  /**
+   * The record as it is now, for uploads that finish after the fact.
+   *
+   * An upload takes as long as it takes — resize, encrypt, chunk, send — and
+   * writing back `{ ...performer }` captured when the file was picked meant
+   * anything changed in between was reverted the moment the upload landed.
+   */
+  const performerRef = useRef(performer);
+  useEffect(() => {
+    performerRef.current = performer;
+  }, [performer]);
+
   // Resolves `media:` store references to a playable URL (passthrough otherwise).
   const walkOnUrl = useMediaUrl(performer.walkOnMusic);
   const photoUrl = useMediaUrl(performer.photo);
@@ -57,8 +69,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
     try {
       const resized = await downscaleImage(file);
       const ref = await uploadMedia(resized);
-      const previous = performer.photo;
-      onChange({ ...performer, photo: ref });
+      const previous = performerRef.current.photo;
+      onChange({ ...performerRef.current, photo: ref });
       if (previous) deleteMedia(previous);
       setPhotoError(null);
     } catch {
@@ -70,7 +82,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
     if (!performer.photo) return;
     if (!(await confirm({ message: `Remove ${performer.name}'s photo?`, confirmLabel: 'Remove photo' }))) return;
     deleteMedia(performer.photo);
-    onChange({ ...performer, photo: undefined });
+    onChange({ ...performerRef.current, photo: undefined });
     setPhotoError(null);
   }
 
@@ -336,7 +348,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                   <button
                     className="btn btn--secondary btn--sm"
                     onClick={() => pickFile('audio/*', (result, file) => {
-                      onChange({ ...performer, walkOnMusic: result, walkOnMusicName: file.name });
+                      onChange({ ...performerRef.current, walkOnMusic: result, walkOnMusicName: file.name });
                       setSongName(file.name);
                     })}
                   >
@@ -360,14 +372,14 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 onDragEnter={() => setAudioDrag(true)}
                 onDragLeave={() => setAudioDrag(false)}
                 onDrop={e => handleDrop(e, 'audio/', (result, file) => {
-                  onChange({ ...performer, walkOnMusic: result, walkOnMusicName: file.name });
+                  onChange({ ...performerRef.current, walkOnMusic: result, walkOnMusicName: file.name });
                   setSongName(file.name);
                 }, setAudioDrag)}
                 onClick={() => pickFile('audio/*', (result, file) => {
-                  onChange({ ...performer, walkOnMusic: result, walkOnMusicName: file.name });
+                  onChange({ ...performerRef.current, walkOnMusic: result, walkOnMusicName: file.name });
                   setSongName(file.name);
                 })}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickFile('audio/*', (result, file) => { onChange({ ...performer, walkOnMusic: result, walkOnMusicName: file.name }); setSongName(file.name); }); } }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickFile('audio/*', (result, file) => { onChange({ ...performerRef.current, walkOnMusic: result, walkOnMusicName: file.name }); setSongName(file.name); }); } }}
               >
                 <span className="perf-profile__dropzone-icon"></span>
                 <span className="perf-profile__dropzone-label">

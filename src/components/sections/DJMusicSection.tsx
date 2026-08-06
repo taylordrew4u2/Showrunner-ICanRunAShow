@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DJSong, MusicTrack, Show } from '../../types';
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
@@ -22,6 +22,16 @@ interface DJMusicSectionProps {
 export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectionProps) {
   const { confirm, confirmDialog } = useConfirm();
   const preview = useTrackPreview();
+  /**
+   * The list as it is now, for the handlers that resolve after an await — an
+   * audio upload, or a confirmation still waiting to be answered. Rebuilding
+   * from the array captured when the button was pressed put the list back the
+   * way it was and lost whatever had been added or edited meanwhile.
+   */
+  const songsRef = useRef(songs);
+  useEffect(() => {
+    songsRef.current = songs;
+  }, [songs]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
@@ -60,7 +70,7 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
       // with every other show using it — removing it here must not delete the
       // media out from under them.
       if (song && songOwnsItsMedia(song)) deleteMedia(song.music!);
-      onChange(songs.filter((s) => s.id !== id));
+      onChange(songsRef.current.filter((s) => s.id !== id));
     }
   }
 
@@ -111,7 +121,7 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
       // point at stays untouched for everyone else.
       const replacingOwnMedia = songOwnsItsMedia(song);
       const previous = song.music;
-      onChange(songs.map((s) =>
+      onChange(songsRef.current.map((s) =>
         s.id === song.id ? { ...s, music: ref, musicName: file.name, libraryId: undefined } : s,
       ));
       if (previous && replacingOwnMedia) deleteMedia(previous);
@@ -129,7 +139,7 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
       : `Remove the uploaded audio for "${song.title}"?`;
     if (!(await confirm({ message: question, confirmLabel: 'Remove' }))) return;
     if (songOwnsItsMedia(song)) deleteMedia(song.music);
-    onChange(songs.map((s) =>
+    onChange(songsRef.current.map((s) =>
       s.id === song.id ? { ...s, music: undefined, musicName: undefined, libraryId: undefined } : s,
     ));
     setStatus(song.id, null);
