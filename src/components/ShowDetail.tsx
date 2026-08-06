@@ -75,13 +75,17 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   // Everyone this producer has on file. The show's own bill comes first so a
   // name spelled slightly differently in the Rolodex doesn't win over the
   // spelling actually used on this lineup.
+  // The host comes first for the same reason they lead the attach picker: a run
+  // sheet says "Host intro — Jo Park" more often than it names anyone else, and
+  // that line should fill in who's on stage without being typed twice.
   const knownNames = useMemo(
     () => [
+      ...(show.host ? [show.host] : []),
       ...show.performers.map((p) => p.name),
       ...(show.artists ?? []).map((a) => a.name),
       ...settings.potentialComics.map((c) => c.name),
     ].filter((n) => n?.trim()),
-    [show.performers, show.artists, settings.potentialComics],
+    [show.host, show.performers, show.artists, settings.potentialComics],
   );
   // The overview tiles read straight off the show, so they can't drift from the
   // sections below them.
@@ -431,6 +435,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         showName={show.name}
         showTime={show.time}
         performers={show.performers}
+        host={show.host}
         knownNames={knownNames}
         unbookedComics={unbookedComics}
         onBookPerformer={bookFromRolodex}

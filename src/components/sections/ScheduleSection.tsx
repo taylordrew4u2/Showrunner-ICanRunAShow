@@ -21,6 +21,15 @@ interface ScheduleSectionProps {
   showTime?: string;
   performers?: Performer[];
   /**
+   * Who's hosting, from the Host field on the show page.
+   *
+   * The host works more cues than anyone — the intro, every handover, the
+   * outro — and until now they were the one person the attach picker didn't
+   * offer, because the host is a name on the show rather than a name on the
+   * bill. So every one of those cues had to have the host typed in by hand.
+   */
+  host?: string;
+  /**
    * Everyone this producer has on file — the Rolodex plus this show's own bill.
    * A cue that only mentions a name in its text gets that name filled in as its
    * performer, which is what lets Run Show put them on stage and play their
@@ -39,6 +48,9 @@ interface ScheduleSectionProps {
 }
 
 type ScheduleMode = 'choose' | 'build';
+
+/** Sentinel value for the host in the attach picker — they have no record. */
+const HOST_OPTION = 'host:';
 
 function timeToMinutes(time: string): number | null {
   if (!time) return null;
@@ -102,6 +114,7 @@ interface CueRowProps {
   musicLabel: string | null;
   performers: Performer[];
   unbookedComics: PotentialComic[];
+  host?: string;
   onBookPerformer?: (comic: PotentialComic) => Performer;
   onPatch: (id: string, patch: Partial<ScheduleItem>) => void;
   onDelete: (id: string) => void;
@@ -111,7 +124,7 @@ interface CueRowProps {
 
 const CueRow = memo(function CueRow({
   item, idx, isFirst, isLast, durationText, musicLabel, performers,
-  unbookedComics, onBookPerformer, onPatch, onDelete, onMove, onPickMusic,
+  unbookedComics, host, onBookPerformer, onPatch, onDelete, onMove, onPickMusic,
 }: CueRowProps) {
   const [editing, setEditing] = useState(false);
   const [editTime, setEditTime] = useState(item.time);
@@ -159,6 +172,21 @@ const CueRow = memo(function CueRow({
     const err = await onPickMusic(item.id);
     if (err) setMusicError(err);
   }
+
+  const hostName = host?.trim() ?? '';
+  // A host who is also booked on the bill is already in the list — link the cue
+  // to that record so Run Show gets their face and their walk-on, and just mark
+  // which one they are rather than offering the same person twice.
+  const hostPerformer = hostName
+    ? performers.find((p) => p.name.trim().toLowerCase() === hostName.toLowerCase())
+    : undefined;
+  const hostOnly = !!hostName && !hostPerformer;
+  // The select has to show the host as chosen once they're on the cue. There's
+  // no performer id to hold in that case, so the name standing in for one is
+  // what the sentinel value tracks.
+  const selectValue =
+    editPerformerId ||
+    (hostOnly && editPerformer.trim().toLowerCase() === hostName.toLowerCase() ? HOST_OPTION : '');
 
   return (
     <div className="cue-row">
@@ -214,12 +242,20 @@ const CueRow = memo(function CueRow({
                   walk-on and the face on the soundboard. Picking someone off
                   the Rolodex books them onto the show as well, because a name
                   against a cue means they're performing. */}
-              {(performers.length > 0 || unbookedComics.length > 0) && (
+              {(performers.length > 0 || unbookedComics.length > 0 || hostOnly) && (
                 <select
                   className="section-field__select cue__edit-input--perfsel"
-                  value={editPerformerId}
+                  value={selectValue}
                   onChange={(e) => {
                     const value = e.target.value;
+                    if (value === HOST_OPTION) {
+                      // The host isn't on the bill, so there's no record to
+                      // link — the name is the whole attachment, and Run Show
+                      // reads it to put them on stage.
+                      setEditPerformerId('');
+                      setEditPerformer(hostName);
+                      return;
+                    }
                     if (value.startsWith('rolodex:')) {
                       const comic = unbookedComics.find((c) => c.id === value.slice(8));
                       const booked = comic && onBookPerformer?.(comic);
@@ -236,11 +272,20 @@ const CueRow = memo(function CueRow({
                   aria-label="Attach a performer"
                 >
                   <option value="">Attach performer…</option>
+                  {/* First, because on most nights the host works more cues
+                      than anybody on the bill does. */}
+                  {hostOnly && (
+                    <optgroup label="Hosting">
+                      <option value={HOST_OPTION}>{hostName}</option>
+                    </optgroup>
+                  )}
                   {performers.length > 0 && (
                     <optgroup label="On this bill">
                       {performers.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.name}{p.walkOnMusic ? ' (walk-on)' : ''}
+                          {p.name}
+                          {p.id === hostPerformer?.id ? ' (host)' : ''}
+                          {p.walkOnMusic ? ' (walk-on)' : ''}
                         </option>
                       ))}
                     </optgroup>
@@ -377,6 +422,7 @@ export function ScheduleSection({
   showName,
   showTime,
   performers = [],
+  host,
   knownNames = [],
   unbookedComics = [],
   onBookPerformer,
@@ -587,6 +633,7 @@ export function ScheduleSection({
                   musicLabel={cueMusicLabelFor(item, performers)}
                   performers={performers}
                   unbookedComics={unbookedComics}
+                  host={host}
                   onBookPerformer={onBookPerformer}
                   onPatch={handlePatch}
                   onDelete={handleDelete}
