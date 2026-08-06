@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Vendor } from '../../types';
 import { VENDOR_CATEGORIES } from '../../types';
 import { generateId } from '../../utils/id';
@@ -14,6 +14,10 @@ function normalizeUrl(url: string): string {
 }
 
 export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
+  // Labels have to point at the field they name: written as a plain <label>
+  // beside an input they are decoration — not announced as the field's name,
+  // and not tappable to focus it.
+  const fieldId = useId();
   const { confirm, confirmDialog } = useConfirm();
   const [name, setName] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
@@ -69,6 +73,7 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addVendor())}
           placeholder="Vendor / business name"
+          aria-label="Vendor or business name"
         />
         <button className="btn btn--primary btn--sm" onClick={addVendor}>Add</button>
       </div>
@@ -86,8 +91,8 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
               {editId === v.id && draft ? (
                 <div className="vendor-form">
                   <div className="vendor-form__field">
-                    <label className="section-field__label">Vendor name</label>
-                    <input
+                    <label className="section-field__label" htmlFor={`${fieldId}-vendor-name`}>Vendor name</label>
+                    <input id={`${fieldId}-vendor-name`}
                       className="section-field__input"
                       value={draft.name}
                       onChange={(e) => patchDraft({ name: e.target.value })}
@@ -95,8 +100,8 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
                     />
                   </div>
                   <div className="vendor-form__field">
-                    <label className="section-field__label">Category</label>
-                    <select
+                    <label className="section-field__label" htmlFor={`${fieldId}-category`}>Category</label>
+                    <select id={`${fieldId}-category`}
                       className="section-field__select"
                       value={draft.category ?? ''}
                       onChange={(e) => patchDraft({ category: e.target.value })}
@@ -107,8 +112,8 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
                     </select>
                   </div>
                   <div className="vendor-form__field">
-                    <label className="section-field__label">Contact name</label>
-                    <input
+                    <label className="section-field__label" htmlFor={`${fieldId}-contact-name`}>Contact name</label>
+                    <input id={`${fieldId}-contact-name`}
                       className="section-field__input"
                       value={draft.contactName ?? ''}
                       onChange={(e) => patchDraft({ contactName: e.target.value })}
@@ -116,8 +121,8 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
                     />
                   </div>
                   <div className="vendor-form__field">
-                    <label className="section-field__label">Phone</label>
-                    <input
+                    <label className="section-field__label" htmlFor={`${fieldId}-phone`}>Phone</label>
+                    <input id={`${fieldId}-phone`}
                       className="section-field__input"
                       type="tel"
                       value={draft.phone ?? ''}
@@ -126,8 +131,8 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
                     />
                   </div>
                   <div className="vendor-form__field">
-                    <label className="section-field__label">Email</label>
-                    <input
+                    <label className="section-field__label" htmlFor={`${fieldId}-email`}>Email</label>
+                    <input id={`${fieldId}-email`}
                       className="section-field__input"
                       type="email"
                       value={draft.email ?? ''}
@@ -136,8 +141,8 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
                     />
                   </div>
                   <div className="vendor-form__field">
-                    <label className="section-field__label">Website</label>
-                    <input
+                    <label className="section-field__label" htmlFor={`${fieldId}-website`}>Website</label>
+                    <input id={`${fieldId}-website`}
                       className="section-field__input"
                       value={draft.website ?? ''}
                       onChange={(e) => patchDraft({ website: e.target.value })}
@@ -145,8 +150,8 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
                     />
                   </div>
                   <div className="vendor-form__field">
-                    <label className="section-field__label">Cost ($)</label>
-                    <input
+                    <label className="section-field__label" htmlFor={`${fieldId}-cost`}>Cost ($)</label>
+                    <input id={`${fieldId}-cost`}
                       className="section-field__input"
                       type="number"
                       min="0"
@@ -169,8 +174,8 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
                     </label>
                   </div>
                   <div className="vendor-form__field vendor-form__field--full">
-                    <label className="section-field__label">Notes</label>
-                    <textarea
+                    <label className="section-field__label" htmlFor={`${fieldId}-notes`}>Notes</label>
+                    <textarea id={`${fieldId}-notes`}
                       className="section-field__input vendor-form__textarea"
                       rows={3}
                       value={draft.notes ?? ''}

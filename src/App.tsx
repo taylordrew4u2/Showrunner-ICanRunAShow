@@ -444,7 +444,12 @@ export default function App() {
         const rawPendingSettings = readPending<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
         const pendingSettings = rawPendingSettings ? stripLegacySettingsMedia(healSettings(rawPendingSettings)) : null;
 
-        setShows(pendingShows ?? autoStatusShows);
+        const initialShows = pendingShows ?? autoStatusShows;
+        // A pending copy is by definition *not* what the server has; anything
+        // else came straight off it and needs no local copy until it's edited.
+        savedShowsRef.current = pendingShows ? null : initialShows;
+        latestShowsRef.current = initialShows;
+        setShows(initialShows);
         setSettings(pendingSettings ?? migratedSettings);
         dataLoaded.current = true;
         if (pendingSettings) saveSettings(pendingSettings);
@@ -465,6 +470,11 @@ export default function App() {
   // Always points at the latest shows so an in-flight save can re-persist any
   // edits that landed while it was running.
   const latestShowsRef = useRef(shows);
+  // The exact set that last reached the server — or came from it. Compared by
+  // identity against the live one to answer "is there anything unsaved?", which
+  // is the only question the flush below needs and the only one that can be
+  // answered without guessing.
+  const savedShowsRef = useRef<Show[] | null>(null);
   useEffect(() => {
     latestShowsRef.current = shows;
   }, [shows]);
@@ -522,6 +532,44 @@ export default function App() {
     return () => clearTimeout(timeout);
   }, [shows, session]);
 
+  /**
+   * Write the local copy the instant the app is put away.
+   *
+   * Every edit is held in memory for up to a second before anything durable
+   * happens to it: the local backup is on a 400ms timer and the save on a
+   * 1000ms debounce, and the save then takes a round trip on top. Close the
+   * app inside that window and the edit is gone from everywhere — which is
+   * exactly what a phone does. Backgrounding a PWA freezes its timers, and iOS
+   * will discard the page outright rather than let them run later, so a delete
+   * followed by switching away could simply un-happen.
+   *
+   * localStorage is synchronous, so a write here always lands, even on the way
+   * out. The next launch restores it and re-saves it.
+   *
+   * Only when there is something unsaved: writing unconditionally would leave a
+   * local copy sitting in front of every launch, and a stale one would win over
+   * newer work done on another device.
+   */
+  useEffect(() => {
+    if (!session) return;
+    const currentSession = session;
+    function flush() {
+      if (!dataLoaded.current || latestShowsRef.current === savedShowsRef.current) return;
+      writePending(PENDING_SHOWS_KEY, currentSession.username, latestShowsRef.current);
+      setHasLocalCopy(true);
+    }
+    function onVisibility() {
+      if (document.visibilityState === 'hidden') flush();
+    }
+    document.addEventListener('visibilitychange', onVisibility);
+    // pagehide fires where unload doesn't on iOS, including into the back/forward cache.
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, [session]);
+
   // If work exists only on this device, closing the tab risks it being the
   // only copy — worth one confirm. Deliberately not shown while a normal save
   // is simply in flight: that case is already covered by the local copy above
@@ -557,6 +605,7 @@ export default function App() {
             saved = latestShowsRef.current;
             await saveEncryptedShows(saved, currentSession, unreadableRowsRef.current);
           }
+          savedShowsRef.current = saved;
           clearPending(PENDING_SHOWS_KEY);
           setHasLocalCopy(false);
           retryDelayRef.current = 5000;
