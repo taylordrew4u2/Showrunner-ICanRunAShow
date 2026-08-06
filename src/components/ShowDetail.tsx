@@ -127,9 +127,19 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
   const datePassed = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
   const isPastShow = datePassed || show.status === 'completed';
 
-  // A show that has removed the DJ section has no DJ part to run — Run Show
-  // shouldn't offer a bank of buttons for a section this show doesn't use.
-  const djHidden = (show.hiddenSections || []).includes('dj');
+  /**
+   * DJ songs that will have a button on the night.
+   *
+   * Hiding the DJ section used to drop the whole list on the way into Run Show,
+   * on the reasoning that a show without a DJ section has no DJ part to run.
+   * But hiding a section is about clutter while you're planning, and the songs
+   * don't go anywhere — so a producer who tidied the page away found their
+   * uploaded tracks had no buttons on the night, with nothing on screen saying
+   * why. Only a song someone deliberately uploaded a file for gets a pad
+   * (buildSoundboard drops the rest), so surfacing them can't conjure a bank
+   * out of a section nobody filled in.
+   */
+  const runnableDJSongs = show.djSongs;
 
   function openViewer() {
     setViewerNoteDraft(show.viewNote ?? '');
@@ -878,7 +888,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           viewToken={show.viewToken}
           schedule={show.schedule}
           performers={show.performers}
-          djSongs={djHidden ? [] : show.djSongs}
+          djSongs={runnableDJSongs}
           onStart={() => {
             if (show.status !== 'completed' && show.status !== 'in-progress') {
               onUpdate({ ...show, status: 'in-progress' });

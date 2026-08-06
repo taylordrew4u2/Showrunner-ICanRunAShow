@@ -5,6 +5,9 @@ import { audioUploadSizeError, pickFile } from '../utils/media';
 import { deleteMedia, uploadMedia } from '../utils/mediaStore';
 import { canDeleteMedia, titleFromFileName, usageCount } from '../utils/musicLibrary';
 import { PageHeader } from './PageHeader';
+import { TrackPreviewButton } from './TrackPreview';
+import './TrackPreview.css';
+import { useTrackPreview } from '../utils/useTrackPreview';
 import './MusicLibrary.css';
 import { useConfirm } from './useConfirm';
 
@@ -25,6 +28,7 @@ interface MusicLibraryProps {
  */
 export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryProps) {
   const { confirm, confirmDialog } = useConfirm();
+  const preview = useTrackPreview();
   const [status, setStatus] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -118,6 +122,11 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
           {status}
         </p>
       )}
+      {preview.error && (
+        <p className="music-page__status music-page__status--error" role="status">
+          {preview.error}
+        </p>
+      )}
 
       {tracks.length === 0 ? (
         <div className="empty-state">
@@ -166,18 +175,21 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
                   </div>
                 ) : (
                   <>
-                    <div className="music-list__body">
-                      <span className="music-list__title">
-                        {track.title}
-                        {track.artist && <span className="music-list__artist"> — {track.artist}</span>}
-                      </span>
-                      <span className="music-list__meta">
-                        {track.musicName && <span className="music-list__tag">♪ {track.musicName}</span>}
-                        {track.notes && <span className="music-list__tag">{track.notes}</span>}
-                        <span className={`music-list__tag${used ? ' music-list__tag--in-use' : ''}`}>
-                          {used === 0 ? 'Not in any show' : `In ${used} show${used === 1 ? '' : 's'}`}
+                    <div className="music-list__lead">
+                      <TrackPreviewButton src={track.music} title={track.title} preview={preview} />
+                      <div className="music-list__body">
+                        <span className="music-list__title">
+                          {track.title}
+                          {track.artist && <span className="music-list__artist"> — {track.artist}</span>}
                         </span>
-                      </span>
+                        <span className="music-list__meta">
+                          {track.musicName && <span className="music-list__tag">♪ {track.musicName}</span>}
+                          {track.notes && <span className="music-list__tag">{track.notes}</span>}
+                          <span className={`music-list__tag${used ? ' music-list__tag--in-use' : ''}`}>
+                            {used === 0 ? 'Not in any show' : `In ${used} show${used === 1 ? '' : 's'}`}
+                          </span>
+                        </span>
+                      </div>
                     </div>
                     <div className="music-list__actions">
                       <button className="btn btn--ghost btn--sm" onClick={() => startEdit(track)}>Edit</button>

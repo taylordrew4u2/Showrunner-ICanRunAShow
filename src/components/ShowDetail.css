@@ -1379,6 +1379,19 @@ select.show-detail__status--select {
   color: var(--text-muted);
 }
 
+/* A press that made no sound needs to say why on the spot — the operator is
+   standing in front of the upload that just failed. */
+.section-error {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--danger-soft, rgba(239, 68, 68, 0.1));
+  border: 1px solid var(--danger, #ef4444);
+  color: var(--danger-text, #b91c1c);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 .section-empty {
   margin: 0;
   font-size: 0.95rem;
