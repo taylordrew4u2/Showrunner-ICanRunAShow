@@ -1483,6 +1483,11 @@
 .review-edit__time { flex: 0 0 84px; font-variant-numeric: tabular-nums; font-weight: 600; }
 .review-edit__desc { flex: 2 1 160px; }
 .review-edit__perf { flex: 1 1 110px; }
+/* The on-stage picker. Full width of the row: a name and the box for editing
+   it sharing one line came out as "Poser Con" twice, which is worse than
+   either field alone was. */
+.review-edit__perfsel { flex: 1 1 100%; min-width: 0; font-size: 0.85rem; }
+.review-edit__fields .review-edit__perf { flex: 1 1 100%; }
 .review-edit__time:focus,
 .review-edit__desc:focus,
 .review-edit__perf:focus { outline: none; border-color: var(--primary); }
