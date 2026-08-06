@@ -48,6 +48,30 @@ export interface ScheduleItem {
   musicDuration?: number; // seconds to auto-play when the segment starts; undefined = full track
 }
 
+/**
+ * One cue inside a saved run-of-show template.
+ *
+ * Deliberately a subset of ScheduleItem: no `id` (regenerated per show, so the
+ * same template can be used twice without colliding), no `performerId` (those
+ * ids belong to one show's cast), and no `music`/`musicName` — audio would put
+ * an unbounded blob inside the settings payload, which has a hard request-size
+ * ceiling that, once exceeded, blocks every settings save for the account.
+ */
+export interface ScheduleTemplateItem {
+  time: string;
+  description: string;
+  performer?: string;
+  durationMin?: number;
+}
+
+/** A reusable run-of-show, saved once and applied to any future show. */
+export interface ScheduleTemplate {
+  id: string;
+  name: string;
+  items: ScheduleTemplateItem[];
+  createdAt: string;
+}
+
 export interface Host {
   id: string;
   name: string;
@@ -234,6 +258,7 @@ export interface AppSettings {
   potentialComics: PotentialComic[];
   expenses: Expense[];
   emailList: EmailListEntry[]; // collected audience emails — storage only, no sending
+  scheduleTemplates: ScheduleTemplate[]; // reusable run-of-show layouts
   musicLibrary: MusicTrack[]; // account-wide DJ tracks, addable to any show
   showTypes: string[]; // kinds of shows this producer makes (set during onboarding)
   onboarded: boolean; // whether the account has completed the welcome onboarding
@@ -251,6 +276,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   potentialComics: [],
   expenses: [],
   emailList: [],
+  scheduleTemplates: [],
   musicLibrary: [],
   showTypes: [],
   onboarded: false,
