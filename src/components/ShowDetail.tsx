@@ -21,6 +21,8 @@ import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
 import { buildShowStats, progressPercent, isComplete, formatRunTime } from '../utils/showStats';
 import { showDJSongs } from '../utils/musicLibrary';
+import { getRolodexTerm } from '../utils/terminology';
+import { hostChoices } from '../utils/hostChoices';
 import { loadViewerKey, viewerUrl as buildViewerUrl } from '../utils/viewerAudio';
 import './ShowDetail.css';
 import { useConfirm } from './useConfirm';
@@ -222,6 +224,12 @@ export function ShowDetail({
     const onBill = new Set(show.performers.map((p) => p.name.trim().toLowerCase()));
     return settings.potentialComics.filter((c) => !onBill.has(c.name.trim().toLowerCase()));
   }, [settings.potentialComics, show.performers]);
+
+  const rolodexTerm = getRolodexTerm(settings);
+  const hostPicks = useMemo(
+    () => hostChoices(show.performers, show.artists, settings.potentialComics),
+    [show.performers, show.artists, settings.potentialComics],
+  );
 
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
@@ -735,7 +743,7 @@ export function ShowDetail({
           value={show.host || ''}
           onChange={(e) => { onUpdate({ ...show, host: e.target.value || undefined }); triggerSaveIndicator(); }}
         />
-        {show.performers.length > 0 && (
+        {(hostPicks.onBill.length > 0 || hostPicks.rolodex.length > 0) && (
           <select
             className="section-field__select show-detail__host-pick"
             value=""
@@ -744,12 +752,23 @@ export function ShowDetail({
               onUpdate({ ...show, host: e.target.value });
               triggerSaveIndicator();
             }}
-            aria-label="Use a performer as host"
+            aria-label="Pick someone as host"
           >
-            <option value="">Use a performer…</option>
-            {show.performers.map((p) => (
-              <option key={p.id} value={p.name}>{p.name}</option>
-            ))}
+            <option value="">Pick someone…</option>
+            {hostPicks.onBill.length > 0 && (
+              <optgroup label="On this show">
+                {hostPicks.onBill.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </optgroup>
+            )}
+            {hostPicks.rolodex.length > 0 && (
+              <optgroup label={rolodexTerm.plural}>
+                {hostPicks.rolodex.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </optgroup>
+            )}
           </select>
         )}
       </div>

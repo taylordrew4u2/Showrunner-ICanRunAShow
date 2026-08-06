@@ -788,34 +788,6 @@ export function RunShow({
               </div>
             )}
 
-            <div className="rs-fade__sliders">
-              <label className="rs-fade__row">
-                <span className="rs-fade__label">In</span>
-                <input
-                  className="rs-fade__slider"
-                  type="range"
-                  min={0}
-                  max={MAX_FADE_IN_MS}
-                  step={FADE_STEP_MS}
-                  value={fade.fadeInMs}
-                  onChange={(e) => updateFade({ fadeInMs: Number(e.target.value) })}
-                />
-                <span className="rs-fade__value">{fmtFade(fade.fadeInMs)}</span>
-              </label>
-              <label className="rs-fade__row">
-                <span className="rs-fade__label">Out</span>
-                <input
-                  className="rs-fade__slider"
-                  type="range"
-                  min={0}
-                  max={MAX_FADE_OUT_MS}
-                  step={FADE_STEP_MS}
-                  value={fade.fadeOutMs}
-                  onChange={(e) => updateFade({ fadeOutMs: Number(e.target.value) })}
-                />
-                <span className="rs-fade__value">{fmtFade(fade.fadeOutMs)}</span>
-              </label>
-            </div>
           </div>
 
           <div className="rs-board__now" aria-live="polite">
@@ -843,6 +815,44 @@ export function RunShow({
             )}
           </div>
 
+          {/* Faders left, pads right — the layout of the desk this stands in
+              for, and the one an operator's hands already know. */}
+          <div className="rs-console">
+            <div className="rs-console__levels">
+              <span className="rs-console__levels-title">Fade</span>
+              <label className="rs-fader">
+                <span className="rs-fader__value">{fmtFade(fade.fadeInMs)}</span>
+                <span className="rs-fader__slot">
+                  <input
+                    className="rs-fade__slider"
+                    type="range"
+                    min={0}
+                    max={MAX_FADE_IN_MS}
+                    step={FADE_STEP_MS}
+                    value={fade.fadeInMs}
+                    onChange={(e) => updateFade({ fadeInMs: Number(e.target.value) })}
+                  />
+                </span>
+                <span className="rs-fader__label">In</span>
+              </label>
+              <label className="rs-fader">
+                <span className="rs-fader__value">{fmtFade(fade.fadeOutMs)}</span>
+                <span className="rs-fader__slot">
+                  <input
+                    className="rs-fade__slider"
+                    type="range"
+                    min={0}
+                    max={MAX_FADE_OUT_MS}
+                    step={FADE_STEP_MS}
+                    value={fade.fadeOutMs}
+                    onChange={(e) => updateFade({ fadeOutMs: Number(e.target.value) })}
+                  />
+                </span>
+                <span className="rs-fader__label">Out</span>
+              </label>
+            </div>
+
+            <div className="rs-console__banks">
           {board.performers.length > 0 && (
             <div className="rs-bank">
               <div className="rs-bank__label">Performers</div>
@@ -906,9 +916,9 @@ export function RunShow({
                 <>
                   Nothing on the board yet — this show has no audio attached.
                   You have {libraryCount} track{libraryCount === 1 ? '' : 's'} in your Music
-                  library, but a library track only plays here once it's added to this show:
-                  open the DJ section and use <strong>Add from Music library</strong>. Walk-on
-                  music on a performer and music on a cue get a button here too.
+                  library and they're already in this show's DJ list, but a track only gets a
+                  button here once it has an audio file on it. Walk-on music on a performer and
+                  music on a cue get a button here too.
                 </>
               ) : (
                 <>
@@ -924,6 +934,8 @@ export function RunShow({
               uploaded — upload the file in the DJ section to get a button.
             </p>
           )}
+            </div>
+          </div>
         </section>
 
         {/* ── Lineup ──────────────────────────────────────────────────── */}

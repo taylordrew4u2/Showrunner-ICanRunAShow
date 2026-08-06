@@ -2038,17 +2038,89 @@
   font-size: 0.76rem;
   color: rgba(255, 255, 255, 0.85);
 }
-.rs-fade__sliders {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 8px 18px;
+/* ── Console: faders left, pads right ─────────────────────────────────
+   The desk this stands in for puts the levels down the left edge and the
+   pads across the rest, and that's the shape an operator's hands already
+   know. Turning the faders upright is what buys the room: a vertical fader
+   costs about 40px of width where a horizontal one cost 210px, so the pads
+   keep every column they had. */
+.rs-console {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }
-.rs-fade__row { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.rs-fade__label {
-  flex: 0 0 26px;
-  font-size: 0.82rem;
+
+.rs-console__levels {
+  flex: 0 0 auto;
+  display: flex;
+  /* Every pixel here comes straight out of the pads, so the column is as
+     narrow as two draggable caps allow and no narrower. */
+  gap: 4px;
+  padding: 8px 5px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.12)),
+    var(--rs-deck);
+  border: 1px solid var(--rs-deck-edge);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.rs-console__levels-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.rs-console__banks {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The banks already carry their own plate; inside the console they stack
+   against the levels rather than starting a new block. */
+.rs-console__banks .rs-bank:first-child { margin-top: 0; }
+
+.rs-fader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.rs-fader__slot {
+  position: relative;
+  display: block;
+  /* The cap is 32px across once it's turned upright — the slot can't be
+     narrower than the thing riding in it. */
+  width: 34px;
+  height: 156px;
+}
+
+/* Rotation rather than writing-mode: it drags correctly in every engine this
+   ships to, including the iOS WebView, where the vertical-range properties
+   are still uneven. */
+.rs-fader__slot .rs-fade__slider {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 156px;
+  height: 34px;
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.rs-fader__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: rgba(255, 255, 255, 0.92);
 }
+
 /* A console fader rather than a browser slider: a recessed slot with a
    knurled metal cap riding in it, and a bright index line across the cap
    marking where it sits — the same read as the hardware it's standing in for. */
@@ -2127,6 +2199,12 @@
 
 .rs-fade__slider:focus-visible { outline: 2px solid var(--rs-blue); outline-offset: 4px; }
 /* Tabular figures, or the row twitches as the readout changes width. */
+.rs-fader__value {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+}
 .rs-fade__value {
   flex: 0 0 58px;
   text-align: right;
@@ -2518,7 +2596,10 @@
      "Intermission Bed" to "Intermi ssion…" — the operator was left picking
      tracks off a letter and a guess. The tighter gap and the smaller label buy
      the extra few pixels that let a long one-word title land whole. */
-  .rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 14px 8px; }
+  /* Inside the console the grid has the levels column beside it, so the
+     minimum comes down just enough to keep two pads on a row rather than
+     one — at 100px it missed a two-column fit by four pixels. */
+  .rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 14px 8px; padding: 14px 8px 12px; }
   .rs-pad { padding-left: 0; padding-right: 0; }
   .rs-pad__label { font-size: 0.76rem; }
   /* Still three across and the label still has its full width — only the
@@ -2526,6 +2607,21 @@
   .rs-pad { --rs-pad-face: 96px; }
   .rs-lineup__range { min-width: 0; font-size: 0.74rem; }
   .rs-lineup__len { display: none; }
+}
+
+/* This board is run from a desk, so on a desktop the console takes the room a
+   desk has: longer fader throw, which is what makes a fade settable rather
+   than nudgeable, and knobs big enough to hit without looking. */
+@media (min-width: 900px) {
+  .rs-console { gap: 14px; }
+  .rs-console__levels { gap: 10px; padding: 12px 10px; }
+  /* Each fader owns enough width that "Instant" and "0.35s" can't collide. */
+  .rs-fader { min-width: 56px; }
+  .rs-fader__slot { height: 216px; width: 38px; }
+  .rs-fader__slot .rs-fade__slider { width: 216px; }
+  .rs-fader__value { font-size: 0.76rem; }
+  .rs-pad { --rs-pad-face: 124px; }
+  .rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 20px 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
