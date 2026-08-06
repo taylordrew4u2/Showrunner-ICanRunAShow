@@ -2868,7 +2868,59 @@ body:has([aria-modal='true']) .status-rail {
   font-size: clamp(4rem, min(16vw, 22vh), 10rem);
 }
 .live-viewer__timer--over { color: var(--danger-text); }
-.live-viewer__timer--warning { color: var(--danger-text); animation: rs-timer-flash 1s ease-in-out infinite; }
+
+/* ── One minute left ──────────────────────────────────────────────────
+   This is the only signal the person on stage gets, and they are looking
+   at the audience, not at a screen. Reddening the digits and pulsing them
+   to 30% — what this used to do — asks someone to be reading the clock at
+   the moment it changes. Nobody mid-set is.
+
+   So the whole field flashes instead. A full-screen colour change is
+   caught by peripheral vision, which is the only part of their attention
+   actually available.
+
+   On the rate: a saturated red full-screen flash is the exact pattern
+   WCAG 2.3.1 names as a seizure risk, and its ceiling is three flashes a
+   second. This runs at one — a third of the limit — so it reads as an
+   alarm rather than a strobe. Do not shorten this duration.
+
+   The red is fixed rather than themed. The viewer follows whatever colour
+   scheme the producer picked, and a wrap-up warning that came out blue
+   because someone chose a blue scheme would not be a warning. */
+.live-viewer--alarm::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* Behind the content, which is lifted to z-index 1, and above the page
+     background — so the field goes red while the names stay put. */
+  z-index: 0;
+  pointer-events: none;
+  background: var(--live-alarm-red, #e10600);
+  animation: live-viewer-alarm 1s ease-in-out infinite;
+}
+
+/* The digits hold white through both halves of the cycle: 4.97:1 on the red
+   and better than that on the page background, so the number never has a
+   moment where it can't be read.
+
+   Written as a descendant selector on purpose. Once a cue runs over,
+   --over and the alarm are both on, and --over paints the digits
+   `--public-red-bright !important` — red on a red field, invisible exactly
+   when it matters most. Two classes outrank one whatever the source order,
+   which a rule on --warning alone would not. */
+.live-viewer--alarm .live-viewer__timer { color: #fff !important; }
+
+@keyframes live-viewer-alarm {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+/* Flashing is the hazard; the red is the message. Reduced motion keeps the
+   message and drops the flashing — a screen held solid red is every bit as
+   hard to miss as one that blinks. */
+@media (prefers-reduced-motion: reduce) {
+  .live-viewer--alarm::after { animation: none; opacity: 1; }
+}
 .live-viewer__starting {
   font-size: 1.1rem;
   color: var(--text-muted);
@@ -3103,8 +3155,9 @@ body:has([aria-modal='true']) .status-rail {
   font-family: "Helvetica Neue", "Arial Black", Impact, sans-serif !important;
   text-transform: uppercase;
 }
-.live-viewer__timer--over,
-.live-viewer__timer--warning { color: var(--public-red-bright) !important; }
+.live-viewer__timer--over { color: var(--public-red-bright) !important; }
+/* --warning deliberately sets no colour here: the last minute is driven by the
+   alarm animation below, and an !important declaration would outrank it. */
 .live-viewer__starting {
   color: var(--public-red-bright) !important;
   text-transform: uppercase;
