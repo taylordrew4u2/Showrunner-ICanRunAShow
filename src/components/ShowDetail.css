@@ -2412,6 +2412,15 @@ select.show-detail__status--select {
   margin: 0 0 6px;
 }
 
+/* What an empty Rolodex says for itself. The picker opening onto nothing at
+   all is what sent people to the nav tab looking for it. */
+.section-rolodex-picker__empty {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 .section-rolodex-picker__item {
   display: flex;
   align-items: center;

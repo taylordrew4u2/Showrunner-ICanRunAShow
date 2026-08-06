@@ -2457,14 +2457,26 @@ body:has([aria-modal='true']) .status-rail {
   text-align: center;
   gap: 18px;
 }
+/* The show's name is whatever the producer called it, and this is the page an
+   audience opens. Without wrapping, a long name squeezed the status pill off
+   the right edge — "SOLD OUT SATURDAY NIGHT COMEDY HOUR" left it reading
+   "RUNNIN", clipped by the viewport rather than merely scrolled out of it. */
 .live-viewer__top {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
+  flex-wrap: wrap;
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+/* min-width: 0 so the name may wrap instead of holding the row open. */
+.live-viewer__show {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .live-viewer__status {
+  flex-shrink: 0;
+  white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 700;
