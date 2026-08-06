@@ -80,20 +80,26 @@ export function ArtistsSection({ artists, potentialComics = [], onChange }: Arti
           placeholder="Artist name"
         />
         <button className="btn btn--primary btn--sm" onClick={addArtist}>Add</button>
-        {potentialComics.length > 0 && (
-          <button
-            className="btn btn--secondary btn--sm"
-            onClick={() => setShowRolodex((v) => !v)}
-            aria-expanded={showRolodex}
-          >
-            From Rolodex
-          </button>
-        )}
+        {/* Shown even when the Rolodex is empty — see PerformersSection. */}
+        <button
+          className="btn btn--secondary btn--sm"
+          onClick={() => setShowRolodex((v) => !v)}
+          aria-expanded={showRolodex}
+        >
+          From Rolodex
+        </button>
       </div>
 
       {showRolodex && (
         <div className="section-rolodex-picker">
           <p className="section-rolodex-picker__label">Pick from Rolodex</p>
+          {potentialComics.length === 0 ? (
+            <p className="section-rolodex-picker__empty">
+              Nobody on file yet. Everyone you add to a show is filed here
+              automatically, so this fills up as you book.
+            </p>
+          ) : (
+            <>
           {potentialComics.map((comic) => (
             <button
               key={comic.id}
@@ -109,6 +115,8 @@ export function ArtistsSection({ artists, potentialComics = [], onChange }: Arti
               )}
             </button>
           ))}
+            </>
+          )}
         </div>
       )}
 
