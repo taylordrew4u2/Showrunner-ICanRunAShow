@@ -1668,6 +1668,12 @@
   --rs-red-text: #f87171;
   --rs-panel: rgba(255, 255, 255, 0.025);
   --rs-panel-border: rgba(255, 255, 255, 0.07);
+  /* The soundboard alone is dressed as hardware — a slate face plate with the
+     knobs seated in it. The rest of the screen stays flat, so the one panel
+     you reach for while a show runs is the one that looks like a thing you
+     reach for. */
+  --rs-deck: #3d4257;
+  --rs-deck-edge: #2b2f3f;
   /* Every label on this screen sits at 0.55 white, not 0.4. At 0.4 they
      measured 3.8:1 against the stage background — below AA — and this is the
      one screen read in a dark room, mid-show, at a glance. */
@@ -1984,13 +1990,31 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 12px;
   margin-bottom: 12px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.12)),
+    var(--rs-deck);
+  border: 1px solid var(--rs-deck-edge);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4);
 }
 .rs-fade__head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+/* On the face plate a translucent chip washes out. These read as panel
+   buttons: recessed, with their own edge. */
+.rs-fade .rs-chip {
+  background: rgba(0, 0, 0, 0.34);
+  border-color: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.92);
+}
+.rs-fade .rs-chip:hover:not(:disabled) { background: rgba(0, 0, 0, 0.2); }
+.rs-fade .rs-chip--active {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: var(--rs-blue);
+  color: #fff;
+}
 .rs-fade__title {
   font-size: 0.72rem;
   font-weight: 700;
@@ -2004,7 +2028,7 @@
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.86);
 }
 /* Two sliders side by side where there's room, stacked on a phone. */
 .rs-fade__viewer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -2012,7 +2036,7 @@
   flex: 1 1 220px;
   min-width: 0;
   font-size: 0.76rem;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.85);
 }
 .rs-fade__sliders {
   display: grid;
@@ -2023,9 +2047,85 @@
 .rs-fade__label {
   flex: 0 0 26px;
   font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.92);
 }
-.rs-fade__slider { flex: 1; min-width: 0; accent-color: var(--rs-blue); }
+/* A console fader rather than a browser slider: a recessed slot with a
+   knurled metal cap riding in it, and a bright index line across the cap
+   marking where it sits — the same read as the hardware it's standing in for. */
+.rs-fade__slider {
+  flex: 1;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 34px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.rs-fade__slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.22) 0 1px,
+      transparent 1px 12px
+    ),
+    linear-gradient(180deg, #0a0c12, #23283a);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.rs-fade__slider::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.22) 0 1px,
+      transparent 1px 12px
+    ),
+    linear-gradient(180deg, #0a0c12, #23283a);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+.rs-fade__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 32px;
+  margin-top: -12px;
+  border-radius: 4px;
+  border: 1px solid #14171f;
+  background:
+    /* the index line, across the direction of travel */
+    linear-gradient(90deg, transparent 45%, #e0453c 45% 55%, transparent 55%),
+    /* knurling */
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22) 0 1px,
+      rgba(0, 0, 0, 0.34) 1px 4px
+    ),
+    linear-gradient(90deg, #6b7183, #cfd4e0 45%, #9aa0b2 55%, #5b6072);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+}
+.rs-fade__slider::-moz-range-thumb {
+  width: 20px;
+  height: 32px;
+  border-radius: 4px;
+  border: 1px solid #14171f;
+  background:
+    linear-gradient(90deg, transparent 45%, #e0453c 45% 55%, transparent 55%),
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22) 0 1px,
+      rgba(0, 0, 0, 0.34) 1px 4px
+    ),
+    linear-gradient(90deg, #6b7183, #cfd4e0 45%, #9aa0b2 55%, #5b6072);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+}
+
+.rs-fade__slider:focus-visible { outline: 2px solid var(--rs-blue); outline-offset: 4px; }
 /* Tabular figures, or the row twitches as the readout changes width. */
 .rs-fade__value {
   flex: 0 0 58px;
@@ -2075,7 +2175,17 @@
 .rs-bank__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 14px 10px;
+  gap: 16px 10px;
+  padding: 16px 12px 14px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.12)),
+    var(--rs-deck);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--rs-deck-edge);
 }
 
 .rs-pad {
@@ -2107,24 +2217,89 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
-  border: 2px solid rgba(255, 255, 255, 0.14);
-  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  /* A machined knob, not a flat disc: a conic sweep gives the brushed-metal
+     grain, the radial pass over it lifts the centre and drops the rim, and the
+     ring shadows seat it into the panel. The colour comes from the bank, so a
+     glance reads which instrument you're on before it reads the label. */
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 58%),
+    conic-gradient(
+      from 210deg,
+      var(--rs-knob-hi, #8f96b4) 0deg,
+      var(--rs-knob-lo, #1d2030) 45deg,
+      var(--rs-knob-hi, #8f96b4) 90deg,
+      var(--rs-knob-lo, #1d2030) 135deg,
+      var(--rs-knob-hi, #8f96b4) 180deg,
+      var(--rs-knob-lo, #1d2030) 225deg,
+      var(--rs-knob-hi, #8f96b4) 270deg,
+      var(--rs-knob-lo, #1d2030) 315deg,
+      var(--rs-knob-hi, #8f96b4) 360deg
+    );
+  border: 0;
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.55),
+    inset 0 2px 5px rgba(255, 255, 255, 0.18),
+    inset 0 -3px 7px rgba(0, 0, 0, 0.5),
+    0 3px 6px rgba(0, 0, 0, 0.55);
+  transition: transform 0.12s ease, filter 0.15s ease;
 }
-.rs-pad:hover .rs-pad__face { background: rgba(255, 255, 255, 0.14); }
-.rs-pad:active .rs-pad__face { transform: scale(0.94); }
+
+/* The tick ring around the knob, and the pointer that says where it's set.
+   Both are drawn rather than imaged so they scale with the pad. */
+.rs-pad__face::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: inherit;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.5) 0deg 1.4deg,
+    transparent 1.4deg 15deg
+  );
+  /* closest-side, or the percentages resolve against the distance to the
+     corner and the ticks land on the knob's face instead of around it. */
+  -webkit-mask: radial-gradient(circle closest-side, transparent 0 calc(100% - 9px), #000 calc(100% - 9px) calc(100% - 3px), transparent calc(100% - 3px));
+  mask: radial-gradient(circle closest-side, transparent 0 calc(100% - 9px), #000 calc(100% - 9px) calc(100% - 3px), transparent calc(100% - 3px));
+  pointer-events: none;
+}
+
+.rs-pad__face::after {
+  content: '';
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  width: 3px;
+  height: 30%;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--rs-knob-pointer, #f5d76e);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+.rs-pad:hover .rs-pad__face { filter: brightness(1.12); }
+.rs-pad:active .rs-pad__face { transform: scale(0.96); filter: brightness(0.92); }
 /* Every pad is a circle. The DJ and show-track banks used to be squircles so a
    glance could tell the banks apart — but a round face is what reads as "press
    me to play this", and squaring off the music banks made an uploaded song look
    like it hadn't landed on the board at all. The banks are still told apart at a
    glance, by the ring colour and the badge below, which costs the tracks
    nothing. */
-.rs-pad--disc .rs-pad__face {
-  border-color: var(--rs-pad-ring, rgba(255, 255, 255, 0.14));
-  background: var(--rs-pad-fill, rgba(255, 255, 255, 0.08));
+/* Each bank is a different colour of knob, the way a console groups a row by
+   what it does. Performers keep the steel default; the music banks take the
+   blue and gold of the reference so the operator finds a bank by colour and
+   never presses one for the other. */
+.rs-bank--dj {
+  --rs-knob-hi: #7e94e2;
+  --rs-knob-lo: #0d1440;
+  --rs-knob-pointer: #ffe27a;
+  --rs-pad-ring: rgba(123, 147, 216, 0.6);
 }
-.rs-bank--dj { --rs-pad-ring: rgba(96, 165, 250, 0.5); --rs-pad-fill: rgba(59, 130, 246, 0.13); }
-.rs-bank--cues { --rs-pad-ring: rgba(245, 158, 11, 0.45); --rs-pad-fill: rgba(245, 158, 11, 0.11); }
+.rs-bank--cues {
+  --rs-knob-hi: #e8bd72;
+  --rs-knob-lo: #4a3208;
+  --rs-knob-pointer: #fff3d0;
+  --rs-pad-ring: rgba(216, 173, 106, 0.6);
+}
 /* A note on the badge, so a track pad says "song" without reading the label. */
 .rs-pad__kind {
   position: absolute;
@@ -2142,6 +2317,7 @@
   align-items: center;
   justify-content: center;
 }
+.rs-pad--disc .rs-pad__initial { display: none; }
 .rs-pad__initial {
   font-size: 2.1rem;
   font-weight: 800;
@@ -2203,10 +2379,20 @@
 
 /* Playing: a lit ring, a level meter in place of the play badge, and the name
    in green. Three signals, because one of them is always the one you catch. */
+/* Lit: the knob keeps its metal, and the ring around it comes on like an
+   indicator lamp. Repainting the face green lost which bank it belonged to at
+   the one moment the operator is looking straight at it. */
 .rs-pad--playing .rs-pad__face {
-  border-color: var(--rs-green);
-  background: rgba(34, 197, 94, 0.16);
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.14);
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.55),
+    inset 0 2px 5px rgba(255, 255, 255, 0.2),
+    inset 0 -3px 7px rgba(0, 0, 0, 0.5),
+    0 0 0 3px var(--rs-green),
+    0 0 18px rgba(34, 197, 94, 0.55);
+}
+.rs-pad--playing .rs-pad__face::after {
+  background: var(--rs-green);
+  box-shadow: 0 0 8px var(--rs-green);
 }
 .rs-pad--playing .rs-pad__initial { color: #fff; }
 .rs-pad--playing .rs-pad__label { color: var(--rs-green); }
