@@ -1,14 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ScheduleItem } from '../types';
+import type { Performer, PotentialComic, ScheduleItem } from '../types';
 import { generateId } from '../utils/id';
 import { importScheduleFromFile, parseScheduleManually } from '../utils/aiExtractor';
+import { withMatchedPerformers } from '../utils/cuePerformer';
 import { Icon } from './Icon';
+import { OnStagePicker } from './OnStagePicker';
 
 type Step = 'pick' | 'paste' | 'processing' | 'review';
 type Source = 'photo' | 'pdf' | 'paste';
 
 interface AIImportFlowProps {
   showName: string;
+  /** This show's bill, so a cue can be attached while it's being reviewed. */
+  performers?: Performer[];
+  /** Everyone on file who isn't on this show's bill yet. */
+  unbookedComics?: PotentialComic[];
+  /** Who's hosting — usually the busiest name on an imported run sheet. */
+  host?: string;
+  onBookPerformer?: (comic: PotentialComic) => Performer;
+  /**
+   * Everyone the app knows by name. A run sheet writes people into the cue
+   * text ("Justin welcome", "Taylor — closer"), and matching them here means
+   * the review screen shows who it worked out rather than a column of blanks
+   * that only fills in after you've committed to the import.
+   */
+  knownNames?: string[];
   onClose: () => void;
   onApply: (items: ScheduleItem[]) => void;
 }
@@ -24,7 +40,16 @@ const AI_STEPS = [
   { label: 'Final pass', sub: 'Review & dedupe' },
 ] as const;
 
-export function AIImportFlow({ showName, onClose, onApply }: AIImportFlowProps) {
+export function AIImportFlow({
+  showName,
+  performers = [],
+  unbookedComics = [],
+  host,
+  onBookPerformer,
+  knownNames = [],
+  onClose,
+  onApply,
+}: AIImportFlowProps) {
   const [step, setStep] = useState<Step>('pick');
   const [source, setSource] = useState<Source | null>(null);
   const [pasted, setPasted] = useState(
@@ -106,7 +131,11 @@ export function AIImportFlow({ showName, onClose, onApply }: AIImportFlowProps) 
       setStep('pick');
       return;
     }
-    setItems(extracted.map((i) => ({ ...i, selected: true })));
+    // Match names out of the cue text before showing the review, not after it.
+    // The same pass runs on apply either way, so this changes nothing about
+    // what gets added — it changes whether you can see it and correct it while
+    // the screen is still asking you to check the import.
+    setItems(withMatchedPerformers(extracted, knownNames).map((i) => ({ ...i, selected: true })));
     window.setTimeout(() => {
       if (!cancelledRef.current) setStep('review');
     }, 280);
@@ -138,12 +167,22 @@ export function AIImportFlow({ showName, onClose, onApply }: AIImportFlowProps) 
   function apply() {
     const picked = items
       .filter((i) => i.selected && (i.description.trim() || i.time.trim() || (i.performer ?? '').trim()))
-      .map((i) => ({
-        id: i.id || generateId(),
-        time: i.time.trim(),
-        description: i.description.trim(),
-        performer: (i.performer ?? '').trim() || undefined,
-      }));
+      // Carry the whole cue, minus the review screen's own checkbox. This used
+      // to name the four fields it kept, which silently dropped everything the
+      // extractor had worked out beyond them — above all durationMin, so a run
+      // sheet that plainly said "15 min set" arrived with no length on it and
+      // the AI's segment timings never reached a single show.
+      .map((i) => {
+        const cue: ReviewItem = {
+          ...i,
+          id: i.id || generateId(),
+          time: i.time.trim(),
+          description: i.description.trim(),
+          performer: (i.performer ?? '').trim() || undefined,
+        };
+        delete (cue as Partial<ReviewItem>).selected;
+        return cue as ScheduleItem;
+      });
     onApply(picked);
   }
 
@@ -330,12 +369,20 @@ export function AIImportFlow({ showName, onClose, onApply }: AIImportFlowProps) 
                         placeholder="Segment"
                         aria-label="Segment"
                       />
-                      <input
-                        className="review-edit__perf"
-                        value={i.performer ?? ''}
-                        onChange={(e) => editItem(i.id, { performer: e.target.value })}
-                        placeholder="On stage"
-                        aria-label="Who's on stage"
+                      {/* The same control as the cue editor. This was a bare
+                          text box, so an import — the one place a whole show
+                          arrives at once — was the one place you couldn't
+                          pick anybody, and every name had to be re-typed
+                          exactly right to reach Run Show. */}
+                      <OnStagePicker
+                        value={{ performer: i.performer, performerId: i.performerId }}
+                        performers={performers}
+                        unbookedComics={unbookedComics}
+                        host={host}
+                        onBookPerformer={onBookPerformer}
+                        onChange={(next) => editItem(i.id, next)}
+                        selectClassName="section-field__select review-edit__perfsel"
+                        inputClassName="review-edit__perf"
                       />
                     </div>
                     <button

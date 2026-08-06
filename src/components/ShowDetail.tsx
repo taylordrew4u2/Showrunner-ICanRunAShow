@@ -894,6 +894,7 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
           schedule={show.schedule}
           performers={show.performers}
           djSongs={runnableDJSongs}
+          libraryCount={(settings.musicLibrary ?? []).length}
           onStart={() => {
             if (show.status !== 'completed' && show.status !== 'in-progress') {
               onUpdate({ ...show, status: 'in-progress' });
