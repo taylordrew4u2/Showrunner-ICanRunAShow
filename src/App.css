@@ -2074,8 +2074,8 @@
 }
 .rs-bank__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
-  gap: 12px 10px;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 14px 10px;
 }
 
 .rs-pad {
@@ -2093,10 +2093,16 @@
   min-width: 0;
 }
 .rs-pad:focus-visible { outline: 2px solid var(--rs-blue); outline-offset: 2px; }
+/* The face fills its column instead of sitting at a fixed size in the middle
+   of one. The pad was already this wide — the circle just wasn't — so the
+   press target grows without costing a column or a character of the label.
+   This is a board operated one-handed, mid-show, in the dark; the thing you
+   aim at should be the whole tile. */
 .rs-pad__face {
   position: relative;
-  width: 68px;
-  height: 68px;
+  width: 100%;
+  max-width: var(--rs-pad-face, 104px);
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-full);
   display: inline-flex;
   align-items: center;
@@ -2137,7 +2143,7 @@
   justify-content: center;
 }
 .rs-pad__initial {
-  font-size: 1.7rem;
+  font-size: 2.1rem;
   font-weight: 800;
   color: rgba(255, 255, 255, 0.78);
   letter-spacing: -0.02em;
@@ -2151,10 +2157,10 @@
 }
 .rs-pad__state {
   position: absolute;
-  right: -3px;
-  bottom: -3px;
-  width: 26px;
-  height: 26px;
+  right: -2px;
+  bottom: -2px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-full);
   background: #101014;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -2326,10 +2332,12 @@
      "Intermission Bed" to "Intermi ssion…" — the operator was left picking
      tracks off a letter and a guess. The tighter gap and the smaller label buy
      the extra few pixels that let a long one-word title land whole. */
-  .rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px 8px; }
+  .rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 14px 8px; }
   .rs-pad { padding-left: 0; padding-right: 0; }
   .rs-pad__label { font-size: 0.76rem; }
-  .rs-pad__face { width: 62px; height: 62px; }
+  /* Still three across and the label still has its full width — only the
+     circle changes, from 62px to the width of the column it always had. */
+  .rs-pad { --rs-pad-face: 96px; }
   .rs-lineup__range { min-width: 0; font-size: 0.74rem; }
   .rs-lineup__len { display: none; }
 }
