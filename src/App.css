@@ -1986,6 +1986,13 @@
   color: rgba(255, 255, 255, 0.55);
 }
 .rs-fade__presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.rs-fade__hear { margin-left: auto; }
+.rs-fade__summary {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.62);
+}
 /* Two sliders side by side where there's room, stacked on a phone. */
 .rs-fade__viewer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .rs-fade__viewer-note {
@@ -2087,9 +2094,35 @@
 }
 .rs-pad:hover .rs-pad__face { background: rgba(255, 255, 255, 0.14); }
 .rs-pad:active .rs-pad__face { transform: scale(0.94); }
-/* The DJ / show-track banks get a squircle so a glance tells the two banks
-   apart even when the labels are off-screen. */
-.rs-pad--disc .rs-pad__face { border-radius: 20px; }
+/* Every pad is a circle. The DJ and show-track banks used to be squircles so a
+   glance could tell the banks apart — but a round face is what reads as "press
+   me to play this", and squaring off the music banks made an uploaded song look
+   like it hadn't landed on the board at all. The banks are still told apart at a
+   glance, by the ring colour and the badge below, which costs the tracks
+   nothing. */
+.rs-pad--disc .rs-pad__face {
+  border-color: var(--rs-pad-ring, rgba(255, 255, 255, 0.14));
+  background: var(--rs-pad-fill, rgba(255, 255, 255, 0.08));
+}
+.rs-bank--dj { --rs-pad-ring: rgba(96, 165, 250, 0.5); --rs-pad-fill: rgba(59, 130, 246, 0.13); }
+.rs-bank--cues { --rs-pad-ring: rgba(245, 158, 11, 0.45); --rs-pad-fill: rgba(245, 158, 11, 0.11); }
+/* A note on the badge, so a track pad says "song" without reading the label. */
+.rs-pad__kind {
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: #101014;
+  border: 1px solid var(--rs-pad-ring, rgba(255, 255, 255, 0.16));
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.7rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .rs-pad__initial {
   font-size: 1.7rem;
   font-weight: 800;
@@ -2123,11 +2156,17 @@
   line-height: 1.25;
   text-align: center;
   max-width: 100%;
-  /* Two lines, and a title long enough to have no break in it ("Intermission")
-     wraps mid-word rather than running out over the next pad. */
+  /* Two lines. A word too long for the pad ("Intermission") is hyphenated
+     rather than sliced — "Intermissio / n Bed" reads as a typo and costs the
+     operator the half-second of doubt that the label existed to save.
+     overflow-wrap stays as the backstop for what can't be hyphenated at all,
+     like a filename. */
   min-height: 2.5em;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  hyphens: auto;
+  /* break-word, not anywhere: "anywhere" offers a break between every letter,
+     which is always an acceptable break, so the hyphenator is never asked. */
+  overflow-wrap: break-word;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -2270,7 +2309,13 @@
   .run-show__finish { padding: 7px 11px; font-size: 0.72rem; }
   .run-show__scroll { padding-left: 10px; padding-right: 10px; }
   .rs-panel { padding: 12px; }
-  .rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+  /* Three across on a phone rather than four. At four, a 78px pad cut
+     "Intermission Bed" to "Intermi ssion…" — the operator was left picking
+     tracks off a letter and a guess. The tighter gap and the smaller label buy
+     the extra few pixels that let a long one-word title land whole. */
+  .rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px 8px; }
+  .rs-pad { padding-left: 0; padding-right: 0; }
+  .rs-pad__label { font-size: 0.76rem; }
   .rs-pad__face { width: 62px; height: 62px; }
   .rs-lineup__range { min-width: 0; font-size: 0.74rem; }
   .rs-lineup__len { display: none; }

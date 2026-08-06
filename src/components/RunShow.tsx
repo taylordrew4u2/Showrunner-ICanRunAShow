@@ -31,6 +31,7 @@ import {
   FADE_STEP_MS,
   MAX_FADE_IN_MS,
   MAX_FADE_OUT_MS,
+  describeFade,
   fmtFade,
   loadFadeSettings,
   matchesPreset,
@@ -56,6 +57,8 @@ const DRIFT_TOLERANCE = 30; // seconds we still count as "On Time"
 const STEP_SECONDS = 2 * 60; // coarse +/- buttons
 const FINE_STEP_SECONDS = 30; // fine +/- buttons
 const WARNING_SECONDS = 60; // timer flashes red at/under this remaining
+/** How long a fade audition sits at full volume before it fades back out. */
+const AUDITION_HOLD_MS = 1500;
 /** Tracks decoded at once when the board opens. See the preload effect. */
 const PRELOAD_CONCURRENCY = 3;
 
@@ -102,6 +105,11 @@ function TrackButton({
           <img className="rs-pad__photo" src={photoUrl} alt="" />
         ) : (
           <span className="rs-pad__initial">{track.initial}</span>
+        )}
+        {variant === 'disc' && (
+          <span className="rs-pad__kind" aria-hidden="true">
+            ♪
+          </span>
         )}
         <span className="rs-pad__state" aria-hidden="true">
           {isPlaying ? (
@@ -158,6 +166,10 @@ export function RunShow({
   const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'error'>('idle');
   const [publishDone, setPublishDone] = useState(0);
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
+  // The fade audition — see auditionFade(). Held in a ref so any press can call
+  // the test off before its scheduled stop lands on somebody else's track.
+  const [auditioning, setAuditioning] = useState(false);
+  const auditionTimer = useRef<number | null>(null);
 
   const board = useMemo(
     () => buildSoundboard(schedule, performers, djSongs),
@@ -332,7 +344,60 @@ export function RunShow({
   // Press to start, press again to stop. Pressing a different button hands
   // over: the outgoing track fades as the new one rises. Both fades are the
   // operator's setting — see the Fade control in the board header.
+  /**
+   * Cancel a fade audition that's still counting down to its own stop.
+   *
+   * Every path that starts or stops audio calls this first. Without it the
+   * test's scheduled stop would land a second later on whatever the operator
+   * pressed in the meantime — a walk-on cut off by a test they'd already
+   * forgotten about is the worst possible way to learn what this button does.
+   */
+  function cancelAudition() {
+    if (auditionTimer.current !== null) {
+      window.clearTimeout(auditionTimer.current);
+      auditionTimer.current = null;
+    }
+    setAuditioning(false);
+  }
+
+  /**
+   * Play a real track with the current fade, then stop it with the current
+   * fade, so "is the fade working?" is a question the room can answer before
+   * doors rather than during the show. Uses the first pad on the board — a
+   * synthetic tone would prove the engine works and nothing about the mix.
+   */
+  function auditionFade() {
+    if (auditioning) {
+      stopAll();
+      return;
+    }
+    const track = board.performers[0] ?? board.cues[0] ?? board.dj[0];
+    if (!track) return;
+    cancelAudition();
+    setAudioError(null);
+    setPlayingKey(track.key);
+    setAuditioning(true);
+    audioEngine
+      .play(track.src, { fadeInMs: fade.fadeInMs, fadeOutMs: fade.fadeOutMs })
+      .then((result) => {
+        if (result === 'started' || result === 'superseded') return;
+        cancelAudition();
+        setPlayingKey((k) => (k === track.key ? null : k));
+        setAudioError(`${track.label} — ${FAILURE_MESSAGE[result] ?? "it didn't play."}`);
+      })
+      .catch(() => cancelAudition());
+    // Hold at full for a beat once the ramp is done, so the two ends of the
+    // fade are heard as two separate things rather than one wobble.
+    auditionTimer.current = window.setTimeout(() => {
+      auditionTimer.current = null;
+      setAuditioning(false);
+      audioEngine.stop({ fadeMs: fade.fadeOutMs });
+      setPlayingKey((k) => (k === track.key ? null : k));
+    }, fade.fadeInMs + AUDITION_HOLD_MS);
+  }
+
   function toggleTrack(track: SoundboardTrack) {
+    cancelAudition();
     if (playingKey === track.key) {
       audioEngine.stop({ fadeMs: fade.fadeOutMs });
       setPlayingKey(null);
@@ -362,6 +427,7 @@ export function RunShow({
   }
 
   function stopAll() {
+    cancelAudition();
     audioEngine.stop({ fadeMs: fade.fadeOutMs });
     setPlayingKey(null);
     setAudioError(null);
@@ -424,8 +490,14 @@ export function RunShow({
     audioEngine.setMuted(muted);
   }, [muted]);
 
-  // Stop on unmount.
-  useEffect(() => () => audioEngine.stopNow(), []);
+  // Stop on unmount — including an audition still waiting to fade itself out.
+  useEffect(
+    () => () => {
+      if (auditionTimer.current !== null) window.clearTimeout(auditionTimer.current);
+      audioEngine.stopNow();
+    },
+    [],
+  );
 
   // ── Live viewer publishing ───────────────────────────────────────────────
   // Publish the live state when something meaningful changes. The viewer
@@ -668,7 +740,25 @@ export function RunShow({
                   </button>
                 ))}
               </div>
+              {/* Not a fourth preset — it changes nothing, it just plays one.
+                  Pushed to the end of the row so it doesn't read as one. */}
+              <button
+                className={`rs-chip rs-fade__hear ${auditioning ? 'rs-chip--active' : ''}`}
+                onClick={auditionFade}
+                disabled={!hasBoard}
+                title={
+                  hasBoard
+                    ? 'Play a track with this fade, then fade it back out'
+                    : 'Upload some audio first'
+                }
+              >
+                {auditioning ? '■ Stop test' : '▶ Hear it'}
+              </button>
             </div>
+            {/* The sliders say "0.00s"; this says what that means. An operator
+                who has set the in-fade to zero and heard no swell needs to be
+                told it's off, not left deciding the feature is broken. */}
+            <p className="rs-fade__summary">{describeFade(fade)}</p>
             {viewToken && (
               <div className="rs-fade__viewer">
                 <button
@@ -765,7 +855,7 @@ export function RunShow({
           )}
 
           {board.cues.length > 0 && (
-            <div className="rs-bank">
+            <div className="rs-bank rs-bank--cues">
               <div className="rs-bank__label">Show tracks</div>
               <div className="rs-bank__grid">
                 {board.cues.map((t) => (

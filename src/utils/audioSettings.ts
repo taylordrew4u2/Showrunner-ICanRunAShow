@@ -75,6 +75,29 @@ export function fmtFade(ms: number): string {
   return `${(ms / 1000).toFixed(ms < 1000 ? 2 : 1).replace(/0$/, '').replace(/\.$/, '')}s`;
 }
 
+/**
+ * What the current setting will actually do, in words.
+ *
+ * The default starts tracks instantly, which is right for a walk-on cued to a
+ * name — but an operator who has just moved both sliders and heard no swell has
+ * no way to tell a fade that's set to zero from a fade that's broken. Two
+ * numbers on two sliders don't say it; a sentence does.
+ */
+export function describeFade(fade: FadeSettings): string {
+  const inS = fmtFade(fade.fadeInMs).toLowerCase();
+  const outS = fmtFade(fade.fadeOutMs).toLowerCase();
+  if (fade.fadeInMs <= 0 && fade.fadeOutMs <= 0) {
+    return 'Tracks start and stop the moment you press — no fade at either end.';
+  }
+  if (fade.fadeInMs <= 0) {
+    return `Tracks start the moment you press, and fade out over ${outS}.`;
+  }
+  if (fade.fadeOutMs <= 0) {
+    return `Tracks swell up over ${inS}, and stop dead on the press.`;
+  }
+  return `Tracks swell up over ${inS}, and fade out over ${outS}.`;
+}
+
 /** Whether a fade pair matches a preset, so the chip can show as selected. */
 export function matchesPreset(fade: FadeSettings, preset: FadeSettings): boolean {
   return fade.fadeInMs === preset.fadeInMs && fade.fadeOutMs === preset.fadeOutMs;

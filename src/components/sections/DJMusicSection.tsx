@@ -5,6 +5,10 @@ import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
 import { availableTracks, songFromTrack, songOwnsItsMedia } from '../../utils/musicLibrary';
 import { exportDJListToPDF } from '../../utils/pdfExport';
+import { Icon } from '../Icon';
+import { TrackPreviewButton } from '../TrackPreview';
+import '../TrackPreview.css';
+import { useTrackPreview } from '../../utils/useTrackPreview';
 import { useConfirm } from '../useConfirm';
 
 interface DJMusicSectionProps {
@@ -17,6 +21,7 @@ interface DJMusicSectionProps {
 
 export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectionProps) {
   const { confirm, confirmDialog } = useConfirm();
+  const preview = useTrackPreview();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
@@ -217,8 +222,15 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
 
       <p className="section-hint">
         Upload the audio for a song and it gets its own button on the Run Show soundboard, in a
-        bank of its own next to the performers.
+        bank of its own next to the performers. Press ▶ here to hear it first — same player, same
+        fade, so nothing is a surprise on the night.
       </p>
+
+      {preview.error && (
+        <p className="section-error" role="status">
+          {preview.error}
+        </p>
+      )}
 
       {songs.length === 0 && <p className="section-empty">No songs yet.</p>}
 
@@ -237,8 +249,24 @@ export function DJMusicSection({ songs, show, library, onChange }: DJMusicSectio
               ) : (
                 <>
                   <span className="section-list-item__order">{idx + 1}</span>
-                  <span className="section-list-item__name">"{s.title}" — {s.artist}</span>
-                  {s.music && <span className="section-list-item__tag">♪ {s.musicName || 'Audio'}</span>}
+                  {s.music ? (
+                    <TrackPreviewButton src={s.music} title={s.title} preview={preview} />
+                  ) : (
+                    // The same round slot, empty. A column of buttons with one
+                    // gap in it says "that one has no file" faster than reading
+                    // every row's tags does.
+                    <span className="track-preview track-preview--empty" aria-hidden="true">
+                      <Icon name="music" size={16} />
+                    </span>
+                  )}
+                  <span className="section-list-item__name">
+                    "{s.title}"{s.artist ? ` — ${s.artist}` : ''}
+                  </span>
+                  {s.music ? (
+                    <span className="section-list-item__tag">♪ {s.musicName || 'Audio'}</span>
+                  ) : (
+                    <span className="section-list-item__tag">No audio — no soundboard button</span>
+                  )}
                   {s.notes && <span className="section-list-item__tag">{s.notes}</span>}
                   {uploadState[s.id] && (
                     <span className="section-list-item__tag">{uploadState[s.id]}</span>

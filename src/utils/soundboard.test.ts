@@ -39,6 +39,15 @@ describe('cuePerformerName', () => {
     expect(cuePerformerName(cue({ performer: 'Guest Drop-In' }), roster)).toBe('Guest Drop-In');
     expect(cuePerformerName(cue({ description: 'Doors' }), roster)).toBe('');
   });
+
+  // What attaching the host to a cue relies on. The host is a name on the show,
+  // not a record on the bill, so there is nothing to link to — Run Show has to
+  // put them on stage off the name alone.
+  it('puts a host who was never booked on stage anyway', () => {
+    const roster = [performer({ id: 'p1', name: 'Ada Cole' })];
+    expect(cuePerformerName(cue({ performer: 'Jo Park' }), roster)).toBe('Jo Park');
+    expect(resolveCuePerformer(cue({ performer: 'Jo Park' }), roster)).toBeNull();
+  });
 });
 
 describe('buildSoundboard', () => {
