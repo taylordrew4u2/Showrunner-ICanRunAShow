@@ -44,6 +44,8 @@ interface ShowDetailProps {
   onBack: () => void;
   onUpdate: (show: Show) => void;
   onSaveToRolodex?: (comic: import('../types').PotentialComic) => void;
+  onSaveScheduleTemplate?: (name: string, items: import('../types').ScheduleTemplateItem[]) => void;
+  onDeleteScheduleTemplate?: (id: string) => void;
 }
 
 const STATUS_LABELS: Record<ShowStatus, string> = {
@@ -70,7 +72,15 @@ function loadOpenSections(showId: string): Set<string> {
   return new Set(['basic']);
 }
 
-export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }: ShowDetailProps) {
+export function ShowDetail({
+  show,
+  settings,
+  onBack,
+  onUpdate,
+  onSaveToRolodex,
+  onSaveScheduleTemplate,
+  onDeleteScheduleTemplate,
+}: ShowDetailProps) {
   const { confirm, confirmDialog } = useConfirm();
   // Everyone this producer has on file. The show's own bill comes first so a
   // name spelled slightly differently in the Rolodex doesn't win over the
@@ -456,6 +466,9 @@ export function ShowDetail({ show, settings, onBack, onUpdate, onSaveToRolodex }
         unbookedComics={unbookedComics}
         onBookPerformer={bookFromRolodex}
         onChange={(schedule) => handleUpdate({ schedule })}
+        templates={settings.scheduleTemplates}
+        onSaveTemplate={onSaveScheduleTemplate}
+        onDeleteTemplate={onDeleteScheduleTemplate}
       />,
     },
     {

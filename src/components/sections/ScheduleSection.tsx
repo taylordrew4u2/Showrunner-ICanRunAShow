@@ -1,5 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Performer, PotentialComic, ScheduleItem } from '../../types';
+import type { Performer, PotentialComic, ScheduleItem, ScheduleTemplate, ScheduleTemplateItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
@@ -8,6 +8,8 @@ import { ShowTimeline } from '../ShowTimeline';
 import { withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
 import { useConfirm } from '../useConfirm';
 import { fillCueDurations, isUntimed } from '../../utils/showTiming';
+import { canDeriveTimes, timesFromLengths } from '../../utils/scheduleTemplates';
+import { ScheduleTemplates } from '../ScheduleTemplates';
 import { OnStagePicker } from '../OnStagePicker';
 
 // Loaded on demand — pulls in the AI/OCR/PDF parsing deps only when the
@@ -18,6 +20,10 @@ const AIImportFlow = lazy(() =>
 
 interface ScheduleSectionProps {
   schedule: ScheduleItem[];
+  /** Saved run-of-show layouts, shared across every show in the account. */
+  templates?: ScheduleTemplate[];
+  onSaveTemplate?: (name: string, items: ScheduleTemplateItem[]) => void;
+  onDeleteTemplate?: (id: string) => void;
   showName?: string;
   showTime?: string;
   performers?: Performer[];
@@ -341,6 +347,9 @@ const CueRow = memo(function CueRow({
 
 export function ScheduleSection({
   schedule,
+  templates = [],
+  onSaveTemplate,
+  onDeleteTemplate,
   showName,
   showTime,
   performers = [],
@@ -356,6 +365,8 @@ export function ScheduleSection({
   const [time, setTime] = useState('');
   const [desc, setDesc] = useState('');
   const [importOpen, setImportOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const templatesEnabled = !!onSaveTemplate && !!onDeleteTemplate;
 
   // Keep latest schedule + onChange in refs so the per-row callbacks
   // can be referentially stable (which lets React.memo skip non-editing rows).
@@ -446,6 +457,20 @@ export function ScheduleSection({
     }
   }
 
+  /** Template cues carry no ids — mint fresh ones so the same template can be
+   *  applied twice in one show without two cues sharing a key. */
+  function handleApplyTemplate(items: ScheduleTemplateItem[], applyMode: 'replace' | 'append') {
+    const cues: ScheduleItem[] = items.map((item) => ({
+      id: generateId(),
+      time: item.time,
+      description: item.description,
+      performer: item.performer,
+      durationMin: item.durationMin,
+    }));
+    onChange(applyMode === 'replace' ? cues : [...schedule, ...cues]);
+    setMode('build');
+  }
+
   function handleApplyImport(items: ScheduleItem[]) {
     onChange([...schedule, ...withMatchedPerformers(items, knownNames)]);
     setImportOpen(false);
@@ -466,6 +491,15 @@ export function ScheduleSection({
             <span className="schedule-choice__label">Import with AI</span>
             <span className="schedule-choice__desc">Photo, PDF, or paste — AI extracts cues</span>
           </button>
+          {templatesEnabled && templates.length > 0 && (
+            <button className="schedule-choice__option" onClick={() => setTemplatesOpen(true)}>
+              <span className="schedule-choice__icon"><Icon name="file" size={20} /></span>
+              <span className="schedule-choice__label">Use a template</span>
+              <span className="schedule-choice__desc">
+                {templates.length} saved run-of-show{templates.length === 1 ? '' : 's'}
+              </span>
+            </button>
+          )}
         </div>
       )}
 
@@ -487,6 +521,15 @@ export function ScheduleSection({
                   title="Write in the length this show already runs each cue at, so you can see and edit them"
                 >
                   Fill in {untimedCount} length{untimedCount === 1 ? '' : 's'}
+                </button>
+              )}
+              {canDeriveTimes(schedule) && (
+                <button
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => onChange(timesFromLengths(schedule))}
+                  title="Re-time every cue from the first cue's start, using the lengths already written down"
+                >
+                  Re-time from lengths
                 </button>
               )}
               {schedule.length > 0 && (
@@ -514,6 +557,21 @@ export function ScheduleSection({
             </div>
             <span className="ai-import-entry__chevron"><Icon name="chevron-right" size={16} /></span>
           </button>
+
+          {templatesEnabled && (
+            <button className="ai-import-entry" onClick={() => setTemplatesOpen(true)}>
+              <span className="ai-import-entry__icon"><Icon name="file" size={14} /></span>
+              <div className="ai-import-entry__body">
+                <div className="ai-import-entry__title">Templates</div>
+                <div className="ai-import-entry__sub">
+                  {templates.length === 0
+                    ? 'Save this run-of-show to reuse on another show'
+                    : `Save this one, or start from ${templates.length} saved`}
+                </div>
+              </div>
+              <span className="ai-import-entry__chevron"><Icon name="chevron-right" size={16} /></span>
+            </button>
+          )}
 
           <div className="quick-add">
             <input
@@ -566,6 +624,17 @@ export function ScheduleSection({
             </div>
           )}
         </>
+      )}
+
+      {templatesOpen && templatesEnabled && (
+        <ScheduleTemplates
+          schedule={schedule}
+          templates={templates}
+          onClose={() => setTemplatesOpen(false)}
+          onSave={onSaveTemplate!}
+          onDelete={onDeleteTemplate!}
+          onApply={handleApplyTemplate}
+        />
       )}
 
       {importOpen && (

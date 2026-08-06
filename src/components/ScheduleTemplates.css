@@ -1,0 +1,139 @@
+.sched-templates {
+  display: flex;
+  flex-direction: column;
+  min-width: min(480px, 86vw);
+  padding: 6px 4px 4px;
+}
+
+.sched-templates__title {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.sched-templates__sub {
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.sched-templates__label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+}
+
+/* ── Save ─────────────────────────────────────────────────────────────── */
+
+.sched-templates__save {
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sched-templates__save-row {
+  display: flex;
+  gap: 8px;
+}
+
+.sched-templates__save-row .section-field__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.sched-templates__hint {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ── Saved templates ──────────────────────────────────────────────────── */
+
+.sched-templates__empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.sched-templates__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sched-templates__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+
+.sched-templates__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sched-templates__name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.sched-templates__meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.sched-templates__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sched-templates__delete {
+  color: var(--danger);
+}
+
+/* The replace-or-append question takes the full row so neither answer is the
+   one you hit by accident. */
+.sched-templates__choice {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.sched-templates__choice-text {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.sched-templates__choice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sched-templates__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}

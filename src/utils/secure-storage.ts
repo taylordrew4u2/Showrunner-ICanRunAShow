@@ -330,6 +330,20 @@ function migrateSettings(settings: LegacySettings): AppSettings {
   );
   if (!Array.isArray(settings.potentialComics)) settings.potentialComics = [];
   if (!Array.isArray(settings.emailList)) settings.emailList = [];
+  if (!Array.isArray(settings.scheduleTemplates)) settings.scheduleTemplates = [];
+  // Templates only ever hold plain text and numbers. Re-stripping on load
+  // keeps that true even for a blob written by an older or newer build — audio
+  // in here would count against the settings size ceiling and could make the
+  // whole account unsavable.
+  settings.scheduleTemplates = settings.scheduleTemplates.map((tpl) => ({
+    ...tpl,
+    items: (tpl.items || []).map((item) => ({
+      time: item.time ?? "",
+      description: item.description ?? "",
+      performer: item.performer || undefined,
+      durationMin: item.durationMin,
+    })),
+  }));
   if (!Array.isArray(settings.showTypes)) settings.showTypes = [];
   // Settings that already exist on the server belong to an established account —
   // don't force these users through onboarding, only brand-new signups.
