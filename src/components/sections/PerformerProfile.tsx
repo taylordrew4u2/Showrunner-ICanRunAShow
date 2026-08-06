@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { downscaleImage } from '../../utils/imageResize';
 import { audioUploadSizeError, imageUploadSizeError, pickFile as openFilePicker } from '../../utils/media';
@@ -18,6 +18,10 @@ interface PerformerProfileProps {
 }
 
 export function PerformerProfile({ performer, onBack, onChange, onDelete, onSaveToRolodex }: PerformerProfileProps) {
+  // Labels have to point at the field they name: written as a plain <label>
+  // beside an input they are decoration — not announced as the field's name,
+  // and not tappable to focus it.
+  const fieldId = useId();
   const { confirm, confirmDialog } = useConfirm();
   const [name, setName] = useState(performer.name);
   const [socialMedia, setSocialMedia] = useState(performer.socialMedia || '');
@@ -141,8 +145,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
           <p className="perf-profile__section-label">Profile</p>
           <div className="perf-profile__fields">
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Name</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-name`}>Name</label>
+              <input id={`${fieldId}-name`}
                 className="perf-profile__input"
                 value={name}
                 onChange={e => { setName(e.target.value); mark(); }}
@@ -150,8 +154,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               />
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Instagram / Social</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-instagram-social`}>Instagram / Social</label>
+              <input id={`${fieldId}-instagram-social`}
                 className="perf-profile__input"
                 value={socialMedia}
                 onChange={e => { setSocialMedia(e.target.value); mark(); }}
@@ -169,8 +173,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               )}
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Email</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-email`}>Email</label>
+              <input id={`${fieldId}-email`}
                 className="perf-profile__input"
                 type="email"
                 value={email}
@@ -184,8 +188,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               )}
             </div>
             <div className="perf-profile__field perf-profile__field--full">
-              <label className="perf-profile__label">Credits / Intro Notes</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-credits-intro-notes`}>Credits / Intro Notes</label>
+              <input id={`${fieldId}-credits-intro-notes`}
                 className="perf-profile__input"
                 value={credits}
                 onChange={e => { setCredits(e.target.value); mark(); }}
@@ -193,8 +197,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               />
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Walk-On Song</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-walk-on-song`}>Walk-On Song</label>
+              <input id={`${fieldId}-walk-on-song`}
                 className="perf-profile__input"
                 value={songName}
                 onChange={e => { setSongName(e.target.value); mark(); }}
@@ -202,8 +206,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               />
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Artist</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-artist`}>Artist</label>
+              <input id={`${fieldId}-artist`}
                 className="perf-profile__input"
                 value={songArtist}
                 onChange={e => { setSongArtist(e.target.value); mark(); }}
@@ -211,8 +215,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               />
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">Start Timestamp</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-start-timestamp`}>Start Timestamp</label>
+              <input id={`${fieldId}-start-timestamp`}
                 className="perf-profile__input"
                 value={timestamp}
                 onChange={e => { setTimestamp(e.target.value); mark(); }}
@@ -220,8 +224,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               />
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label">YouTube / Spotify Link</label>
-              <input
+              <label className="perf-profile__label" htmlFor={`${fieldId}-youtube-spotify-link`}>YouTube / Spotify Link</label>
+              <input id={`${fieldId}-youtube-spotify-link`}
                 className="perf-profile__input"
                 value={musicLink}
                 onChange={e => { setMusicLink(e.target.value); mark(); }}
