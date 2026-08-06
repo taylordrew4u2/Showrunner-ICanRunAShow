@@ -226,11 +226,20 @@ export function LiveViewer({ token }: LiveViewerProps) {
     remaining = total - (now - payload.lastUpdateMs) / 1000;
   }
   const isOver = remaining < 0;
-  const warning = remaining <= 60;
+  /**
+   * The last minute, and only while the clock is actually running down.
+   *
+   * `remaining` is frozen at its last published value when the board is
+   * paused or still counting into a cue, so a short cue reads as "under a
+   * minute" before it has started. That was harmless when the warning was
+   * red digits; a full-screen flash telling someone to wrap up a set they
+   * haven't begun is not.
+   */
+  const warning = remaining <= 60 && payload.status === 'running';
   const showCountdown = payload.status === 'countdown' && payload.countdown && payload.countdown > 0;
 
   return (
-    <div className="live-viewer">
+    <div className={`live-viewer${warning ? ' live-viewer--alarm' : ''}`}>
       <div className="live-viewer__top">
         <span className="live-viewer__show">{payload.showName}</span>
         <span className={`live-viewer__status live-viewer__status--${payload.status}`}>{payload.status}</span>
