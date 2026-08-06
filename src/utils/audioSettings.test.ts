@@ -3,6 +3,7 @@ import {
   DEFAULT_FADE,
   FADE_PRESETS,
   MAX_FADE_IN_MS,
+  describeFade,
   fmtFade,
   loadFadeSettings,
   matchesPreset,
@@ -107,6 +108,26 @@ describe('fade settings', () => {
     stubStorage();
     const fade = loadFadeSettings();
     expect(FADE_PRESETS.some((p) => matchesPreset(fade, p.fade))).toBe(true);
+  });
+
+  // The complaint that started this: "fading in and out are not working". The
+  // default has no in-fade at all, so the honest answer is a sentence saying
+  // so — every setting has to produce one, including the zeroes.
+  it('says in words what each fade setting will do', () => {
+    expect(describeFade({ fadeInMs: 0, fadeOutMs: 0 })).toMatch(/no fade at either end/);
+    expect(describeFade({ fadeInMs: 0, fadeOutMs: 350 })).toMatch(/start the moment you press/);
+    expect(describeFade({ fadeInMs: 0, fadeOutMs: 350 })).toMatch(/0\.35s/);
+    expect(describeFade({ fadeInMs: 1400, fadeOutMs: 0 })).toMatch(/stop dead/);
+    expect(describeFade({ fadeInMs: 1400, fadeOutMs: 600 })).toMatch(/1\.4s/);
+    expect(describeFade({ fadeInMs: 1400, fadeOutMs: 600 })).toMatch(/0\.6s/);
+  });
+
+  it('describes the default without ever calling it a fade in', () => {
+    expect(describeFade(DEFAULT_FADE)).not.toMatch(/swell/);
+  });
+
+  it('describes every preset', () => {
+    for (const p of FADE_PRESETS) expect(describeFade(p.fade).length).toBeGreaterThan(20);
   });
 
   it('never starts a preset with a ramp long enough to read as dead', () => {
