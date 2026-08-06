@@ -1,5 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Performer, PotentialComic, ScheduleItem, ScheduleTemplate, ScheduleTemplateItem } from '../../types';
+import type { DJSong, Performer, PotentialComic, ScheduleItem, ScheduleTemplate, ScheduleTemplateItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
@@ -20,6 +20,8 @@ const AIImportFlow = lazy(() =>
 
 interface ScheduleSectionProps {
   schedule: ScheduleItem[];
+  /** The show's DJ list, so a cue can play a song already on file. */
+  djSongs?: DJSong[];
   /** Saved run-of-show layouts, shared across every show in the account. */
   templates?: ScheduleTemplate[];
   onSaveTemplate?: (name: string, items: ScheduleTemplateItem[]) => void;
@@ -124,10 +126,17 @@ interface CueRowProps {
   onDelete: (id: string) => void;
   onMove: (idx: number, dir: -1 | 1) => void;
   onPickMusic: (id: string) => Promise<string | null>; // returns error or null
+  /**
+   * The show's DJ music that has audio — its own songs plus the whole library.
+   * A cue can play one of these instead of carrying its own upload, which is
+   * the difference between having the intermission bed once and having it in
+   * every cue that needs it.
+   */
+  musicChoices: DJSong[];
 }
 
 const CueRow = memo(function CueRow({
-  item, idx, isFirst, isLast, durationText, musicLabel, performers,
+  item, idx, isFirst, isLast, durationText, musicLabel, performers, musicChoices,
   unbookedComics, host, onBookPerformer, onPatch, onDelete, onMove, onPickMusic,
 }: CueRowProps) {
   const [editing, setEditing] = useState(false);
@@ -314,10 +323,41 @@ const CueRow = memo(function CueRow({
                 {musicLabel ? (
                   <span className="cue-media__music-name">{musicLabel}</span>
                 ) : (
-                  <span className="cue-media__hint">Uses the comic's walk-on, or upload a track.</span>
+                  <span className="cue-media__hint">
+                    Uses the performer's walk-on, or pick a song from this show below.
+                  </span>
                 )}
                 <button className="btn btn--secondary btn--sm" onClick={handlePickMusic}>Upload music</button>
               </div>
+            )}
+
+            {musicChoices.length > 0 && (
+              <select
+                className="section-field__select cue-media__pick"
+                value=""
+                aria-label="Play a song from this show"
+                onChange={(e) => {
+                  const song = musicChoices.find((c) => c.id === e.target.value);
+                  if (!song?.music) return;
+                  // Points at the same media the song uses. Nothing here ever
+                  // deletes a cue's audio, so sharing the reference is safe —
+                  // and it means no second upload of a track already on file.
+                  onPatch(item.id, {
+                    music: song.music,
+                    // The title the producer gave it, not the file it came from:
+                    // a cue reading "Intermission Bed" beats one reading
+                    // "track_final_v2.mp3".
+                    musicName: song.title || song.musicName,
+                  });
+                }}
+              >
+                <option value="">Use a song from this show…</option>
+                {musicChoices.map((song) => (
+                  <option key={song.id} value={song.id}>
+                    {song.title}{song.artist ? ` — ${song.artist}` : ''}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
 
@@ -347,6 +387,7 @@ const CueRow = memo(function CueRow({
 
 export function ScheduleSection({
   schedule,
+  djSongs = [],
   templates = [],
   onSaveTemplate,
   onDeleteTemplate,
@@ -379,6 +420,9 @@ export function ScheduleSection({
   // Cues whose length is implied rather than written down — the ones the
   // readiness count on the show page treats as untimed.
   const untimedCount = useMemo(() => schedule.filter(isUntimed).length, [schedule]);
+  // Only songs with audio can be played, and the identity has to be stable or
+  // every memoised cue row re-renders on each keystroke.
+  const musicChoices = useMemo(() => djSongs.filter((song) => !!song.music), [djSongs]);
 
   function addItem() {
     if (!desc.trim()) return;
@@ -619,6 +663,7 @@ export function ScheduleSection({
                   onDelete={handleDelete}
                   onMove={handleMove}
                   onPickMusic={handlePickMusic}
+                  musicChoices={musicChoices}
                 />
               ))}
             </div>

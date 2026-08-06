@@ -480,6 +480,7 @@ export function ShowDetail({
         unbookedComics={unbookedComics}
         onBookPerformer={bookFromRolodex}
         onChange={(schedule) => handleUpdate({ schedule })}
+        djSongs={djSongs}
         templates={settings.scheduleTemplates}
         onSaveTemplate={onSaveScheduleTemplate}
         onDeleteTemplate={onDeleteScheduleTemplate}

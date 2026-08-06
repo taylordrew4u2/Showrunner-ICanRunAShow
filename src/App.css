@@ -1159,6 +1159,11 @@
 }
 .cue-media__music { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cue-media__music-name { display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; font-weight: 600; color: var(--text); }
+.cue-media__pick {
+  width: 100%;
+  margin-top: 8px;
+}
+
 .cue-media__hint { font-size: 0.78rem; color: var(--text-muted); }
 .cue-media__error {
   margin: 8px 0 0;
