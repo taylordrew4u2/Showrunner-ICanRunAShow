@@ -107,11 +107,27 @@ export async function resolveMediaUrl(src: string): Promise<string | null> {
     const key = creds.key;
     const a = authOpts();
     try {
-      const parts: string[] = new Array(parsed.total);
-      for (let seq = 0; seq < parsed.total; seq++) {
-        const res = await api.get<{ data: string }>(`/api/media?id=${encodeURIComponent(parsed.id)}&seq=${seq}`, a);
-        parts[seq] = decryptWithKey<string>(res.data, key);
-      }
+      // Chunks are fetched together rather than one after another.
+      //
+      // A slice is 1.5M characters, so a five-megabyte track is about five
+      // chunks and a ten-megabyte one about nine. Sequentially that was five
+      // to nine full round trips stacked end to end, each with a ~2MB decrypt
+      // between it and the next — seconds per track on a phone network, and
+      // the soundboard can only start a track once this finishes. Latency was
+      // being paid once per chunk when it only ever needed paying once.
+      //
+      // No pool: browsers already cap concurrent requests per host at around
+      // six, and `total` is small, so this self-limits. Peak memory is
+      // unchanged — every part was held at once for the join either way.
+      const parts = await Promise.all(
+        Array.from({ length: parsed.total }, async (_, seq) => {
+          const res = await api.get<{ data: string }>(
+            `/api/media?id=${encodeURIComponent(parsed.id)}&seq=${seq}`,
+            a,
+          );
+          return decryptWithKey<string>(res.data, key);
+        }),
+      );
       const dataUrl = parts.join('');
       urlCache.set(src, dataUrl);
       return dataUrl;

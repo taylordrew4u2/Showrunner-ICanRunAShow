@@ -87,11 +87,14 @@ function TrackButton({
   track,
   variant,
   isPlaying,
+  isLoading,
   onToggle,
 }: {
   track: SoundboardTrack;
   variant: 'face' | 'disc';
   isPlaying: boolean;
+  /** Pressed, but its audio is still being fetched and decoded. */
+  isLoading: boolean;
   onToggle: (track: SoundboardTrack) => void;
 }) {
   // The headshot resolves out of the media store; the initial holds the button
@@ -100,10 +103,12 @@ function TrackButton({
   return (
     <button
       type="button"
-      className={`rs-pad rs-pad--${variant} ${isPlaying ? 'rs-pad--playing' : ''}`}
+      className={`rs-pad rs-pad--${variant} ${isPlaying ? 'rs-pad--playing' : ''}${
+        isLoading ? ' rs-pad--loading' : ''
+      }`}
       onClick={() => onToggle(track)}
       aria-pressed={isPlaying}
-      title={isPlaying ? `Stop ${track.label}` : `Play ${track.label}`}
+      title={isLoading ? `Loading ${track.label}…` : isPlaying ? `Stop ${track.label}` : `Play ${track.label}`}
     >
       <span className="rs-pad__face">
         {photoUrl ? (
@@ -116,8 +121,14 @@ function TrackButton({
             ♪
           </span>
         )}
+        {/* A pad that lights up as "playing" before its audio exists is the
+            whole of "the button is delayed": the press registers, the picture
+            says it started, and the room hears nothing. While a track is still
+            loading the pad says so instead. */}
         <span className="rs-pad__state" aria-hidden="true">
-          {isPlaying ? (
+          {isLoading ? (
+            <span className="rs-pad__spinner" />
+          ) : isPlaying ? (
             <span className="rs-pad__eq">
               <i />
               <i />
@@ -156,6 +167,10 @@ export function RunShow({
   // It is deliberately independent of `idx`: the clock and the sound are two
   // separate instruments and neither one drives the other.
   const [playingKey, setPlayingKey] = useState<string | null>(null);
+  // The pad that has been pressed but whose audio is still being fetched and
+  // decoded. Kept apart from playingKey so the board can show "coming" rather
+  // than claiming it is already playing.
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
   // A press that couldn't produce sound. Silence is the one thing an operator
   // can't diagnose mid-show, so a track that fails to load says why.
   const [audioError, setAudioError] = useState<string | null>(null);
@@ -407,19 +422,25 @@ export function RunShow({
     if (playingKey === track.key) {
       audioEngine.stop({ fadeMs: fade.fadeOutMs });
       setPlayingKey(null);
+      setLoadingKey(null);
       return;
     }
     setPlayingKey(track.key);
+    // Decoded tracks start on the press; only an undecoded one has to wait,
+    // and only that one should show the wait.
+    setLoadingKey(audioEngine.isReady(track.src) ? null : track.key);
     setAudioError(null);
     // Only report if this button is still the lit one — being superseded by a
     // later press is normal and must not raise an error.
-    const failed = (reason: string) =>
+    const failed = (reason: string) => {
+      setLoadingKey((k) => (k === track.key ? null : k));
       setPlayingKey((k) => {
         if (k !== track.key) return k;
         const why = FAILURE_MESSAGE[reason] ?? "it didn't play.";
         setAudioError(`${track.label} — ${why}`);
         return null;
       });
+    };
     audioEngine
       .play(track.src, {
         fadeInMs: fade.fadeInMs,
@@ -427,6 +448,7 @@ export function RunShow({
         onEnded: () => setPlayingKey((k) => (k === track.key ? null : k)),
       })
       .then((result) => {
+        setLoadingKey((k) => (k === track.key ? null : k));
         if (result !== 'started' && result !== 'superseded') failed(result);
       })
       .catch(() => failed('media-unavailable'));
@@ -436,6 +458,7 @@ export function RunShow({
     cancelAudition();
     audioEngine.stop({ fadeMs: fade.fadeOutMs });
     setPlayingKey(null);
+    setLoadingKey(null);
     setAudioError(null);
   }
 
@@ -797,7 +820,8 @@ export function RunShow({
               <>
                 <span className="rs-board__now-dot" aria-hidden="true" />
                 <span className="rs-board__now-text">
-                  Playing: <strong>{playingTrack.label}</strong>
+                  {loadingKey === playingTrack.key ? 'Loading: ' : 'Playing: '}
+                  <strong>{playingTrack.label}</strong>
                   {playingTrack.sublabel ? ` · ${playingTrack.sublabel}` : ''}
                 </span>
               </>
@@ -863,6 +887,7 @@ export function RunShow({
                     track={t}
                     variant="face"
                     isPlaying={playingKey === t.key}
+                    isLoading={loadingKey === t.key}
                     onToggle={toggleTrack}
                   />
                 ))}
@@ -880,6 +905,7 @@ export function RunShow({
                     track={t}
                     variant="disc"
                     isPlaying={playingKey === t.key}
+                    isLoading={loadingKey === t.key}
                     onToggle={toggleTrack}
                   />
                 ))}
@@ -897,6 +923,7 @@ export function RunShow({
                     track={t}
                     variant="disc"
                     isPlaying={playingKey === t.key}
+                    isLoading={loadingKey === t.key}
                     onToggle={toggleTrack}
                   />
                 ))}
