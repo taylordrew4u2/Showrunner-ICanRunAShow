@@ -3,6 +3,7 @@ import type { DJSong, Performer, PotentialComic, ScheduleItem, ScheduleTemplate,
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
+import { TrimControls } from '../TrimControls';
 import { Icon } from '../Icon';
 import { ShowTimeline } from '../ShowTimeline';
 import { withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
@@ -147,8 +148,6 @@ const CueRow = memo(function CueRow({
   const [editLength, setEditLength] = useState(item.durationMin != null ? String(item.durationMin) : '');
   const [mediaOpen, setMediaOpen] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
-  // Local state for music duration so each keystroke doesn't propagate up the tree.
-  const [musicDurDraft, setMusicDurDraft] = useState<string>(item.musicDuration != null ? String(item.musicDuration) : '');
 
   function startEdit() {
     setEditTime(item.time);
@@ -170,14 +169,6 @@ const CueRow = memo(function CueRow({
       durationMin: lengthNum && lengthNum > 0 ? lengthNum : undefined,
     });
     setEditing(false);
-  }
-
-  function commitMusicDuration() {
-    const v = musicDurDraft.trim();
-    const next = v === '' ? undefined : Math.max(0, parseInt(v, 10) || 0);
-    if (next !== item.musicDuration) {
-      onPatch(item.id, { musicDuration: next });
-    }
   }
 
   async function handlePickMusic() {
@@ -361,22 +352,32 @@ const CueRow = memo(function CueRow({
             )}
           </div>
 
-          <div className="cue-media__field cue-media__field--duration">
-            <label className="cue-media__label">Play for (seconds)</label>
-            <input
-              className="section-field__input"
-              type="number"
-              min="0"
-              step="1"
-              value={musicDurDraft}
-              onChange={(e) => setMusicDurDraft(e.target.value)}
-              onBlur={commitMusicDuration}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
-              }}
-              placeholder="full track"
-            />
-          </div>
+          {/* In and out points, replacing the old "play for N seconds".
+              That field could only ever cut the end off, and only counting
+              from the top of the file — so a cue that wanted the chorus had
+              to play everything before it first. Anything already set that
+              way is read here as an out-point (see the fallback in
+              soundboard.ts) and can be edited as one. */}
+          {/* item.music only: a cue that falls back to the performer's walk-on
+              is playing their song, and that cut belongs on their profile. */}
+          {item.music && (
+            <div className="cue-media__field cue-media__field--trim">
+              <TrimControls
+                src={item.music}
+                startSec={item.musicStartSec}
+                endSec={item.musicEndSec ?? (item.musicDuration ? (item.musicStartSec ?? 0) + item.musicDuration : undefined)}
+                onChange={(trim) =>
+                  onPatch(item.id, {
+                    musicStartSec: trim.startSec,
+                    musicEndSec: trim.endSec,
+                    // The old field is superseded once either point is set;
+                    // leaving it would apply a second, conflicting cut.
+                    musicDuration: undefined,
+                  })
+                }
+              />
+            </div>
+          )}
 
           {musicError && <p className="cue-media__error">{musicError}</p>}
         </div>

@@ -3,6 +3,7 @@ import type { Performer, PotentialComic } from '../../types';
 import { downscaleImage } from '../../utils/imageResize';
 import { audioUploadSizeError, imageUploadSizeError, pickFile as openFilePicker } from '../../utils/media';
 import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
+import { TrimControls } from '../TrimControls';
 import { useMediaUrl } from '../../utils/useMediaUrl';
 import { socialLink } from '../../utils/social';
 import { performerToComic } from '../../utils/rolodex';
@@ -50,6 +51,25 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
 
   // Resolves `media:` store references to a playable URL (passthrough otherwise).
   const walkOnUrl = useMediaUrl(performer.walkOnMusic);
+
+  /**
+   * Attach an uploaded file as the walk-on.
+   *
+   * One place, because there are four ways in — Replace, and the empty
+   * dropzone's drop, click and keyboard paths — and they had drifted before:
+   * a new song kept the old song's in and out points, so the cut landed in the
+   * middle of whatever came next.
+   */
+  function attachWalkOn(result: string, file: File) {
+    onChange({
+      ...performerRef.current,
+      walkOnMusic: result,
+      walkOnMusicName: file.name,
+      walkOnStartSec: undefined,
+      walkOnEndSec: undefined,
+    });
+    setSongName(file.name);
+  }
   const photoUrl = useMediaUrl(performer.photo);
 
   /**
@@ -347,20 +367,39 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 <div className="perf-profile__media-actions">
                   <button
                     className="btn btn--secondary btn--sm"
-                    onClick={() => pickFile('audio/*', (result, file) => {
-                      onChange({ ...performerRef.current, walkOnMusic: result, walkOnMusicName: file.name });
-                      setSongName(file.name);
-                    })}
+                    onClick={() => pickFile('audio/*', attachWalkOn)}
                   >
                     Replace
                   </button>
                   <button
                     className="btn btn--ghost btn--sm"
-                    onClick={() => onChange({ ...performer, walkOnMusic: undefined, walkOnMusicName: undefined })}
+                    onClick={() => onChange({
+                      ...performer,
+                      walkOnMusic: undefined,
+                      walkOnMusicName: undefined,
+                      // The cut belonged to that file. Leaving it behind would
+                      // silently apply someone's chorus to the next upload.
+                      walkOnStartSec: undefined,
+                      walkOnEndSec: undefined,
+                    })}
                   >
                     Remove
                   </button>
                 </div>
+                {/* A walk-on is the clearest case for trimming: it's the drop
+                    the room knows, not the track's first eight bars. */}
+                <TrimControls
+                  src={performer.walkOnMusic}
+                  startSec={performer.walkOnStartSec}
+                  endSec={performer.walkOnEndSec}
+                  onChange={(trim) =>
+                    onChange({
+                      ...performerRef.current,
+                      walkOnStartSec: trim.startSec,
+                      walkOnEndSec: trim.endSec,
+                    })
+                  }
+                />
               </>
             ) : (
               <div
@@ -371,15 +410,9 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 onDragOver={e => e.preventDefault()}
                 onDragEnter={() => setAudioDrag(true)}
                 onDragLeave={() => setAudioDrag(false)}
-                onDrop={e => handleDrop(e, 'audio/', (result, file) => {
-                  onChange({ ...performerRef.current, walkOnMusic: result, walkOnMusicName: file.name });
-                  setSongName(file.name);
-                }, setAudioDrag)}
-                onClick={() => pickFile('audio/*', (result, file) => {
-                  onChange({ ...performerRef.current, walkOnMusic: result, walkOnMusicName: file.name });
-                  setSongName(file.name);
-                })}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickFile('audio/*', (result, file) => { onChange({ ...performerRef.current, walkOnMusic: result, walkOnMusicName: file.name }); setSongName(file.name); }); } }}
+                onDrop={e => handleDrop(e, 'audio/', attachWalkOn, setAudioDrag)}
+                onClick={() => pickFile('audio/*', attachWalkOn)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickFile('audio/*', attachWalkOn); } }}
               >
                 <span className="perf-profile__dropzone-icon"></span>
                 <span className="perf-profile__dropzone-label">
