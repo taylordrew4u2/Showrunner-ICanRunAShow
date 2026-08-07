@@ -465,6 +465,12 @@ export default function App() {
     }
 
     loadData();
+    // saveSettings is deliberately not a dependency. It is redeclared every
+    // render but closes over nothing mutable except `session`, which is this
+    // effect's only dependency — so the copy this run calls always agrees with
+    // the session it ran for. Listing it would re-run the whole load on every
+    // render instead, which is a refetch per keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
   // Always points at the latest shows so an in-flight save can re-persist any
