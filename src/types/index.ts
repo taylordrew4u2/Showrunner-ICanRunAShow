@@ -21,6 +21,9 @@ export interface Performer {
   walkOnMusicArtist?: string;
   walkOnMusicTimestamp?: string;
   walkOnMusicLink?: string; // YouTube or Spotify URL
+  /** Trim points for the walk-on, in seconds. Unset plays the whole file. */
+  walkOnStartSec?: number;
+  walkOnEndSec?: number;
   credits?: string;
   videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
 }
@@ -45,7 +48,10 @@ export interface ScheduleItem {
   performerId?: string; // optional link to a performer record (for walk-on music)
   music?: string; // uploaded intro/transition music (data URL); overrides walk-on
   musicName?: string;
-  musicDuration?: number; // seconds to auto-play when the segment starts; undefined = full track
+  musicDuration?: number; // legacy: seconds to play from the top; superseded by musicStartSec/musicEndSec
+  /** Trim points for the cue's own upload, in seconds. */
+  musicStartSec?: number;
+  musicEndSec?: number;
 }
 
 /**
@@ -93,6 +99,16 @@ export interface DJSong {
    * the same reference.
    */
   libraryId?: string;
+  /**
+   * Trim points, in seconds from the top of the file.
+   *
+   * A walk-on is rarely the first eight bars of a track — it's the drop, the
+   * chorus, the bit the room knows. Setting these means the button plays that
+   * part and nothing else, so nobody is standing on stage waiting out an intro.
+   * Unset means the whole file.
+   */
+  startSec?: number;
+  endSec?: number;
 }
 
 /**
@@ -109,6 +125,16 @@ export interface MusicTrack {
   music: string;
   musicName?: string;
   addedAt: string;
+  /**
+   * Trim points, in seconds from the top of the file.
+   *
+   * A walk-on is rarely the first eight bars of a track — it's the drop, the
+   * chorus, the bit the room knows. Setting these means the button plays that
+   * part and nothing else, so nobody is standing on stage waiting out an intro.
+   * Unset means the whole file.
+   */
+  startSec?: number;
+  endSec?: number;
 }
 
 export interface StaffMember {

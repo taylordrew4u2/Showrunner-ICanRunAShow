@@ -6,6 +6,7 @@ import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
 import { isAutoLibrarySong, showDJSongs, songFromTrack, songOwnsItsMedia } from '../../utils/musicLibrary';
 import { exportDJListToPDF } from '../../utils/pdfExport';
 import { Icon } from '../Icon';
+import { TrimControls } from '../TrimControls';
 import { TrackPreviewButton } from '../TrackPreview';
 import '../TrackPreview.css';
 import { useTrackPreview } from '../../utils/useTrackPreview';
@@ -112,6 +113,22 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
     setEditTitle(s.title);
     setEditArtist(s.artist);
     setEditNotes(s.notes ?? '');
+  }
+
+    /**
+   * Set a song's in/out points.
+   *
+   * A library row edited here is copied into this show first, the same as any
+   * other edit to one — the crate is shared, so trimming a track for tonight
+   * must not re-cut it for every other show. Trimming it in the Music tab is
+   * what changes it everywhere.
+   */
+  function setTrim(song: DJSong, trim: { startSec?: number; endSec?: number }) {
+    if (isAutoLibrarySong(song)) {
+      onUpdate({ djSongs: materialize(song, trim) });
+    } else {
+      onUpdate({ djSongs: own.map((s) => (s.id === song.id ? { ...s, ...trim } : s)) });
+    }
   }
 
   function saveEdit() {
@@ -340,6 +357,17 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
                 <button className="btn btn--ghost btn--sm" onClick={() => startEdit(s)}>Edit</button>
                 <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteSong(s.id)}>×</button>
               </div>
+            )}
+            {/* Only for a row that has audio — there is nothing to cut up
+                otherwise, and an empty pair of timecode boxes on every row
+                would be noise. */}
+            {editId !== s.id && s.music && (
+              <TrimControls
+                src={s.music}
+                startSec={s.startSec}
+                endSec={s.endSec}
+                onChange={(trim) => setTrim(s, trim)}
+              />
             )}
           </li>
         ))}
