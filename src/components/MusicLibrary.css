@@ -37,6 +37,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* Wraps so the trim can take a line of its own — see .music-list__item .trim.
+     Without it the trim is dragged up beside Edit and × and reads as a third
+     column of actions rather than as something belonging to the track. */
+  flex-wrap: wrap;
   gap: 12px;
   padding: 12px 14px;
   background: var(--surface);
@@ -127,6 +131,13 @@
 .music-list__edit .section-field__input {
   flex: 1;
   min-width: 140px;
+}
+
+/* Full width, on the row below: the in and out points belong to the track
+   above them, and the dashed rule says so. */
+.music-list__item .trim {
+  flex: 1 0 100%;
+  margin-top: 0;
 }
 
 @media (max-width: 560px) {

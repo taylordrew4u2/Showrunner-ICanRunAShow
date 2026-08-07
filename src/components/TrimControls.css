@@ -1,0 +1,71 @@
+/* ── Song trim (in/out points) ─────────────────────────────────────────
+   Sits under a song row, so it stays visually subordinate to the track it
+   belongs to rather than reading as a section of its own. */
+.trim {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
+.trim__fields {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trim__field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  /* Wide enough for "end of track" without stretching: these hold a timecode,
+     and a full-width box would imply a sentence goes in it. */
+  flex: 0 1 118px;
+  min-width: 0;
+}
+
+.trim__label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+
+.trim__input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.trim__input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.trim__input--invalid {
+  border-color: var(--danger);
+}
+
+/* A finger-sized target under a finger, matching every other small button. */
+@media (pointer: coarse) {
+  .trim__input,
+  .trim__preview {
+    min-height: var(--tap-min);
+  }
+}
+
+.trim__preview {
+  flex-shrink: 0;
+}
+
+.trim__hint {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}

@@ -475,9 +475,18 @@ export default function App() {
   // is the only question the flush below needs and the only one that can be
   // answered without guessing.
   const savedShowsRef = useRef<Show[] | null>(null);
-  useEffect(() => {
-    latestShowsRef.current = shows;
-  }, [shows]);
+  // Assigned during render rather than in an effect, because both readers run
+  // at moments when "after the next paint" is already too late.
+  //
+  // The visibility flush is the one that cost data. Delete a show and switch
+  // away in the same breath — which is what a phone is for — and the flush ran
+  // while this ref still held the pre-delete array. That made it compare equal
+  // to savedShowsRef, so the flush concluded there was nothing unsaved and
+  // wrote no local copy. Backgrounding then froze the save timer, iOS
+  // discarded the page, and the next launch read the show straight back off
+  // the server. The saver's own mid-flight re-check was reading the same stale
+  // value for the same reason.
+  latestShowsRef.current = shows;
   // Guards against overlapping saves. The server replaces all rows per request,
   // so two concurrent saves can race and an older one can clobber a newer one.
   const savingRef = useRef(false);
@@ -591,12 +600,14 @@ export default function App() {
 
     const timeout = setTimeout(() => {
       // A save is already running; it will pick up the latest shows before it
-      // finishes, so we don't need to start a second one.
+      // finishes, so we don't need to start a second one. This pass is spent
+      // either way — see the re-check once that save settles.
       if (savingRef.current) return;
 
       void (async () => {
         savingRef.current = true;
         setSyncState((prev) => (prev === 'blocked' ? prev : 'saving'));
+        let settledClean = false;
         try {
           // Re-save until the data stops changing mid-flight, so the last edit
           // always wins and is never lost to an overlapping request.
@@ -605,6 +616,7 @@ export default function App() {
             saved = latestShowsRef.current;
             await saveEncryptedShows(saved, currentSession, unreadableRowsRef.current);
           }
+          settledClean = true;
           savedShowsRef.current = saved;
           clearPending(PENDING_SHOWS_KEY);
           setHasLocalCopy(false);
@@ -641,6 +653,22 @@ export default function App() {
           }
         } finally {
           savingRef.current = false;
+          // One more look before letting go.
+          //
+          // The loop above decides it is done by comparing latestShowsRef
+          // against what it just wrote — but that ref is assigned in an
+          // effect, and effects are flushed after paint. An edit that lands
+          // while a save is in flight can therefore still be invisible to the
+          // loop's last check, and the debounced pass that would have caught
+          // it has already fired and returned because a save was running. The
+          // change then belongs to nobody.
+          //
+          // Deleting is where that goes from an unsaved edit to a resurrected
+          // row: a show only leaves the server when a save actually runs, so a
+          // deletion dropped here comes back on the next load.
+          if (settledClean && latestShowsRef.current !== savedShowsRef.current) {
+            setSaveRetryTick((t) => t + 1);
+          }
         }
       })();
     }, 1000); // Debounce saves
@@ -837,7 +865,22 @@ export default function App() {
     const showToDelete = shows.find((s) => s.id === id);
     if (!showToDelete) return;
 
-    setShows((prev) => prev.filter((s) => s.id !== id));
+    const remaining = shows.filter((s) => s.id !== id);
+    setShows(remaining);
+    // Written now, synchronously, rather than left to the 400ms local-copy
+    // timer and the 1s save debounce.
+    //
+    // Deleting and then switching away is one gesture on a phone, and
+    // backgrounding freezes both those timers — iOS discards the page rather
+    // than running them later. Every other edit lost that way is an edit the
+    // user can see is missing; a lost deletion is a show that comes back.
+    // localStorage is synchronous, so this lands even on the way out, and the
+    // next launch restores it and re-saves it.
+    if (session) {
+      writePending(PENDING_SHOWS_KEY, session.username, remaining);
+      setHasLocalCopy(true);
+      latestShowsRef.current = remaining;
+    }
 
     // Move to trash instead of permanent deletion — but strip embedded media
     // first and cap the trash length. Trash lives in the settings blob, which

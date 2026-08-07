@@ -74,6 +74,11 @@ export function songFromTrack(track: MusicTrack, id: string): DJSong {
     notes: track.notes,
     music: track.music,
     musicName: track.musicName,
+    // Trim travels with the track. A song cut down to its chorus in the
+    // library is that cut in every show, which is the point of trimming it
+    // once rather than per show.
+    startSec: track.startSec,
+    endSec: track.endSec,
     libraryId: track.id,
   };
 }
