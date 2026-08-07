@@ -76,8 +76,14 @@
 
 /* Below this a label truncates to a stub — "M…", "A." — which is noise
    pretending to be information. The block keeps its accessible name, and
-   tapping it still names the cue underneath. */
-@container (max-width: 58px) {
+   tapping it still names the cue underneath.
+
+   58px was too generous to hold that line. A five-cue night on a 390px phone
+   gives each block about 68px, which cleared the threshold and then rendered
+   "Doo… Hos… Ope… Feat… Hea…" — five stubs, exactly what the rule exists to
+   prevent. 84px is the width where a name actually survives; under it the
+   strip stays proportional and the hint below tells you to tap. */
+@container (max-width: 84px) {
   .timeline__seg-text {
     display: none;
   }

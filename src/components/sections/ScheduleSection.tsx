@@ -593,30 +593,6 @@ export function ScheduleSection({
               spot a bill that's gone lopsided. */}
           <ShowTimeline schedule={schedule} showTime={showTime} />
 
-          <button className="ai-import-entry" onClick={() => setImportOpen(true)}>
-            <span className="ai-import-entry__icon"><Icon name="sparkle" size={14} /></span>
-            <div className="ai-import-entry__body">
-              <div className="ai-import-entry__title">Import with AI</div>
-              <div className="ai-import-entry__sub">Paste, photo, or upload — AI extracts cues</div>
-            </div>
-            <span className="ai-import-entry__chevron"><Icon name="chevron-right" size={16} /></span>
-          </button>
-
-          {templatesEnabled && (
-            <button className="ai-import-entry" onClick={() => setTemplatesOpen(true)}>
-              <span className="ai-import-entry__icon"><Icon name="file" size={14} /></span>
-              <div className="ai-import-entry__body">
-                <div className="ai-import-entry__title">Templates</div>
-                <div className="ai-import-entry__sub">
-                  {templates.length === 0
-                    ? 'Save this run-of-show to reuse on another show'
-                    : `Save this one, or start from ${templates.length} saved`}
-                </div>
-              </div>
-              <span className="ai-import-entry__chevron"><Icon name="chevron-right" size={16} /></span>
-            </button>
-          )}
-
           <div className="quick-add">
             <input
               className="quick-add__time"
@@ -643,7 +619,7 @@ export function ScheduleSection({
           </div>
 
           {schedule.length === 0 ? (
-            <p className="section-empty">No cues yet. Use the bar above or import with AI.</p>
+            <p className="section-empty">No cues yet. Add one above, or import a running order below.</p>
           ) : (
             <div className="cue-list">
               {schedule.map((item, idx) => (
@@ -668,6 +644,35 @@ export function ScheduleSection({
               ))}
             </div>
           )}
+
+          {/* Below the running order, not above it. These are ways to fill the
+              list in; the list itself is what the producer opened the page to
+              read, and it used to start four tool blocks down. */}
+          <div className="schedule-tools">
+            <button className="ai-import-entry" onClick={() => setImportOpen(true)}>
+              <span className="ai-import-entry__icon"><Icon name="sparkle" size={14} /></span>
+              <div className="ai-import-entry__body">
+                <div className="ai-import-entry__title">Import with AI</div>
+                <div className="ai-import-entry__sub">Paste, photo, or upload — AI extracts cues</div>
+              </div>
+              <span className="ai-import-entry__chevron"><Icon name="chevron-right" size={16} /></span>
+            </button>
+
+            {templatesEnabled && (
+              <button className="ai-import-entry" onClick={() => setTemplatesOpen(true)}>
+                <span className="ai-import-entry__icon"><Icon name="file" size={14} /></span>
+                <div className="ai-import-entry__body">
+                  <div className="ai-import-entry__title">Templates</div>
+                  <div className="ai-import-entry__sub">
+                    {templates.length === 0
+                      ? 'Save this run-of-show to reuse on another show'
+                      : `Save this one, or start from ${templates.length} saved`}
+                  </div>
+                </div>
+                <span className="ai-import-entry__chevron"><Icon name="chevron-right" size={16} /></span>
+              </button>
+            )}
+          </div>
         </>
       )}
 
