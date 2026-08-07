@@ -38,6 +38,7 @@ const SECTION_ICONS: Record<string, IconName> = {
   dj: 'music',
   staff: 'wrench',
   vendors: 'bolt',
+  scenes: 'tv',
   recap: 'check',
 };
 
@@ -306,8 +307,33 @@ export function ShowDetail({
 
   function handleRestoreSection(sectionKey: SectionKey) {
     const hidden = (show.hiddenSections || []).filter(k => k !== sectionKey);
-    onUpdate({ ...show, hiddenSections: hidden });
+    const updates: Partial<Show> = { hiddenSections: hidden };
+    // Adding Scenes is what brings the list into being. Until a producer asks
+    // for it, `scenes` stays undefined and the section stays out of the way —
+    // see isSectionHidden.
+    if (sectionKey === 'scenes' && show.scenes === undefined) updates.scenes = [];
+    onUpdate({ ...show, ...updates });
     triggerSaveIndicator();
+  }
+
+  /**
+   * Whether a section is off for this show.
+   *
+   * Every section but one is opt-out: present unless the producer removed it.
+   * Scenes is opt-in, because the page otherwise asks for the running order
+   * twice — Schedule holds the cues that Run Show and the public viewer read,
+   * while Scenes is a separate list nothing else on the night uses. Sitting
+   * open and empty at the bottom of every show, it read as a section the
+   * producer had failed to fill in.
+   *
+   * `scenes: undefined` is the signal for "never used". An array — even an
+   * empty one — means the producer added the section, so it survives a reload
+   * before they've written the first scene. No schema change needed.
+   */
+  function isSectionHidden(sectionKey: SectionKey): boolean {
+    if ((show.hiddenSections || []).includes(sectionKey)) return true;
+    if (sectionKey === 'scenes') return show.scenes === undefined;
+    return false;
   }
 
   function toggleSection(sectionKey: string) {
@@ -531,6 +557,15 @@ export function ShowDetail({
       preview: vendorsSummary(show.vendors || []),
       content: <VendorsSection vendors={show.vendors || []} onChange={(vendors) => handleUpdate({ vendors })} />,
     },
+    {
+      key: 'scenes',
+      sectionKey: 'scenes' as SectionKey,
+      title: 'Scenes & Segments',
+      subtitle: 'A separate list of scenes, for shows built in blocks rather than cues.',
+      accent: 'purple',
+      count: (show.scenes ?? []).length,
+      content: <SceneList scenes={show.scenes ?? []} onChange={handleScenesChange} />,
+    },
   ];
 
   // Add recap section for past shows
@@ -718,19 +753,22 @@ export function ShowDetail({
               <option key={status} value={status}>{STATUS_LABELS[status]}</option>
             ))}
           </select>
+          {/* On the same line as the status rather than a row of its own: both
+              are facts about the show, and stacking them pushed the first real
+              content another line down the phone. */}
+          {metaParts.length > 0 && (
+            <div className="show-detail__meta">
+              {metaParts.map((part) => (
+                <span
+                  key={part.text}
+                  className={part.kind === 'place' ? 'show-detail__meta-place' : undefined}
+                >
+                  {part.text}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-        {metaParts.length > 0 && (
-          <div className="show-detail__meta">
-            {metaParts.map((part) => (
-              <span
-                key={part.text}
-                className={part.kind === 'place' ? 'show-detail__meta-place' : undefined}
-              >
-                {part.text}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Host */}
@@ -865,7 +903,7 @@ export function ShowDetail({
       )}
 
       <div className="show-detail__sections-accordion">
-        {sections.filter((section) => !(show.hiddenSections || []).includes(section.sectionKey)).map((section) => {
+        {sections.filter((section) => !isSectionHidden(section.sectionKey)).map((section) => {
           const isExpanded = expandedSections.has(section.key);
           const panelId = `show-section-panel-${section.key}`;
           const buttonId = `show-section-header-${section.key}`;
@@ -955,21 +993,6 @@ export function ShowDetail({
         </button>
       </div>
 
-      {/* Only for shows that already have scenes.
-
-          The page was asking for the running order twice, in two vocabularies:
-          Schedule holds cues with times, lengths, performers and music, and is
-          what Run Show and the public viewer both read. Scenes & Segments held
-          a second, unrelated list that nothing else on the night uses — and it
-          sat open at the bottom of every show, below the button for adding
-          sections, so it read as a section the producer had failed to fill in.
-          Shows that use it keep it; the rest get one running order. */}
-      {(show.scenes?.length ?? 0) > 0 && (
-        <div className="show-detail__scenes">
-          <SceneList scenes={show.scenes ?? []} onChange={handleScenesChange} />
-        </div>
-      )}
-
       {runShowOpen && (
         <RunShow
           showName={show.name}
@@ -999,7 +1022,7 @@ export function ShowDetail({
             </p>
             <ul className="manage-sections__list">
               {sections.map((section) => {
-                const hidden = (show.hiddenSections || []).includes(section.sectionKey);
+                const hidden = isSectionHidden(section.sectionKey);
                 const locked = section.sectionKey === 'basic';
                 return (
                   <li key={section.key} className="manage-sections__row">

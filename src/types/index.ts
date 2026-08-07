@@ -192,6 +192,7 @@ export type SectionKey =
   | "staff"
   | "vendors"
   | "expenses"
+  | "scenes"
   | "recap";
 
 export interface SectionCompletions {
@@ -204,6 +205,7 @@ export interface SectionCompletions {
   staff?: boolean;
   vendors?: boolean;
   expenses?: boolean;
+  scenes?: boolean;
   recap?: boolean;
 }
 

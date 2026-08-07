@@ -869,7 +869,7 @@
   letter-spacing: 0;
 }
 
-/* The one place a fixed px size is right: five labels share the width of the
+/* The one place a fixed px size is right: the labels share the width of the
    screen, so this one must NOT grow with index.css's phone type scaling the
    way body copy does — at 0.68rem "Expenses" and "Settings" collide on a
    320px phone. The tab itself stays a 44px+ target; only the caption under
@@ -878,6 +878,17 @@
   font-size: 11px;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+/* The bar grew from five tabs to six, and the collision this pinning exists to
+   prevent came back: at 320px a tab is 50px wide and "Expenses" sets 51px, so
+   it ran into "Settings" with no gap at all. A point off the caption buys the
+   margin back — measured at 320px, the widest label goes 51px to 46px inside
+   a 50px tab. The icon and the 44px target are untouched. */
+@media (max-width: 360px) {
+  .bottom-nav__item span {
+    font-size: 10px;
+  }
 }
 
 .bottom-nav__item--active {

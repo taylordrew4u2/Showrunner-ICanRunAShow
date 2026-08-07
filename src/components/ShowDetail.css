@@ -331,6 +331,10 @@ select.show-detail__status--select {
   letter-spacing: -0.005em;
   word-break: break-word;
   overflow-wrap: break-word;
+  /* It now shares the row with Edit and the status control, so it takes only
+     the width it needs and wraps to its own line when they leave none. */
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 /* Where the show is reads as context for when it is, so it steps back a shade
@@ -346,6 +350,10 @@ select.show-detail__status--select {
     gap: 2px 14px;
     font-size: 0.9rem;
   }
+  /* The pencil is unambiguous next to the title it edits, and dropping the
+     word is what lets Edit, the status and the date share one row instead of
+     taking three. The button keeps its aria-label. */
+  .show-detail__name-edit-btn span { display: none; }
 }
 
 .show-detail__flyer {
