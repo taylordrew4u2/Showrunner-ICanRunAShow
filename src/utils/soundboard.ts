@@ -29,6 +29,10 @@ export interface SoundboardTrack {
   photo?: string;
   /** Position in the running order, when the track belongs to a cue. */
   cueIndex?: number;
+  /** Trim points, in seconds. Set by whoever owns the song — the library
+   *  track, the show's DJ list, the performer's walk-on, or the cue upload. */
+  startSec?: number;
+  endSec?: number;
 }
 
 export interface Soundboard {
@@ -100,6 +104,10 @@ export function buildSoundboard(
           initial: initialOf(performer.name),
           photo: performer.photo,
           cueIndex: i,
+          startSec: cue.musicStartSec,
+          // musicDuration is the older way of saying "stop after N seconds",
+          // measured from the top. With no explicit out-point, honour it.
+          endSec: cue.musicEndSec ?? (cue.musicDuration ? (cue.musicStartSec ?? 0) + cue.musicDuration : undefined),
         });
       } else if (!byPerformer.has(performer.id) && performer.walkOnMusic) {
         byPerformer.set(performer.id, {
@@ -112,6 +120,8 @@ export function buildSoundboard(
           initial: initialOf(performer.name),
           photo: performer.photo,
           cueIndex: i,
+          startSec: performer.walkOnStartSec,
+          endSec: performer.walkOnEndSec,
         });
       }
       return;
@@ -127,6 +137,8 @@ export function buildSoundboard(
         sublabel: cue.musicName,
         initial: initialOf(cue.description || 'Cue'),
         cueIndex: i,
+        startSec: cue.musicStartSec,
+        endSec: cue.musicEndSec ?? (cue.musicDuration ? (cue.musicStartSec ?? 0) + cue.musicDuration : undefined),
       });
     }
   });
@@ -141,6 +153,8 @@ export function buildSoundboard(
       sublabel: [p.walkOnMusicName, p.walkOnMusicArtist].filter(Boolean).join(' — ') || undefined,
       initial: initialOf(p.name),
       photo: p.photo,
+      startSec: p.walkOnStartSec,
+      endSec: p.walkOnEndSec,
     });
   }
 
@@ -152,6 +166,8 @@ export function buildSoundboard(
       label: s.title?.trim() || s.musicName || 'Untitled track',
       sublabel: s.artist?.trim() || undefined,
       initial: initialOf(s.title || s.musicName || 'Track'),
+      startSec: s.startSec,
+      endSec: s.endSec,
     }));
 
   return { performers: [...byPerformer.values()], cues, dj };

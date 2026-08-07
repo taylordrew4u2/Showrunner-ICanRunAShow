@@ -5,6 +5,7 @@ import { audioUploadSizeError, pickFile } from '../utils/media';
 import { deleteMedia, uploadMedia } from '../utils/mediaStore';
 import { canDeleteMedia, titleFromFileName, usageCount } from '../utils/musicLibrary';
 import { PageHeader } from './PageHeader';
+import { TrimControls } from './TrimControls';
 import { TrackPreviewButton } from './TrackPreview';
 import './TrackPreview.css';
 import { useTrackPreview } from '../utils/useTrackPreview';
@@ -202,6 +203,18 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
                         ×
                       </button>
                     </div>
+                    {/* Cut here and it is cut in every show — the library is
+                        the one copy of the song. A show that wants a different
+                        cut for one night trims it in that show's DJ list,
+                        which copies the row first. */}
+                    <TrimControls
+                      src={track.music}
+                      startSec={track.startSec}
+                      endSec={track.endSec}
+                      onChange={(trim) =>
+                        onChange(tracks.map((t) => (t.id === track.id ? { ...t, ...trim } : t)))
+                      }
+                    />
                   </>
                 )}
               </li>

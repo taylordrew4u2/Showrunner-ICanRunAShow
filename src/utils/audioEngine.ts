@@ -47,7 +47,10 @@ interface PlayOptions {
   fadeInMs?: number;
   /** Fade-out applied to whatever is already playing. */
   fadeOutMs?: number;
-  /** Total seconds to play (incl. the fade out at the end). Full track if unset. */
+  /** Where in the track to start, in seconds. The top of the file if unset. */
+  offsetSec?: number;
+  /** Seconds to play from `offsetSec` (incl. the fade out at the end). To the
+   *  end of the track if unset. */
   durationSec?: number;
   /** Called when the track finishes on its own — not when it's stopped or replaced. */
   onEnded?: () => void;
@@ -201,7 +204,11 @@ class AudioEngine {
     } else {
       gain.gain.setValueAtTime(1, now);
     }
-    source.start(now);
+    // A trimmed song starts where the producer set its in-point rather than at
+    // the top of the file, and a start past the end of the audio would play
+    // nothing at all, so it is clamped to something that can still be heard.
+    const offset = Math.min(Math.max(0, opts.offsetSec ?? 0), Math.max(0, buffer.duration - 0.05));
+    source.start(now, offset);
     if (opts.durationSec && opts.durationSec > 0) {
       const end = now + opts.durationSec;
       const fadeStart = Math.max(now + fadeS, end - fadeS);

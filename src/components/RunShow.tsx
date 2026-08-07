@@ -399,7 +399,7 @@ export function RunShow({
     setPlayingKey(track.key);
     setAuditioning(true);
     audioEngine
-      .play(track.src, { fadeInMs: fade.fadeInMs, fadeOutMs: fade.fadeOutMs })
+      .play(track.src, { fadeInMs: fade.fadeInMs, fadeOutMs: fade.fadeOutMs, offsetSec: trimOf(track).offsetSec })
       .then((result) => {
         if (result === 'started' || result === 'superseded') return;
         cancelAudition();
@@ -415,6 +415,20 @@ export function RunShow({
       audioEngine.stop({ fadeMs: fade.fadeOutMs });
       setPlayingKey((k) => (k === track.key ? null : k));
     }, fade.fadeInMs + AUDITION_HOLD_MS);
+  }
+
+  /**
+   * The slice of a track a press should play.
+   *
+   * A walk-on is rarely the top of the file — it's the drop or the chorus, and
+   * a producer who trimmed it wants that and nothing else. An out-point before
+   * the in-point is treated as no out-point rather than a negative duration,
+   * which would schedule a stop in the past and cut the track dead.
+   */
+  function trimOf(track: SoundboardTrack): { offsetSec?: number; durationSec?: number } {
+    const start = track.startSec && track.startSec > 0 ? track.startSec : undefined;
+    const end = track.endSec && track.endSec > (start ?? 0) ? track.endSec : undefined;
+    return { offsetSec: start, durationSec: end ? end - (start ?? 0) : undefined };
   }
 
   function toggleTrack(track: SoundboardTrack) {
@@ -445,6 +459,7 @@ export function RunShow({
       .play(track.src, {
         fadeInMs: fade.fadeInMs,
         fadeOutMs: fade.fadeOutMs,
+        ...trimOf(track),
         onEnded: () => setPlayingKey((k) => (k === track.key ? null : k)),
       })
       .then((result) => {
