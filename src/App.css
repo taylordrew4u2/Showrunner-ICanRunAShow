@@ -2387,17 +2387,34 @@
    what it does. Performers keep the steel default; the music banks take the
    blue and gold of the reference so the operator finds a bank by colour and
    never presses one for the other. */
+/* Bank identity, now that the knobs carry the track's colour instead of the
+   bank's. It moved to the label and the plate's edge — the two things that
+   frame a bank rather than fill it — so "which instrument am I on" and "which
+   track is this" are answered by different marks and neither drowns the other.
+   The hues are the ones the knobs used to wear, so nothing has to be relearnt.
+
+   --rs-pad-ring still tints the badge on each pad, which is per-bank by
+   nature: it says "song" or "cue", not which song. */
 .rs-bank--dj {
-  --rs-knob-hi: #7e94e2;
-  --rs-knob-lo: #0d1440;
-  --rs-knob-pointer: #ffe27a;
+  --rs-bank-accent: #7e94e2;
   --rs-pad-ring: rgba(123, 147, 216, 0.6);
 }
 .rs-bank--cues {
-  --rs-knob-hi: #e8bd72;
-  --rs-knob-lo: #4a3208;
-  --rs-knob-pointer: #fff3d0;
+  --rs-bank-accent: #e8bd72;
   --rs-pad-ring: rgba(216, 173, 106, 0.6);
+}
+.rs-bank__label { color: var(--rs-bank-accent, var(--rs-dim)); }
+/* A band down the left of the plate. Enough to catch the eye reaching for a
+   bank, not enough to compete with a lit pad inside it. The plate's three
+   bevel shadows are repeated here because box-shadow replaces rather than
+   adds — dropping them flattened the plate off the panel. */
+.rs-bank--dj .rs-bank__grid,
+.rs-bank--cues .rs-bank__grid {
+  box-shadow:
+    inset 3px 0 0 var(--rs-bank-accent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.05);
 }
 /* A note on the badge, so a track pad says "song" without reading the label. */
 .rs-pad__kind {
