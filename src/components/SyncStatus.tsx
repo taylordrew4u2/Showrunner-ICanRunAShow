@@ -115,6 +115,15 @@ export function SyncStatus({
 
   return (
     <div className={`sync-status sync-status--${state}`} ref={rootRef}>
+      {/* Announced as well as shown, on every screen.
+          The pill is a button, and a button's label changing is not something
+          a screen reader reports — so "your work is saved" was visible-only.
+          Show detail used to carry its own live region for this, which is why
+          the app had two save messages at once; the announcement belongs with
+          the state it describes, and this is where that state lives. */}
+      <span className="visually-hidden" role="status" aria-live="polite">
+        {copy.headline}
+      </span>
       <button
         type="button"
         className="sync-status__pill"

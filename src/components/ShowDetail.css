@@ -122,67 +122,14 @@
   }
 }
 
-/* Save Indicator – fixed toast at bottom-right */
-.show-detail__save-indicator-container {
+/* The gap the save indicator used to hold open between the back button and
+   Run Show. The indicator itself is gone: it was a 300ms timer rather than a
+   save, so it said "Saved" whether or not anything reached the server — and it
+   said it in a toast across the middle of the page, on top of the status pill
+   that actually knows. See SyncStatus. */
+.show-detail__topbar-spacer {
   flex: 1;
-  /* container stays in topbar for layout purposes but is invisible */
   min-height: 24px;
-}
-
-.show-detail__save-indicator {
-  position: fixed;
-  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-  left: 50%;
-  transform: translateX(-50%) translateY(16px);
-  font-size: 0.95rem;
-  font-weight: 700;
-  padding: 10px 22px;
-  border-radius: var(--radius-full);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.18);
-  z-index: var(--z-lightbox);
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.show-detail__save-indicator--saving {
-  color: var(--text);
-  background: var(--surface-strong);
-  border: 1.5px solid var(--border-strong);
-  animation: toastSlideIn 0.25s ease forwards, pulse 1.5s 0.25s ease-in-out infinite;
-}
-
-.show-detail__save-indicator--saved {
-  color: var(--success-text);
-  background: var(--surface-strong);
-  border: 1.5px solid var(--success);
-  animation: toastSlideIn 0.2s ease forwards, toastFadeOut 0.4s 2.1s ease forwards;
-}
-
-@keyframes toastSlideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-@keyframes toastFadeOut {
-  from {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(-50%) translateY(12px);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.65; }
 }
 
 .show-detail__header {

@@ -132,7 +132,6 @@ export function ShowDetail({
   const [viewerCopyFailed, setViewerCopyFailed] = useState(false);
   const viewerUrlRef = useRef<HTMLInputElement>(null);
   const [tempShowName, setTempShowName] = useState(show.name);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   // Adding and removing sections happens in one deliberate place, so a stray tap
   // next to the expand chevron can't wipe a section off the show.
   const [manageSectionsOpen, setManageSectionsOpen] = useState(false);
@@ -286,22 +285,12 @@ export function ShowDetail({
     }
 
     onUpdate(merged);
-    triggerSaveIndicator();
-  }
-
-  function triggerSaveIndicator() {
-    setSaveStatus('saving');
-    setTimeout(() => {
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2500);
-    }, 300);
   }
 
   function handleHideSection(sectionKey: SectionKey) {
     const hidden = show.hiddenSections || [];
     if (!hidden.includes(sectionKey)) {
       onUpdate({ ...show, hiddenSections: [...hidden, sectionKey] });
-      triggerSaveIndicator();
     }
   }
 
@@ -313,7 +302,6 @@ export function ShowDetail({
     // see isSectionHidden.
     if (sectionKey === 'scenes' && show.scenes === undefined) updates.scenes = [];
     onUpdate({ ...show, ...updates });
-    triggerSaveIndicator();
   }
 
   /**
@@ -349,7 +337,6 @@ export function ShowDetail({
   function handleSaveShowName() {
     if (tempShowName.trim()) {
       onUpdate({ ...show, name: tempShowName.trim() });
-      triggerSaveIndicator();
       setEditingShowName(false);
     }
   }
@@ -401,7 +388,6 @@ export function ShowDetail({
       updates = { ...updates, viewToken: token };
     }
     onUpdate({ ...show, ...updates });
-    triggerSaveIndicator();
     try { await publishLiveView(token, buildScheduledPayload(viewerNoteDraft)); } catch { /* ignore */ }
   }
 
@@ -435,7 +421,6 @@ export function ShowDetail({
       completed: false,
     };
     onUpdate({ ...show, todos: [...(show.todos || []), todo] });
-    triggerSaveIndicator();
   }
 
   function handleToggleTodo(todoId: string) {
@@ -443,7 +428,6 @@ export function ShowDetail({
       t.id === todoId ? { ...t, completed: !t.completed } : t
     );
     onUpdate({ ...show, todos });
-    triggerSaveIndicator();
   }
 
   async function handleDeleteTodo(todoId: string) {
@@ -451,7 +435,6 @@ export function ShowDetail({
     if (await confirm(`Delete to-do "${todo?.text}"? This cannot be undone.`)) {
       const todos = (show.todos || []).filter((t) => t.id !== todoId);
       onUpdate({ ...show, todos });
-      triggerSaveIndicator();
     }
   }
 
@@ -677,20 +660,13 @@ export function ShowDetail({
             </svg>
             <span>Shows</span>
           </button>
-          {/* Announced, not just shown — this was the only confirmation an edit
-              landed, and it was invisible to anyone not watching that corner. */}
-          <div className="show-detail__save-indicator-container" role="status" aria-live="polite">
-            {saveStatus === 'saving' && (
-              <span className="show-detail__save-indicator show-detail__save-indicator--saving">
-                Saving…
-              </span>
-            )}
-            {saveStatus === 'saved' && (
-              <span className="show-detail__save-indicator show-detail__save-indicator--saved">
-                Saved
-              </span>
-            )}
-          </div>
+          {/* The spacer the save indicator used to occupy. That indicator was
+              a 300ms timer, not a save: it announced "Saved" whether or not
+              anything reached the server, so an offline edit got a green
+              confirmation while the real status pill said "Offline". The pill
+              knows saving from holding from blocked, and now carries the
+              announcement too — see SyncStatus. */}
+          <div className="show-detail__topbar-spacer" />
           <button
             className="show-detail__run-show"
             onClick={() => setRunShowOpen(true)}
@@ -744,7 +720,6 @@ export function ShowDetail({
             value={show.status}
             onChange={(e) => {
               onUpdate({ ...show, status: e.target.value as ShowStatus });
-              triggerSaveIndicator();
             }}
             aria-label="Show status"
             title="Change show status"
@@ -780,7 +755,7 @@ export function ShowDetail({
           className="section-field__input show-detail__host-input"
           placeholder="Host name"
           value={show.host || ''}
-          onChange={(e) => { onUpdate({ ...show, host: e.target.value || undefined }); triggerSaveIndicator(); }}
+          onChange={(e) => onUpdate({ ...show, host: e.target.value || undefined })}
         />
         {(hostPicks.onBill.length > 0 || hostPicks.rolodex.length > 0) && (
           <select
@@ -789,7 +764,6 @@ export function ShowDetail({
             onChange={(e) => {
               if (!e.target.value) return;
               onUpdate({ ...show, host: e.target.value });
-              triggerSaveIndicator();
             }}
             aria-label="Pick someone as host"
           >
