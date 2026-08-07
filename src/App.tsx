@@ -800,7 +800,11 @@ export default function App() {
       id: generateId(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      scenes: [],
+      // `scenes` is deliberately left undefined. Scenes & Segments is the one
+      // opt-in section, and an undefined list is what marks a show as never
+      // having asked for it — seeding an empty array here made every new show
+      // read as opted in. Everything that reads scenes already does so through
+      // `?? []`, so nothing needs the array to exist up front.
     };
     setShows((prev) => [newShow, ...prev]);
     setShowForm(false);
