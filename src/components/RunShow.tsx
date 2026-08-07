@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { DJSong, Performer, ScheduleItem } from '../types';
 import { audioEngine } from '../utils/audioEngine';
+import { padColor } from '../utils/padColor';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
 import {
@@ -100,9 +101,18 @@ function TrackButton({
   // The headshot resolves out of the media store; the initial holds the button
   // until it lands, so the board is pressable the moment the screen opens.
   const photoUrl = useMediaUrl(track.photo);
+  // Its own colour, keyed off the track rather than its place on the board —
+  // see padColor. This overrides the bank tint on the face; the banks keep
+  // their headings, and the badge still says which pads are songs.
+  const colour = padColor(track.key);
   return (
     <button
       type="button"
+      style={{
+        '--rs-knob-hi': colour.hi,
+        '--rs-knob-lo': colour.lo,
+        '--rs-knob-pointer': colour.pointer,
+      } as CSSProperties}
       className={`rs-pad rs-pad--${variant} ${isPlaying ? 'rs-pad--playing' : ''}${
         isLoading ? ' rs-pad--loading' : ''
       }`}
