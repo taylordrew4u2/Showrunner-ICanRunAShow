@@ -619,6 +619,7 @@ export function ShowDetail({
   // Same rule for the readiness bars: "Vendors booked 0/0 — 0%" measures
   // nothing. A bar earns its place once there is something to be ready about.
   const progressStats = stats.progress.filter((stat) => stat.total > 0);
+  const hasRunTime = stats.runMinutes > 0;
 
   return (
     <div className="show-detail">
@@ -776,6 +777,7 @@ export function ShowDetail({
       {/* At a glance. The page used to open on a stack of closed sections, which
           told you the show existed but nothing about its state. These read
           straight off the same data the sections edit. */}
+      {(tileGroups.length > 0 || hasRunTime) && (
       <section
         className={`show-overview${tileGroups.length === 0 ? ' show-overview--accents-only' : ''}`}
         aria-label="Show at a glance"
@@ -798,18 +800,26 @@ export function ShowDetail({
           </div>
         ))}
 
-        <div className="show-overview__accents">
-          <div className="show-accent show-accent--runtime">
-            <span className="show-accent__icon">
-              <Icon name="clock" size={22} />
-            </span>
-            <span className="show-accent__body">
-              <span className="show-accent__value">{formatRunTime(stats.runMinutes)}</span>
-              <span className="show-accent__label">Run time</span>
-            </span>
+        {/* Same rule the tiles and the readiness bars already follow: a stat
+            earns its place once it has something to say. Run time was the one
+            that didn't — it rendered a green panel containing an em-dash on
+            every show whose cues have no lengths yet, which is every show on
+            the day it's created. */}
+        {hasRunTime && (
+          <div className="show-overview__accents">
+            <div className="show-accent show-accent--runtime">
+              <span className="show-accent__icon">
+                <Icon name="clock" size={22} />
+              </span>
+              <span className="show-accent__body">
+                <span className="show-accent__value">{formatRunTime(stats.runMinutes)}</span>
+                <span className="show-accent__label">Run time</span>
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </section>
+      )}
 
       {/* How ready the show is, in the things that are actually checkable. Each
           bar is a real ratio — no invented targets, and none for a section this
@@ -945,9 +955,20 @@ export function ShowDetail({
         </button>
       </div>
 
-      <div className="show-detail__scenes">
-        <SceneList scenes={show.scenes ?? []} onChange={handleScenesChange} />
-      </div>
+      {/* Only for shows that already have scenes.
+
+          The page was asking for the running order twice, in two vocabularies:
+          Schedule holds cues with times, lengths, performers and music, and is
+          what Run Show and the public viewer both read. Scenes & Segments held
+          a second, unrelated list that nothing else on the night uses — and it
+          sat open at the bottom of every show, below the button for adding
+          sections, so it read as a section the producer had failed to fill in.
+          Shows that use it keep it; the rest get one running order. */}
+      {(show.scenes?.length ?? 0) > 0 && (
+        <div className="show-detail__scenes">
+          <SceneList scenes={show.scenes ?? []} onChange={handleScenesChange} />
+        </div>
+      )}
 
       {runShowOpen && (
         <RunShow

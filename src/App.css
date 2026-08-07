@@ -1326,6 +1326,16 @@
 .ai-import-entry__sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
 .ai-import-entry__chevron { color: var(--text-soft); flex-shrink: 0; }
 
+/* The ways to fill in a running order, gathered under the running order
+   itself. Set apart by a rule so they read as tools rather than as more
+   cues — they sit directly below the last row of the list. */
+.schedule-tools {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.schedule-tools .ai-import-entry:last-child { margin-bottom: 0; }
+
 /* Dropzone */
 .dropzone {
   border: 2px dashed var(--border-strong);
