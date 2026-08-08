@@ -449,6 +449,29 @@ select.show-detail__status--select {
   border-bottom: 1px solid var(--border);
 }
 
+/* Tiles that jump to a section render as buttons, so they need the div's
+   look reset back onto them — a <button> otherwise brings its own font,
+   background, and centered text. */
+.show-tile--jump {
+  width: 100%;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.show-tile--jump:hover,
+.show-tile--jump:focus-visible {
+  background: var(--surface-strong);
+}
+
+.show-tile--jump:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
 /* Only the seams between tiles get a rule — the card edge already closes the
    outside. */
 .show-tile:nth-child(2n) {
@@ -697,6 +720,9 @@ select.show-detail__status--select {
   display: flex;
   flex-direction: column;
   position: relative;
+  /* Room to breathe above a section an overview tile jumped to, so its
+     header doesn't land flush against the top of the viewport. */
+  scroll-margin-top: 12px;
 }
 
 /* No accent bar. Every section used to wear a 3px red rule across its top —

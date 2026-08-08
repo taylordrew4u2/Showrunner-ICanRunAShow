@@ -136,6 +136,21 @@ export function ShowDetail({
   // next to the expand chevron can't wipe a section off the show.
   const [manageSectionsOpen, setManageSectionsOpen] = useState(false);
 
+  // Lets the overview tiles act as a table of contents: tap "12 Performers"
+  // and land inside the Performers section instead of scrolling to find it.
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  function jumpToSection(sectionKey: string) {
+    setExpandedSections((prev) => (prev.has(sectionKey) ? prev : new Set(prev).add(sectionKey)));
+    // Two frames: one for React to commit the newly-expanded section, one for
+    // the browser to lay it out, so the scroll targets the section's real
+    // height instead of the collapsed one it had before this click.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        sectionRefs.current[sectionKey]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  }
+
   // Come back to a show and it looks the way you left it.
   useEffect(() => {
     try {
@@ -573,6 +588,12 @@ export function ShowDetail({
     });
   }
 
+  // Which of the sections above are actually on the page right now, so a
+  // tile only offers to jump somewhere that exists — a section the producer
+  // hid stays hidden rather than reappearing because its tile was tapped.
+  const visibleSections = sections.filter((section) => !isSectionHidden(section.sectionKey));
+  const jumpableSectionKeys = new Set(visibleSections.map((section) => section.key));
+
   // Date and time are written the same way here as on the show cards, so the
   // same show doesn't read as "9/18/2026 20:00" in one place and
   // "Sep 18 · 8:00 PM" in another.
@@ -796,19 +817,39 @@ export function ShowDetail({
       >
         {tileGroups.map((group, index) => (
           <div className="show-overview__group" key={index}>
-            {group.map((tile) => (
-              <div className="show-tile" key={tile.label}>
-                <span className="show-tile__icon">
-                  <Icon name={tile.icon} size={20} />
-                </span>
-                <span className="show-tile__body">
-                  <span className="show-tile__value">{tile.value}</span>
-                  <span className="show-tile__label">
-                    {tile.value === 1 ? tile.labelOne ?? tile.label : tile.label}
+            {group.map((tile) => {
+              // A tile only jumps if there's a section on this page to land
+              // in. Expenses and To-dos don't get their own section — they
+              // surface inside Recap, and only once the show is in the past.
+              const jumpsTo = tile.sectionKey && jumpableSectionKeys.has(tile.sectionKey) ? tile.sectionKey : undefined;
+              const body = (
+                <>
+                  <span className="show-tile__icon">
+                    <Icon name={tile.icon} size={20} />
                   </span>
-                </span>
-              </div>
-            ))}
+                  <span className="show-tile__body">
+                    <span className="show-tile__value">{tile.value}</span>
+                    <span className="show-tile__label">
+                      {tile.value === 1 ? tile.labelOne ?? tile.label : tile.label}
+                    </span>
+                  </span>
+                </>
+              );
+              return jumpsTo ? (
+                <button
+                  type="button"
+                  className="show-tile show-tile--jump"
+                  key={tile.label}
+                  onClick={() => jumpToSection(jumpsTo)}
+                >
+                  {body}
+                </button>
+              ) : (
+                <div className="show-tile" key={tile.label}>
+                  {body}
+                </div>
+              );
+            })}
           </div>
         ))}
 
@@ -877,7 +918,7 @@ export function ShowDetail({
       )}
 
       <div className="show-detail__sections-accordion">
-        {sections.filter((section) => !isSectionHidden(section.sectionKey)).map((section) => {
+        {visibleSections.map((section) => {
           const isExpanded = expandedSections.has(section.key);
           const panelId = `show-section-panel-${section.key}`;
           const buttonId = `show-section-header-${section.key}`;
@@ -886,6 +927,9 @@ export function ShowDetail({
           return (
             <section
               key={section.key}
+              ref={(el) => {
+                sectionRefs.current[section.key] = el;
+              }}
               className={`accordion-section${isExpanded ? ' accordion-section--expanded' : ''}`}
             >
               {/* The whole header is one button, wrapped in the heading. It used
