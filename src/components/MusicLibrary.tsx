@@ -3,7 +3,7 @@ import type { MusicTrack, Show } from '../types';
 import { generateId } from '../utils/id';
 import { audioUploadSizeError, pickFile } from '../utils/media';
 import { deleteMedia, uploadMedia } from '../utils/mediaStore';
-import { canDeleteMedia, titleFromFileName, usageCount } from '../utils/musicLibrary';
+import { canDeleteMedia, SEARCH_LIST_FROM, titleFromFileName, trackMatches, usageCount } from '../utils/musicLibrary';
 import { PageHeader } from './PageHeader';
 import { TrimControls } from './TrimControls';
 import { TrackPreviewButton } from './TrackPreview';
@@ -36,6 +36,11 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
   const [editTitle, setEditTitle] = useState('');
   const [editArtist, setEditArtist] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [query, setQuery] = useState('');
+
+  // The crate only grows — every track uploaded for any show is on this page
+  // forever — so past a couple of dozen, finding one meant scrolling the lot.
+  const shown = tracks.filter((track) => trackMatches(track, query));
 
   async function addTracks() {
     const file = await pickFile('audio/*');
@@ -142,8 +147,41 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
           </button>
         </div>
       ) : (
+        <>
+          {/* The box earns its place the way the show page's tiles do: a list
+              you can take in at a glance is not a list you need to search. */}
+          {tracks.length > SEARCH_LIST_FROM && (
+            <div className="music-search">
+              <input
+                type="search"
+                className="section-field__input music-search__input"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search tracks"
+                aria-label="Search tracks by title, artist, notes, or file name"
+              />
+              {query.trim() && (
+                <p className="music-search__count" role="status" aria-live="polite">
+                  {shown.length} of {tracks.length}
+                </p>
+              )}
+            </div>
+          )}
+
+          {shown.length === 0 ? (
+            <div className="empty-state">
+              <h2 className="empty-state__title">No track matches that</h2>
+              <p className="empty-state__text">
+                Nothing in the library matches “{query.trim()}”. Titles, artists, notes, and the
+                uploaded file name are all searched.
+              </p>
+              <button className="btn btn--secondary" onClick={() => setQuery('')}>
+                Clear search
+              </button>
+            </div>
+          ) : (
         <ul className="music-list">
-          {tracks.map((track) => {
+          {shown.map((track) => {
             const used = usageCount(track, shows);
             return (
               <li key={track.id} className="music-list__item">
@@ -221,6 +259,8 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
             );
           })}
         </ul>
+          )}
+        </>
       )}
       {confirmDialog}
     </div>

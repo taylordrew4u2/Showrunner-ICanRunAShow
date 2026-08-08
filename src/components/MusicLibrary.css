@@ -24,6 +24,27 @@
   color: var(--danger-text);
 }
 
+/* Sits directly above the list it filters, so the count reads as a caption on
+   the rows below rather than as another status message about the page. */
+.music-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.music-search__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.music-search__count {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .music-list {
   list-style: none;
   margin: 0;
@@ -149,6 +170,28 @@
   .music-list__actions {
     justify-content: flex-end;
   }
+}
+
+/* Same job as .music-search, inside a show's DJ section. Kept as its own
+   block because it sits in an accordion panel rather than on a page of its
+   own, and needs the margin that gives it. */
+.dj-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.dj-search__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dj-search__count {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Add-from-library picker, inside a show's DJ section ─────────────── */

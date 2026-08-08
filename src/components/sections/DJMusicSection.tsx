@@ -3,7 +3,14 @@ import type { DJSong, MusicTrack, Show } from '../../types';
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
-import { isAutoLibrarySong, showDJSongs, songFromTrack, songOwnsItsMedia } from '../../utils/musicLibrary';
+import {
+  isAutoLibrarySong,
+  SEARCH_LIST_FROM,
+  showDJSongs,
+  songFromTrack,
+  songOwnsItsMedia,
+  trackMatches,
+} from '../../utils/musicLibrary';
 import { exportDJListToPDF } from '../../utils/pdfExport';
 import { Icon } from '../Icon';
 import { TrimControls } from '../TrimControls';
@@ -33,6 +40,16 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
   const own = show.djSongs ?? [];
   const hidden = show.djHiddenLibraryIds ?? [];
   const songs = showDJSongs(show, library);
+  const [songQuery, setSongQuery] = useState('');
+  // Every library track is in every show, so this list is as long as the crate
+  // — the same reason the library page has a search box.
+  //
+  // Numbered from the full list before filtering, so a row keeps the position
+  // it actually holds. Renumbering the matches would have the search inventing
+  // a running order that nothing else agrees with.
+  const shownSongs = songs
+    .map((song, idx) => ({ song, position: idx + 1 }))
+    .filter(({ song }) => trackMatches(song, songQuery));
   // Library tracks this show has dropped, so they can be put back.
   const hiddenFromShow = library.filter((track) => hidden.includes(track.id));
   const ownRef = useRef(own);
@@ -304,8 +321,35 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
 
       {songs.length === 0 && <p className="section-empty">No songs yet.</p>}
 
+      {songs.length > SEARCH_LIST_FROM && (
+        <div className="dj-search">
+          <input
+            type="search"
+            className="section-field__input dj-search__input"
+            value={songQuery}
+            onChange={(e) => setSongQuery(e.target.value)}
+            placeholder="Search songs"
+            aria-label="Search songs by title, artist, notes, or file name"
+          />
+          {songQuery.trim() && (
+            <span className="dj-search__count" role="status" aria-live="polite">
+              {shownSongs.length} of {songs.length}
+            </span>
+          )}
+        </div>
+      )}
+
+      {songs.length > 0 && shownSongs.length === 0 && (
+        <p className="section-empty">
+          No song here matches “{songQuery.trim()}”.{' '}
+          <button className="btn btn--ghost btn--sm" onClick={() => setSongQuery('')}>
+            Clear search
+          </button>
+        </p>
+      )}
+
       <ul className="section-list">
-        {songs.map((s, idx) => (
+        {shownSongs.map(({ song: s, position }) => (
           <li key={s.id} className="section-list-item">
             <div className="section-list-item__body">
               {editId === s.id ? (
@@ -318,7 +362,7 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
                 </div>
               ) : (
                 <>
-                  <span className="section-list-item__order">{idx + 1}</span>
+                  <span className="section-list-item__order">{position}</span>
                   {s.music ? (
                     <TrackPreviewButton src={s.music} title={s.title} preview={preview} />
                   ) : (

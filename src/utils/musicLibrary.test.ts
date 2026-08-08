@@ -8,6 +8,7 @@ import {
   songFromTrack,
   songOwnsItsMedia,
   titleFromFileName,
+  trackMatches,
 } from './musicLibrary';
 import type { DJSong, MusicTrack, Show } from '../types';
 
@@ -180,5 +181,47 @@ describe('usageCount, now that the library fills every show', () => {
     const bed = track({ id: 't1' });
     expect(usageCount(bed, [show('s1', []), show('s2', [])])).toBe(0);
     expect(canDeleteMedia(bed, [show('s1', []), show('s2', [])])).toBe(true);
+  });
+});
+
+describe('trackMatches', () => {
+  const bed = track({ title: 'Intro Bed', artist: 'Alex Rivera', notes: 'plays under the walk-on', musicName: 'walkon_final_v2.mp3' });
+
+  it('matches everything when nothing is typed', () => {
+    expect(trackMatches(bed, '')).toBe(true);
+    expect(trackMatches(bed, '   ')).toBe(true);
+  });
+
+  it('ignores case', () => {
+    expect(trackMatches(bed, 'INTRO')).toBe(true);
+    expect(trackMatches(bed, 'alex')).toBe(true);
+  });
+
+  it('matches on title, artist, notes and filename alike', () => {
+    expect(trackMatches(bed, 'bed')).toBe(true);
+    expect(trackMatches(bed, 'rivera')).toBe(true);
+    expect(trackMatches(bed, 'walk-on')).toBe(true);
+    expect(trackMatches(bed, 'v2.mp3')).toBe(true);
+  });
+
+  it('lets words match different fields, in any order', () => {
+    // The whole point: you remember the act and the kind of cue, not how the
+    // row happens to be worded.
+    expect(trackMatches(bed, 'alex intro')).toBe(true);
+    expect(trackMatches(bed, 'intro alex')).toBe(true);
+  });
+
+  it('requires every word, so a second term narrows rather than widens', () => {
+    expect(trackMatches(bed, 'intro jamie')).toBe(false);
+  });
+
+  it('does not match a track that has none of the words', () => {
+    expect(trackMatches(bed, 'outro')).toBe(false);
+  });
+
+  it('survives a track with only a title', () => {
+    const bare = { title: 'Sting' };
+    expect(trackMatches(bare, 'sting')).toBe(true);
+    expect(trackMatches(bare, 'nothing')).toBe(false);
   });
 });
