@@ -97,3 +97,47 @@ export function titleFromFileName(fileName: string): string {
   const base = fileName.replace(/\.[^./\\]+$/, '').trim();
   return base || fileName.trim();
 }
+
+/**
+ * How many rows a track list carries before it offers a search box.
+ *
+ * Six is roughly a phone screen of these rows. Up to that you can take the
+ * whole list in at a glance, and a search box is a control asking to be used
+ * for nothing. Shared by the library page and a show's DJ list so the two
+ * don't drift apart on when searching becomes worth it.
+ */
+export const SEARCH_LIST_FROM = 6;
+
+/** The searchable fields shared by a library track and a show's DJ song. */
+export interface SearchableTrack {
+  title?: string;
+  artist?: string;
+  notes?: string;
+  musicName?: string;
+}
+
+/**
+ * Whether a track answers to what was typed in a search box.
+ *
+ * Every word has to match, but they may match different fields and in any
+ * order — "alex intro" finds Alex's intro bed whether the row reads
+ * "Intro Bed — Alex Rivera" or the other way round. Requiring one contiguous
+ * substring meant knowing how the row was written before you could find it,
+ * which defeats the point of searching for it.
+ *
+ * The uploaded filename is searched alongside the typed-in fields: a track
+ * added in a hurry keeps its filename and never gets an artist, and
+ * "walkon_final_v2.mp3" is often the only thing the producer remembers.
+ *
+ * An empty or whitespace-only query matches everything, so clearing the box
+ * restores the full list rather than emptying it.
+ */
+export function trackMatches(track: SearchableTrack, query: string): boolean {
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return true;
+  const haystack = [track.title, track.artist, track.notes, track.musicName]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return terms.every((term) => haystack.includes(term));
+}
