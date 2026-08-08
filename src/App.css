@@ -299,6 +299,30 @@
   padding: 4px 6px;
 }
 
+/* Names the grid now that the dashboard panels sit above it. Without it the
+   cards read as more dashboard rather than as the full set of shows. */
+.shows-list__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 2px 0 8px;
+}
+
+.shows-list__heading-text {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.shows-list__heading-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Shows Toolbar ───────────────────────────────────────────────────── */
 
 .shows-toolbar {
