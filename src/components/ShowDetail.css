@@ -449,6 +449,29 @@ select.show-detail__status--select {
   border-bottom: 1px solid var(--border);
 }
 
+/* Tiles that jump to a section render as buttons, so they need the div's
+   look reset back onto them — a <button> otherwise brings its own font,
+   background, and centered text. */
+.show-tile--jump {
+  width: 100%;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.show-tile--jump:hover,
+.show-tile--jump:focus-visible {
+  background: var(--surface-strong);
+}
+
+.show-tile--jump:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
 /* Only the seams between tiles get a rule — the card edge already closes the
    outside. */
 .show-tile:nth-child(2n) {
@@ -475,8 +498,8 @@ select.show-detail__status--select {
   width: 34px;
   height: 34px;
   border-radius: var(--radius-md);
-  background: var(--surface-strong);
-  color: var(--primary-text);
+  background: var(--section-tint, var(--surface-strong));
+  color: var(--section-ink, var(--primary-text));
 }
 
 .show-tile__body {
@@ -697,6 +720,9 @@ select.show-detail__status--select {
   display: flex;
   flex-direction: column;
   position: relative;
+  /* Room to breathe above a section an overview tile jumped to, so its
+     header doesn't land flush against the top of the viewport. */
+  scroll-margin-top: 12px;
 }
 
 /* No accent bar. Every section used to wear a 3px red rule across its top —
@@ -766,9 +792,46 @@ select.show-detail__status--select {
   width: 32px;
   height: 32px;
   border-radius: var(--radius-md);
-  background: var(--surface-strong);
-  color: var(--primary-text);
+  background: var(--section-tint, var(--surface-strong));
+  color: var(--section-ink, var(--primary-text));
 }
+
+/* ─── Section identity ─────────────────────────────────────────────────────
+   A colour per section, so a section is found by looking rather than by
+   reading — the same reasoning as the soundboard's per-track knobs (see
+   padColor.ts). Collapsed, these cards differ only by a glyph and a line of
+   type, and eight of them stacked is the wall this is here to break up.
+
+   Confined to the 32px chip on purpose. The last attempt at section colour
+   was a 3px rule across the top of every card, which read as a stack of
+   alerts (see the note further down); a tinted chip is an index tab, not a
+   banner. Every pair below clears 3:1 icon-on-chip in both schemes — the
+   lowest is green at 4.53 in light.
+
+   Slate is the deliberate neutral, at 32% saturation against 76–95% for the
+   rest: Basic Info and Recap are the show's own frame — what it is, and how
+   it went — rather than things booked into it. They also sit at opposite
+   ends of the page, so the one repeat in the set is the harmless kind.
+
+   The overview tiles wear the same class, so the tile you tap and the section
+   you land in are the same colour — the jump is legible before you make it. */
+.accent--slate   { --section-tint: #eef2f7; --section-ink: #475569; }
+.accent--rose    { --section-tint: #ffedf1; --section-ink: #c2113c; }
+.accent--magenta { --section-tint: #fbecfd; --section-ink: #a21caf; }
+.accent--blue    { --section-tint: #e9f1fe; --section-ink: #1d4ed8; }
+.accent--teal    { --section-tint: #e2f5f7; --section-ink: #0e7490; }
+.accent--amber   { --section-tint: #fdf3e3; --section-ink: #b45309; }
+.accent--green   { --section-tint: #e8f7ed; --section-ink: #15803d; }
+.accent--violet  { --section-tint: #f2ecfd; --section-ink: #7c3aed; }
+
+[data-theme="dark"] .accent--slate   { --section-tint: #1e2430; --section-ink: #9fb0c4; }
+[data-theme="dark"] .accent--rose    { --section-tint: #2e0d16; --section-ink: #ef7d95; }
+[data-theme="dark"] .accent--magenta { --section-tint: #2b0d2e; --section-ink: #e488ee; }
+[data-theme="dark"] .accent--blue    { --section-tint: #101d38; --section-ink: #7ba7f5; }
+[data-theme="dark"] .accent--teal    { --section-tint: #06282e; --section-ink: #5cc4cf; }
+[data-theme="dark"] .accent--amber   { --section-tint: #2b1d07; --section-ink: #e0a860; }
+[data-theme="dark"] .accent--green   { --section-tint: #0c2417; --section-ink: #5fc684; }
+[data-theme="dark"] .accent--violet  { --section-tint: #1f1338; --section-ink: #b394f7; }
 
 .accordion-section__header-left {
   flex: 1;
