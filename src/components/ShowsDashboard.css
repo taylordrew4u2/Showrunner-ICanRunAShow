@@ -1,237 +1,262 @@
-/* ── At-a-glance widgets ──────────────────────────────────────────────
-   A tile row above the shows grid. It is chrome sitting between you and your
-   shows, so it has to earn every pixel of height: each tile is one line —
-   label and number side by side — rather than a label stacked over a display
-   figure over a caption. The stacked version cost about 90px a tile, and four
-   of them pushed the first show clean off a phone screen. */
+/* ── The dashboard ────────────────────────────────────────────────────
+   Two panels above the shows grid: what's next, and what still needs doing.
+
+   This replaced a row of four count tiles. The tiles were tuned hard for
+   height, because a count is chrome — it tells you a number and leaves you to
+   go and act on it, so every pixel it took was a pixel between you and your
+   shows. These panels are not chrome: they carry the shows themselves, the
+   next one's state of readiness, and the way into live mode. They are worth
+   the height the tiles weren't, so they take it. */
 
 .dash {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
-.dash__tile--next {
-  grid-column: 1 / -1;
-}
-
-.dash__tile {
+.dash-panel {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
   gap: 8px;
   min-width: 0;
-  padding: 8px 12px;
+  padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
 }
 
-/* A tile whose only content is a button lets the button own the padding, so
-   the whole tile is the target rather than a patch inside it. */
-.dash__tile--todo {
-  padding: 0;
-  border-color: var(--primary-soft-border);
-  background: var(--primary-soft);
-  transition:
-    border-color var(--duration-normal) var(--ease-out),
-    box-shadow var(--duration-normal) var(--ease-out);
-}
-
-.dash__tile--todo:hover {
-  border-color: var(--primary);
-}
-
-.dash__tile--active {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 1px var(--primary);
-}
-
-.dash__action {
+.dash-panel__head {
   display: flex;
   align-items: baseline;
+  justify-content: space-between;
   gap: 8px;
-  width: 100%;
-  /* The row is short, so the target needs a floor of its own to clear 24px. */
-  min-height: 38px;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
-.dash__action:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-.dash__label {
-  flex: 1;
-  min-width: 0;
+.dash-panel__title {
   margin: 0;
-  font-size: 0.8rem;
-  font-weight: 650;
-  color: var(--text-muted);
-  line-height: 1.3;
-}
-
-.dash__figure {
-  margin: 0;
-  flex-shrink: 0;
-  font-size: 1.25rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  color: var(--text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.dash-panel__aside {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* Zero is the good outcome here, so it reads as settled rather than as a
-   number you still have to do something about. */
-.dash__figure--clear {
-  color: var(--success-text);
-}
-
-.dash__tile--todo .dash__figure {
-  color: var(--primary-text);
-}
-
-.dash__quiet {
+.dash-panel__quiet {
   margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.35;
+  font-size: 0.85rem;
+  line-height: 1.4;
   color: var(--text-muted);
 }
 
 /* ── Next up ────────────────────────────────────────────────────────── */
 
-.dash__tile--next {
-  align-items: baseline;
-}
-
-/* The shared .dash__label carries min-width: 0 so "Needs a running order" can
-   wrap inside a narrow count tile. In the hero that same rule let the label be
-   squeezed to nothing by the line beside it — "Next up" overlapped the show's
-   name once the line grew. Here the label is two short words and should hold
-   its ground; the line beside it is the part with somewhere to wrap to. */
-.dash__tile--next .dash__label {
-  min-width: max-content;
-}
-
-.dash__next-line {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0;
-  min-width: 0;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-.dash__next-name {
+.dash-next__name {
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
   color: var(--text);
   text-align: left;
   cursor: pointer;
   word-break: break-word;
 }
 
-.dash__next-name:hover {
+.dash-next__name:hover {
   color: var(--primary-text);
 }
 
-.dash__next-name:focus-visible {
+.dash-next__name:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
   border-radius: var(--radius-xs);
 }
 
-/* When it is, in the brand colour — the one thing on this row you look for
-   first. The type shade, not the fill shade. */
-.dash__when {
+.dash-next__meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* When it is, in the brand colour — the one thing here you look for first.
+   The type shade, not the fill shade. */
+.dash-next__when {
   font-weight: 650;
   color: var(--primary-text);
   white-space: nowrap;
 }
 
-.dash__sep {
+.dash-next__sep {
   color: var(--text-soft);
 }
 
-/* Hidden until the Upcoming tile stands down (see the container query below),
-   so the count is shown once and only once at every width. It flows as one
-   more item on the wrapped line — pushing it right with margin-left:auto made
-   it demand width, which squeezed the "Next up" label until it overlapped the
-   show's name. */
-.dash__hero-count {
-  display: none;
-  color: var(--text-soft);
+/* Readiness, as three short lines rather than a bar. A progress bar answers
+   "how far along", which is not the question at 7pm — "is the running order
+   written" is, and a bar can't say that. */
+.dash-ready {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dash-ready__line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.83rem;
+  color: var(--text-muted);
+}
+
+/* Done is stated in green and left alone; outstanding keeps the muted grey
+   rather than going red. None of these are errors — a show three weeks out is
+   supposed to have an empty running order. */
+.dash-ready__line--ready {
+  color: var(--success-text);
+}
+
+.dash-next__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.dash-next__run {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ── Needs attention ────────────────────────────────────────────────── */
+
+.dash-todo {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* The whole row is the target, not a link inside it. */
+.dash-todo__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-default);
+}
+
+.dash-todo__row:hover {
+  background: var(--primary-soft);
+}
+
+.dash-todo__row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.dash-todo__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: var(--text);
 }
 
-/* The venue is the first thing worth dropping when the line runs out of room:
-   the name and the when are what the tile is for. */
-@container shows-col (max-width: 430px) {
-  .dash__sep,
-  .dash__venue {
-    display: none;
-  }
+.dash-todo__reason {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+/* Two reasons, two shades. Missing a lineup is the earlier and larger problem
+   — there is no show at all yet — so it is the one that carries colour. */
+.dash-todo__reason--lineup {
+  color: var(--primary-text);
+}
+
+.dash-todo__more {
+  margin-top: 2px;
+}
+
+.dash-todo__more-btn {
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--primary-text);
+  cursor: pointer;
+}
+
+.dash-todo__more-btn:hover {
+  text-decoration: underline;
+}
+
+.dash-todo__more-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* Nothing to chase is good news, and good news is stated once and quietly —
+   not styled as a thing to click. */
+.dash-panel__all-clear {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--success-text);
 }
 
 /* ── Adapting to the column ───────────────────────────────────────────
-   These come after the base rules on purpose. `display: none` below and
-   `.dash__tile { display: flex }` above have the same specificity, so the one
-   declared later wins — with these at the top of the file the hidden tile
-   stayed visible and the row silently kept its extra line. */
-
-/* On a phone, three columns give each label about 110px — enough for "Needs a
-   running order" to wrap to *three* lines, which made every tile in the row
-   108px tall. Two columns give the labels a line or two instead, and the plain
-   Upcoming count steps aside: it is the one tile you can't act on, and its
-   number is a scroll away in the list itself. The two you can act on stay. */
-@container shows-col (max-width: 560px) {
+   Side by side once the column can give each panel a readable width. Below
+   that they stack, next-up first: on a phone the panel you want is the one
+   about tonight. */
+@container shows-col (min-width: 620px) {
   .dash {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dash__tile--upcoming {
-    display: none;
-  }
-
-  /* …but the number it carried comes back in the hero, which has the width.
-     Losing the tile was a layout decision; losing the count was a side effect
-     of it, and the two don't have to travel together. */
-  .dash__hero-count {
-    display: inline;
-  }
-}
-
-/* Once there is room for four across, the hero joins the same line and the
-   whole row is one ~58px band instead of two stacked ones. */
-@container shows-col (min-width: 700px) {
-  .dash {
-    grid-template-columns: 2fr 1fr 1fr 1fr;
-  }
-
-  .dash__tile--next {
-    grid-column: auto;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: start;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dash__tile--todo {
+  .dash-todo__row {
     transition: none;
   }
 }

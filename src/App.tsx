@@ -291,6 +291,12 @@ export default function App() {
   const [onboardingSaving, setOnboardingSaving] = useState(false);
   const [view, setView] = useState<View>('list');
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
+  /**
+   * Set when the dashboard's Run Show button opened the show, so ShowDetail
+   * mounts straight into live mode. Cleared on the way back out, so returning
+   * to the same show by tapping its card doesn't reopen live mode.
+   */
+  const [startInRunShow, setStartInRunShow] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [newComicName, setNewComicName] = useState('');
   const [newComicNotes, setNewComicNotes] = useState('');
@@ -1176,10 +1182,14 @@ export default function App() {
     saveSettings(updatedSettings);
   }
 
-  function handleSelectShow(show: Show, e?: React.MouseEvent) {
+  function handleSelectShow(show: Show, e?: React.MouseEvent, runShow = false) {
     // Remember where the list was, so Back returns you to the show you tapped
     // rather than the top of a long grid.
     listScrollRef.current = window.scrollY;
+    // Set on every selection, not just the Run Show one: leaving a show by the
+    // bottom nav rather than Back doesn't clear it, and a stale flag would
+    // drop the *next* show you tapped straight into live mode.
+    setStartInRunShow(runShow);
     // Open the show first. Measuring the card to set the expand animation's
     // origin is decoration, and it used to run ahead of the navigation it
     // decorates — so anything it touched (a missing .app-main, an element
@@ -1205,6 +1215,19 @@ export default function App() {
   function handleBack() {
     setView('list');
     setSelectedShow(null);
+    setStartInRunShow(false);
+  }
+
+  /**
+   * Run Show, straight from the dashboard.
+   *
+   * The show page still mounts underneath — live mode is a layer over it, and
+   * closing live mode should land on the show, not back on the list you came
+   * from. Passing no event skips the expand animation, which has no card to
+   * expand from here.
+   */
+  function handleRunShowFromDashboard(show: Show) {
+    handleSelectShow(show, undefined, true);
   }
 
   /**
@@ -1234,8 +1257,7 @@ export default function App() {
   const focusIds = (() => {
     if (!showsFocus) return null;
     const overview = buildOverview(shows);
-    const list = showsFocus === 'lineup' ? overview.needsLineup : overview.needsSchedule;
-    return new Set(list.map((s) => s.id));
+    return new Set(overview.attention.map((item) => item.show.id));
   })();
 
   const filteredShows = shows.filter((show) => {
@@ -1483,6 +1505,7 @@ export default function App() {
                   focus={showsFocus}
                   onFocusChange={setShowsFocus}
                   onSelectShow={handleSelectShow}
+                  onRunShow={handleRunShowFromDashboard}
                 />
 
                 {shows.length === 0 ? (
@@ -1511,6 +1534,13 @@ export default function App() {
                   <>
                     {/* Above both views: whichever one you're in, the question
                         "where are the rest of my shows?" is the same. */}
+                    {/* Names the list now that panels sit above it — without
+                        a heading the grid reads as a continuation of the
+                        dashboard rather than as the full set of shows. */}
+                    <div className="shows-list__heading">
+                      <h2 className="shows-list__heading-text">All shows</h2>
+                      <span className="shows-list__heading-count">{filteredShows.length}</span>
+                    </div>
                     <NarrowedNotice
                       shown={filteredShows.length}
                       total={shows.length}
@@ -1622,6 +1652,7 @@ export default function App() {
                 <ShowDetail
                   show={selectedShow}
                   settings={settings}
+                  startInRunShow={startInRunShow}
                   onBack={handleBack}
                   onUpdate={handleUpdateShow}
                   onSaveToRolodex={handleSavePerformerToRolodex}

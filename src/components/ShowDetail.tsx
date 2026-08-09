@@ -45,6 +45,12 @@ const SECTION_ICONS: Record<string, IconName> = {
 interface ShowDetailProps {
   show: Show;
   settings: AppSettings;
+  /**
+   * Open straight into live mode, for the dashboard's Run Show button. The
+   * page still mounts underneath, so closing live mode lands on the show
+   * rather than back where you came from.
+   */
+  startInRunShow?: boolean;
   onBack: () => void;
   onUpdate: (show: Show) => void;
   onSaveToRolodex?: (comic: import('../types').PotentialComic) => void;
@@ -79,6 +85,7 @@ function loadOpenSections(showId: string): Set<string> {
 export function ShowDetail({
   show,
   settings,
+  startInRunShow = false,
   onBack,
   onUpdate,
   onSaveToRolodex,
@@ -125,7 +132,7 @@ export function ShowDetail({
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => loadOpenSections(show.id));
   const [editingShowName, setEditingShowName] = useState(false);
-  const [runShowOpen, setRunShowOpen] = useState(false);
+  const [runShowOpen, setRunShowOpen] = useState(startInRunShow);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerNoteDraft, setViewerNoteDraft] = useState('');
   const [viewerCopied, setViewerCopied] = useState(false);

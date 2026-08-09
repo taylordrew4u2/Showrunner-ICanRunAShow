@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildOverview, whenLabel, daysUntil, showsOnDay } from './showsOverview';
+import { buildOverview, whenLabel, daysUntil, showsOnDay, showReadiness } from './showsOverview';
 import type { Show } from '../types';
 
 const TODAY = new Date(2026, 7, 14); // Fri 14 Aug 2026, local midnight
@@ -140,5 +140,72 @@ describe('showsOnDay', () => {
 
   it('skips undated shows rather than throwing', () => {
     expect(showsOnDay([show({ id: 'tbd', date: '' })], TODAY)).toEqual([]);
+  });
+});
+
+describe('attention queue', () => {
+  it('merges both follow-up lists, soonest first', () => {
+    const soon = show({ id: 'soon', date: '2026-08-16', performers: [performer] }); // needs schedule
+    const later = show({ id: 'later', date: '2026-08-30' });                        // needs lineup
+    const middle = show({ id: 'middle', date: '2026-08-20' });                      // needs lineup
+    const { attention } = buildOverview([later, soon, middle], TODAY);
+    expect(attention.map((a) => a.show.id)).toEqual(['soon', 'middle', 'later']);
+  });
+
+  it('names what each show is missing', () => {
+    const noBill = show({ id: 'a', date: '2026-08-16' });
+    const noOrder = show({ id: 'b', date: '2026-08-17', performers: [performer] });
+    const { attention } = buildOverview([noBill, noOrder], TODAY);
+    expect(attention).toEqual([
+      { show: noBill, reason: 'lineup', label: 'No lineup yet' },
+      { show: noOrder, reason: 'schedule', label: 'No running order' },
+    ]);
+  });
+
+  it('puts an undated show at the back rather than the front', () => {
+    // '' parses to no date; sorting it as a raw string would float it to the
+    // top and claim the most urgent slot.
+    const undated = show({ id: 'undated', date: '' });
+    const dated = show({ id: 'dated', date: '2026-08-20' });
+    const { attention } = buildOverview([undated, dated], TODAY);
+    expect(attention.map((a) => a.show.id)).toEqual(['dated', 'undated']);
+  });
+
+  it('is empty when every upcoming show is ready', () => {
+    const ready = show({ date: '2026-08-16', performers: [performer], schedule: [cue] });
+    expect(buildOverview([ready], TODAY).attention).toEqual([]);
+  });
+});
+
+describe('showReadiness', () => {
+  it('reports an empty show as not ready on both counts', () => {
+    const lines = showReadiness(show({}));
+    expect(lines.map((l) => [l.key, l.label, l.ready])).toEqual([
+      ['lineup', 'Nobody booked yet', false],
+      ['schedule', 'No running order', false],
+    ]);
+  });
+
+  it('counts performers and artists together as the bill', () => {
+    const s = show({ performers: [performer], artists: [{ id: 'a', name: 'DJ' }] });
+    expect(showReadiness(s)[0]).toMatchObject({ label: '2 on the bill', ready: true });
+  });
+
+  it('says one cue rather than 1 cues', () => {
+    expect(showReadiness(show({ schedule: [cue] }))[1].label).toBe('1 cue');
+  });
+
+  it('leaves walk-ons out entirely when there are no performers', () => {
+    // "0 of 0 walk-ons set" is a complaint about an empty list.
+    expect(showReadiness(show({})).map((l) => l.key)).not.toContain('walkon');
+  });
+
+  it('is only ready on walk-ons once every performer has one', () => {
+    const withMusic = { id: 'p1', name: 'Ada', walkOnMusicName: 'intro.mp3' };
+    const without = { id: 'p2', name: 'Bo' };
+    const lines = showReadiness(show({ performers: [withMusic, without] }));
+    expect(lines.find((l) => l.key === 'walkon')).toMatchObject({ label: '1 of 2 walk-ons set', ready: false });
+    const all = showReadiness(show({ performers: [withMusic] }));
+    expect(all.find((l) => l.key === 'walkon')).toMatchObject({ ready: true });
   });
 });
