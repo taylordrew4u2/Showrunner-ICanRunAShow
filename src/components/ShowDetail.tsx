@@ -77,9 +77,17 @@ function loadOpenSections(showId: string): Set<string> {
   } catch {
     /* ignore */
   }
-  // First visit: Basic Info is where every show starts, so it opens by default
-  // instead of presenting a wall of closed rows.
-  return new Set(['basic']);
+  // First visit: the lineup opens, not Basic Info.
+  //
+  // Basic Info held this slot, and it was the wrong one twice over. Its five
+  // fields are set at the moment the show is created and rarely touched again,
+  // and the header above already prints the date, time, venue and location —
+  // so an open Basic Info was ~500px of duplicate, pushing Performers past the
+  // bottom of a phone screen. The lineup is what a show is for.
+  //
+  // Only new shows get this. A producer's own open/closed state is stored per
+  // show and still wins.
+  return new Set(['performers']);
 }
 
 export function ShowDetail({
@@ -248,10 +256,34 @@ export function ShowDetail({
   }, [settings.potentialComics, show.performers]);
 
   const rolodexTerm = getRolodexTerm(settings);
-  const hostPicks = useMemo(
-    () => hostChoices(show.performers, show.artists, settings.potentialComics),
-    [show.performers, show.artists, settings.potentialComics],
-  );
+  /**
+   * Names to suggest under the Host field, each carrying where it came from.
+   *
+   * A datalist can't group its options the way the old select's optgroups did,
+   * but an option's `label` renders beside its value — so "on this show" or
+   * the Rolodex's own term travels with each name instead of being a heading
+   * above a block of them. The bill still comes first, and wins on a duplicate:
+   * a name on both lists is someone already booked.
+   */
+  const hostSuggestions = useMemo(() => {
+    const picks = hostChoices(show.performers, show.artists, settings.potentialComics);
+    const seen = new Set<string>();
+    const out: { name: string; from: string }[] = [];
+    for (const [names, from] of [
+      [picks.onBill, 'on this show'],
+      [picks.rolodex, rolodexTerm.singular.toLowerCase()],
+    ] as const) {
+      for (const name of names) {
+        const key = name.trim().toLowerCase();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          out.push({ name, from });
+        }
+      }
+    }
+    return out;
+  }, [show.performers, show.artists, settings.potentialComics, rolodexTerm]);
+  const hostListId = `show-host-options-${show.id}`;
 
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
@@ -462,14 +494,6 @@ export function ShowDetail({
 
   const sections = [
     {
-      key: 'basic',
-      sectionKey: 'basic' as SectionKey,
-      title: 'Basic Info',
-      subtitle: 'Date, time, location, and venue.',
-      accent: 'slate',
-      content: <BasicInfoSection show={show} onChange={handleUpdate} />,
-    },
-    {
       key: 'performers',
       sectionKey: 'performers' as SectionKey,
       title: 'Performers',
@@ -571,6 +595,18 @@ export function ShowDetail({
       count: (show.scenes ?? []).length,
       content: <SceneList scenes={show.scenes ?? []} onChange={handleScenesChange} />,
     },
+    // Last, not first. The header already prints the date, time, venue and
+    // location, so this is where you *change* them rather than where you read
+    // them — and that happens once, at setup. Everything you open a show to
+    // work on sits above it.
+    {
+      key: 'basic',
+      sectionKey: 'basic' as SectionKey,
+      title: 'Basic Info',
+      subtitle: 'Date, time, location, and venue.',
+      accent: 'slate',
+      content: <BasicInfoSection show={show} onChange={handleUpdate} />,
+    },
   ];
 
   // Add recap section for past shows
@@ -659,11 +695,19 @@ export function ShowDetail({
       { icon: 'check', value: stats.counts.todos, label: 'To-dos', labelOne: 'To-do' },
     ],
   ];
-  const tileGroups = allTileGroups
-    .map((group) =>
-      group.filter((tile) => tile.value > 0 && !(tile.sectionKey && hiddenKeys.has(tile.sectionKey))),
-    )
-    .filter((group) => group.length > 0);
+  /**
+   * One flat row of tiles, not two boxed groups of four.
+   *
+   * The grouping was worth its wrapper when eight tiles showed at once. They
+   * don't: a tile only appears once the show has some of that thing, so in
+   * practice this is one to four. Two bordered boxes each holding a single
+   * count, stacked above a second bordered box holding a single bar, was most
+   * of a phone screen of chrome describing very little — and it sat between
+   * the header and the lineup.
+   */
+  const tiles = allTileGroups
+    .flat()
+    .filter((tile) => tile.value > 0 && !(tile.sectionKey && hiddenKeys.has(tile.sectionKey)));
 
   // Same rule for the readiness bars: "Vendors booked 0/0 — 0%" measures
   // nothing. A bar earns its place once there is something to be ready about.
@@ -777,7 +821,16 @@ export function ShowDetail({
         </div>
       </div>
 
-      {/* Host */}
+      {/* Host — one row, not two.
+          The name field and a "Pick someone…" select used to sit side by side,
+          and on a phone the select dropped to a full-width line of its own
+          (its label was being cut to "Use a performe" otherwise). Two rows of
+          chrome for one optional field, directly above the lineup.
+
+          A datalist folds the picker back into the field: type, or pick from
+          the same names. The one loss is the On this show / Rolodex grouping,
+          which a datalist can't render — so the bill is listed first, where
+          the host almost always comes from. */}
       <div className="show-detail__host">
         <label className="show-detail__host-label" htmlFor="show-host-input">Host</label>
         <input
@@ -785,149 +838,114 @@ export function ShowDetail({
           type="text"
           className="section-field__input show-detail__host-input"
           placeholder="Host name"
+          list={hostListId}
           value={show.host || ''}
           onChange={(e) => onUpdate({ ...show, host: e.target.value || undefined })}
         />
-        {(hostPicks.onBill.length > 0 || hostPicks.rolodex.length > 0) && (
-          <select
-            className="section-field__select show-detail__host-pick"
-            value=""
-            onChange={(e) => {
-              if (!e.target.value) return;
-              onUpdate({ ...show, host: e.target.value });
-            }}
-            aria-label="Pick someone as host"
-          >
-            <option value="">Pick someone…</option>
-            {hostPicks.onBill.length > 0 && (
-              <optgroup label="On this show">
-                {hostPicks.onBill.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </optgroup>
-            )}
-            {hostPicks.rolodex.length > 0 && (
-              <optgroup label={rolodexTerm.plural}>
-                {hostPicks.rolodex.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </optgroup>
-            )}
-          </select>
+        {hostSuggestions.length > 0 && (
+          <datalist id={hostListId}>
+            {hostSuggestions.map((pick) => (
+              <option key={pick.name} value={pick.name} label={pick.from} />
+            ))}
+          </datalist>
         )}
       </div>
 
-      {/* At a glance. The page used to open on a stack of closed sections, which
-          told you the show existed but nothing about its state. These read
-          straight off the same data the sections edit. */}
-      {(tileGroups.length > 0 || hasRunTime) && (
-      <section
-        className={`show-overview${tileGroups.length === 0 ? ' show-overview--accents-only' : ''}`}
-        aria-label="Show at a glance"
-      >
-        {tileGroups.map((group, index) => (
-          <div className="show-overview__group" key={index}>
-            {group.map((tile) => {
-              // A tile only jumps if there's a section on this page to land
-              // in. Expenses and To-dos don't get their own section — they
-              // surface inside Recap, and only once the show is in the past.
-              const jumpsTo = tile.sectionKey && jumpableSectionKeys.has(tile.sectionKey) ? tile.sectionKey : undefined;
-              // Expenses and To-dos have no section of their own, so they keep
-              // the neutral chip — which also reads as "this one isn't a link".
-              const accent = (tile.sectionKey && accentBySection.get(tile.sectionKey)) || 'slate';
-              const body = (
-                <>
-                  <span className={`show-tile__icon accent--${accent}`}>
-                    <Icon name={tile.icon} size={20} />
-                  </span>
-                  <span className="show-tile__body">
-                    <span className="show-tile__value">{tile.value}</span>
-                    <span className="show-tile__label">
-                      {tile.value === 1 ? tile.labelOne ?? tile.label : tile.label}
-                    </span>
-                  </span>
-                </>
-              );
-              return jumpsTo ? (
-                <button
-                  type="button"
-                  className="show-tile show-tile--jump"
-                  key={tile.label}
-                  onClick={() => jumpToSection(jumpsTo)}
-                >
-                  {body}
-                </button>
-              ) : (
-                <div className="show-tile" key={tile.label}>
-                  {body}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-
-        {/* Same rule the tiles and the readiness bars already follow: a stat
-            earns its place once it has something to say. Run time was the one
-            that didn't — it rendered a green panel containing an em-dash on
-            every show whose cues have no lengths yet, which is every show on
-            the day it's created. */}
-        {hasRunTime && (
-          <div className="show-overview__accents">
-            <div className="show-accent show-accent--runtime">
-              <span className="show-accent__icon">
-                <Icon name="clock" size={22} />
-              </span>
-              <span className="show-accent__body">
-                <span className="show-accent__value">{formatRunTime(stats.runMinutes)}</span>
-                <span className="show-accent__label">Run time</span>
-              </span>
-            </div>
-          </div>
-        )}
-      </section>
-      )}
-
-      {/* How ready the show is, in the things that are actually checkable. Each
-          bar is a real ratio — no invented targets, and none for a section this
-          show doesn't use. */}
-      {progressStats.length > 0 && (
-      <section className="show-progress" aria-label="Show readiness">
-        {progressStats.map((stat) => {
-          const percent = progressPercent(stat);
-          const full = isComplete(stat);
-          return (
-            <div
-              className={`show-progress__card${full ? ' show-progress__card--full' : ''}`}
-              key={stat.key}
-            >
-              <span className="show-progress__label">{stat.label}</span>
-              <span className="show-progress__figure">
-                <strong className="show-progress__value">
-                  {stat.done}<span className="show-progress__of">/{stat.total}</span>
-                </strong>
-                {/* "100%" tells you the ratio; "Full" tells you to stop
-                    booking. On the lineup that is the whole question. */}
-                <span className={`show-progress__pct${full ? ' show-progress__pct--full' : ''}`}>
-                  {full ? 'Full' : `${percent}%`}
+      {/* At a glance — one strip, not three stacked boxes.
+          Counts, run time and readiness are all answers to "how is this show
+          doing", so they share one grid of uniform cards instead of each
+          getting its own bordered block. Each still earns its place: a tile
+          appears once the show has some of that thing, a bar once there is
+          something to be ready about, and run time once the cues have
+          lengths — otherwise it was a green panel containing an em-dash on
+          every show the day it was created. */}
+      {(tiles.length > 0 || hasRunTime || progressStats.length > 0) && (
+        <section className="show-summary" aria-label="Show at a glance">
+          {tiles.map((tile) => {
+            // A tile only jumps if there's a section on this page to land in.
+            // Expenses and To-dos don't get their own section — they surface
+            // inside Recap, and only once the show is in the past.
+            const jumpsTo = tile.sectionKey && jumpableSectionKeys.has(tile.sectionKey) ? tile.sectionKey : undefined;
+            // Those two keep the neutral chip, which also reads as "this one
+            // isn't a link".
+            const accent = (tile.sectionKey && accentBySection.get(tile.sectionKey)) || 'slate';
+            const body = (
+              <>
+                <span className={`show-tile__icon accent--${accent}`}>
+                  <Icon name={tile.icon} size={18} />
                 </span>
-              </span>
-              <span
-                className="show-progress__track"
-                role="progressbar"
-                aria-valuenow={percent}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={stat.label}
+                <span className="show-tile__body">
+                  <span className="show-tile__value">{tile.value}</span>
+                  <span className="show-tile__label">
+                    {tile.value === 1 ? tile.labelOne ?? tile.label : tile.label}
+                  </span>
+                </span>
+              </>
+            );
+            return jumpsTo ? (
+              <button
+                type="button"
+                className="show-tile show-tile--jump"
+                key={tile.label}
+                onClick={() => jumpToSection(jumpsTo)}
               >
-                <span
-                  className={`show-progress__bar show-progress__bar--${stat.key}`}
-                  style={{ width: `${percent}%` }}
-                />
+                {body}
+              </button>
+            ) : (
+              <div className="show-tile" key={tile.label}>
+                {body}
+              </div>
+            );
+          })}
+
+          {hasRunTime && (
+            <div className="show-tile show-tile--runtime">
+              <span className="show-tile__icon accent--slate">
+                <Icon name="clock" size={18} />
+              </span>
+              <span className="show-tile__body">
+                <span className="show-tile__value">{formatRunTime(stats.runMinutes)}</span>
+                <span className="show-tile__label">Run time</span>
               </span>
             </div>
-          );
-        })}
-      </section>
+          )}
+
+          {progressStats.map((stat) => {
+            const percent = progressPercent(stat);
+            const full = isComplete(stat);
+            return (
+              <div
+                className={`show-progress__card${full ? ' show-progress__card--full' : ''}`}
+                key={stat.key}
+              >
+                <span className="show-progress__label">{stat.label}</span>
+                <span className="show-progress__figure">
+                  <strong className="show-progress__value">
+                    {stat.done}<span className="show-progress__of">/{stat.total}</span>
+                  </strong>
+                  {/* "100%" tells you the ratio; "Full" tells you to stop
+                      booking. On the lineup that is the whole question. */}
+                  <span className={`show-progress__pct${full ? ' show-progress__pct--full' : ''}`}>
+                    {full ? 'Full' : `${percent}%`}
+                  </span>
+                </span>
+                <span
+                  className="show-progress__track"
+                  role="progressbar"
+                  aria-valuenow={percent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={stat.label}
+                >
+                  <span
+                    className={`show-progress__bar show-progress__bar--${stat.key}`}
+                    style={{ width: `${percent}%` }}
+                  />
+                </span>
+              </div>
+            );
+          })}
+        </section>
       )}
 
       <div className="show-detail__sections-accordion">

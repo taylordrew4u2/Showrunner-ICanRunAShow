@@ -31,6 +31,19 @@ export function PerformersSection({
   const [email, setEmail] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showRolodex, setShowRolodex] = useState(false);
+  /**
+   * Whether the add-a-performer form is showing.
+   *
+   * It used to sit permanently above the lineup: a target field, three inputs
+   * and two buttons — around 310px of form before the first name on the bill,
+   * inside a section whose whole job is to show you the bill. Once there is
+   * someone booked, the list leads and this folds away behind a button.
+   *
+   * Not initial state, because an empty lineup has nothing else to show: the
+   * form stays open on its own until somebody is on it, and comes back if the
+   * last performer is removed.
+   */
+  const [addingOpen, setAddingOpen] = useState(false);
   // Filing happens up in App, out of sight. Saying so once, right after it
   // happens, is the difference between a helpful default and the app quietly
   // editing a list you didn't ask it to touch.
@@ -63,6 +76,10 @@ export function PerformersSection({
       email: email.trim() || undefined,
     };
     onChange([...performers, p]);
+    // Stay open. Adding the first performer makes the list non-empty, which
+    // would otherwise fold this form away mid-flow — you are usually booking
+    // several people in a row, not one.
+    setAddingOpen(true);
     // Read against the list as it stands *before* the save lands, which is
     // exactly what the filing upstream will compare against.
     const isNew = !potentialComics.some(c => rolodexKey(c.name) === rolodexKey(p.name));
@@ -87,6 +104,7 @@ export function PerformersSection({
     };
     onChange([...performers, p]);
     setShowRolodex(false);
+    setAddingOpen(true); // same reason as addPerformer: the flow isn't over
     setFiled(null); // they came from the Rolodex; nothing was filed
   }
 
@@ -113,124 +131,13 @@ export function PerformersSection({
   // whether a bill is full.
   const progress = lineupProgress(performers.length, performerTarget);
 
+  const showAddForm = addingOpen || performers.length === 0;
+
   return (
     <div className="section-body">
-      {/* How many this show is booking for. Without it a lineup has no "full",
-          so the count below is just a number that keeps going up. */}
-      <div className="lineup-target">
-        <label className="lineup-target__label" htmlFor="performer-target">
-          Performers wanted
-        </label>
-        <input
-          id="performer-target"
-          className="section-field__input lineup-target__input"
-          type="number"
-          min={0}
-          inputMode="numeric"
-          value={performerTarget ?? ''}
-          onChange={(e) => {
-            const raw = e.target.value.trim();
-            if (raw === '') return onTargetChange(undefined);
-            const next = Math.max(0, Math.floor(Number(raw)));
-            onTargetChange(Number.isFinite(next) && next > 0 ? next : undefined);
-          }}
-          placeholder="—"
-        />
-        {progress.targetSet && (
-          <span
-            className={`lineup-target__status${progress.full ? ' lineup-target__status--full' : ''}`}
-            role="status"
-          >
-            {progress.label}
-          </span>
-        )}
-      </div>
-
-      <div className="section-add-row">
-        <input
-          className="section-field__input"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
-          placeholder="Performer name"
-          aria-label="Performer name"
-        />
-        <input
-          className="section-field__input"
-          value={instagram}
-          onChange={(e) => setInstagram(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
-          placeholder="@instagram"
-          aria-label="Instagram handle"
-        />
-        <input
-          className="section-field__input"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
-          placeholder="email (optional)"
-          aria-label="Email address"
-        />
-        <button className="btn btn--primary btn--sm" onClick={addPerformer}>Add</button>
-        {/* Always here, even with nobody on file. Hiding it left a first-time
-            producer with no sign the Rolodex has anything to do with building
-            a lineup — the only Rolodex-looking thing on screen was the nav
-            tab, which navigates away rather than picking anyone. */}
-        <button
-          className="btn btn--secondary btn--sm"
-          onClick={() => setShowRolodex(v => !v)}
-          aria-expanded={showRolodex}
-        >
-          From Rolodex
-        </button>
-      </div>
-
-      {filed && (
-        <p className="section-filed" role="status">
-          <span className="section-filed__mark" aria-hidden="true">✓</span>
-          <strong>{filed}</strong> was added to your Rolodex, so they're there next time you build a
-          lineup.
-        </p>
+      {performers.length === 0 && (
+        <p className="section-empty">No performers yet — add the first below.</p>
       )}
-
-      {mailAllHref && (
-        <div className="section-mass-message">
-          <a className="btn btn--secondary btn--sm" href={mailAllHref}>
-            ✉ Email all performers ({emailablePerformers.length})
-          </a>
-          <span className="section-mass-message__hint">Opens your mail app with everyone BCC'd.</span>
-        </div>
-      )}
-
-      {showRolodex && (
-        <div className="section-rolodex-picker">
-          <p className="section-rolodex-picker__label">Pick from Rolodex</p>
-          {potentialComics.length === 0 ? (
-            <p className="section-rolodex-picker__empty">
-              Nobody on file yet. Everyone you add to a show is filed here
-              automatically, so this fills up as you book.
-            </p>
-          ) : (
-            <>
-          {potentialComics.map(comic => (
-            <button
-              key={comic.id}
-              className="section-rolodex-picker__item"
-              onClick={() => addFromRolodex(comic)}
-            >
-              <span className="section-rolodex-picker__name">{comic.name}</span>
-              {comic.socialMedia && <span className="section-list-item__tag">{comic.socialMedia}</span>}
-              {comic.walkOnMusicName && <span className="section-list-item__tag">{comic.walkOnMusicName}</span>}
-            </button>
-          ))}
-            </>
-          )}
-        </div>
-      )}
-
-
-      {performers.length === 0 && <p className="section-empty">No performers yet.</p>}
 
       <ul className="section-list">
         {performers.map((p, idx) => (
@@ -300,6 +207,145 @@ export function PerformersSection({
           </li>
         ))}
       </ul>
+
+      {/* Everything below the lineup, not above it. Adding people is what you
+          do to this section; the bill is what the section is. */}
+      {mailAllHref && (
+        <div className="section-mass-message">
+          <a className="btn btn--secondary btn--sm" href={mailAllHref}>
+            ✉ Email all performers ({emailablePerformers.length})
+          </a>
+          <span className="section-mass-message__hint">Opens your mail app with everyone BCC'd.</span>
+        </div>
+      )}
+
+      {performers.length > 0 && (
+        <div className="lineup-add">
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm lineup-add__toggle"
+            onClick={() => setAddingOpen((v) => !v)}
+            aria-expanded={addingOpen}
+          >
+            {addingOpen ? 'Done adding' : '+ Add performer'}
+          </button>
+        </div>
+      )}
+
+      {showAddForm && (
+        <div className="lineup-add__form">
+          <div className="section-add-row">
+            <input
+              className="section-field__input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
+              placeholder="Performer name"
+              aria-label="Performer name"
+            />
+            <input
+              className="section-field__input"
+              value={instagram}
+              onChange={(e) => setInstagram(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
+              placeholder="@instagram"
+              aria-label="Instagram handle"
+            />
+            <input
+              className="section-field__input"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
+              placeholder="email (optional)"
+              aria-label="Email address"
+            />
+            <button className="btn btn--primary btn--sm" onClick={addPerformer}>Add</button>
+            {/* Always here, even with nobody on file. Hiding it left a first-time
+                producer with no sign the Rolodex has anything to do with building
+                a lineup — the only Rolodex-looking thing on screen was the nav
+                tab, which navigates away rather than picking anyone. */}
+            <button
+              className="btn btn--secondary btn--sm"
+              onClick={() => setShowRolodex(v => !v)}
+              aria-expanded={showRolodex}
+            >
+              From Rolodex
+            </button>
+          </div>
+
+          {/* How many this show is booking for. Without it a lineup has no
+              "full", so the count is just a number that keeps going up. It
+              rides with the add controls because setting a target is part of
+              booking — and the readiness bar on the show page keeps reporting
+              against it whether or not this form is open. */}
+          <div className="lineup-target">
+            <label className="lineup-target__label" htmlFor="performer-target">
+              Performers wanted
+            </label>
+            <input
+              id="performer-target"
+              className="section-field__input lineup-target__input"
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={performerTarget ?? ''}
+              onChange={(e) => {
+                const raw = e.target.value.trim();
+                if (raw === '') return onTargetChange(undefined);
+                const next = Math.max(0, Math.floor(Number(raw)));
+                onTargetChange(Number.isFinite(next) && next > 0 ? next : undefined);
+              }}
+              placeholder="—"
+            />
+            {progress.targetSet && (
+              <span
+                className={`lineup-target__status${progress.full ? ' lineup-target__status--full' : ''}`}
+                role="status"
+              >
+                {progress.label}
+              </span>
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {filed && (
+        <p className="section-filed" role="status">
+          <span className="section-filed__mark" aria-hidden="true">✓</span>
+          <strong>{filed}</strong> was added to your Rolodex, so they're there next time you build a
+          lineup.
+        </p>
+      )}
+
+      {showRolodex && (
+        <div className="section-rolodex-picker">
+          <p className="section-rolodex-picker__label">Pick from Rolodex</p>
+          {potentialComics.length === 0 ? (
+            <p className="section-rolodex-picker__empty">
+              Nobody on file yet. Everyone you add to a show is filed here
+              automatically, so this fills up as you book.
+            </p>
+          ) : (
+            <>
+          {potentialComics.map(comic => (
+            <button
+              key={comic.id}
+              className="section-rolodex-picker__item"
+              onClick={() => addFromRolodex(comic)}
+            >
+              <span className="section-rolodex-picker__name">{comic.name}</span>
+              {comic.socialMedia && <span className="section-list-item__tag">{comic.socialMedia}</span>}
+              {comic.walkOnMusicName && <span className="section-list-item__tag">{comic.walkOnMusicName}</span>}
+            </button>
+          ))}
+            </>
+          )}
+        </div>
+      )}
+
+
 
       {selectedPerformer && (
         <>
