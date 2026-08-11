@@ -21,6 +21,7 @@ import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
 import { buildShowStats, progressPercent, isComplete, formatRunTime } from '../utils/showStats';
 import { showDJSongs } from '../utils/musicLibrary';
+import { getRolodexTerm } from '../utils/terminology';
 import { hostChoices } from '../utils/hostChoices';
 import { loadViewerKey, viewerUrl as buildViewerUrl } from '../utils/viewerAudio';
 import './ShowDetail.css';
@@ -254,15 +255,34 @@ export function ShowDetail({
     return settings.potentialComics.filter((c) => !onBill.has(c.name.trim().toLowerCase()));
   }, [settings.potentialComics, show.performers]);
 
+  const rolodexTerm = getRolodexTerm(settings);
   /**
-   * Names to suggest under the Host field: this show's bill first, then the
-   * Rolodex, deduped. Order carries the weight the optgroup labels used to —
-   * a host is nearly always someone already on the show.
+   * Names to suggest under the Host field, each carrying where it came from.
+   *
+   * A datalist can't group its options the way the old select's optgroups did,
+   * but an option's `label` renders beside its value — so "on this show" or
+   * the Rolodex's own term travels with each name instead of being a heading
+   * above a block of them. The bill still comes first, and wins on a duplicate:
+   * a name on both lists is someone already booked.
    */
   const hostSuggestions = useMemo(() => {
     const picks = hostChoices(show.performers, show.artists, settings.potentialComics);
-    return [...new Set([...picks.onBill, ...picks.rolodex])];
-  }, [show.performers, show.artists, settings.potentialComics]);
+    const seen = new Set<string>();
+    const out: { name: string; from: string }[] = [];
+    for (const [names, from] of [
+      [picks.onBill, 'on this show'],
+      [picks.rolodex, rolodexTerm.singular.toLowerCase()],
+    ] as const) {
+      for (const name of names) {
+        const key = name.trim().toLowerCase();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          out.push({ name, from });
+        }
+      }
+    }
+    return out;
+  }, [show.performers, show.artists, settings.potentialComics, rolodexTerm]);
   const hostListId = `show-host-options-${show.id}`;
 
   function handleScenesChange(scenes: Scene[]) {
@@ -824,8 +844,8 @@ export function ShowDetail({
         />
         {hostSuggestions.length > 0 && (
           <datalist id={hostListId}>
-            {hostSuggestions.map((name) => (
-              <option key={name} value={name} />
+            {hostSuggestions.map((pick) => (
+              <option key={pick.name} value={pick.name} label={pick.from} />
             ))}
           </datalist>
         )}
