@@ -2551,6 +2551,40 @@ select.show-detail__status--select {
   }
 }
 
+/* ─── Adding to the lineup ─────────────────────────────────────────────────
+   The add controls used to sit permanently above the list: a target field,
+   three inputs and two buttons, so roughly 310px of form stood between the
+   section header and the first name on the bill — inside a section whose whole
+   job is to show you the bill.
+
+   The list leads now and this folds away behind a button, opening only when
+   asked. An empty lineup is the exception: with nothing to list, the form is
+   the only thing worth showing, so it stays open until somebody is booked. */
+.lineup-add {
+  margin-top: 12px;
+}
+
+.lineup-add__toggle {
+  width: 100%;
+}
+
+.lineup-add__form {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* Inside the form's own panel these would be a box within a box. */
+.lineup-add__form .lineup-target {
+  margin-bottom: 0;
+  margin-top: 10px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
 /* ─── Lineup target ─────────────────────────────────────────────────────────
    How many performers this show is booking for. A lineup with no target has no
    "full", so the count alone can't answer the only question worth asking about
