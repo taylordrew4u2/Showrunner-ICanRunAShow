@@ -62,7 +62,9 @@ export function InstallPrompt() {
     <div className="install-prompt" role="status">
       {deferredPrompt ? (
         <>
-          <span className="install-prompt__text">Install I Can Run A Show for the full app experience — no browser bar, works offline.</span>
+          {/* Short enough to hold one line on a phone. The long version wrapped
+              to three, which is a lot of screen to spend asking. */}
+          <span className="install-prompt__text">Install the app — no browser bar, works offline.</span>
           <div className="install-prompt__actions">
             <button className="btn btn--primary btn--sm" onClick={install}>Install</button>
             <button className="install-prompt__close" onClick={dismiss} aria-label="Dismiss">×</button>
@@ -71,7 +73,7 @@ export function InstallPrompt() {
       ) : (
         <>
           <span className="install-prompt__text">
-            Add this to your home screen for the full app experience: tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.
+            Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.
           </span>
           <button className="install-prompt__close" onClick={dismiss} aria-label="Dismiss">×</button>
         </>

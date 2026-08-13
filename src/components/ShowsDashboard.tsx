@@ -177,6 +177,22 @@ function AttentionPanel({ attention, focus, onFocusChange, onSelectShow }: Atten
         <span className="dash-panel__aside">{attention.length}</span>
       </div>
 
+      {/* On a phone the itemised list is the shows grid a few hundred pixels
+          below, said twice — and it cost ~200px of the one screen you have.
+          The count keeps the answer ("three shows aren't ready") and the tap
+          narrows the grid to them; the names come back as soon as there is
+          width to put them in. */}
+      <button
+        type="button"
+        className="dash-todo__summary"
+        onClick={() => onFocusChange(focus === 'attention' ? null : 'attention')}
+        aria-pressed={focus === 'attention'}
+      >
+        {focus === 'attention'
+          ? 'Show all shows'
+          : `${attention.length} not ready — show only these`}
+      </button>
+
       <ul className="dash-todo">
         {shown.map((item) => (
           <li key={`${item.show.id}:${item.reason}`}>

@@ -8,8 +8,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
-  padding: 10px 12px;
+  margin-bottom: 10px;
+  padding: 7px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -17,9 +17,10 @@
 
 .install-prompt__text {
   flex: 1;
+  min-width: 0;
   font-size: 0.85rem;
   color: var(--text);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 .install-prompt__actions {

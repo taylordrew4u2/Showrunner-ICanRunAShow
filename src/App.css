@@ -255,14 +255,16 @@
 /* Reassurance, not a page section. It sits between you and your shows, so it
    stays on one line wherever it fits — the copy was two sentences that wrapped
    to three lines on a phone and cost 136px above the first card. */
+/* One line, not two. Wrapping put this at 87px, and stacked under the install
+   prompt that made 180px of dismissible notices above the shows themselves. */
 .backup-nudge {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin-bottom: 10px;
-  padding: 8px 12px;
+  padding: 7px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -272,6 +274,12 @@
 .backup-nudge__icon {
   flex-shrink: 0;
   color: var(--success-text);
+}
+
+/* No ellipsis. Clipping this to "Keep your own c…" saved a line by destroying
+   the sentence; the copy is short enough to fit instead. */
+.backup-nudge__text {
+  min-width: 0;
 }
 
 .backup-nudge__text {

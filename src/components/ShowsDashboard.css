@@ -255,6 +255,54 @@
   }
 }
 
+/* ─── Phone: the panels answer, the grid lists ─────────────────────────────
+   Side by side these two panels are ~409px on an iPhone — more than half the
+   viewport, and with the two dismissible banners above them the first show
+   card sat 815px down a 664px screen. You scrolled a full screen past
+   summaries of your shows to reach your shows.
+
+   So on a phone the follow-up panel states its count and offers the filter,
+   and the names it would have listed stay in the grid below, where they are
+   already. The summary swaps back out for the full list at the width where
+   the panels sit side by side and there is room for both. */
+.dash-todo__summary {
+  display: none;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  color: var(--primary-text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash-todo__summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+@container shows-col (max-width: 619px) {
+  .dash-todo__summary {
+    display: block;
+  }
+
+  .dash-todo,
+  .dash-todo__more {
+    display: none;
+  }
+
+  /* The panels carry less on a phone, so they need less room to carry it. */
+  .dash-panel {
+    padding: 12px 13px;
+    gap: 7px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dash-todo__row {
     transition: none;
