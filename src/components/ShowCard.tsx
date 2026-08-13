@@ -88,10 +88,10 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
   return (
     // The card is a container, not a control. It used to be role="button" with
     // two real buttons inside it — a control nested in a control, which is
-    // invalid and leaves assistive tech guessing what activating it does. The
-    // title is the control now; it stretches over the card (see the CSS) so
-    // clicking anywhere still opens the show, while Duplicate and Delete stay
-    // separately reachable.
+    // invalid and leaves assistive tech guessing what activating it does. An
+    // overlay button covers the card instead, so tapping anywhere opens the
+    // show while Duplicate and Delete stay separately reachable, and nothing
+    // is nested inside anything.
     // A full bill is the one thing on this card that's an *outcome* rather than
     // a property, so it gets the card's colour. It rides alongside the status
     // rather than replacing it — the left stripe still says upcoming or
@@ -99,6 +99,22 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
     <article
       className={`show-card show-card--${show.status}${lineup.full ? ' show-card--full' : ''}`}
     >
+      {/* A real element covering the card, not a pseudo-element stretched out
+          of the title. That version put `::after { inset: 0 }` on the title's
+          <button>, and Chromium clips hit-testing of a button's pseudo-element
+          to the button's own box — so the overlay painted across the whole card
+          but only accepted taps on the line the title sat on. Roughly
+          four-fifths of every card did nothing when tapped.
+
+          First child so it leads the tab order: "Open <show>", then Duplicate
+          and Delete, which sit above it. */}
+      <button
+        type="button"
+        className="show-card__open"
+        aria-label={`Open ${show.name}${fullDateStr ? `, ${fullDateStr}` : ''}`}
+        onClick={e => onSelect(show, e)}
+      />
+
       <div className="show-card__top">
         <div
           className={`show-card__date${showDate ? '' : ' show-card__date--tbd'}`}
@@ -122,16 +138,7 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
         </div>
 
         <div className="show-card__main">
-          <h2 className="show-card__title">
-            <button
-              type="button"
-              className="show-card__open"
-              aria-label={`Open ${show.name}${fullDateStr ? `, ${fullDateStr}` : ''}`}
-              onClick={e => onSelect(show, e)}
-            >
-              {show.name}
-            </button>
-          </h2>
+          <h2 className="show-card__title">{show.name}</h2>
           {/* Separators are drawn by CSS on the *following* item, not written
               between items as their own elements. A standalone "·" is a flex
               child that can be left stranded at the end of a wrapped line —

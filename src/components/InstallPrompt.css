@@ -1,19 +1,18 @@
+/* A row in the page, not a banner over it. Fixed and floating above the
+   bottom nav, this covered 119px of the first show card on an iPhone — and
+   because the iOS hint has no dismissal deadline, it covered it on every
+   visit until the × was found. Taps landed on the banner and the show never
+   opened. In the flow it cannot obscure anything, and it scrolls away like
+   Safari's own smart app banner. */
 .install-prompt {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 10px);
-  z-index: var(--z-banner);
-  width: calc(100% - 24px);
-  max-width: 520px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
 }
 
 .install-prompt__text {

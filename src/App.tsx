@@ -1415,6 +1415,15 @@ export default function App() {
             </div>
           </div>
           <main className="app-main">
+            {/* In the flow, at the top. It used to be a fixed banner floating
+                just above the bottom nav, and on iOS Safari it shows on every
+                visit until dismissed — 121px of it, at z-index 200, sitting
+                over the bottom of the shows list. Cards underneath took the
+                tap and did nothing, which reads as the app being broken. A
+                prompt to install is never worth covering the thing you came
+                to use. */}
+            <InstallPrompt />
+
             {view === 'list' && (
               <div className="shows-list">
                 <PageHeader
@@ -1832,7 +1841,6 @@ export default function App() {
             </Modal>
           )}
 
-          <InstallPrompt />
         </div>
       )}
     </>
