@@ -429,3 +429,187 @@
   padding: 11px 12px 10px 14px;
   gap: 3px;
 }
+
+
+/* The lead date. Only ever shown on a phone, where the date block is gone —
+   see the row rules below. */
+.show-card__meta-lead {
+  display: none;
+  font-weight: 600;
+  color: var(--card-accent-text, var(--text-muted));
+}
+
+/* Likewise the chevron: at card widths the card is plainly a card, and a
+   disclosure mark on something that isn't a list row is just an arrow. */
+.show-card__chevron {
+  display: none;
+}
+
+/* ─── Phone: a row in a list, not a card ───────────────────────────────────
+   Six cards on a phone were six bordered boxes, each with a bordered date
+   block inside it, each restating "Upcoming" in brand red, each wrapping its
+   one line of detail across three. Two of the six fit on a screen.
+
+   A phone can only ever show one of these per row, so none of that framing is
+   telling you anything — it is one list, and the rows are rows. So: the inset
+   container (in App.css) draws the edge, hairlines separate the rows, and each
+   row is a title, one line under it, and a chevron. Which is what every list
+   on the phone already looks like, and why it needs no explaining.
+
+   What each removal costs, and why it is worth it:
+
+   - The date block is a box drawn around three lines to say one thing. The
+     meta row leads with the date instead ("In 5 days", or "Fri, Aug 21" when
+     there's no countdown to give), which is the same fact in a quarter of the
+     space and lets the title have the full width.
+   - "Upcoming" on every row of a list that is almost all upcoming shows is the
+     loudest thing on the row and the least informative. It stays for the three
+     statuses you would want to spot — in progress, done, cancelled — and the
+     accent bar keeps saying it quietly for the rest.
+   - The footer facts restate what the show page says in full, and they were
+     the difference between a 143px card and a 64px row.
+   - Duplicate and Delete move to the show page's More menu. A delete button on
+     every row of a phone list is a mis-tap waiting to happen, and it was
+     taking the width the title needed. */
+@media (max-width: 619px) {
+  .show-card {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: none;
+    /* An iOS row's own height floor, so short rows don't collapse below the
+       tap minimum and the list keeps an even rhythm. */
+    min-height: 60px;
+    justify-content: center;
+    padding: 9px 12px 9px 15px;
+    gap: 2px;
+  }
+
+  .show-card + .show-card {
+    border-top: 1px solid var(--border);
+  }
+
+  /* The accent moves from a full-height left border to a short bar, so a run
+     of them reads as a column of markers rather than as ten framed boxes. */
+  .show-card::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    border-radius: var(--radius-full);
+    background: var(--card-accent, var(--border-strong));
+  }
+
+  .show-card__top {
+    align-items: center;
+    gap: 8px;
+    min-height: 0;
+  }
+
+  .show-card__main {
+    gap: 2px;
+    padding-top: 0;
+  }
+
+  .show-card__date,
+  .show-card__actions,
+  .show-card__footer {
+    display: none;
+  }
+
+  /* One line each. A row that grows to fit its longest name breaks the rhythm
+     that makes a list scannable, and the full name is the first thing on the
+     page it opens. */
+  .show-card__title,
+  .show-card__meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-height: 0;
+  }
+
+  .show-card__title {
+    font-size: 1.0625rem; /* 17px — iOS body */
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+
+  .show-card__meta {
+    display: block;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+
+  .show-card__meta-item {
+    /* The row no longer wraps, so a separator glyph has a home again — and
+       spacing alone can't hold four facts apart on one line. */
+    display: inline;
+  }
+
+  .show-card__meta-item + .show-card__meta-item::before {
+    content: ' · ';
+    color: var(--text-soft);
+  }
+
+  /* Grey, not the accent colour. In a list where nearly every show is upcoming,
+     an accent-coloured lead on every row is a column of brand red that
+     distinguishes nothing. Weight alone separates the date from the rest of
+     the line, which is all it needs to do. */
+  .show-card__meta-lead {
+    display: inline;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  /* Replaced by the lead, which says the same thing in the same words but
+     falls back to a date when there is no countdown to give. */
+  .show-card__meta-when {
+    display: none;
+  }
+
+  /* Said by the accent bar for the common case; kept in words for the three
+     states you would actually go looking for. */
+  .show-card--upcoming .show-card__status {
+    display: none;
+  }
+
+  .show-card__status {
+    font-size: 0.8125rem;
+  }
+
+  .show-card__chevron {
+    display: block;
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin-right: 2px;
+    border-right: 2px solid var(--text-soft);
+    border-bottom: 2px solid var(--text-soft);
+    transform: rotate(-45deg);
+    opacity: 0.7;
+  }
+
+  /* A booked-out bill still tints its row — the rule above turns the row's own
+     background off, and this is the one card colour that was carrying a fact
+     rather than an edge. */
+  .show-card--full {
+    background: var(--success-soft);
+  }
+
+  /* Rounded corners belong to the container now; a row's own focus ring should
+     not round against it. */
+  .show-card:has(.show-card__open:focus-visible) {
+    outline-offset: -2px;
+  }
+
+  /* Cards lifted on press. A row is flush with the ones above and below it, so
+     it highlights instead — the way a list row does. */
+  .show-card:active {
+    transform: none;
+    background: var(--surface-strong);
+  }
+}

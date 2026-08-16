@@ -84,6 +84,14 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
     day: 'numeric',
     year: 'numeric',
   });
+  // On a phone the date block is gone (see ShowCard.css) and the meta row is
+  // the only line under the title, so the date has to be in it. "In 5 days"
+  // already carries one when there is one; this is the fallback for the shows
+  // that don't get one — finished, cancelled, or with the date still to set.
+  const leadStr = whenStr
+    ?? (showDate
+      ? showDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+      : 'Date TBD');
 
   return (
     // The card is a container, not a control. It used to be role="button" with
@@ -144,6 +152,10 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
               child that can be left stranded at the end of a wrapped line —
               which is exactly what a phone-width card used to show. */}
           <div className="show-card__meta">
+            {/* Only one of these two is ever displayed — the lead on a phone,
+                where it stands in for the date block, and the when-label at
+                every other width, where the date block is still there. */}
+            <span className="show-card__meta-item show-card__meta-lead">{leadStr}</span>
             {timeStr && <span className="show-card__meta-item show-card__meta-time">{timeStr}</span>}
             {whenStr && <span className="show-card__meta-item show-card__meta-when">{whenStr}</span>}
             {show.venueName && (
@@ -172,6 +184,12 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
             ×
           </button>
         </div>
+
+        {/* Phone only. A row that opens something says so with a chevron —
+            it is the one mark iOS uses for "this goes somewhere", and this
+            list had nothing saying it at all. Decoration, not a control: the
+            overlay button behind it is what you actually tap. */}
+        <span className="show-card__chevron" aria-hidden="true" />
       </div>
 
       {(lineupFact || facts.length > 0 || sceneCount > 0) && (

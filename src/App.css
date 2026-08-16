@@ -467,6 +467,25 @@
   gap: 10px;
 }
 
+/* ─── Phone: one inset group, not a stack of cards ─────────────────────────
+   Every show was its own bordered, rounded, shadowed card. Ten shows meant ten
+   of each, and on a 390pt screen — where they can only ever be one per row —
+   that reads as ten objects to consider rather than one list to scan.
+
+   iOS solves this with the inset grouped list: a single rounded container,
+   hairlines between rows, and no border or shadow on the rows themselves. The
+   card treatment comes back at the width where cards sit two across and each
+   one really is a separate object. */
+@media (max-width: 619px) {
+  .shows-grid {
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+}
+
 /* "Showing 2 of 12 shows — Show all". Sits directly above the list it
    describes, because that's where the question gets asked. Built to the same
    measurements as .backup-nudge: they're the same kind of object, and they can

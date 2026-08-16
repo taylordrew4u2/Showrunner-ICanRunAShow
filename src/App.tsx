@@ -1665,6 +1665,8 @@ export default function App() {
                   onSaveToRolodex={handleSavePerformerToRolodex}
                   onSaveScheduleTemplate={handleSaveScheduleTemplate}
                   onDeleteScheduleTemplate={handleDeleteScheduleTemplate}
+                  onDuplicate={handleDuplicateShow}
+                  onDelete={handleDeleteShow}
                 />
               </div>
             )}

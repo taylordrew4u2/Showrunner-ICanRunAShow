@@ -3,7 +3,7 @@ import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem, Perfor
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
 import { Icon, type IconName } from './Icon';
-import { MoreMenu } from './MoreMenu';
+import { MoreMenu, type MoreMenuItem } from './MoreMenu';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
 import { ArtistsSection } from './sections/ArtistsSection';
@@ -56,6 +56,14 @@ interface ShowDetailProps {
   onSaveToRolodex?: (comic: import('../types').PotentialComic) => void;
   onSaveScheduleTemplate?: (name: string, items: import('../types').ScheduleTemplateItem[]) => void;
   onDeleteScheduleTemplate?: (id: string) => void;
+  /**
+   * Duplicating and deleting the show. These were only ever on the show card,
+   * as two small buttons on every row — which on a phone put a delete control
+   * inside a list you scroll with your thumb. The card hides them at phone
+   * width now, so they have to be reachable from the show itself.
+   */
+  onDuplicate?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 const STATUS_LABELS: Record<ShowStatus, string> = {
@@ -99,6 +107,8 @@ export function ShowDetail({
   onSaveToRolodex,
   onSaveScheduleTemplate,
   onDeleteScheduleTemplate,
+  onDuplicate,
+  onDelete,
 }: ShowDetailProps) {
   const { confirm, confirmDialog } = useConfirm();
   // Everyone this producer has on file. The show's own bill comes first so a
@@ -661,11 +671,34 @@ export function ShowDetail({
 
   // Every secondary action for this show, in one menu attached to the show —
   // rather than scattered across the app's navigation.
-  const moreItems = [
+  const moreItems: MoreMenuItem[] = [
     { label: 'Viewer link', onSelect: openViewer },
     { label: 'Export PDF', onSelect: () => exportShowToPDF(show, settings) },
     { label: 'Add or remove sections', onSelect: () => setManageSectionsOpen(true) },
   ];
+
+  if (onDuplicate) {
+    moreItems.push({
+      label: 'Duplicate show',
+      // Back to the list, because the copy is a different show from the one
+      // you're looking at and it lands at the top of the grid.
+      onSelect: () => { onDuplicate(show.id); onBack(); },
+    });
+  }
+
+  if (onDelete) {
+    moreItems.push({
+      label: 'Delete show',
+      danger: true,
+      onSelect: async () => {
+        const ok = await confirm({
+          title: `Delete "${show.name}"?`,
+          message: 'It will be moved to trash, where you can recover it.',
+        });
+        if (ok) { onDelete(show.id); onBack(); }
+      },
+    });
+  }
 
   // Two groups of four, so the counts read as two related clusters rather than
   // one undifferentiated row of eight: who and what is on stage, then what it
