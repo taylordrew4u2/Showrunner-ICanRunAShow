@@ -81,7 +81,13 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!-- The variable axis, not five fixed cuts. The app already asks for
+         weights the fixed version cannot draw — 650 appears twenty times and
+         900 seven, and both were snapping to the nearest cut (700 and 800), so
+         a deliberate half-step between "muted" and "emphasised" rendered as no
+         step at all. One file, every weight in between, and it is smaller than
+         the five static faces it replaces. -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@350..800&display=swap" rel="stylesheet" />
 
   </head>
   <body>

@@ -104,8 +104,14 @@
   padding: 9px 16px;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
-  background: var(--success-strong);
-  color: #ffffff;
+  /* The brand colour, not green. This is the same action as the dashboard's
+     Run Show, which is the app's primary button — one action rendered in two
+     different colours depending on which screen you were standing on. And
+     green is not free here: the readiness lines a few hundred pixels below
+     use it to mean "this part is done", so spending it on a button made the
+     one green thing on the page the one thing that isn't a state. */
+  background: var(--primary);
+  color: var(--on-primary);
   font-family: inherit;
   font-size: 0.9rem;
   font-weight: 600;

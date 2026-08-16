@@ -15,12 +15,21 @@
   border-radius: var(--radius-md);
 }
 
+/* Caption size, muted, with the two words you actually tap carried by weight
+   rather than by the full text colour. At 0.85rem in --text this was the
+   boldest thing on the screen, wrapping to two lines above the page's own
+   title — an aside, set larger than the content it was interrupting. */
 .install-prompt__text {
   flex: 1;
   min-width: 0;
-  font-size: 0.85rem;
-  color: var(--text);
+  font-size: 0.78rem;
+  color: var(--text-muted);
   line-height: 1.35;
+}
+
+.install-prompt__text strong {
+  font-weight: 600;
+  color: var(--text);
 }
 
 .install-prompt__actions {

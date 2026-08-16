@@ -89,3 +89,13 @@
     font-size: 1.4rem;
   }
 }
+
+/* The noun the page title already says. Dropping it takes the primary button
+   from 153px to roughly the width of the title beside it, which is the size a
+   secondary action should be — you open this app to look at your shows far
+   more often than to make one. */
+@media (max-width: 619px) {
+  .page-header__new-noun {
+    display: none;
+  }
+}

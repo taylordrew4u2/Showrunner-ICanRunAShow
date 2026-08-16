@@ -1437,8 +1437,23 @@ export default function App() {
                     // action, so there's only ever one "New Show" button on
                     // screen at a time.
                     shows.length > 0 ? (
-                      <button className="btn btn--primary btn--sm" onClick={() => setShowForm(true)}>
-                        + New Show
+                      <button
+                        className="btn btn--primary btn--sm page-header__new"
+                        onClick={() => setShowForm(true)}
+                        // The noun below is hidden with display: none at phone
+                        // width, which takes it out of the accessible name as
+                        // well as off the screen — leaving the button called
+                        // "+ New". Named explicitly so what it is called does
+                        // not depend on how wide the screen is.
+                        aria-label="New show"
+                      >
+                        {/* On a phone the filled button measured 153px against
+                            a 98px page title — the loudest object on the
+                            screen was the secondary action. The page is called
+                            "Shows"; the button does not need to say it again,
+                            so the noun drops away at phone width and the
+                            button comes back to the title's size. */}
+                        + New<span className="page-header__new-noun"> Show</span>
                       </button>
                     ) : undefined
                   }

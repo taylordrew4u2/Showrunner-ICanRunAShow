@@ -34,10 +34,13 @@
   gap: 8px;
 }
 
+/* 600, not 700. An all-caps label with wide tracking is already emphatic;
+   set bold on top of that it was heavier than the show name underneath it,
+   which is the thing it exists to introduce. */
 .dash-panel__title {
   margin: 0;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-soft);
@@ -74,8 +77,14 @@
   word-break: break-word;
 }
 
-.dash-next__name:hover {
-  color: var(--primary-text);
+/* Behind a hover query. A touch browser leaves :hover applied to the last
+   thing you tapped, so without this the show's name sat there in brand red
+   after you came back from opening it — a heading that changed colour and
+   stayed changed, for no reason the screen could explain. */
+@media (hover: hover) {
+  .dash-next__name:hover {
+    color: var(--primary-text);
+  }
 }
 
 .dash-next__name:focus-visible {
@@ -84,13 +93,16 @@
   border-radius: var(--radius-xs);
 }
 
+/* Inline text, not a flex row. As flex, the spacing between the facts came
+   from `gap` and the separator glyph carried none of its own — so the moment
+   the phone rules turned this into one truncating line the gap went with the
+   flex context and it set as "In 2 days· 8:00 PM· The Comedy Cell…". A run of
+   words separated by punctuation is a sentence; laying it out as a sentence
+   means the spacing survives wherever it is used. */
 .dash-next__meta {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px;
   margin: 0;
   font-size: 0.85rem;
+  line-height: 1.45;
   color: var(--text-muted);
 }
 
@@ -105,7 +117,7 @@
 /* The separator rides on the item, so a wrap takes it with the thing it
    belongs to instead of leaving it hanging at the end of the line above. */
 .dash-next__fact::before {
-  content: '· ';
+  content: ' · ';
   color: var(--text-soft);
 }
 
@@ -179,8 +191,10 @@
   transition: background var(--duration-fast) var(--ease-default);
 }
 
-.dash-todo__row:hover {
-  background: var(--primary-soft);
+@media (hover: hover) {
+  .dash-todo__row:hover {
+    background: var(--primary-soft);
+  }
 }
 
 .dash-todo__row:focus-visible {
@@ -268,20 +282,29 @@
    and the names it would have listed stay in the grid below, where they are
    already. The summary swaps back out for the full list at the width where
    the panels sit side by side and there is room for both. */
+/* The count in the brand colour, the sentence around it in plain text. Set
+   entirely in crimson at 650 this was a full-width line as loud as the Run
+   Show button — for something that is neither an alert nor an action you take
+   often. The number is the part you read; it keeps the colour. */
 .dash-todo__summary {
   display: none;
   width: 100%;
   min-height: 40px;
-  padding: 9px 10px;
+  padding: 9px 12px;
   border: 0;
   border-radius: var(--radius-md);
   background: var(--surface-strong);
-  color: var(--primary-text);
+  color: var(--text-muted);
   font: inherit;
   font-size: 0.85rem;
-  font-weight: 650;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
+}
+
+.dash-todo__summary strong {
+  font-weight: 650;
+  color: var(--primary-text);
 }
 
 .dash-todo__summary:focus-visible {
@@ -334,6 +357,16 @@
 
   .dash-next__actions {
     margin-top: 2px;
+  }
+
+  /* One line, truncated at the venue. Wrapping put "· The Comedy Cellar" on a
+     line of its own under the time, which reads as a second fact rather than
+     as the tail of the first — and the venue is the least urgent of the three
+     things on this line, so it is the right one to lose the end of. */
+  .dash-next__meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

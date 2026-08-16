@@ -47,6 +47,13 @@
   --bottom-nav-height: 56px;
   --header-bg: #ffffff;
 
+  /* A segmented control is a recessed track with one raised chip in it, and
+     "raised" means a different direction in each theme: on a light ground the
+     chip goes white against grey, on a dark one it goes grey against black.
+     One pair of tokens rather than one rule per theme at each use site. */
+  --segment-track: #ececec;
+  --segment-chip: #ffffff;
+
   /* Smallest comfortable finger target. index.css scales the root font size up
      on phones so text reads well, but control sizes are absolute px and don't
      scale with it — so without an explicit floor the buttons stay
@@ -54,11 +61,20 @@
      tapped is clamped to this under `@media (pointer: coarse)`. */
   --tap-min: 44px;
 
-  /* Radius scale — minimal, utilitarian */
-  --radius-xs: 2px;
-  --radius-sm: 3px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
+  /* Radius scale.
+     This was 2/3/4/6 — "minimal, utilitarian", which in practice meant every
+     card, field and button had the near-square corner of a settings panel. On
+     a phone that is the single loudest tell that a thing is a web page rather
+     than an app: the platform's own lists, sheets and buttons sit between 8
+     and 16, and a 4px card among them looks like a mistake rather than a
+     choice.
+     The steps still mean the same things — xs for a focus ring on a word, sm
+     for something small and inline, md for a control, lg for a panel — they
+     are just drawn at the size the rest of the phone draws them. */
+  --radius-xs: 4px;
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
   --radius-full: 999px;
 
   /* Type scale */
@@ -122,15 +138,22 @@
 [data-theme="dark"] {
   --bg: #0a0a0b;
   --backdrop: #0a0a0b;
-  --surface: #141416;
-  --surface-strong: #1c1c1f;
+  /* A real step off the canvas. These were #141416 on #0a0a0b — four values
+     apart, which on an OLED phone is no step at all, so a panel only existed
+     because of the hairline drawn round it. Every card read as an outline
+     rather than as a surface, and the screen came out as a grid of boxes.
+     Now the surface carries itself and the border can go quiet. */
+  --surface: #191a1d;
+  --surface-strong: #232428;
   --text: #f5f5f6;
   /* Both lift in dark mode: --text-soft was 2.5:1 and --text-muted had to
      move with it to keep the two steps of the hierarchy distinguishable. */
   --text-muted: #b3b3b6;
   --text-soft: #8a8a8e;
-  --border: #232326;
-  --border-strong: #313136;
+  /* Lifted with the surfaces so a hairline between two rows of a list still
+     reads, but only just — the surface is doing the separating now. */
+  --border: #2b2c31;
+  --border-strong: #3a3b41;
   --primary: #e5194b;
   --primary-pressed: #c2113c;
   --primary-bright: #ff6b8f;
@@ -154,7 +177,9 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 34px -8px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.45);
-  --header-bg: #141416;
+  --header-bg: #191a1d;
+  --segment-track: #0e0f11;
+  --segment-chip: #2e3036;
 }
 
 * {
@@ -319,7 +344,10 @@
 .shows-list__heading-text {
   margin: 0;
   font-size: 0.75rem;
-  font-weight: 700;
+  /* Same reasoning as the dashboard panel titles: all-caps with wide tracking
+     is emphatic already, and bold on top made the label heavier than the show
+     names it introduces. */
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-soft);
@@ -391,7 +419,7 @@
 .shows-toolbar__view {
   display: flex;
   flex-shrink: 0;
-  background: var(--surface);
+  background: var(--segment-track);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 3px;
@@ -418,9 +446,15 @@
   color: var(--text);
 }
 
+/* A raised neutral chip with a coloured glyph, not a coloured tile. This was
+   --primary-soft, which in dark mode is #2a0912 — a near-black maroon that
+   against a lifted panel reads as a smudge rather than as the selected half of
+   a control. A segmented control shows its selection by moving the chip
+   forward and leaving the colour on the mark. */
 .shows-toolbar__view-btn--active {
-  background: var(--primary-soft);
+  background: var(--segment-chip);
   color: var(--primary-text);
+  box-shadow: var(--shadow-sm);
 }
 
 .shows-toolbar__view-btn:active {

@@ -193,7 +193,7 @@ function AttentionPanel({ attention, focus, onFocusChange, onSelectShow }: Atten
       >
         {focus === 'attention'
           ? 'Show all shows'
-          : `${attention.length} not ready — show only these`}
+          : <><strong>{attention.length} not ready</strong> — show only these</>}
       </button>
 
       <ul className="dash-todo">
