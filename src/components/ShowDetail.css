@@ -2576,6 +2576,62 @@ select.show-detail__status--select {
   border-radius: var(--radius-md);
 }
 
+/* Name and Add on one line, at every width. The stacked-full-width treatment
+   the rest of the add rows get is right for a row of equal fields; here the
+   button is the end of a single short sentence, and putting it on its own line
+   made adding one performer look like filling in a form. */
+.lineup-add__name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lineup-add__name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lineup-add__submit {
+  flex: 0 0 auto;
+}
+
+/* The two ways in that aren't "type a name": pick someone already on file, or
+   fill in their handle and email now rather than later. Both are text, not
+   buttons — a full-width secondary button for each was two more 44px bars
+   between the producer and the bill. They keep a 44px tap area. */
+.lineup-add__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 2px;
+}
+
+.lineup-add__link {
+  min-height: var(--tap-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--primary-text);
+  cursor: pointer;
+}
+
+.lineup-add__link:hover {
+  text-decoration: underline;
+}
+
+.lineup-add__link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.lineup-add__form .section-add-row {
+  margin-top: 8px;
+}
+
 /* Inside the form's own panel these would be a box within a box. */
 .lineup-add__form .lineup-target {
   margin-bottom: 0;
