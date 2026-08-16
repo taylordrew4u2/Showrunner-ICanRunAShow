@@ -185,16 +185,23 @@ select.show-detail__status--select {
   background-position: right 9px center;
 }
 
+/* Upcoming is the state nearly every show is in, and the field is 16px on
+   touch to stop iOS zooming on focus — which made this the largest, brightest
+   thing under the show's name, saying the one thing about the show you could
+   already assume. Neutral, like the other three: colour goes back to meaning
+   "this show is not in the state you'd expect". */
 .show-detail__status--upcoming {
-  background: var(--primary-soft);
-  color: var(--primary-text);
-  border-color: var(--primary-soft-border);
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
 }
 
+/* In progress is the exception that keeps its colour — a show that is running
+   right now is worth spotting from across the room. */
 .show-detail__status--in-progress {
-  background: var(--border-strong);
-  color: var(--text);
-  border-color: var(--border-strong);
+  background: var(--success-soft);
+  color: var(--success-text);
+  border-color: var(--success-soft-border);
 }
 
 .show-detail__status--completed {
