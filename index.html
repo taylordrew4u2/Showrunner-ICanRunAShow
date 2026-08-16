@@ -79,15 +79,19 @@
     }
     </script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- The variable axis, not five fixed cuts. The app already asks for
-         weights the fixed version cannot draw — 650 appears twenty times and
-         900 seven, and both were snapping to the nearest cut (700 and 800), so
-         a deliberate half-step between "muted" and "emphasised" rendered as no
-         step at all. One file, every weight in between, and it is smaller than
-         the five static faces it replaces. -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@350..800&display=swap" rel="stylesheet" />
+    <!-- Inter is served by this app now (see src/fonts.css), not fetched from
+         fonts.googleapis.com on every cold load. Preloaded because it is the
+         one asset the whole visual design rests on, and only the latin subset
+         — the others are behind unicode-range and should stay on demand.
+         crossorigin is required even same-origin: fonts are always fetched in
+         CORS mode, and without it the preload is discarded and fetched twice. -->
+    <link
+      rel="preload"
+      href="/fonts/inter-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
 
   </head>
   <body>

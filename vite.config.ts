@@ -42,7 +42,18 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // woff2 is here because the typeface is part of the app now rather
+        // than a request to Google — without it in the precache, an offline
+        // launch would fall back to a system face and every weight, width and
+        // line-height in the design would shift.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // ...but not all seven subsets. Precaching every script cost 217KiB on
+        // every install to guarantee glyphs almost no one here will render —
+        // this is an app for comedy, drag and burlesque producers, and latin
+        // plus latin-ext covers the names they book. The other four are still
+        // served by this origin and still cached once fetched; they are simply
+        // not paid for up front by everybody.
+        globIgnores: ['**/fonts/inter-{greek,greek-ext,cyrillic,cyrillic-ext,vietnamese}.woff2'],
       },
     }),
   ],
