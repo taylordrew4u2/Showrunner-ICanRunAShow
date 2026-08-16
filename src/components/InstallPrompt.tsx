@@ -15,7 +15,17 @@ interface BeforeInstallPromptEvent extends Event {
  * real one-tap install prompt; iOS Safari has no such API, so it gets the
  * manual Share -> Add to Home Screen instructions instead.
  */
-export function InstallPrompt() {
+interface InstallPromptProps {
+  /**
+   * Called whenever the prompt appears or goes away. The page above it has a
+   * banner of its own, and two "not now" rows stacked over your shows is one
+   * more than a phone can spare — so the page uses this to hold its own back
+   * until this one is gone.
+   */
+  onShownChange?: (shown: boolean) => void;
+}
+
+export function InstallPrompt({ onShownChange }: InstallPromptProps = {}) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(() => {
     try {
@@ -56,7 +66,13 @@ export function InstallPrompt() {
     setDeferredPrompt(null);
   }
 
-  if (dismissed || (!deferredPrompt && !showIOSHint)) return null;
+  const shown = !dismissed && (!!deferredPrompt || showIOSHint);
+
+  useEffect(() => {
+    onShownChange?.(shown);
+  }, [shown, onShownChange]);
+
+  if (!shown) return null;
 
   return (
     <div className="install-prompt" role="status">

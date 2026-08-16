@@ -509,6 +509,10 @@ export default function App() {
   const settingsSaveSeqRef = useRef(0);
   // Session-scoped dismissal of the backup nudge (it returns next visit).
   const [backupNudgeDismissed, setBackupNudgeDismissed] = useState(false);
+  // Whether the install prompt is currently on screen. Both it and the backup
+  // nudge are rows that sit between you and your shows; one of them is worth
+  // that, two are not — so the backup nudge waits its turn.
+  const [installPromptShown, setInstallPromptShown] = useState(false);
 
   // Records a confirmed round-trip to the server. Everything the status pill
   // claims about "saved" traces back to this being called.
@@ -1422,7 +1426,7 @@ export default function App() {
                 tap and did nothing, which reads as the app being broken. A
                 prompt to install is never worth covering the thing you came
                 to use. */}
-            <InstallPrompt />
+            <InstallPrompt onShownChange={setInstallPromptShown} />
 
             {view === 'list' && (
               <div className="shows-list">
@@ -1439,7 +1443,8 @@ export default function App() {
                     ) : undefined
                   }
                 />
-                {!backupNudgeDismissed && shouldNudgeBackup(shows.length, lastBackupAt) && (
+                {!backupNudgeDismissed && !installPromptShown
+                  && shouldNudgeBackup(shows.length, lastBackupAt) && (
                   <div className="backup-nudge" role="status">
                     <Icon name="shield" size={16} className="backup-nudge__icon" aria-hidden />
                     <span className="backup-nudge__text">Keep your own copy</span>
@@ -1468,7 +1473,11 @@ export default function App() {
                       type="search"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search shows…"
+                      // One word, because on a phone this field is ~155px wide
+                      // once the sort and view controls have taken theirs, and
+                      // a placeholder does not ellipsize — the longer version
+                      // rendered as "Search shov".
+                      placeholder="Search"
                       aria-label="Search shows"
                     />
                     {showsView === 'grid' && (

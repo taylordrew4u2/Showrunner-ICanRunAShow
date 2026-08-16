@@ -102,12 +102,15 @@ function NextUpPanel({ show, when, upcomingCount, onSelectShow, onRunShow }: Nex
         {show.name}
       </button>
 
+      {/* The separators are drawn by CSS on the item that follows, never
+          written between items as their own elements. As elements they are
+          flex children that get stranded at the end of a wrapped line, which
+          is what a phone-width panel showed: "In 2 days · 8:00 PM ·" and then
+          the venue on the line below. */}
       <p className="dash-next__meta">
         <span className="dash-next__when">{when}</span>
-        {time && <><span className="dash-next__sep" aria-hidden="true">·</span>{time}</>}
-        {show.venueName && (
-          <><span className="dash-next__sep" aria-hidden="true">·</span>{show.venueName}</>
-        )}
+        {time && <span className="dash-next__fact">{time}</span>}
+        {show.venueName && <span className="dash-next__fact">{show.venueName}</span>}
       </p>
 
       <ul className="dash-ready">

@@ -342,7 +342,11 @@
 }
 
 .shows-toolbar__search {
-  flex: 1;
+  flex: 1 1 auto;
+  /* Without this the search field wins the shrink fight against the sort
+     select, which then renders as "Soo". The search field is the one control
+     here that reads fine narrow, so it is the one that gives way. */
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -364,6 +368,7 @@
 }
 
 .shows-toolbar__sort {
+  flex: 0 0 auto;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -726,10 +731,14 @@
     min-width: 0;
   }
 
+  /* Does not shrink. Form fields are held at a 16px floor on touch (see
+     index.css) so this select's text is 20px on a phone, and letting it give
+     way rendered the sort order as "Soo" — a control whose label is cut to
+     three letters is not a control. The search field beside it absorbs the
+     squeeze instead: its placeholder is one word and its value is what you
+     just typed, so it reads fine narrow. */
   .shows-toolbar__sort {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 8.5rem;
+    flex: 0 0 auto;
   }
 
   .rolodex__form {

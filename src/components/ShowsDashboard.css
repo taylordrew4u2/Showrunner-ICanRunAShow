@@ -102,7 +102,10 @@
   white-space: nowrap;
 }
 
-.dash-next__sep {
+/* The separator rides on the item, so a wrap takes it with the thing it
+   belongs to instead of leaving it hanging at the end of the line above. */
+.dash-next__fact::before {
+  content: '· ';
   color: var(--text-soft);
 }
 
@@ -299,7 +302,38 @@
   /* The panels carry less on a phone, so they need less room to carry it. */
   .dash-panel {
     padding: 12px 13px;
-    gap: 7px;
+    gap: 6px;
+  }
+
+  /* Once the list is gone, this panel is a heading and a button — and a
+     bordered box drawn around a single button is 90px of screen spent framing
+     it. The button stands on its own under the next-up panel instead, which
+     is where it was going to be read from anyway. */
+  .dash-panel--attention {
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .dash-panel--attention .dash-panel__head {
+    display: none;
+  }
+
+  .dash {
+    gap: 8px;
+  }
+
+  /* The readiness lines are the panel's whole point on a phone — they are the
+     answer to "is tonight's show ready" — so they keep their size and the
+     spacing around them gives way instead. */
+  .dash-ready {
+    gap: 4px;
+    margin-top: 0;
+  }
+
+  .dash-next__actions {
+    margin-top: 2px;
   }
 }
 
