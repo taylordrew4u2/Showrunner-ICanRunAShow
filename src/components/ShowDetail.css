@@ -73,12 +73,18 @@
   }
 }
 
-/* Back + "Run Show" + the overflow menu need ~317px of row, which doesn't fit
-   a 320px phone. Rather than wrap (which would drag the overflow menu to the
-   left edge and swing its dropdown off-screen), the back control drops to its
-   chevron — the bottom nav still names the destination, and the button keeps
-   its accessible label. */
-@media (max-width: 420px) {
+/* Back + "Run Show" + the overflow menu need ~321px of row. Rather than wrap
+   (which would drag the overflow menu to the left edge and swing its dropdown
+   off-screen), the back control drops to its chevron below the width where
+   they fit — the bottom nav still names the destination, and the button keeps
+   its accessible label.
+
+   That width is 360px, not 420px. At 420 this stripped the label off a bar
+   that had 115px of empty spacer sitting in the middle of it, which left an
+   unlabelled chevron floating alone at the left edge of every show page on
+   every phone — the one control on the page whose whole job is to say where
+   it goes. */
+@media (max-width: 359px) {
   .show-detail__back-btn span {
     display: none;
   }
