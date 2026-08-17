@@ -3,7 +3,7 @@ import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem, Perfor
 import { generateId } from '../utils/id';
 import { SceneList } from './SceneList';
 import { Icon, type IconName } from './Icon';
-import { MoreMenu } from './MoreMenu';
+import { MoreMenu, type MoreMenuItem } from './MoreMenu';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
 import { ArtistsSection } from './sections/ArtistsSection';
@@ -56,6 +56,14 @@ interface ShowDetailProps {
   onSaveToRolodex?: (comic: import('../types').PotentialComic) => void;
   onSaveScheduleTemplate?: (name: string, items: import('../types').ScheduleTemplateItem[]) => void;
   onDeleteScheduleTemplate?: (id: string) => void;
+  /**
+   * Duplicating and deleting the show. These were only ever on the show card,
+   * as two small buttons on every row — which on a phone put a delete control
+   * inside a list you scroll with your thumb. The card hides them at phone
+   * width now, so they have to be reachable from the show itself.
+   */
+  onDuplicate?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 const STATUS_LABELS: Record<ShowStatus, string> = {
@@ -99,6 +107,8 @@ export function ShowDetail({
   onSaveToRolodex,
   onSaveScheduleTemplate,
   onDeleteScheduleTemplate,
+  onDuplicate,
+  onDelete,
 }: ShowDetailProps) {
   const { confirm, confirmDialog } = useConfirm();
   // Everyone this producer has on file. The show's own bill comes first so a
@@ -150,6 +160,45 @@ export function ShowDetail({
   // Adding and removing sections happens in one deliberate place, so a stray tap
   // next to the expand chevron can't wipe a section off the show.
   const [manageSectionsOpen, setManageSectionsOpen] = useState(false);
+
+  /**
+   * Whether the navigation bar is showing the show's name.
+   *
+   * It swaps in once the page's own big title has passed underneath the bar,
+   * so a bar stuck to the top of a long show page still says where you are.
+   *
+   * Measured against the two elements rather than a scroll threshold: the
+   * header's height depends on how long the name is and whether there's a
+   * venue, and the bar's offset depends on the safe-area inset. Comparing the
+   * rectangles is exact on every phone; a magic number is right on one.
+   */
+  const topbarRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [titleInBar, setTitleInBar] = useState(false);
+
+  useEffect(() => {
+    let frame = 0;
+    function check() {
+      frame = 0;
+      const hero = heroRef.current;
+      const bar = topbarRef.current;
+      if (!hero || !bar) return;
+      setTitleInBar(hero.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom);
+    }
+    // Coalesced to one read per frame: scroll fires far faster than paint, and
+    // this measures layout, which is the expensive kind of read to repeat.
+    function onScroll() {
+      if (!frame) frame = requestAnimationFrame(check);
+    }
+    check();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, []);
 
   // Lets the overview tiles act as a table of contents: tap "12 Performers"
   // and land inside the Performers section instead of scrolling to find it.
@@ -661,11 +710,34 @@ export function ShowDetail({
 
   // Every secondary action for this show, in one menu attached to the show —
   // rather than scattered across the app's navigation.
-  const moreItems = [
+  const moreItems: MoreMenuItem[] = [
     { label: 'Viewer link', onSelect: openViewer },
     { label: 'Export PDF', onSelect: () => exportShowToPDF(show, settings) },
     { label: 'Add or remove sections', onSelect: () => setManageSectionsOpen(true) },
   ];
+
+  if (onDuplicate) {
+    moreItems.push({
+      label: 'Duplicate show',
+      // Back to the list, because the copy is a different show from the one
+      // you're looking at and it lands at the top of the grid.
+      onSelect: () => { onDuplicate(show.id); onBack(); },
+    });
+  }
+
+  if (onDelete) {
+    moreItems.push({
+      label: 'Delete show',
+      danger: true,
+      onSelect: async () => {
+        const ok = await confirm({
+          title: `Delete "${show.name}"?`,
+          message: 'It will be moved to trash, where you can recover it.',
+        });
+        if (ok) { onDelete(show.id); onBack(); }
+      },
+    });
+  }
 
   // Two groups of four, so the counts read as two related clusters rather than
   // one undifferentiated row of eight: who and what is on stage, then what it
@@ -716,8 +788,15 @@ export function ShowDetail({
 
   return (
     <div className="show-detail">
-      <div className="show-detail__hero">
-        <div className="show-detail__topbar">
+      {/* Outside the hero, not inside it. A sticky element can only stick
+          within its own containing block, and the hero is 185px tall — so
+          nested in there the bar unstuck itself almost immediately and rode
+          the page up like everything else. Out here its containing block is
+          the whole show page. */}
+      <div
+        className={`show-detail__topbar${titleInBar ? ' show-detail__topbar--titled' : ''}`}
+        ref={topbarRef}
+      >
           {/* The visible "Shows" label is hidden on narrow phones (see the CSS),
               so the button carries its own name for assistive tech. */}
           <button
@@ -735,13 +814,20 @@ export function ShowDetail({
             </svg>
             <span>Shows</span>
           </button>
-          {/* The spacer the save indicator used to occupy. That indicator was
-              a 300ms timer, not a save: it announced "Saved" whether or not
-              anything reached the server, so an offline edit got a green
-              confirmation while the real status pill said "Offline". The pill
-              knows saving from holding from blocked, and now carries the
-              announcement too — see SyncStatus. */}
-          <div className="show-detail__topbar-spacer" />
+          {/* Once the page's own big title has scrolled past, its name appears
+              here instead, so a bar stuck to the top of a long show page still
+              says which show you are in. The gap it fills was the spacer the
+              old save indicator used to occupy.
+
+              aria-hidden because the page's <h1> is the real title and is
+              still in the document — this is the same words a second time,
+              which a screen reader has no use for. */}
+          <div
+            className={`show-detail__topbar-title${titleInBar ? ' show-detail__topbar-title--shown' : ''}`}
+            aria-hidden="true"
+          >
+            {show.name}
+          </div>
           <button
             className="show-detail__run-show"
             onClick={() => setRunShowOpen(true)}
@@ -752,7 +838,9 @@ export function ShowDetail({
           </button>
           <MoreMenu label="More show actions" items={moreItems} />
         </div>
-        <div className="show-detail__header">
+
+      <div className="show-detail__hero">
+        <div className="show-detail__header" ref={heroRef}>
           {editingShowName ? (
             <div className="show-detail__name-edit">
               {/* The page keeps exactly one h1 whether or not the name is being

@@ -23,14 +23,85 @@
   gap: 10px;
 }
 
+/* ── The navigation bar ───────────────────────────────────────────────────
+   This scrolled away with the page. Measured on an iPhone: 300px down a show
+   that is ~1470px tall, both "Run Show" and the way back are gone, and they
+   stay gone for the rest of the page. The one control you need at 7pm was
+   reachable only from the very top — you had to scroll up to start the show.
+
+   So it sticks, the way a navigation bar does. It parks directly under the
+   status band, bleeds back out through the page gutter to reach the window
+   edges, and the page passes underneath it through a blur. */
 .show-detail__topbar {
+  position: sticky;
+  top: calc(env(safe-area-inset-top) + var(--status-band));
+  z-index: var(--z-sticky);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding-bottom: 12px;
+  /* Out to the window edges and back in again, or the page shows through the
+     gutters on either side as it scrolls past. */
+  margin-inline: calc(var(--page-gutter) * -1);
+  padding-inline: var(--page-gutter);
+  padding-top: 8px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+
+/* Where a navigation bar puts the title: the middle, once the big one at the
+   top of the page has scrolled by. Until then this is the empty space the bar
+   already had between the back control and the actions. */
+.show-detail__topbar-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--duration-normal) var(--ease-default),
+    transform var(--duration-normal) var(--ease-default);
+  pointer-events: none;
+}
+
+.show-detail__topbar-title--shown {
+  opacity: 1;
+  transform: none;
+}
+
+/* Back + title + Run Show + the overflow menu do not fit a 390pt phone: with
+   all four, the name rendered as "Thur…". So the back control gives up its
+   word while the title is up, which is what iOS does for exactly this reason —
+   the chevron alone still means back, and now the bar says which show you are
+   in rather than which list you came from. The word returns at the top of the
+   page, where there is nothing competing for the space. */
+@media (max-width: 619px) {
+  .show-detail__topbar--titled .show-detail__back-btn span {
+    display: none;
+  }
+
+  .show-detail__topbar--titled .show-detail__back-btn {
+    min-width: var(--tap-min);
+    justify-content: center;
+    padding-inline: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .show-detail__topbar-title {
+    transition: none;
+    transform: none;
+  }
 }
 
 /* Matches the back control on every other screen, so "how do I get out of
@@ -73,12 +144,18 @@
   }
 }
 
-/* Back + "Run Show" + the overflow menu need ~317px of row, which doesn't fit
-   a 320px phone. Rather than wrap (which would drag the overflow menu to the
-   left edge and swing its dropdown off-screen), the back control drops to its
-   chevron — the bottom nav still names the destination, and the button keeps
-   its accessible label. */
-@media (max-width: 420px) {
+/* Back + "Run Show" + the overflow menu need ~321px of row. Rather than wrap
+   (which would drag the overflow menu to the left edge and swing its dropdown
+   off-screen), the back control drops to its chevron below the width where
+   they fit — the bottom nav still names the destination, and the button keeps
+   its accessible label.
+
+   That width is 360px, not 420px. At 420 this stripped the label off a bar
+   that had 115px of empty spacer sitting in the middle of it, which left an
+   unlabelled chevron floating alone at the left edge of every show page on
+   every phone — the one control on the page whose whole job is to say where
+   it goes. */
+@media (max-width: 359px) {
   .show-detail__back-btn span {
     display: none;
   }
@@ -98,8 +175,14 @@
   padding: 9px 16px;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
-  background: var(--success-strong);
-  color: #ffffff;
+  /* The brand colour, not green. This is the same action as the dashboard's
+     Run Show, which is the app's primary button — one action rendered in two
+     different colours depending on which screen you were standing on. And
+     green is not free here: the readiness lines a few hundred pixels below
+     use it to mean "this part is done", so spending it on a button made the
+     one green thing on the page the one thing that isn't a state. */
+  background: var(--primary);
+  color: var(--on-primary);
   font-family: inherit;
   font-size: 0.9rem;
   font-weight: 600;
@@ -185,16 +268,23 @@ select.show-detail__status--select {
   background-position: right 9px center;
 }
 
+/* Upcoming is the state nearly every show is in, and the field is 16px on
+   touch to stop iOS zooming on focus — which made this the largest, brightest
+   thing under the show's name, saying the one thing about the show you could
+   already assume. Neutral, like the other three: colour goes back to meaning
+   "this show is not in the state you'd expect". */
 .show-detail__status--upcoming {
-  background: var(--primary-soft);
-  color: var(--primary-text);
-  border-color: var(--primary-soft-border);
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
 }
 
+/* In progress is the exception that keeps its colour — a show that is running
+   right now is worth spotting from across the room. */
 .show-detail__status--in-progress {
-  background: var(--border-strong);
-  color: var(--text);
-  border-color: var(--border-strong);
+  background: var(--success-soft);
+  color: var(--success-text);
+  border-color: var(--success-soft-border);
 }
 
 .show-detail__status--completed {
@@ -2574,6 +2664,62 @@ select.show-detail__status--select {
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+}
+
+/* Name and Add on one line, at every width. The stacked-full-width treatment
+   the rest of the add rows get is right for a row of equal fields; here the
+   button is the end of a single short sentence, and putting it on its own line
+   made adding one performer look like filling in a form. */
+.lineup-add__name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lineup-add__name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lineup-add__submit {
+  flex: 0 0 auto;
+}
+
+/* The two ways in that aren't "type a name": pick someone already on file, or
+   fill in their handle and email now rather than later. Both are text, not
+   buttons — a full-width secondary button for each was two more 44px bars
+   between the producer and the bill. They keep a 44px tap area. */
+.lineup-add__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 2px;
+}
+
+.lineup-add__link {
+  min-height: var(--tap-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--primary-text);
+  cursor: pointer;
+}
+
+.lineup-add__link:hover {
+  text-decoration: underline;
+}
+
+.lineup-add__link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.lineup-add__form .section-add-row {
+  margin-top: 8px;
 }
 
 /* Inside the form's own panel these would be a box within a box. */

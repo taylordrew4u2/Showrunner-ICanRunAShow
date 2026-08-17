@@ -102,12 +102,15 @@ function NextUpPanel({ show, when, upcomingCount, onSelectShow, onRunShow }: Nex
         {show.name}
       </button>
 
+      {/* The separators are drawn by CSS on the item that follows, never
+          written between items as their own elements. As elements they are
+          flex children that get stranded at the end of a wrapped line, which
+          is what a phone-width panel showed: "In 2 days · 8:00 PM ·" and then
+          the venue on the line below. */}
       <p className="dash-next__meta">
         <span className="dash-next__when">{when}</span>
-        {time && <><span className="dash-next__sep" aria-hidden="true">·</span>{time}</>}
-        {show.venueName && (
-          <><span className="dash-next__sep" aria-hidden="true">·</span>{show.venueName}</>
-        )}
+        {time && <span className="dash-next__fact">{time}</span>}
+        {show.venueName && <span className="dash-next__fact">{show.venueName}</span>}
       </p>
 
       <ul className="dash-ready">
@@ -176,6 +179,22 @@ function AttentionPanel({ attention, focus, onFocusChange, onSelectShow }: Atten
         <h2 className="dash-panel__title">Needs attention</h2>
         <span className="dash-panel__aside">{attention.length}</span>
       </div>
+
+      {/* On a phone the itemised list is the shows grid a few hundred pixels
+          below, said twice — and it cost ~200px of the one screen you have.
+          The count keeps the answer ("three shows aren't ready") and the tap
+          narrows the grid to them; the names come back as soon as there is
+          width to put them in. */}
+      <button
+        type="button"
+        className="dash-todo__summary"
+        onClick={() => onFocusChange(focus === 'attention' ? null : 'attention')}
+        aria-pressed={focus === 'attention'}
+      >
+        {focus === 'attention'
+          ? 'Show all shows'
+          : <><strong>{attention.length} not ready</strong> — show only these</>}
+      </button>
 
       <ul className="dash-todo">
         {shown.map((item) => (

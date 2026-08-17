@@ -44,6 +44,12 @@ export function PerformersSection({
    * last performer is removed.
    */
   const [addingOpen, setAddingOpen] = useState(false);
+  /**
+   * Whether the handle and email fields are showing. Closed by default:
+   * booking someone is a name, and both of these are on the profile editor a
+   * tap away once they are on the bill.
+   */
+  const [detailsOpen, setDetailsOpen] = useState(false);
   // Filing happens up in App, out of sight. Saying so once, right after it
   // happens, is the difference between a helpful default and the app quietly
   // editing a list you didn't ask it to touch.
@@ -135,9 +141,10 @@ export function PerformersSection({
 
   return (
     <div className="section-body">
-      {performers.length === 0 && (
-        <p className="section-empty">No performers yet — add the first below.</p>
-      )}
+      {/* No "No performers yet — add the first below." An empty lineup always
+          opens with the add form showing (see showAddForm), so that line was
+          120px of italics telling you that the empty field directly beneath it
+          is empty. The field says it. */}
 
       <ul className="section-list">
         {performers.map((p, idx) => (
@@ -234,45 +241,70 @@ export function PerformersSection({
 
       {showAddForm && (
         <div className="lineup-add__form">
-          <div className="section-add-row">
+          {/* Name and Add, together on one line. The handle and the email used
+              to sit between them as two more full-width fields, which on a
+              phone made booking someone a five-control, 300px affair for a
+              step that is usually just a name — and the profile editor takes
+              both of them afterwards anyway, off a performer who is already on
+              the bill. They wait behind "Contact details" now. */}
+          <div className="lineup-add__name-row">
             <input
-              className="section-field__input"
+              className="section-field__input lineup-add__name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
               placeholder="Performer name"
               aria-label="Performer name"
             />
-            <input
-              className="section-field__input"
-              value={instagram}
-              onChange={(e) => setInstagram(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
-              placeholder="@instagram"
-              aria-label="Instagram handle"
-            />
-            <input
-              className="section-field__input"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
-              placeholder="email (optional)"
-              aria-label="Email address"
-            />
-            <button className="btn btn--primary btn--sm" onClick={addPerformer}>Add</button>
+            <button className="btn btn--primary btn--sm lineup-add__submit" onClick={addPerformer}>
+              Add
+            </button>
+          </div>
+
+          <div className="lineup-add__links">
             {/* Always here, even with nobody on file. Hiding it left a first-time
                 producer with no sign the Rolodex has anything to do with building
                 a lineup — the only Rolodex-looking thing on screen was the nav
                 tab, which navigates away rather than picking anyone. */}
             <button
-              className="btn btn--secondary btn--sm"
+              type="button"
+              className="lineup-add__link"
               onClick={() => setShowRolodex(v => !v)}
               aria-expanded={showRolodex}
             >
               From Rolodex
             </button>
+            <button
+              type="button"
+              className="lineup-add__link"
+              onClick={() => setDetailsOpen(v => !v)}
+              aria-expanded={detailsOpen}
+            >
+              {detailsOpen ? 'Hide contact details' : 'Contact details'}
+            </button>
           </div>
+
+          {detailsOpen && (
+            <div className="section-add-row">
+              <input
+                className="section-field__input"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
+                placeholder="@instagram"
+                aria-label="Instagram handle"
+              />
+              <input
+                className="section-field__input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
+                placeholder="email (optional)"
+                aria-label="Email address"
+              />
+            </div>
+          )}
 
           {/* How many this show is booking for. Without it a lineup has no
               "full", so the count is just a number that keeps going up. It
