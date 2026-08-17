@@ -45,6 +45,15 @@
   --shadow-lg: 0 8px 28px -8px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.06);
   --app-bar-height: 48px;
   --bottom-nav-height: 56px;
+  /* The strip at the top of the window the sync pill lives in. Named because
+     two things have to agree on it: the padding that keeps content out from
+     under it, and the offset a sticky header parks at. They were the same
+     number written twice, which is the kind of pair that quietly drifts. */
+  --status-band: 44px;
+  /* The page's side padding. A sticky header has to bleed back out through it
+     to reach the window edges, so it needs to be readable rather than a
+     literal repeated at every use site. */
+  --page-gutter: 16px;
   --header-bg: #ffffff;
 
   /* A segmented control is a recessed track with one raised chip in it, and
@@ -193,7 +202,12 @@
   flex-direction: column;
   background: var(--bg);
   color: var(--text);
-  overflow-x: hidden;
+  /* clip, not hidden. `overflow-x: hidden` forces the other axis to `auto`,
+     which silently makes this element a scroll container — and a sticky
+     descendant then resolves against *this* box instead of the viewport, so it
+     never sticks. `clip` does the same visual job (nothing spills sideways)
+     without creating the scrollport. */
+  overflow-x: clip;
   width: 100%;
   max-width: 860px;
   margin: 0 auto;
@@ -262,14 +276,19 @@
   flex: 1;
   width: 100%;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 44px) 16px
+  padding: calc(env(safe-area-inset-top) + var(--status-band)) var(--page-gutter)
     calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 20px);
 }
 
 /* Mobile Responsive Styles */
 @media (max-width: 768px) {
+  :root {
+    --status-band: 40px;
+    --page-gutter: 12px;
+  }
+
   .app-main {
-    padding: calc(env(safe-area-inset-top) + 40px) 12px
+    padding: calc(env(safe-area-inset-top) + var(--status-band)) var(--page-gutter)
       calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 12px);
   }
 }

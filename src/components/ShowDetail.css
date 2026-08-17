@@ -23,14 +23,85 @@
   gap: 10px;
 }
 
+/* ── The navigation bar ───────────────────────────────────────────────────
+   This scrolled away with the page. Measured on an iPhone: 300px down a show
+   that is ~1470px tall, both "Run Show" and the way back are gone, and they
+   stay gone for the rest of the page. The one control you need at 7pm was
+   reachable only from the very top — you had to scroll up to start the show.
+
+   So it sticks, the way a navigation bar does. It parks directly under the
+   status band, bleeds back out through the page gutter to reach the window
+   edges, and the page passes underneath it through a blur. */
 .show-detail__topbar {
+  position: sticky;
+  top: calc(env(safe-area-inset-top) + var(--status-band));
+  z-index: var(--z-sticky);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding-bottom: 12px;
+  /* Out to the window edges and back in again, or the page shows through the
+     gutters on either side as it scrolls past. */
+  margin-inline: calc(var(--page-gutter) * -1);
+  padding-inline: var(--page-gutter);
+  padding-top: 8px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+
+/* Where a navigation bar puts the title: the middle, once the big one at the
+   top of the page has scrolled by. Until then this is the empty space the bar
+   already had between the back control and the actions. */
+.show-detail__topbar-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--duration-normal) var(--ease-default),
+    transform var(--duration-normal) var(--ease-default);
+  pointer-events: none;
+}
+
+.show-detail__topbar-title--shown {
+  opacity: 1;
+  transform: none;
+}
+
+/* Back + title + Run Show + the overflow menu do not fit a 390pt phone: with
+   all four, the name rendered as "Thur…". So the back control gives up its
+   word while the title is up, which is what iOS does for exactly this reason —
+   the chevron alone still means back, and now the bar says which show you are
+   in rather than which list you came from. The word returns at the top of the
+   page, where there is nothing competing for the space. */
+@media (max-width: 619px) {
+  .show-detail__topbar--titled .show-detail__back-btn span {
+    display: none;
+  }
+
+  .show-detail__topbar--titled .show-detail__back-btn {
+    min-width: var(--tap-min);
+    justify-content: center;
+    padding-inline: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .show-detail__topbar-title {
+    transition: none;
+    transform: none;
+  }
 }
 
 /* Matches the back control on every other screen, so "how do I get out of

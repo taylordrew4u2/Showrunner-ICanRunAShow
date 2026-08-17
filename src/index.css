@@ -11,7 +11,12 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   width: 100%;
-  overflow-x: hidden;
+  /* clip, not hidden. `overflow-x: hidden` forces the other axis to `auto`,
+     which silently makes this element a scroll container — and a sticky
+     descendant then resolves against *this* box instead of the viewport, so it
+     never sticks. `clip` does the same visual job (nothing spills sideways)
+     without creating the scrollport. */
+  overflow-x: clip;
 }
 
 /* Scale every rem-based element up on phones. Nearly all font sizes across
@@ -38,7 +43,12 @@ body {
   min-height: 100dvh;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  /* clip, not hidden. `overflow-x: hidden` forces the other axis to `auto`,
+     which silently makes this element a scroll container — and a sticky
+     descendant then resolves against *this* box instead of the viewport, so it
+     never sticks. `clip` does the same visual job (nothing spills sideways)
+     without creating the scrollport. */
+  overflow-x: clip;
 }
 
 #root {
