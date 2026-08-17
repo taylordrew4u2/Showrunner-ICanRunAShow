@@ -509,6 +509,10 @@ export default function App() {
   const settingsSaveSeqRef = useRef(0);
   // Session-scoped dismissal of the backup nudge (it returns next visit).
   const [backupNudgeDismissed, setBackupNudgeDismissed] = useState(false);
+  // Whether the install prompt is currently on screen. Both it and the backup
+  // nudge are rows that sit between you and your shows; one of them is worth
+  // that, two are not — so the backup nudge waits its turn.
+  const [installPromptShown, setInstallPromptShown] = useState(false);
 
   // Records a confirmed round-trip to the server. Everything the status pill
   // claims about "saved" traces back to this being called.
@@ -1415,6 +1419,15 @@ export default function App() {
             </div>
           </div>
           <main className="app-main">
+            {/* In the flow, at the top. It used to be a fixed banner floating
+                just above the bottom nav, and on iOS Safari it shows on every
+                visit until dismissed — 121px of it, at z-index 200, sitting
+                over the bottom of the shows list. Cards underneath took the
+                tap and did nothing, which reads as the app being broken. A
+                prompt to install is never worth covering the thing you came
+                to use. */}
+            <InstallPrompt onShownChange={setInstallPromptShown} />
+
             {view === 'list' && (
               <div className="shows-list">
                 <PageHeader
@@ -1424,18 +1437,32 @@ export default function App() {
                     // action, so there's only ever one "New Show" button on
                     // screen at a time.
                     shows.length > 0 ? (
-                      <button className="btn btn--primary btn--sm" onClick={() => setShowForm(true)}>
-                        + New Show
+                      <button
+                        className="btn btn--primary btn--sm page-header__new"
+                        onClick={() => setShowForm(true)}
+                        // The noun below is hidden with display: none at phone
+                        // width, which takes it out of the accessible name as
+                        // well as off the screen — leaving the button called
+                        // "+ New". Named explicitly so what it is called does
+                        // not depend on how wide the screen is.
+                        aria-label="New show"
+                      >
+                        {/* On a phone the filled button measured 153px against
+                            a 98px page title — the loudest object on the
+                            screen was the secondary action. The page is called
+                            "Shows"; the button does not need to say it again,
+                            so the noun drops away at phone width and the
+                            button comes back to the title's size. */}
+                        + New<span className="page-header__new-noun"> Show</span>
                       </button>
                     ) : undefined
                   }
                 />
-                {!backupNudgeDismissed && shouldNudgeBackup(shows.length, lastBackupAt) && (
+                {!backupNudgeDismissed && !installPromptShown
+                  && shouldNudgeBackup(shows.length, lastBackupAt) && (
                   <div className="backup-nudge" role="status">
                     <Icon name="shield" size={16} className="backup-nudge__icon" aria-hidden />
-                    <span className="backup-nudge__text">
-                      Keep your own copy of your shows.
-                    </span>
+                    <span className="backup-nudge__text">Keep your own copy</span>
                     <div className="backup-nudge__actions">
                       <button
                         className="btn btn--secondary btn--sm backup-nudge__btn"
@@ -1461,7 +1488,11 @@ export default function App() {
                       type="search"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search shows…"
+                      // One word, because on a phone this field is ~155px wide
+                      // once the sort and view controls have taken theirs, and
+                      // a placeholder does not ellipsize — the longer version
+                      // rendered as "Search shov".
+                      placeholder="Search"
                       aria-label="Search shows"
                     />
                     {showsView === 'grid' && (
@@ -1658,6 +1689,8 @@ export default function App() {
                   onSaveToRolodex={handleSavePerformerToRolodex}
                   onSaveScheduleTemplate={handleSaveScheduleTemplate}
                   onDeleteScheduleTemplate={handleDeleteScheduleTemplate}
+                  onDuplicate={handleDuplicateShow}
+                  onDelete={handleDeleteShow}
                 />
               </div>
             )}
@@ -1832,7 +1865,6 @@ export default function App() {
             </Modal>
           )}
 
-          <InstallPrompt />
         </div>
       )}
     </>

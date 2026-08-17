@@ -79,9 +79,19 @@
     }
     </script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!-- Inter is served by this app now (see src/fonts.css), not fetched from
+         fonts.googleapis.com on every cold load. Preloaded because it is the
+         one asset the whole visual design rests on, and only the latin subset
+         — the others are behind unicode-range and should stay on demand.
+         crossorigin is required even same-origin: fonts are always fetched in
+         CORS mode, and without it the preload is discarded and fetched twice. -->
+    <link
+      rel="preload"
+      href="/fonts/inter-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
 
   </head>
   <body>
@@ -90,8 +100,14 @@
          page loading. Removed by main.tsx right after React mounts. -->
     <div id="boot-splash" aria-hidden="true">
       <svg width="72" height="72" viewBox="0 0 512 512">
-        <rect width="512" height="512" rx="100" fill="#141416"/>
-        <rect x="2" y="2" width="508" height="508" rx="98" fill="none" stroke="#232326" stroke-width="4"/>
+        <!-- These two are --surface and --border from App.css, written out
+             because this markup renders before any stylesheet loads. They have
+             to be updated by hand when those tokens move: the splash is the
+             first thing a cold launch shows, and an icon a shade off the app
+             behind it is the kind of seam you notice without being able to
+             say why. -->
+        <rect width="512" height="512" rx="100" fill="#191a1d"/>
+        <rect x="2" y="2" width="508" height="508" rx="98" fill="none" stroke="#2b2c31" stroke-width="4"/>
         <path d="M190 160 L190 352 L366 256 Z" fill="#e5194b"/>
       </svg>
     </div>
