@@ -102,7 +102,7 @@ export function Settings({
         <div className="settings__card">
           <h2 className="settings__card-title">Appearance</h2>
           <div className="section-field">
-            <span className="section-field__label">Color Scheme</span>
+            <span className="section-field__label">Color scheme</span>
             <p className="settings__hint">Pick the look that fits you. Applies across the whole app instantly.</p>
             <div className="settings__themes">
               {COLOR_SCHEMES.map((scheme) => (
@@ -132,7 +132,7 @@ export function Settings({
       <div className="settings__card">
         <h2 className="settings__card-title">Your workspace</h2>
         <label className="section-field">
-          <span className="section-field__label">Brand Name</span>
+          <span className="section-field__label">Brand name</span>
           <input
             className="section-field__input"
             value={settings.brandName}
@@ -142,7 +142,7 @@ export function Settings({
         </label>
 
         <div className="section-field">
-          <span className="section-field__label">Show Types</span>
+          <span className="section-field__label">Show types</span>
           <p className="settings__hint">The kinds of shows you produce. Used to tailor your workspace.</p>
           <div className="settings__show-types">
             {/* Saved custom types (e.g. an "Other" value) that aren't in the preset list. */}
@@ -161,7 +161,7 @@ export function Settings({
         </div>
 
         <div className="section-field">
-          <span className="section-field__label">Rolodex Wording</span>
+          <span className="section-field__label">Rolodex wording</span>
           <p className="settings__hint">
             What you call the people you book. Defaults to{' '}
             <strong>{defaultRolodexTerm(settings.showTypes).singular} Rolodex</strong> based on your show types — override it here.
@@ -229,7 +229,7 @@ export function Settings({
         </div>
 
         <label className="section-field">
-          <span className="section-field__label">Brand Budget (Starting Amount)</span>
+          <span className="section-field__label">Brand budget (Starting Amount)</span>
           <input
             className="section-field__input"
             type="number"
