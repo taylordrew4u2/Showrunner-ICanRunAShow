@@ -1730,12 +1730,18 @@ export default function App() {
                     onChange={(e) => setNewComicName(e.target.value)}
                     placeholder={`${rolodexTerm.singular} name`}
                   />
-                  <input
-                    className="rolodex__input"
-                    value={newComicNotes}
-                    onChange={(e) => setNewComicNotes(e.target.value)}
-                    placeholder="Notes (style, contact, socials, etc.)"
-                  />
+                  {/* Only once there is a name to attach them to. A second
+                      full-width box for optional notes sat above the list
+                      permanently, and filing someone in a rolodex is a name —
+                      the notes are something you have or you don't. */}
+                  {newComicName.trim() !== '' && (
+                    <input
+                      className="rolodex__input rolodex__input--notes"
+                      value={newComicNotes}
+                      onChange={(e) => setNewComicNotes(e.target.value)}
+                      placeholder="Notes (style, contact, socials, etc.)"
+                    />
+                  )}
                   <button
                     className="btn btn--secondary"
                     type="submit"

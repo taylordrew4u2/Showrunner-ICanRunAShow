@@ -794,13 +794,40 @@
     flex: 0 0 auto;
   }
 
+  /* Name and Add on one line, the way the lineup's add row does it. Filing
+     someone is a name and a tap; stacking Add under a full-width field made a
+     two-control form read as a three-step one. Notes, when it appears, takes
+     the line below rather than squeezing either of them. */
   .rolodex__form {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
   }
 
+  .rolodex__input--notes {
+    grid-column: 1 / -1;
+  }
+
+  /* Stays a row. Stacked into a column, one rolodex entry ran to ~250px on a
+     phone — a 46px avatar on its own line, then the name, then the notes, then
+     an Edit button under them — so six people took two and a half screens of a
+     list whose whole job is to let you scan for a name.
+
+     Same treatment as a show row: the avatar leads, the name and the note sit
+     beside it on one line each, and the row itself opens the profile. */
   .rolodex__item {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rolodex__item-content {
+    min-width: 0;
+  }
+
+  .rolodex__name,
+  .rolodex__meta,
+  .rolodex__notes {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
