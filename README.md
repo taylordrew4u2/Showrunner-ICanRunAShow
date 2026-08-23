@@ -59,7 +59,7 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These are gener
   <img src="docs/screenshots/schedule.png" width="32%" alt="Run-of-show builder" />
 </p>
 <p align="center">
-  <sub><b>Shows dashboard</b> — status tiles &amp; filters &nbsp;·&nbsp; <b>Show detail</b> — the section accordion &nbsp;·&nbsp; <b>Run-of-show</b> — build the cue list (or import it from a photo, PDF, or text)</sub>
+  <sub><b>Shows dashboard</b> — what's next and what still needs doing &nbsp;·&nbsp; <b>Show detail</b> — the section accordion &nbsp;·&nbsp; <b>Run-of-show</b> — build the cue list (or import it from a photo, PDF, or text)</sub>
 </p>
 
 <p align="center">
@@ -150,7 +150,7 @@ I Can Run A Show handles the full workflow in a single application:
 - **Encryption:** crypto-js (PBKDF2 key derivation, AES)
 - **Schedule extraction:** server-side proxy for image + text parsing; Tesseract.js OCR fallback
 - **PDF:** PDF.js (pdfjs-dist) — client-side extraction
-- **Typography:** Inter (Google Fonts) — loaded via `preconnect` with `font-display: swap` fallback
+- **Typography:** Inter — the variable axis, self-hosted and precached, so the design survives a dead connection (see [Technical Decisions](#technical-decisions))
 - **Styling:** Custom CSS with a comprehensive design-token system — no CSS framework
 - **Hosting:** Vercel (web + serverless functions)
 - **Auth:** Username/password — password-derived key encrypts stored data; no OAuth
@@ -164,6 +164,7 @@ showrunner/
 ├── src/
 │   ├── App.tsx                  # Root — auth, routing, global state
 │   ├── App.css                  # Design tokens + layout system
+│   ├── fonts.css                # Self-hosted Inter (@font-face + unicode-range)
 │   ├── types/index.ts           # All shared TypeScript types
 │   ├── components/
 │   │   ├── Login.tsx
@@ -185,6 +186,8 @@ showrunner/
 │       ├── theme.ts             # Color-scheme tokens + persistence
 │       ├── terminology.ts       # Show-type-aware Rolodex wording
 │       └── social.ts            # Social-handle links + bulk mailto helpers
+├── public/
+│   └── fonts/                   # Inter variable subsets, precached by the service worker
 ├── api/
 │   ├── _lib/                    # libSQL client, schema, auth, credentials (slow-hash), rate-limit, http (server-only)
 │   ├── auth.ts                  # signup / login (salted slow-hash, rate-limited)
@@ -290,7 +293,7 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 ## What I Built
 
 - Designed and built the application from scratch, solo
-- Designed the layout phone-first — a single centered app-style column at every width with a bottom navigation, so it reads as a native phone app on desktop too — no layout library
+- Designed the layout phone-first with no layout library — one set of components whose *shape* changes with width: cards where two fit side by side, iOS-style inset list rows on a phone, and a bottom navigation that becomes a sidebar on a wide screen
 - Built the encryption layer: password-derived AES keys via PBKDF2, all data encrypted before reaching Turso; per-show write is debounced 1s
 - Built the schedule import pipeline: server-side image extraction for photos (via a proxy so the key stays off the client), PDF.js for multi-page PDFs in the browser, and a Tesseract.js OCR + regex fallback for plain text
 - Built the Web Audio engine wrapper for cue music — single AudioContext unlocked on Start, fade-in / fade-out on every cue change, buffer preloading for the current and next cue, and context-resume retry to survive iOS Safari auto-suspension
@@ -302,9 +305,11 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 
 ## Technical Decisions
 
-**No CSS framework.** Every component is styled with hand-written CSS using a comprehensive design token system. Tokens cover type scale (`--text-*`), spacing (`--space-*`), z-index layers (`--z-*`), transition timing (`--duration-*`, `--ease-*`), and a radius scale (`--radius-sm` → `--radius-full`). The palette is a clean black-and-white base with a single blue primary accent — no warm tones, no framework overrides. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer link — are just a `data-theme` swap.
+**No CSS framework.** Every component is styled with hand-written CSS using a comprehensive design token system. Tokens cover type scale (`--text-*`), spacing (`--space-*`), z-index layers (`--z-*`), transition timing (`--duration-*`, `--ease-*`), and a radius scale (`--radius-xs` → `--radius-full`). The palette is a neutral grey base with a single crimson accent — the greys are neutral rather than warm so the crimson is the only colour with a voice. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer link — are just a `data-theme` swap.
 
-**Phone-first, one column everywhere.** Rather than maintain separate desktop and mobile layouts, the app renders as a single centered column (capped width) at every screen size, with a bottom navigation. On a desktop it reads as a focused native phone app instead of a sprawling multi-pane dashboard.
+**Phone-first, and a phone layout on a phone.** One set of components serves every width; the shape changes rather than the code. A show is a *card* where two can sit side by side and each is genuinely its own object, and a *row in an inset grouped list* on a phone, where only one fits per line and the framing was saying nothing — one rounded container, hairlines between rows, a title, a line of detail, a disclosure chevron. At 900px the bottom navigation becomes a sidebar. The rule throughout: chrome that earns its space at one width is not automatically worth it at another.
+
+**The typeface ships with the app.** Inter used to come from `fonts.googleapis.com` on every cold load. The service worker precaches same-origin assets, so a cross-origin font was never in it — offline, or on a venue connection, every weight and metric fell back to a system face. In a PWA whose own copy promises it keeps working when the Wi-Fi drops, the typography was the first thing to go. It is now served from this origin, precached (latin and latin-ext; the other five subsets stay on demand behind `unicode-range`), and loaded as the *variable* axis rather than five static cuts — the codebase asks for `font-weight: 650` in twenty places, and static cuts had been silently rounding every one of them to 700.
 
 **Encryption in the client, not the server.** The server (Turso) stores only ciphertext. The password-derived key never leaves the device. This avoids the need to trust the database host with user data. The trade-off is that there is no password recovery — by design.
 
@@ -359,7 +364,7 @@ Unit tests (Vitest) cover the pure logic: schedule text parsing, cue timing/form
 - Interactive elements have minimum 44px touch targets on touch devices
 - Semantic HTML elements throughout
 - `focus-visible` rings on all buttons and interactive controls (`:focus-visible` outline, not `:focus`, so they only appear on keyboard nav)
-- Keyboard navigation on show cards (Enter/Space to open, arrow keys between actions)
+- Show cards are containers, not controls — a real overlay `<button>` covers each one and leads its tab order ("Open *show*"), so opening a show is an ordinary button rather than a `role="button"` div with key handlers, and nothing is a control nested inside a control
 - ARIA labels on icon-only buttons and dropzone targets
 - iOS auto-zoom prevention — all form fields are ≥ 16px on coarse-pointer devices
 
@@ -373,6 +378,7 @@ A full keyboard-navigation + ARIA + color-contrast audit is a future improvement
 - Unit tests cover the core pure logic; no component or end-to-end tests yet
 - No password recovery — losing the password means losing access to all data
 - Automatic schedule import depends on a server-side API key; without it, only the OCR + regex fallback runs
+- The OCR fallback fetches its worker and language data from a CDN at runtime, so schedule-import-from-photo needs a live connection even though the rest of the app is offline-capable. Lower risk than it sounds — importing a schedule is desk work during planning, not something done in a venue at 7pm — but it is not offline
 - Error handling is present but not exhaustive — some failure states surface as console errors rather than user-facing messages
 - Headshot uploads rely on the browser decoding the image; an iPhone HEIC won't decode outside Safari, so those need converting to JPEG/PNG first
 
@@ -383,6 +389,8 @@ A full keyboard-navigation + ARIA + color-contrast audit is a future improvement
 - Migrate the encryption KDF to native WebCrypto/Argon2 (per-user random salt, OWASP-grade iterations)
 - Add component + end-to-end tests (unit tests are in place)
 - Full accessibility audit (complete ARIA coverage, color contrast, screen-reader testing)
+- Finish the phone pass: search that reveals on pull, and a large title that collapses into the top bar on scroll
+- Bundle the OCR worker so schedule import works offline like the rest of the app
 
 ---
 
