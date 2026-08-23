@@ -33,12 +33,18 @@
     gap: 8px;
 }
 
+/* Sentence case, and quieter than the card title above it — which is what the
+   rest of the app's field labels already do (see .section-field__label in
+   ShowDetail.css); this block was Settings overriding that to shout.
+
+   The result was two stacked uppercase headings for one control — "APPEARANCE"
+   then "COLOR SCHEME" — with the field label set *larger and brighter* than the
+   group heading it sits under. That is the hierarchy upside down: small caps
+   name a group, and the thing inside a group should not outrank it. */
 .settings .section-field__label {
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--text);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
 }
 
 .settings .section-field__input,
@@ -81,11 +87,15 @@
     font-size: 0.9rem;
 }
 
+/* Footnote size. At 0.85rem these sat between a label and its control at
+   nearly the size of the control's own text, so each one read as content
+   rather than as the aside it is — and there are six of them on this page,
+   which is most of why it ran to nearly five phone screens. */
 .settings__hint {
     margin: 0 0 4px;
-    color: var(--text-muted, #667085);
-    font-size: 0.85rem;
-    line-height: 1.45;
+    color: var(--text-soft);
+    font-size: 0.78rem;
+    line-height: 1.4;
 }
 
 .settings__show-types {
