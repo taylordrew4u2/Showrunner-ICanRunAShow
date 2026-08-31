@@ -46,13 +46,16 @@ import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
 import { RolodexProfile } from './components/sections/RolodexProfile';
 import { LiveViewer } from './components/LiveViewer';
+import { Contracts } from './components/Contracts';
+import { SigningPage } from './components/SigningPage';
+import { readSignKeyFromHash } from './utils/contracts';
 import { MusicLibrary } from './components/MusicLibrary';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SyncStatus, type SyncState } from './components/SyncStatus';
 import { Icon } from './components/Icon';
 import './App.css';
 
-type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music';
+type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music' | 'contracts';
 
 /**
  * The app's destinations. Keeping this a plain list — rather than hand-written
@@ -89,6 +92,12 @@ const NAV_ITEMS: {
     label: 'Emails',
     views: ['emails'],
     icon: 'M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884zM18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z',
+  },
+  {
+    id: 'contracts',
+    label: 'Contracts',
+    views: ['contracts'],
+    icon: 'M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7.414A2 2 0 0017.414 6L14 2.586A2 2 0 0012.586 2H4zm1 5a1 1 0 011-1h4a1 1 0 110 2H6a1 1 0 01-1-1zm1 3a1 1 0 100 2h8a1 1 0 100-2H6zm0 4a1 1 0 100 2h8a1 1 0 100-2H6z',
   },
   {
     id: 'expenses',
@@ -1308,6 +1317,12 @@ export default function App() {
   if (viewToken) {
     return <LiveViewer token={viewToken} />;
   }
+  // A contract someone was asked to sign. No account, and none offered — the
+  // token addresses the row and the key rides in the fragment.
+  const signToken = search.get('sign');
+  if (signToken) {
+    return <SigningPage token={signToken} signKey={readSignKeyFromHash(window.location.hash)} />;
+  }
 
   return (
     <>
@@ -1693,6 +1708,18 @@ export default function App() {
                   onDelete={handleDeleteShow}
                 />
               </div>
+            )}
+
+            {view === 'contracts' && session && (
+              <Contracts
+                settings={settings}
+                session={session}
+                onBack={handleBack}
+                onUpdateSettings={(updated) => {
+                  setSettings(updated);
+                  saveSettings(updated);
+                }}
+              />
             )}
 
             {view === 'expenses' && (
