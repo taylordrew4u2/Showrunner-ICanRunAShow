@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { orphanedRefs, settingsMediaRefs, showMediaRefs } from './mediaCleanup';
+import { liveMediaIds, orphanedRefs, settingsMediaRefs, showMediaRefs, unreferencedMedia } from './mediaCleanup';
 import { DEFAULT_SETTINGS } from '../types';
 import type { AppSettings, Show } from '../types';
 
@@ -123,5 +123,54 @@ describe('orphanedRefs', () => {
 
   it('does not ask for the same delete twice', () => {
     expect(orphanedRefs(['media:x#1', 'media:x#1'], [], settings())).toEqual(['media:x#1']);
+  });
+});
+
+describe('liveMediaIds', () => {
+  it('reduces references to the ids the server stores under', () => {
+    const s = show({ performers: [{ id: 'p', name: 'Ada', photo: 'media:abc#4' }] });
+    expect([...liveMediaIds([s], settings())]).toEqual(['abc']);
+  });
+
+  it('sees the same file referenced at a different chunk count as one id', () => {
+    const a = show({ id: 'a', performers: [{ id: 'p', name: 'Ada', photo: 'media:abc#4' }] });
+    const b = show({ id: 'b', performers: [{ id: 'q', name: 'Bo', photo: 'media:abc#9' }] });
+    expect(liveMediaIds([a, b], settings()).size).toBe(1);
+  });
+});
+
+describe('unreferencedMedia', () => {
+  const stored = [
+    { id: 'kept', chunks: 1, bytes: 100 },
+    { id: 'orphan', chunks: 2, bytes: 900 },
+  ];
+
+  it('finds files left behind by a show deleted before cleanup existed', () => {
+    const s = show({ performers: [{ id: 'p', name: 'Ada', photo: 'media:kept#1' }] });
+    expect(unreferencedMedia(stored, [s], settings()).map((m) => m.id)).toEqual(['orphan']);
+  });
+
+  it('keeps everything when every stored file is still in use', () => {
+    const s = show({
+      performers: [{ id: 'p', name: 'Ada', photo: 'media:kept#1', walkOnMusic: 'media:orphan#2' }],
+    });
+    expect(unreferencedMedia(stored, [s], settings())).toEqual([]);
+  });
+
+  it('counts a file the trash still needs as in use', () => {
+    const s = settings({
+      trash: [{
+        id: 't', type: 'show',
+        data: show({ performers: [{ id: 'p', name: 'Ada', photo: 'media:orphan#2' }] }),
+        deletedAt: '',
+      }],
+    });
+    expect(unreferencedMedia(stored, [], s).map((m) => m.id)).toEqual(['kept']);
+  });
+
+  it('reports everything as unused when the account genuinely has no data', () => {
+    // The dangerous case: this is also what a half-loaded client looks like,
+    // which is why the caller must only sweep with complete data in hand.
+    expect(unreferencedMedia(stored, [], settings()).map((m) => m.id)).toEqual(['kept', 'orphan']);
   });
 });

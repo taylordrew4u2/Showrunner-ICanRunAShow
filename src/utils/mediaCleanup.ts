@@ -1,6 +1,8 @@
 import type { AppSettings, Show } from '../types';
-import { isMediaRef } from './mediaStore';
+import { api } from './api';
+import { isMediaRef, parseMediaRef } from './mediaStore';
 import { songOwnsItsMedia } from './musicLibrary';
+import type { SessionCredentials } from './session-vault';
 
 /**
  * Working out which uploaded files are safe to delete.
@@ -86,4 +88,88 @@ export function orphanedRefs(
     seen.add(ref);
     return true;
   });
+}
+
+// ── Reclaiming what earlier versions left behind ─────────────────────────────
+
+/** One stored file, as the server sees it: an id and a size, never content. */
+export interface StoredMedia {
+  id: string;
+  chunks: number;
+  bytes: number;
+}
+
+/** Every media id reachable from the account's current data. */
+export function liveMediaIds(shows: Show[], settings: AppSettings): Set<string> {
+  const ids = new Set<string>();
+  const add = (ref: string) => {
+    const parsed = parseMediaRef(ref);
+    if (parsed) ids.add(parsed.id);
+  };
+  for (const ref of settingsMediaRefs(settings)) add(ref);
+  for (const show of shows) for (const ref of showMediaRefs(show)) add(ref);
+  return ids;
+}
+
+/**
+ * Stored files nothing points at any more.
+ *
+ * These are the ones deletion used to leave behind: a show removed before
+ * anything collected its uploads has no trace left in the account's data, so
+ * its audio is unreachable but still stored.
+ */
+export function unreferencedMedia(
+  stored: StoredMedia[],
+  shows: Show[],
+  settings: AppSettings,
+): StoredMedia[] {
+  const live = liveMediaIds(shows, settings);
+  return stored.filter((item) => !live.has(item.id));
+}
+
+export interface SweepReport {
+  scanned: number;
+  removed: number;
+  bytes: number;
+  failed: number;
+}
+
+/**
+ * Find and delete every stored file the account no longer references.
+ *
+ * The caller must be sure `shows` and `settings` are the account's complete,
+ * loaded data — a half-loaded client would see almost nothing as referenced
+ * and delete almost everything. `dryRun` reports without touching anything,
+ * which is what the screen offering this shows before asking.
+ */
+export async function sweepUnusedMedia(
+  shows: Show[],
+  settings: AppSettings,
+  creds: SessionCredentials,
+  { dryRun = false }: { dryRun?: boolean } = {},
+): Promise<SweepReport> {
+  const auth = { authUserId: creds.userId, authHash: creds.authHash };
+  const { items } = await api.get<{ items: StoredMedia[] }>('/api/media?list=1', auth);
+  const unused = unreferencedMedia(items ?? [], shows, settings);
+  const report: SweepReport = {
+    scanned: items?.length ?? 0,
+    removed: 0,
+    bytes: unused.reduce((sum, item) => sum + (item.bytes || 0), 0),
+    failed: 0,
+  };
+  if (dryRun) {
+    report.removed = unused.length;
+    return report;
+  }
+  for (const item of unused) {
+    try {
+      await api.del(`/api/media?id=${encodeURIComponent(item.id)}`, auth);
+      report.removed += 1;
+    } catch {
+      // One failure should not abandon the rest of the sweep; the file stays
+      // and the next run will find it again.
+      report.failed += 1;
+    }
+  }
+  return report;
 }

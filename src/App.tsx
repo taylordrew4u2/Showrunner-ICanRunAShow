@@ -49,7 +49,7 @@ import { LiveViewer } from './components/LiveViewer';
 import { Contracts } from './components/Contracts';
 import { SigningPage } from './components/SigningPage';
 import { readSignKeyFromHash } from './utils/contracts';
-import { orphanedRefs, showMediaRefs } from './utils/mediaCleanup';
+import { orphanedRefs, showMediaRefs, sweepUnusedMedia, type SweepReport } from './utils/mediaCleanup';
 import { deleteMedia } from './utils/mediaStore';
 import { unpublishAll } from './utils/viewerAudio';
 import { MusicLibrary } from './components/MusicLibrary';
@@ -1014,6 +1014,27 @@ export default function App() {
     if (emptied.length > 0) releaseShowMedia(emptied, shows, updatedSettings);
   }
 
+
+  /**
+   * Sweep files earlier versions of the app left behind.
+   *
+   * Deletion only started freeing uploads recently, so an account carries the
+   * audio and headshots of every show deleted before that — unreachable, and
+   * invisible to anything but a scan like this one. The server cannot do it
+   * alone: what points at a file lives inside the user's encrypted blobs, so
+   * only the browser can tell used from unused.
+   *
+   * Gated on `dataLoaded`, and that gate is the whole safety of it. A client
+   * that failed to load would see no references at all and cheerfully delete
+   * every file in the account.
+   */
+  async function handleSweepMedia(dryRun: boolean): Promise<SweepReport> {
+    if (!session || !dataLoaded.current) {
+      throw new Error('Your shows are still loading. Try again in a moment.');
+    }
+    return sweepUnusedMedia(latestShowsRef.current ?? shows, settings, session, { dryRun });
+  }
+
   function saveSettings(updatedSettings: typeof settings) {
     if (!session) return;
     const currentSession = session;
@@ -1925,6 +1946,7 @@ export default function App() {
                 onRestoreShow={handleRestoreShow}
                 onDeleteForever={handleDeleteForever}
                 onEmptyTrash={handleEmptyTrash}
+                onSweepMedia={loadError ? undefined : handleSweepMedia}
                 onExport={handleDownloadBackup}
                 lastBackupAt={lastBackupAt}
                 lastSavedAt={lastSavedAt}
