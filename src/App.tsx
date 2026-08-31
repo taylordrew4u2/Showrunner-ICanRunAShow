@@ -49,6 +49,9 @@ import { LiveViewer } from './components/LiveViewer';
 import { Contracts } from './components/Contracts';
 import { SigningPage } from './components/SigningPage';
 import { readSignKeyFromHash } from './utils/contracts';
+import { orphanedRefs, showMediaRefs } from './utils/mediaCleanup';
+import { deleteMedia } from './utils/mediaStore';
+import { unpublishAll } from './utils/viewerAudio';
 import { MusicLibrary } from './components/MusicLibrary';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SyncStatus, type SyncState } from './components/SyncStatus';
@@ -918,13 +921,53 @@ export default function App() {
       deletedAt: new Date().toISOString(),
     };
 
+    // Anything pushed past the cap is gone for good — it can no longer be
+    // restored — so its uploads go with it rather than outliving every trace
+    // of the show they belonged to.
+    const nextTrash = [deletedItem, ...(settings.trash || [])];
+    const evicted = nextTrash.slice(MAX_TRASH_ITEMS);
     const updatedSettings = {
       ...settings,
-      trash: [deletedItem, ...(settings.trash || [])].slice(0, MAX_TRASH_ITEMS),
+      trash: nextTrash.slice(0, MAX_TRASH_ITEMS),
     };
     setSettings(updatedSettings);
     if (session) {
       saveSettings(updatedSettings);
+    }
+    if (evicted.length > 0) {
+      releaseShowMedia(evicted.map((t) => t.data), remaining, updatedSettings);
+    }
+  }
+
+
+  /**
+   * Free the uploads a permanently-removed show was the last owner of.
+   *
+   * Called with the state that will exist *after* the removal, so a file that
+   * is about to become unreachable is seen as unreachable. Anything another
+   * show, the music library, the Rolodex or a still-restorable trash item
+   * points at is left alone — sharing is normal here, because duplicating a
+   * show copies its media ids rather than the files.
+   *
+   * Best-effort by design: a failed delete leaves a file behind, which costs
+   * storage, while blocking the removal on it would cost the user the thing
+   * they asked for.
+   */
+  function releaseShowMedia(
+    removed: Show[],
+    remainingShows: Show[],
+    remainingSettings: AppSettings,
+  ) {
+    const candidates = removed.flatMap(showMediaRefs);
+    for (const ref of orphanedRefs(candidates, remainingShows, remainingSettings)) {
+      deleteMedia(ref);
+    }
+    // Soundboard audio published for the viewer link lives under the show's
+    // token rather than in the media store, so it needs its own sweep.
+    if (session) {
+      for (const show of removed) {
+        if (show.viewToken) void unpublishAll(show.viewToken, session).catch(() => {});
+      }
     }
   }
 
@@ -947,12 +990,14 @@ export default function App() {
 
   /** Remove one item from the trash for good. */
   function handleDeleteForever(trashId: string) {
+    const item = (settings.trash || []).find((t) => t.id === trashId);
     const updatedSettings = {
       ...settings,
       trash: (settings.trash || []).filter((t) => t.id !== trashId),
     };
     setSettings(updatedSettings);
     saveSettings(updatedSettings);
+    if (item?.data) releaseShowMedia([item.data], shows, updatedSettings);
   }
 
   function handleUpdateMusicLibrary(musicLibrary: MusicTrack[]) {
@@ -962,9 +1007,11 @@ export default function App() {
   }
 
   function handleEmptyTrash() {
+    const emptied = (settings.trash || []).map((t) => t.data).filter(Boolean);
     const updatedSettings = { ...settings, trash: [] };
     setSettings(updatedSettings);
     saveSettings(updatedSettings);
+    if (emptied.length > 0) releaseShowMedia(emptied, shows, updatedSettings);
   }
 
   function saveSettings(updatedSettings: typeof settings) {
@@ -1153,6 +1200,7 @@ export default function App() {
   function handleRemovePotentialComic(id: string) {
     if (!session) return;
 
+    const removed = settings.potentialComics.find((comic) => comic.id === id);
     const updatedSettings = {
       ...settings,
       potentialComics: settings.potentialComics.filter((comic) => comic.id !== id),
@@ -1160,12 +1208,43 @@ export default function App() {
 
     setSettings(updatedSettings);
     saveSettings(updatedSettings);
+
+    // A Rolodex entry can carry a walk-on track. Filing someone onto a show
+    // copies the reference rather than the audio, so this only frees it when
+    // no show is still using it.
+    if (removed?.walkOnMusic) {
+      for (const ref of orphanedRefs([removed.walkOnMusic], shows, updatedSettings)) {
+        deleteMedia(ref);
+      }
+    }
   }
 
   function handleUpdateShow(updated: Show) {
-    setShows((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    const previous = shows.find((s) => s.id === updated.id);
+    const nextShows = shows.map((s) => (s.id === updated.id ? updated : s));
+    setShows(nextShows);
     setSelectedShow(updated);
     fileNewPerformers(updated);
+
+    // Every edit to a show lands here, which makes this the one place that can
+    // notice an upload going out of use: a cue deleted with its intro music, a
+    // performer dropped from the bill with their headshot, a walk-on replaced
+    // by a different track. Comparing what the show pointed at before with
+    // what it points at now gives that set without every section having to
+    // remember to clean up after itself.
+    //
+    // This treats a reference leaving the show as final, which it is — cue and
+    // lineup edits have no undo. Only whole shows are recoverable, and those
+    // go through the trash, which keeps their references alive until the trash
+    // itself is emptied.
+    if (previous) {
+      const before = showMediaRefs(previous);
+      const after = new Set(showMediaRefs(updated));
+      const dropped = before.filter((ref) => !after.has(ref));
+      if (dropped.length > 0) {
+        for (const ref of orphanedRefs(dropped, nextShows, settings)) deleteMedia(ref);
+      }
+    }
   }
 
   /**
