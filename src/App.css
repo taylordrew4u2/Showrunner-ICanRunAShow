@@ -1020,14 +1020,27 @@
   white-space: nowrap;
 }
 
-/* The bar grew from five tabs to six, and the collision this pinning exists to
-   prevent came back: at 320px a tab is 50px wide and "Expenses" sets 51px, so
-   it ran into "Settings" with no gap at all. A point off the caption buys the
-   margin back — measured at 320px, the widest label goes 51px to 46px inside
-   a 50px tab. The icon and the 44px target are untouched. */
-@media (max-width: 360px) {
+/* Seven tabs is what the bar carries now, and the arithmetic is unforgiving:
+   the tab is a seventh of the width, and the label has to fit inside it. The
+   widest are "Contracts" and "Expenses", measured in the browser at each
+   phone width:
+
+     320px → 44px tab    360px → 48px tab    375px → 50px tab    390px → 53px
+
+   At 11px those labels set 51px, so they overflow every tab up to about
+   400px — including 375px, which is an iPhone SE and far too common to get
+   wrong. At 10px they set 47px, which clears everything down to 360px; below
+   that the tab is 44px and only 9px fits. The icon and the 44px touch target
+   are untouched at every size. */
+@media (max-width: 400px) {
   .bottom-nav__item span {
     font-size: 10px;
+  }
+}
+
+@media (max-width: 350px) {
+  .bottom-nav__item span {
+    font-size: 9px;
   }
 }
 

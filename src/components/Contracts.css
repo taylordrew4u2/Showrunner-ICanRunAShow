@@ -1,0 +1,315 @@
+/* Contracts — a library of agreements, and who has signed which.
+   Built as an inset list like the rest of the phone pass: rows, not cards. */
+
+.contracts__file {
+  display: none;
+}
+
+.contracts__error {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-soft-border);
+  color: var(--danger-text);
+  font-size: var(--text-sm);
+  /* A clipboard failure puts the whole link in here to be copied by hand. */
+  word-break: break-all;
+}
+
+.contracts__empty {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  max-width: 46ch;
+}
+
+/* ── the library ───────────────────────────────────────────────────────── */
+.contracts__list {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.contracts__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 11px 14px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.contracts__item + .contracts__item {
+  box-shadow: inset 0 1px 0 var(--border);
+}
+
+.contracts__item:active {
+  background: var(--surface-strong);
+}
+
+.contracts__item-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.contracts__item-name {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contracts__item-meta {
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* How many people still owe you a signature. The only count worth a badge. */
+.contracts__badge {
+  flex: 0 0 auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.contracts__chevron {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 13px;
+  color: var(--text-soft);
+  opacity: 0.7;
+}
+
+/* ── sending ───────────────────────────────────────────────────────────── */
+.contracts__send {
+  margin-bottom: 22px;
+}
+
+.contracts__send-btn {
+  width: 100%;
+  min-height: 48px;
+}
+
+/* Full width is right on a phone and absurd on a desktop, where the content
+   column is near a thousand pixels wide. */
+@media (min-width: 620px) {
+  .contracts__send-btn {
+    width: auto;
+    min-width: 220px;
+  }
+}
+
+.contracts__picker {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.contracts__picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.contracts__picker-head h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.contracts__manual {
+  display: flex;
+  gap: 8px;
+}
+
+.contracts__manual input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.contracts__picker-label {
+  margin: 16px 0 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.contracts__candidates {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  /* Long rolodexes scroll inside the picker rather than pushing the status
+     list off the bottom of the page. */
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.contracts__candidate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 12px;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text);
+}
+
+.contracts__candidate + .contracts__candidate {
+  box-shadow: inset 0 1px 0 var(--border);
+}
+
+.contracts__candidate:active:not(:disabled) {
+  background: var(--surface-strong);
+}
+
+.contracts__candidate:disabled {
+  opacity: 0.5;
+}
+
+.contracts__candidate-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-base);
+}
+
+.contracts__candidate-hint {
+  flex: 0 0 auto;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+/* ── who has signed ────────────────────────────────────────────────────── */
+.contracts__section-label {
+  margin: 0 0 10px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.contracts__rows {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.contracts__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 14px;
+}
+
+.contracts__row + .contracts__row {
+  box-shadow: inset 0 1px 0 var(--border);
+}
+
+/* Signed or not, said in one glyph so the list reads down the left edge. */
+.contracts__mark {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+}
+
+.contracts__mark--signed {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.contracts__row-who {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.contracts__row-name {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contracts__row-meta {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contracts__status {
+  margin-bottom: 26px;
+}
+
+.contracts__delete {
+  color: var(--danger-text);
+}
+
+/* On a phone the row actions are the first thing to run out of width — let
+   them shrink before the name does. */
+@media (max-width: 619px) {
+  .contracts__row {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .contracts__row .btn {
+    flex: 0 0 auto;
+    padding-inline: 9px;
+  }
+}

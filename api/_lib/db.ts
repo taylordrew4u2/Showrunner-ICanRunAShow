@@ -88,6 +88,28 @@ const DDL: string[] = [
   // rather than a user, because the reader is anonymous. Still ciphertext:
   // it's encrypted under a per-show key that only ever exists in the viewer
   // link's fragment, so the server holds bytes it cannot read.
+  // A contract sent to one person for signature, addressed by an unguessable
+  // token. `payload` and `signature` are both ciphertext under a per-request
+  // key that only ever exists in the link's fragment and in the producer's own
+  // encrypted settings — the server stores the fact that a signature happened
+  // and when, and can read nothing else about it.
+  `CREATE TABLE IF NOT EXISTS sign_request (
+     token      TEXT PRIMARY KEY,
+     payload    TEXT NOT NULL,
+     signature  TEXT,
+     signed_at  TEXT,
+     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+   )`,
+  // The contract PDF itself, re-encrypted under that same per-request key and
+  // chunked exactly like live_media. One document per token.
+  `CREATE TABLE IF NOT EXISTS sign_doc (
+     token      TEXT NOT NULL,
+     seq        INTEGER NOT NULL,
+     total      INTEGER NOT NULL,
+     data       TEXT NOT NULL,
+     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+     PRIMARY KEY (token, seq)
+   )`,
   `CREATE TABLE IF NOT EXISTS live_media (
      token      TEXT NOT NULL,
      id         TEXT NOT NULL,

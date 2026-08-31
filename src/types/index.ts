@@ -286,6 +286,46 @@ export interface DeletedItem {
   deletedAt: string;
 }
 
+/** A contract PDF the producer has uploaded, stored like any other media. */
+export interface Contract {
+  id: string;
+  name: string; // what the producer calls it, e.g. "Performer Agreement"
+  fileRef: string; // `media:` reference to the encrypted PDF
+  fileName: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
+/** What a signer typed and agreed to, once they have signed. */
+export interface SignatureRecord {
+  signedAt: string;
+  typedName: string;
+  /** Hash of the exact bytes the signer was shown, so the copy can be proved. */
+  documentHash: string;
+  userAgent?: string;
+}
+
+/**
+ * One contract sent to one person.
+ *
+ * `key` is the per-request encryption key. It lives here — inside the
+ * producer's own end-to-end encrypted settings — rather than in localStorage,
+ * so a link stays openable from any device they log in on. It is never sent to
+ * the server; the server holds only ciphertext addressed by `token`.
+ */
+export interface SignatureRequest {
+  id: string;
+  token: string;
+  key: string;
+  contractId: string;
+  contractName: string;
+  contactId?: string; // the Rolodex entry this went to, when it came from there
+  signerName: string;
+  signerEmail?: string;
+  sentAt: string;
+  signed?: SignatureRecord;
+}
+
 export interface AppSettings {
   brandName: string;
   producers: Producer[];
@@ -298,6 +338,8 @@ export interface AppSettings {
   emailList: EmailListEntry[]; // collected audience emails — storage only, no sending
   scheduleTemplates: ScheduleTemplate[]; // reusable run-of-show layouts
   musicLibrary: MusicTrack[]; // account-wide DJ tracks, addable to any show
+  contracts: Contract[]; // uploaded agreements, sent out for signature
+  signatureRequests: SignatureRequest[]; // who was sent what, and who has signed
   showTypes: string[]; // kinds of shows this producer makes (set during onboarding)
   onboarded: boolean; // whether the account has completed the welcome onboarding
   rolodexTermSingular?: string; // override for the Rolodex noun, e.g. "Comic" / "Queen"
@@ -316,6 +358,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   emailList: [],
   scheduleTemplates: [],
   musicLibrary: [],
+  contracts: [],
+  signatureRequests: [],
   showTypes: [],
   onboarded: false,
 };
