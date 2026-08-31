@@ -70,11 +70,25 @@ export default async function handler(req: Request): Promise<Response> {
             sql: `SELECT count(*) as cnt FROM user_shows WHERE user_id = ?`,
             args: [userId],
           });
-          if (Number(existing.rows[0][0]) > 0) {
+          const existingCount = Number(existing.rows[0][0]);
+          if (existingCount > 0) {
             await db.execute({
               sql: `INSERT INTO user_shows_backup (id, user_id, encrypted_data)
                     SELECT id, user_id, encrypted_data FROM user_shows WHERE user_id = ?`,
               args: [userId],
+            });
+            // Prune to the same three-deep window the unchunked path keeps.
+            // Without this the backup table grew by a full copy of every show
+            // on every save and was never trimmed — and chunked sync is what
+            // large accounts use, so the biggest libraries were the ones
+            // growing without bound.
+            await db.execute({
+              sql: `DELETE FROM user_shows_backup
+                    WHERE user_id = ? AND rowid NOT IN (
+                      SELECT rowid FROM user_shows_backup
+                      WHERE user_id = ? ORDER BY backed_up_at DESC LIMIT ?
+                    )`,
+              args: [userId, userId, existingCount * 3],
             });
           }
         }

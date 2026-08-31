@@ -27,6 +27,19 @@ interface SettingsProps {
   onRestoreShow?: (trashId: string) => void;
   onDeleteForever?: (trashId: string) => void;
   onEmptyTrash?: () => void;
+  /**
+   * Scan for stored files nothing points at any more, and optionally delete
+   * them. Absent when the account's data hasn't loaded — sweeping against a
+   * half-loaded client would delete everything.
+   */
+  onSweepMedia?: (dryRun: boolean) => Promise<{ scanned: number; removed: number; bytes: number; failed: number }>;
+}
+
+/** Bytes as something a person reads, for the storage card. */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function Settings({
@@ -44,9 +57,16 @@ export function Settings({
   onRestoreShow,
   onDeleteForever,
   onEmptyTrash,
+  onSweepMedia,
 }: SettingsProps) {
   const { confirm, confirmDialog } = useConfirm();
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
+  const [sweepBusy, setSweepBusy] = useState(false);
+  const [sweepError, setSweepError] = useState<string | null>(null);
+  type Sweep = { scanned: number; removed: number; bytes: number; failed: number };
+  // What the scan found, then what the cleanup actually did.
+  const [sweepFound, setSweepFound] = useState<Sweep | null>(null);
+  const [sweepDone, setSweepDone] = useState<Sweep | null>(null);
   const [newProducerName, setNewProducerName] = useState('');
   const [newProducerRole, setNewProducerRole] = useState('');
 
@@ -312,6 +332,82 @@ export function Settings({
                   Empty trash
                 </button>
               )}
+            </>
+          )}
+        </div>
+      )}
+
+
+      {onSweepMedia && (
+        <div className="settings__card">
+          <h2 className="settings__card-title">Storage</h2>
+          <p className="settings__hint">
+            Deleting a show now removes its photos and audio too. Shows deleted
+            before that left their files behind, where nothing can reach them.
+            This finds those and clears them out.
+          </p>
+
+          {sweepError && <p className="settings__sweep-error" role="alert">{sweepError}</p>}
+
+          {sweepFound === null ? (
+            <button
+              className="btn btn--secondary btn--sm"
+              disabled={sweepBusy}
+              onClick={async () => {
+                setSweepBusy(true);
+                setSweepError(null);
+                try {
+                  const report = await onSweepMedia(true);
+                  setSweepFound(report);
+                } catch (err) {
+                  setSweepError(err instanceof Error ? err.message : 'That scan did not finish.');
+                } finally {
+                  setSweepBusy(false);
+                }
+              }}
+            >
+              {sweepBusy ? 'Scanning\u2026' : 'Find unused files'}
+            </button>
+          ) : sweepDone ? (
+            <p className="settings__sweep-result">
+              {sweepDone.removed === 0
+                ? 'Nothing to clear \u2014 every stored file is in use.'
+                : `Cleared ${sweepDone.removed} file${sweepDone.removed === 1 ? '' : 's'}, freeing ${formatBytes(sweepDone.bytes)}.`}
+              {sweepDone.failed > 0 && ` ${sweepDone.failed} could not be removed; try again later.`}
+            </p>
+          ) : sweepFound.removed === 0 ? (
+            <p className="settings__sweep-result">
+              Nothing to clear \u2014 all {sweepFound.scanned} stored file
+              {sweepFound.scanned === 1 ? '' : 's'} are in use.
+            </p>
+          ) : (
+            <>
+              <p className="settings__sweep-result">
+                {sweepFound.removed} unused file{sweepFound.removed === 1 ? '' : 's'},
+                {' '}{formatBytes(sweepFound.bytes)} of {sweepFound.scanned} stored.
+              </p>
+              <button
+                className="btn btn--danger btn--sm"
+                disabled={sweepBusy}
+                onClick={async () => {
+                  const ok = await confirm({
+                    message: `Delete ${sweepFound.removed} unused file(s) and free ${formatBytes(sweepFound.bytes)}? Nothing in your shows points at them, and this can't be undone.`,
+                    confirmLabel: 'Delete them',
+                  });
+                  if (!ok) return;
+                  setSweepBusy(true);
+                  setSweepError(null);
+                  try {
+                    setSweepDone(await onSweepMedia(false));
+                  } catch (err) {
+                    setSweepError(err instanceof Error ? err.message : 'That cleanup did not finish.');
+                  } finally {
+                    setSweepBusy(false);
+                  }
+                }}
+              >
+                {sweepBusy ? 'Clearing\u2026' : 'Delete them'}
+              </button>
             </>
           )}
         </div>

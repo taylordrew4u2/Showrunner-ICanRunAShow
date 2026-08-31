@@ -413,3 +413,21 @@
 .settings__backup-btn {
     align-self: flex-start;
 }
+
+/* Storage — clearing files earlier versions left behind. */
+.settings__sweep-result {
+  margin: 12px 0;
+  font-size: var(--text-base);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings__sweep-error {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-soft-border);
+  color: var(--danger-text);
+  font-size: var(--text-sm);
+}

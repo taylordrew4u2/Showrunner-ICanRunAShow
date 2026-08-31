@@ -61,6 +61,29 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (req.method === 'GET') {
       const url = new URL(req.url);
+
+      // ?list=1 — every file this account is storing, ids and sizes only.
+      //
+      // The server cannot tell which of these is still in use: what points at
+      // them lives inside the user's encrypted blobs, which only their browser
+      // can read. So the sweep is theirs to run — this hands them the
+      // inventory, they work out what is unreachable, and they delete it.
+      if (url.searchParams.get('list')) {
+        const result = await db.execute({
+          sql: `SELECT id, COUNT(*) AS chunks, SUM(LENGTH(data)) AS bytes
+                  FROM user_media
+                 WHERE user_id = ?
+                 GROUP BY id`,
+          args: [userId],
+        });
+        const items = result.rows.map((row) => ({
+          id: String(row[0]),
+          chunks: Number(row[1]),
+          bytes: Number(row[2]),
+        }));
+        return json({ items });
+      }
+
       const id = url.searchParams.get('id');
       const seq = Number(url.searchParams.get('seq'));
       if (!id || !Number.isInteger(seq) || seq < 0) return json({ error: 'bad_request' }, 400);
