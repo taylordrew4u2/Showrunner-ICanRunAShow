@@ -1,0 +1,199 @@
+/* The signing page. Opened by someone who has never seen this app, on a phone,
+   probably from a text message. It asks for one thing and explains itself. */
+
+.signing {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.signing--message {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.signing__card {
+  max-width: 34rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.signing__card h1 {
+  margin: 0 0 10px;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.signing__card p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.signing__bar {
+  flex: 0 0 auto;
+  padding: 14px 18px;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.signing__from {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.signing__title {
+  margin: 3px 0 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.signing__main {
+  flex: 1 1 auto;
+  min-height: 240px;
+  display: flex;
+}
+
+.signing__doc {
+  flex: 1 1 auto;
+  width: 100%;
+  border: 0;
+  background: var(--surface-strong);
+}
+
+.signing__doc-fallback {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.signing__error {
+  margin: 16px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-soft-border);
+  color: var(--danger-text);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* The panel is the only thing pinned — on a long contract the document
+   scrolls behind it and the action stays reachable. */
+.signing__panel {
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 16px 18px calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.signing__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.signing__field span {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.signing__field input {
+  width: 100%;
+  /* 17px keeps iOS from zooming the page when the field takes focus. */
+  font-size: 17px;
+  min-height: 48px;
+}
+
+.signing__agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.signing__agree input {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.signing__cta {
+  width: 100%;
+  min-height: 52px;
+  font-size: var(--text-md);
+}
+
+.signing__note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.signing__panel--done h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--success-text);
+}
+
+.signing__done-line {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.signing__ref {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+/* Room to read on a desktop, where these also get opened. */
+@media (min-width: 720px) {
+  .signing__panel {
+    align-self: center;
+    width: 100%;
+    max-width: 42rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .signing__bar {
+    text-align: center;
+  }
+}
