@@ -847,17 +847,17 @@ export default function App() {
     }
   }
 
-  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes'>) {
+  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt'>) {
     const newShow: Show = {
       ...data,
       id: generateId(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      // `scenes` is deliberately left undefined. Scenes & Segments is the one
-      // opt-in section, and an undefined list is what marks a show as never
-      // having asked for it — seeding an empty array here made every new show
-      // read as opted in. Everything that reads scenes already does so through
-      // `?? []`, so nothing needs the array to exist up front.
+      // `scenes` comes through from the form and is undefined unless its box
+      // was ticked. An undefined list is what marks a show as never having
+      // asked for the section; seeding an empty array unconditionally made
+      // every new show read as opted in, which is why it is the form's choice
+      // to make and not this function's.
     };
     setShows((prev) => [newShow, ...prev]);
     setShowForm(false);

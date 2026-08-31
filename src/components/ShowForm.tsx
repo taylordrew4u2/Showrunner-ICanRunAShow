@@ -1,23 +1,25 @@
 import { useState } from 'react';
+import { DEFAULT_SECTIONS, SELECTABLE_SECTIONS, hiddenFromSelected } from '../utils/showBlocks';
 import type { Show, ShowStatus, SectionKey } from '../types';
 import './ShowForm.css';
 
 interface ShowFormProps {
   initial?: Partial<Show>;
-  onSave: (show: Omit<Show, 'id' | 'createdAt' | 'updatedAt' | 'scenes'>) => void;
+  onSave: (show: Omit<Show, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onCancel: () => void;
 }
 
-// Optional content blocks the user can choose to include when creating a show.
-// "Basic Info" is always present, so it isn't listed here.
-const SELECTABLE_BLOCKS: { key: SectionKey; label: string }[] = [
-  { key: 'performers', label: 'Performers' },
-  { key: 'artists', label: 'Artists' },
-  { key: 'schedule', label: 'Schedule' },
-  { key: 'dj', label: 'DJ Music' },
-  { key: 'staff', label: 'Staff' },
-  { key: 'vendors', label: 'Vendors' },
-];
+// What each selectable section is called on this form. The list itself, and
+// what a new show starts with, live in utils/showBlocks.
+const BLOCK_LABELS: Record<string, string> = {
+  performers: 'Performers',
+  artists: 'Artists',
+  schedule: 'Schedule',
+  dj: 'DJ Music',
+  staff: 'Staff',
+  vendors: 'Vendors',
+  scenes: 'Scenes & Segments',
+};
 
 export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
   const [name, setName] = useState(initial?.name ?? '');
@@ -32,13 +34,21 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
     initial?.performerTarget ? String(initial.performerTarget) : '',
   );
   const [selectedBlocks, setSelectedBlocks] = useState<Set<SectionKey>>(() => {
-    // New show: start with nothing selected so the producer opts into exactly
-    // the sections they want — a show that only checks "Performers" gets only
-    // the performers section. Editing an existing show: reflect its current
+    // New show: the sections a show almost always needs, so it opens on
+    // something you can work on. Editing an existing show: reflect its current
     // sections so the boxes match what's already there.
-    if (!initial?.id) return new Set<SectionKey>();
+    if (!initial?.id) return new Set<SectionKey>(DEFAULT_SECTIONS);
     const hidden = new Set(initial.hiddenSections ?? []);
-    return new Set(SELECTABLE_BLOCKS.map(b => b.key).filter(k => !hidden.has(k)));
+    return new Set(
+      SELECTABLE_SECTIONS.filter(k => {
+        if (hidden.has(k)) return false;
+        // Scenes is the one section that hides on "never used" rather than on
+        // hiddenSections, so reading hiddenSections alone would show it ticked
+        // on every show that has never had one — and ticked means it appears.
+        if (k === 'scenes') return initial.scenes !== undefined;
+        return true;
+      }),
+    );
   });
 
   function toggleBlock(key: SectionKey) {
@@ -54,9 +64,7 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
     e.preventDefault();
     // Only name + date are required up front; venue/time can be filled in later.
     if (!name.trim() || !date.trim()) return;
-    const hiddenSections = SELECTABLE_BLOCKS
-      .map(b => b.key)
-      .filter(key => !selectedBlocks.has(key));
+    const hiddenSections = hiddenFromSelected(selectedBlocks);
     const target = Math.floor(Number(performerTarget.trim()));
     onSave({
       name: name.trim(),
@@ -75,6 +83,10 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
       staff: initial?.staff ?? [],
       vendors: initial?.vendors ?? [],
       expenses: initial?.expenses ?? [],
+      // An array — even an empty one — is what makes the section appear;
+      // `undefined` means "never used". Unticking only hides it, via
+      // hiddenSections, so scenes already written down survive.
+      scenes: selectedBlocks.has('scenes') ? (initial?.scenes ?? []) : initial?.scenes,
       hiddenSections,
     });
   }
@@ -167,24 +179,23 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
       <fieldset className="show-form__blocks">
         <legend className="show-form__blocks-legend">Show Blocks</legend>
         <p className="show-form__blocks-hint">
-          Pick only the sections this show needs — check nothing and you'll get a
-          bare show. You can add any of these later from the show page.
+          Every one of these can be turned on or off later from the show page.
         </p>
         <div className="show-form__blocks-grid">
-          {SELECTABLE_BLOCKS.map(block => {
-            const checked = selectedBlocks.has(block.key);
+          {SELECTABLE_SECTIONS.map(key => {
+            const checked = selectedBlocks.has(key);
             return (
               <label
-                key={block.key}
+                key={key}
                 className={`show-form__block${checked ? ' show-form__block--on' : ''}`}
               >
                 <input
                   type="checkbox"
                   className="show-form__block-checkbox"
                   checked={checked}
-                  onChange={() => toggleBlock(block.key)}
+                  onChange={() => toggleBlock(key)}
                 />
-                <span>{block.label}</span>
+                <span>{BLOCK_LABELS[key] ?? key}</span>
               </label>
             );
           })}
