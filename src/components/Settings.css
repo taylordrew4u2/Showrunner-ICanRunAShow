@@ -431,3 +431,78 @@
   color: var(--danger-text);
   font-size: var(--text-sm);
 }
+
+/* Disclosures: the set-once parts of Settings, folded so the page can be
+   scanned. Everything inside stays one tap from where it always was. */
+.settings__details {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.settings__details-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 2px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+  padding-right: 26px;
+}
+
+.settings__details-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A chevron that turns, rather than the platform's default triangle. */
+.settings__details-summary::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-soft);
+  border-bottom: 2px solid var(--text-soft);
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.settings__details[open] > .settings__details-summary::after {
+  transform: translateY(-30%) rotate(-135deg);
+}
+
+.settings__details-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings__details-hint {
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.settings__details-body {
+  padding-top: 4px;
+}
+
+.settings__data-line {
+  margin-bottom: 4px;
+}
+
+/* Stage remote */
+.settings__remote-state {
+  margin: 10px 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings__remote-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}

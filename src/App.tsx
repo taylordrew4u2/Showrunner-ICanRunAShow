@@ -48,17 +48,18 @@ import { RolodexProfile } from './components/sections/RolodexProfile';
 import { LiveViewer } from './components/LiveViewer';
 import { Contracts } from './components/Contracts';
 import { SigningPage } from './components/SigningPage';
-import { readSignKeyFromHash } from './utils/contracts';
+import { readSignKeyFromHash, signatureSummary } from './utils/contracts';
 import { orphanedRefs, showMediaRefs, sweepUnusedMedia, type SweepReport } from './utils/mediaCleanup';
 import { deleteMedia } from './utils/mediaStore';
 import { unpublishAll } from './utils/viewerAudio';
 import { MusicLibrary } from './components/MusicLibrary';
 import { InstallPrompt } from './components/InstallPrompt';
+import { MorePage } from './components/MorePage';
 import { SyncStatus, type SyncState } from './components/SyncStatus';
 import { Icon } from './components/Icon';
 import './App.css';
 
-type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music' | 'contracts';
+type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music' | 'contracts' | 'more';
 
 /**
  * The app's destinations. Keeping this a plain list — rather than hand-written
@@ -91,22 +92,10 @@ const NAV_ITEMS: {
     icon: 'M18 3a1 1 0 00-1.196-.98l-8 1.6A1 1 0 008 4.6v6.735A3.5 3.5 0 1010 14V8.42l6-1.2v3.115A3.5 3.5 0 1018 13V3z',
   },
   {
-    id: 'emails',
-    label: 'Emails',
-    views: ['emails'],
-    icon: 'M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884zM18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z',
-  },
-  {
-    id: 'contracts',
-    label: 'Contracts',
-    views: ['contracts'],
-    icon: 'M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7.414A2 2 0 0017.414 6L14 2.586A2 2 0 0012.586 2H4zm1 5a1 1 0 011-1h4a1 1 0 110 2H6a1 1 0 01-1-1zm1 3a1 1 0 100 2h8a1 1 0 100-2H6zm0 4a1 1 0 100 2h8a1 1 0 100-2H6z',
-  },
-  {
-    id: 'expenses',
-    label: 'Expenses',
-    views: ['expenses'],
-    icon: 'M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z',
+    id: 'more',
+    label: 'More',
+    views: ['more', 'contracts', 'emails', 'expenses'],
+    icon: 'M5 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM19 10a2 2 0 11-4 0 2 2 0 014 0z',
   },
   {
     id: 'settings',
@@ -1722,13 +1711,45 @@ export default function App() {
               />
             )}
 
+            {view === 'more' && (
+              <MorePage
+                onBack={handleBack}
+                destinations={[
+                  {
+                    key: 'contracts',
+                    label: 'Contracts',
+                    description: signatureSummary(settings.signatureRequests ?? []).waiting > 0
+                      ? `${signatureSummary(settings.signatureRequests ?? []).waiting} waiting to be signed`
+                      : 'Agreements to be signed',
+                    icon: 'file',
+                    badge: signatureSummary(settings.signatureRequests ?? []).waiting || undefined,
+                    onSelect: () => setView('contracts'),
+                  },
+                  {
+                    key: 'emails',
+                    label: 'Email list',
+                    description: 'Addresses you collect at shows',
+                    icon: 'mail',
+                    onSelect: () => setView('emails'),
+                  },
+                  {
+                    key: 'expenses',
+                    label: 'Expenses',
+                    description: 'What the shows are costing you',
+                    icon: 'dollar',
+                    onSelect: () => setView('expenses'),
+                  },
+                ]}
+              />
+            )}
+
             {view === 'emails' && (
               <div className="email-list-page">
                 <PageHeader
                   title="Email List"
                   subtitle="Emails you collect at shows, kept in one place. Nothing is ever sent from here — they're only stored."
-                  onBack={handleBack}
-                  backLabel="Shows"
+                  onBack={() => setView('more')}
+                  backLabel="More"
                 />
 
                 <form
@@ -1814,7 +1835,8 @@ export default function App() {
               <Contracts
                 settings={settings}
                 session={session}
-                onBack={handleBack}
+                onBack={() => setView('more')}
+                backLabel="More"
                 onUpdateSettings={(updated) => {
                   setSettings(updated);
                   saveSettings(updated);
@@ -1825,7 +1847,8 @@ export default function App() {
             {view === 'expenses' && (
               <Expenses
                 settings={settings}
-                onBack={handleBack}
+                onBack={() => setView('more')}
+                backLabel="More"
                 onUpdateSettings={(updated) => {
                   // Persist through the retrying saver (with local backup),
                   // and stay on this page — handleSaveSettings is the Settings

@@ -24,6 +24,8 @@ interface ContractsProps {
   settings: AppSettings;
   session: SessionCredentials;
   onBack: () => void;
+  /** What the back control returns to. */
+  backLabel?: string;
   onUpdateSettings: (settings: AppSettings) => void;
 }
 
@@ -47,7 +49,7 @@ function fmtSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function Contracts({ settings, session, onBack, onUpdateSettings }: ContractsProps) {
+export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUpdateSettings }: ContractsProps) {
   const { confirm, confirmDialog } = useConfirm();
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -350,7 +352,7 @@ export function Contracts({ settings, session, onBack, onUpdateSettings }: Contr
             : `${summary.signed} signed · ${summary.waiting} waiting`
         }
         onBack={onBack}
-        backLabel="Shows"
+        backLabel={backLabel}
         actions={
           <button
             className="btn btn--primary btn--sm"

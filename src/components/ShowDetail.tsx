@@ -1139,6 +1139,7 @@ export function ShowDetail({
           performers={show.performers}
           djSongs={runnableDJSongs}
           libraryCount={(settings.musicLibrary ?? []).length}
+          remoteKey={settings.remoteMusicKey}
           onStart={() => {
             if (show.status !== 'completed' && show.status !== 'in-progress') {
               onUpdate({ ...show, status: 'in-progress' });
