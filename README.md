@@ -133,6 +133,16 @@ I Can Run A Show handles the full workflow in a single application:
 - Per-cue countdown, drift indicator, keyboard navigation, and per-cue duration adjustment
 - Public read-only viewer URL with live on-stage / up-next state
 
+**Paperwork**
+- Upload a contract, send it to anyone in the Rolodex, and watch the list go from waiting to signed
+- The signer needs no account: they open a link, read the PDF, type their name and agree — and the server never holds a key that could read any of it
+- Every signature records the typed name, the timestamp, and a SHA-256 of the exact bytes shown, so the copy on file can be shown to be the copy agreed to
+
+**Running it from the stage**
+- The operator is usually on the bill too. A Bluetooth clicker paired to the laptop starts and stops the music from anywhere in the room, with no network of any kind involved
+- The app learns the button rather than guessing: clickers disagree wildly about what they send, so Settings listens once and remembers. Volume keys are refused with an explanation rather than accepted and silently broken
+- Real fullscreen and a screen wake lock for the length of the show, because a remote can only reach an app the machine is still running and still looking at
+
 **Platform**
 - PWA (installable, offline shell)
 - Client-side AES encryption with PBKDF2-derived keys — the server/DB only ever store ciphertext, and the database is reached through server API routes (the DB credential never ships to the browser)
@@ -172,6 +182,9 @@ showrunner/
 │   │   ├── ShowDetail.tsx       # Per-show management hub
 │   │   ├── RunShow.tsx          # Full-screen live mode
 │   │   ├── LiveViewer.tsx       # Public read-only viewer (?view=…)
+│   │   ├── Contracts.tsx        # Contract library + send-for-signature
+│   │   ├── SigningPage.tsx      # Public signing page (?sign=…), no account
+│   │   ├── MorePage.tsx         # Hub for the between-shows pages
 │   │   ├── Settings.tsx
 │   │   ├── Expenses.tsx
 │   │   └── sections/            # Per-section components inside ShowDetail
@@ -183,6 +196,10 @@ showrunner/
 │       ├── audioEngine.ts       # Web Audio wrapper with fade + preload
 │       ├── pdfExport.ts         # Client-side PDF generation
 │       ├── liveView.ts          # Live state pub/sub (via the API)
+│       ├── contracts.ts         # Per-request keys, signing links, doc hashing
+│       ├── mediaCleanup.ts      # Which uploads are still reachable, and the sweep
+│       ├── showBlocks.ts        # Which sections a new show starts with
+│       ├── stageRemote.ts       # Learning a Bluetooth clicker's key
 │       ├── theme.ts             # Color-scheme tokens + persistence
 │       ├── terminology.ts       # Show-type-aware Rolodex wording
 │       └── social.ts            # Social-handle links + bulk mailto helpers
@@ -194,8 +211,17 @@ showrunner/
 │   ├── shows.ts                 # encrypted show blobs (load / save)
 │   ├── settings.ts             # encrypted settings blob
 │   ├── live.ts                  # live-viewer state
+│   ├── media.ts                 # chunked encrypted uploads (+ inventory for the sweep)
+│   ├── sign.ts                  # signature requests — sign-once enforced in SQL
+│   ├── sign-doc.ts              # the contract itself, ciphertext under a per-request key
 │   └── ai-extract.ts            # server-side extraction proxy (key never in the bundle)
-└── .github/workflows/ci.yml     # Lint + tests + type-check + build on push/PR
+├── e2e/                         # Playwright: desktop + phone, against a faked edge API
+│   ├── support/fake-api.ts      # In-memory stand-in, including the sign-once rule
+│   ├── critical-path.spec.ts
+│   ├── contracts.spec.ts
+│   ├── storage.spec.ts
+│   └── navigation.spec.ts
+└── .github/workflows/ci.yml     # Lint + type-check + build + unit tests, then E2E
 ```
 
 **App flow:**
@@ -204,27 +230,36 @@ User signs in → the browser derives the encryption key + a password hash via P
 
 ```mermaid
 flowchart LR
-    subgraph Browser["🔒 Browser (all crypto here)"]
+    subgraph Browser["Browser — all crypto happens here"]
         UI["React app"]
-        Key["PBKDF2 key + hash<br/>(never leave device)"]
+        Key["PBKDF2 key + auth hash<br/>never leave the device"]
         UI <--> Key
     end
 
     subgraph Edge["Vercel Edge / Serverless (/api)"]
         Auth["/api/auth"]
-        Data["/api/shows · /api/settings"]
+        Data["/api/shows · /api/settings · /api/media"]
         Live["/api/live"]
+        Share["/api/sign · /api/sign-doc"]
     end
 
-    DB[("Turso<br/>libSQL · ciphertext only")]
-    Viewer["📺 Public viewer link<br/>(?view=…)"]
+    DB[("Turso · libSQL<br/>ciphertext only")]
+    Viewer["Public viewer link"]
+    Signer["Signing link"]
+    ShareKey["Per-share key<br/>lives only in the link fragment,<br/>which browsers never transmit"]
 
-    UI -- "encrypt → ciphertext" --> Data
-    UI -- "user id + hash" --> Auth
+    UI -- "encrypt, then send ciphertext" --> Data
+    UI -- "derived id + hash" --> Auth
+    UI -- "publishes live state" --> Live
+    UI -- "re-encrypts under a per-share key" --> Share
     Data <--> DB
     Auth <--> DB
-    UI -- "Run Show publishes live state" --> Live
+    Live <--> DB
+    Share <--> DB
     Live --> Viewer
+    Share --> Signer
+    ShareKey -.-> Viewer
+    ShareKey -.-> Signer
 ```
 
 ---
@@ -244,6 +279,18 @@ Production build:
 ```bash
 npm run build
 ```
+
+### Tests
+
+```bash
+npm test                # 439 unit tests (Vitest)
+npm run e2e:install     # once: download the Chromium build Playwright pins
+npm run e2e             # 14 end-to-end tests (desktop + phone)
+```
+
+The end-to-end suite builds and serves the app itself, so there is no dev
+server to start first, and it needs no database or API keys — it runs against
+an in-memory stand-in for the edge API.
 
 ### Environment Variables
 
@@ -313,6 +360,10 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 
 **Encryption in the client, not the server.** The server (Turso) stores only ciphertext. The password-derived key never leaves the device. This avoids the need to trust the database host with user data. The trade-off is that there is no password recovery — by design.
 
+**Letting a stranger read what the server cannot.** A signing link has to work for someone with no account, on a phone, from a text message — while the server stays unable to read a producer's data. The answer already existed in the codebase, for publishing soundboard audio to anonymous live viewers: the browser re-encrypts under a key generated for that one share, and the key travels in the URL *fragment*, which browsers never put in a request line or a `Referer`. So `/api/sign` and `/api/sign-doc` store ciphertext addressed by an unguessable token, plus one plaintext column — `signed_at` — which exists because `UPDATE … WHERE signed_at IS NULL` is what makes a request signable exactly once, and a replayed or racing POST harmless. The end-to-end suite asserts the property rather than describing it: across a full send-and-sign, no request carries the key, and no server-side row contains the signer's name.
+
+**Deleting an upload is a reachability question, not a delete.** Uploads live as encrypted chunks, and for a long time nothing collected them — a deleted show left its walk-on tracks and headshots on the server for good. The naive fix loses data, because a reference is not owned by whoever holds it: duplicating a show `structuredClone`s it, so the copy carries the *same* media ids; a library track appears in every show's DJ list while the audio belongs to the library; and a show in the trash is still restorable. So the collector subtracts everything still reachable — from any remaining show, the library, the Rolodex, contracts, and the trash — and deletes only the remainder. Reclaiming what older builds already stranded is split across the trust boundary out of necessity: the server can list what it stores but cannot know what is in use, so it hands over the inventory and the browser decides. That sweep is gated on the account having actually loaded, because a client that failed to load would judge every file unused.
+
 **Import pipeline with fallback.** Schedule import works without an API key by falling back to OCR + regex matching for common time formats. This makes the feature usable in environments where the extraction key is not configured or hits a rate limit.
 
 **Web Audio API for cue music.** HTMLAudioElement was unreliable across iOS Safari's autoplay rules after auto-advance / pre-roll. The Web Audio path unlocks a single AudioContext on the Start tap, preloads buffers, and explicitly resumes the context on every play — this is the only path that works reliably in the field.
@@ -334,6 +385,12 @@ If the Turso write fails during auto-save, the in-memory state must not be overw
 **Per-row form edits without lagging the whole schedule.**
 The schedule editor lived in a single component and re-rendered every cue row on every keystroke in any cue's edit input, plus the music-duration field propagated each keystroke up to the App root. The fix extracted `CueRow` as `React.memo`'d with its own draft state and stable parent callbacks via refs — non-editing rows now skip re-render entirely.
 
+**Two defects that only a real browser could find.**
+Both looked correct on the page. The signing route stored its ciphertext through `JSON.stringify` — right in `/api/live`, whose payload is an object, and wrong where the client sends an already-encrypted *string*: it came back quoted and would not decrypt, so no signing link would ever have opened. And the tab bar's seventh label overflowed its tab: measured at each width, "Contracts" and "Expenses" set 51px inside tabs of 44–50px, colliding at 320px *and* at 375px — an iPhone SE. Neither is visible in a diff; both fell out of driving the built app and measuring it.
+
+**A new show that opened on nothing.**
+Reported as "you can't even add or change scenes or segments". It was not a broken schedule — it was an empty one. Every box in the show-blocks picker started unticked, so a show created the ordinary way opened on a single "Basic Info" row and a ghost button, with no lineup and no run-of-show. The add and edit paths had been working the whole time; there was simply no section to use them in. New shows now start with the two the app exists for, and the defaults live in a tested module so they cannot quietly go back to empty.
+
 **Routing serverless functions alongside an SPA.**
 The original `vercel.json` rewrite used a negative-lookahead pattern that didn't actually exclude `/api/*` in practice — Vercel served `index.html` for the function path. Switched to an explicit two-rule form so the function gets the request.
 
@@ -341,7 +398,22 @@ The original `vercel.json` rewrite used a negative-lookahead pattern that didn't
 
 ## Testing
 
-Unit tests (Vitest) cover the pure logic: schedule text parsing, cue timing/formatting, performer cover-sync, encryption round-trip, and ID generation. Run them with `npm test`. CI (GitHub Actions) runs lint + type-check + build + tests on every push and PR. Component/E2E tests are not yet implemented; manual verification covers the UI flows.
+**439 unit tests** (Vitest) cover the pure logic: schedule parsing, cue timing, performer cover-sync, the encryption round-trip, soundboard construction, media reachability, and the section defaults. `npm test`.
+
+**14 end-to-end tests** (Playwright) drive the built app in a real browser, across a desktop project and a phone project. `npm run e2e` — it builds, serves and tears down on its own, so there is nothing to start first.
+
+They cover what would ruin a show night, and the properties that are worth asserting rather than describing:
+
+| Spec | What it holds to account |
+| --- | --- |
+| `critical-path` | Sign up → build a show → add *and edit* a cue → open live mode; and that live mode is driveable from the keyboard alone, which is what makes a Bluetooth clicker work as a stage remote |
+| `contracts` | A signer in a **separate browser context with no session** opens a link and signs; signing twice is refused; **no request carries the fragment key** and no server-side row holds the signer's name |
+| `storage` | The sweep clears a seeded orphan while leaving files still in use; and it is not offered at all to a client whose data failed to load — the failure that would empty an account rather than a bin |
+| `navigation` | Five tabs, More leads to the paperwork and back returns there; and every label still fits its tab at 320px |
+
+The suite runs against an in-memory stand-in for the edge API rather than a live database. That keeps CI hermetic and secret-free, and — because the app encrypts in the browser — the client code under test is the real thing either way: key derivation, the chunked media store, and the per-request keys behind a signing link all still run. The fake reproduces the server rules that matter, including the sign-once `WHERE signed_at IS NULL`.
+
+CI (GitHub Actions) runs lint, type-check, build and unit tests on every push and PR, with the end-to-end suite as a second job that uploads its report on failure.
 
 ---
 
@@ -375,10 +447,10 @@ A full keyboard-navigation + ARIA + color-contrast audit is a future improvement
 ## Known Limitations
 
 - The encryption-key KDF still uses a static (non-per-user) salt and, capped by pure-JS crypto-js, 100k iterations rather than the OWASP-recommended 600k — improving both needs a move to native WebCrypto/Argon2
-- Unit tests cover the core pure logic; no component or end-to-end tests yet
 - No password recovery — losing the password means losing access to all data
 - Automatic schedule import depends on a server-side API key; without it, only the OCR + regex fallback runs
 - The OCR fallback fetches its worker and language data from a CDN at runtime, so schedule-import-from-photo needs a live connection even though the rest of the app is offline-capable. Lower risk than it sounds — importing a schedule is desk work during planning, not something done in a venue at 7pm — but it is not offline
+- The stage remote is any Bluetooth clicker that pairs as a keyboard. A phone cannot serve as one from the web app: no browser can advertise as a Bluetooth peripheral, and iOS Safari has no Web Bluetooth at all
 - Error handling is present but not exhaustive — some failure states surface as console errors rather than user-facing messages
 - Headshot uploads rely on the browser decoding the image; an iPhone HEIC won't decode outside Safari, so those need converting to JPEG/PNG first
 
@@ -387,9 +459,11 @@ A full keyboard-navigation + ARIA + color-contrast audit is a future improvement
 ## Roadmap
 
 - Migrate the encryption KDF to native WebCrypto/Argon2 (per-user random salt, OWASP-grade iterations)
-- Add component + end-to-end tests (unit tests are in place)
+- Component-level tests for the editing surfaces (unit and end-to-end are in place)
 - Full accessibility audit (complete ARIA coverage, color contrast, screen-reader testing)
 - Finish the phone pass: search that reveals on pull, and a large title that collapses into the top bar on scroll
+- A real WebKit project in the end-to-end suite; the phone project currently emulates an iPhone in Chromium
+- A native iOS build could let the phone itself act as the stage remote over Bluetooth; today that needs a separate clicker, because no browser can advertise as a BLE peripheral
 - Bundle the OCR worker so schedule import works offline like the rest of the app
 
 ---
