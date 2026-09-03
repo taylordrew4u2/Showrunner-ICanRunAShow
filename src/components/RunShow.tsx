@@ -657,6 +657,34 @@ export function RunShow({
     };
   }, []);
 
+  /**
+   * Real fullscreen, not just a full-viewport layout.
+   *
+   * A stage remote types into whatever the computer is looking at, so the one
+   * way it fails is something else taking focus — the browser's own tabs and
+   * address bar, another window, a stray click on the desktop. Fullscreen
+   * removes all of those from reach for the length of the show, which is a
+   * better answer than asking the operator to be careful from thirty feet
+   * away.
+   */
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const sync = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', sync);
+    sync();
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      // Refused (an iframe without permission, or an unsupported browser).
+      // The show runs the same either way.
+    }
+  }
+
   // Keyboard: the clock only. Space would otherwise re-fire whichever
   // soundboard button was last pressed — preventDefault keeps the press from
   // reaching it, so the spacebar always means "start / pause the timer".
@@ -743,6 +771,18 @@ export function RunShow({
       <div className="run-show__bar">
         <span className="run-show__name">{showName}</span>
         <div className="run-show__bar-actions">
+          <button
+            className="run-show__fullscreen"
+            onClick={toggleFullscreen}
+            title={isFullscreen
+              ? 'Leave fullscreen'
+              : 'Fill the screen, so nothing else can take focus from your remote'}
+            aria-label={isFullscreen ? 'Leave fullscreen' : 'Enter fullscreen'}
+          >
+            <Icon name={isFullscreen ? 'x' : 'tv'} size={16} />
+            <span>{isFullscreen ? 'Exit full' : 'Fullscreen'}</span>
+          </button>
+
           <button className="run-show__restart" onClick={restartShow} title="Restart the timer from the top">
             Restart
           </button>

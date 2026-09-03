@@ -1868,6 +1868,33 @@
   gap: 8px;
   flex-shrink: 0;
 }
+/* Fullscreen: the practical guard on a stage remote. A remote types into
+   whatever has focus, so removing the browser chrome and every other window
+   for the length of the show is what keeps the button working from the
+   stage. */
+.run-show__fullscreen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-full);
+  padding: 7px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.run-show__fullscreen:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* On a phone the bar is already tight, and fullscreen is a desktop concern —
+   the remote is only ever driving a laptop. Icon only. */
+@media (max-width: 619px) {
+  .run-show__fullscreen span { display: none; }
+  .run-show__fullscreen { padding: 7px 9px; }
+}
+
 .run-show__restart {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
