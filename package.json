@@ -11,7 +11,9 @@
     "test": "vitest run",
     "screenshots": "node scripts/capture-screenshots.mjs",
     "ios:sync": "npm run build && cap sync ios",
-    "ios:open": "cap open ios"
+    "ios:open": "cap open ios",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "@capacitor/core": "^8.4.2",
@@ -27,6 +29,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.4.2",
     "@eslint/js": "^9.39.3",
+    "@playwright/test": "^1.61.1",
     "@types/crypto-js": "^4.2.2",
     "@types/node": "24.11.0",
     "@types/react": "^19.2.14",
