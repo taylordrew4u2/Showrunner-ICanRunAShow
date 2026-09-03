@@ -1,5 +1,3 @@
-import type { BrowserContext, Route } from '@playwright/test';
-
 /**
  * An in-memory stand-in for the edge API.
  *
@@ -15,19 +13,20 @@ import type { BrowserContext, Route } from '@playwright/test';
  * be tedious to reach for real — an orphaned media blob left by an older
  * build, say.
  */
-export interface FakeState {
-  shows: { id: string; encryptedData: string }[];
-  settings: string | null;
-  media: Record<string, string[]>;
-  doc: Record<string, string[]>;
-  sign: Record<string, { payload: string; signature: string | null; signedAt: string | null }>;
-  /** Set when a second signature was refused, so a test can assert on it. */
-  rejectedSecondSign: boolean;
-  /** Every media id the app asked the server to delete. */
-  mediaDeletes: string[];
-}
+/**
+ * @typedef {object} FakeState
+ * @property {{id: string, encryptedData: string}[]} shows
+ * @property {string | null} settings
+ * @property {Record<string, string[]>} media
+ * @property {Record<string, string[]>} doc
+ * @property {Record<string, {payload: string, signature: string | null, signedAt: string | null}>} sign
+ * @property {boolean} rejectedSecondSign  Set when a second signature was refused.
+ * @property {string[]} mediaDeletes        Every media id the app asked to delete.
+ */
 
-export function emptyState(overrides: Partial<FakeState> = {}): FakeState {
+
+/** @param {Partial<FakeState>} [overrides] @returns {FakeState} */
+export function emptyState(overrides = {}) {
   return {
     shows: [],
     settings: null,
@@ -40,16 +39,17 @@ export function emptyState(overrides: Partial<FakeState> = {}): FakeState {
   };
 }
 
-export async function installFakeApi(ctx: BrowserContext, state: FakeState): Promise<void> {
-  await ctx.route('**/api/**', async (route: Route) => {
+/** @param {import("playwright").BrowserContext} ctx @param {FakeState} state */
+export async function installFakeApi(ctx, state) {
+  await ctx.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
     const path = url.pathname;
     const method = req.method();
     const body = ['POST', 'PUT'].includes(method) ? JSON.parse(req.postData() || '{}') : {};
-    const ok = (data: unknown) =>
+    const ok = (data) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
-    const err = (status: number, error: string) =>
+    const err = (status, error) =>
       route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ error }) });
 
     if (path === '/api/auth') return ok({ ok: true, userId: body.userId });

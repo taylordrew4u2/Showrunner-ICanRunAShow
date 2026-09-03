@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { emptyState, installFakeApi } from './support/fake-api';
+import { emptyState, installFakeApi } from './support/fake-api.mjs';
 import { gotoTab, signUpAndOnboard } from './support/app';
 
 test.describe('navigation', () => {
