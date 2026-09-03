@@ -9,6 +9,8 @@ import { useConfirm } from './useConfirm';
 interface ExpensesProps {
   settings: AppSettings;
   onBack: () => void;
+  /** What the back control returns to. */
+  backLabel?: string;
   onUpdateSettings: (settings: AppSettings) => void;
 }
 
@@ -28,7 +30,7 @@ const EMPTY_DRAFT: ExpenseDraft = {
   notes: '',
 };
 
-export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) {
+export function Expenses({ settings, onBack, backLabel = 'Shows', onUpdateSettings }: ExpensesProps) {
   const { confirm, confirmDialog } = useConfirm();
   const [addDraft, setAddDraft] = useState<ExpenseDraft>(EMPTY_DRAFT);
   /**
@@ -118,7 +120,7 @@ export function Expenses({ settings, onBack, onUpdateSettings }: ExpensesProps) 
         title="Expenses"
         subtitle="Everything you spend across all shows, tracked against your brand budget."
         onBack={onBack}
-        backLabel="Shows"
+        backLabel={backLabel}
       />
 
       {brandBudget > 0 && (
