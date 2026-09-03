@@ -648,11 +648,29 @@ export function RunShow({
       if (isSlider) return;
       if (e.key === 'ArrowRight') goNext();
       if (e.key === 'ArrowLeft') goPrev();
+      // One key for the music, because a remote has few buttons and the
+      // question during a show is only ever "is it playing or not". Playing →
+      // stop. Silent → start whatever this cue calls for: its own track if it
+      // has one, otherwise the walk-on of whoever is on stage. Nothing to play
+      // is a no-op rather than an error; the operator is mid-show.
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        if (playingKey) {
+          stopAll();
+        } else if (current) {
+          const forCue = board.cues.find((t) => t.key === `cue:${current.id}`);
+          const forPerformer = current.performerId
+            ? board.performers.find((t) => t.key === `performer:${current.performerId}`)
+            : undefined;
+          const track = forCue ?? forPerformer;
+          if (track) toggleTrack(track);
+        }
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, running, isLast, confirmOpen]);
+  }, [idx, running, isLast, confirmOpen, playingKey, current, board]);
 
   const started = running || showElapsed > 0 || idx > 0;
   const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
