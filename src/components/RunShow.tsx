@@ -41,6 +41,7 @@ import {
 } from '../utils/audioSettings';
 import { Icon } from './Icon';
 import { useConfirm } from './useConfirm';
+import { isRemotePress } from '../utils/stageRemote';
 
 interface RunShowProps {
   showName: string;
@@ -54,6 +55,8 @@ interface RunShowProps {
    * an empty board apart from an empty library — see the empty state below.
    */
   libraryCount?: number;
+  /** The key a paired stage remote sends, if the operator has paired one. */
+  remoteKey?: string;
   onStart?: () => void; // fired once when the show first starts (mark in-progress)
   onFinish?: () => void; // fired when the operator ends the show (mark completed)
   onClose: () => void;
@@ -162,6 +165,7 @@ export function RunShow({
   performers = [],
   djSongs = [],
   libraryCount = 0,
+  remoteKey,
   onStart,
   onFinish,
   onClose,
@@ -618,6 +622,41 @@ export function RunShow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+  /**
+   * Hold the screen awake while the show runs.
+   *
+   * A laptop that sleeps mid-set takes the soundboard with it, and takes the
+   * stage remote with it too — a remote can only reach an app the machine is
+   * still running. Re-requested when the tab comes back, because the lock is
+   * dropped whenever the page is hidden. Unsupported browsers simply carry on
+   * without it.
+   */
+  useEffect(() => {
+    type Sentinel = { release: () => Promise<void> };
+    const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<Sentinel> } };
+    if (!nav.wakeLock) return;
+    let sentinel: Sentinel | null = null;
+    let dropped = false;
+    const acquire = async () => {
+      try {
+        sentinel = await nav.wakeLock!.request('screen');
+      } catch {
+        // Denied (a background tab, or battery saver). Nothing to do but run.
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !dropped) void acquire();
+    };
+    void acquire();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      dropped = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      void sentinel?.release().catch(() => {});
+    };
+  }, []);
+
   // Keyboard: the clock only. Space would otherwise re-fire whichever
   // soundboard button was last pressed — preventDefault keeps the press from
   // reaching it, so the spacebar always means "start / pause the timer".
@@ -653,7 +692,7 @@ export function RunShow({
       // stop. Silent → start whatever this cue calls for: its own track if it
       // has one, otherwise the walk-on of whoever is on stage. Nothing to play
       // is a no-op rather than an error; the operator is mid-show.
-      if (e.key === 's' || e.key === 'S') {
+      if (e.key === 's' || e.key === 'S' || isRemotePress(e.key, remoteKey)) {
         e.preventDefault();
         if (playingKey) {
           stopAll();
@@ -670,7 +709,7 @@ export function RunShow({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, running, isLast, confirmOpen, playingKey, current, board]);
+  }, [idx, running, isLast, confirmOpen, playingKey, current, board, remoteKey]);
 
   const started = running || showElapsed > 0 || idx > 0;
   const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';

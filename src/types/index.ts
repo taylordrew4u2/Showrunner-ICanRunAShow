@@ -344,6 +344,14 @@ export interface AppSettings {
   onboarded: boolean; // whether the account has completed the welcome onboarding
   rolodexTermSingular?: string; // override for the Rolodex noun, e.g. "Comic" / "Queen"
   rolodexTermPlural?: string; // override for the plural Rolodex noun
+  /**
+   * The key a paired stage remote sends, learned by listening for it.
+   *
+   * Clickers are wildly inconsistent — some send Enter, some Space, some a
+   * letter, some a media key the browser never sees — so the app learns
+   * whatever this one actually sends rather than guessing at a brand.
+   */
+  remoteMusicKey?: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {

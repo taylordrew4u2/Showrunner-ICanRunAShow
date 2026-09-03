@@ -491,3 +491,18 @@
 .settings__data-line {
   margin-bottom: 4px;
 }
+
+/* Stage remote */
+.settings__remote-state {
+  margin: 10px 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings__remote-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}

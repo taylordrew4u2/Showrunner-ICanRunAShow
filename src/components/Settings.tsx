@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { describeKey, explainFailure, keyFromEvent } from '../utils/stageRemote';
 import type { AppSettings, Producer } from '../types';
 import { SHOW_TYPES } from '../types';
 import { COLOR_SCHEMES, type ColorScheme } from '../utils/theme';
@@ -61,6 +62,10 @@ export function Settings({
 }: SettingsProps) {
   const { confirm, confirmDialog } = useConfirm();
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
+  // Listening for the remote's button. While true, the next keypress is the
+  // remote telling us what it sends.
+  const [pairing, setPairing] = useState(false);
+  const [pairError, setPairError] = useState<string | null>(null);
   const [sweepBusy, setSweepBusy] = useState(false);
   const [sweepError, setSweepError] = useState<string | null>(null);
   type Sweep = { scanned: number; removed: number; bytes: number; failed: number };
@@ -76,6 +81,27 @@ export function Settings({
   useEffect(() => {
     setSettings(initialSettings);
   }, [initialSettings]);
+
+  useEffect(() => {
+    if (!pairing) return;
+    function onKey(e: KeyboardEvent) {
+      // Swallow it: the operator is pressing a remote, not typing, and Space
+      // or Enter would otherwise also activate whatever has focus.
+      e.preventDefault();
+      e.stopPropagation();
+      const result = keyFromEvent(e.key);
+      if (!result.ok) {
+        setPairError(explainFailure(result.reason));
+        setPairing(false);
+        return;
+      }
+      setPairError(null);
+      setPairing(false);
+      setSettings((s) => ({ ...s, remoteMusicKey: result.key }));
+    }
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [pairing]);
 
   function handleSave() {
     onSave(settings);
@@ -354,6 +380,52 @@ export function Settings({
         </div>
       )}
 
+
+      {/* Running the show from the stage. The operator is often on the bill
+          too, and once they are up there the laptop may as well be in another
+          room — but the music still has to start and stop. A Bluetooth clicker
+          in a pocket does that, and since no two clickers agree on what they
+          send, the app learns this one rather than guessing. */}
+      <div className="settings__card">
+        <h2 className="settings__card-title">Stage remote</h2>
+        <p className="settings__hint">
+          Pair a Bluetooth clicker to this computer, then teach the app its
+          button. Pressing it during a show starts and stops the music, so you
+          can run the sound from the stage.
+        </p>
+
+        {pairError && <p className="settings__sweep-error" role="alert">{pairError}</p>}
+
+        <p className="settings__remote-state">
+          {settings.remoteMusicKey
+            ? `Paired to ${describeKey(settings.remoteMusicKey)}`
+            : 'No remote paired'}
+        </p>
+
+        <div className="settings__remote-actions">
+          <button
+            className="btn btn--secondary btn--sm"
+            onClick={() => { setPairError(null); setPairing(true); }}
+            disabled={pairing}
+          >
+            {pairing ? 'Press the button now\u2026' : settings.remoteMusicKey ? 'Pair a different one' : 'Pair a remote'}
+          </button>
+          {settings.remoteMusicKey && !pairing && (
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={() => setSettings((s) => ({ ...s, remoteMusicKey: undefined }))}
+            >
+              Forget
+            </button>
+          )}
+        </div>
+
+        <p className="settings__hint">
+          The space bar, arrow keys and S do the same jobs on the laptop itself.
+          Keep this window in front during the show — a remote can only reach an
+          app the computer is actually looking at.
+        </p>
+      </div>
 
       {onSweepMedia && (
         <div className="settings__card">
