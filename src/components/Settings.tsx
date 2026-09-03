@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { describeKey, explainFailure, keyFromEvent } from '../utils/stageRemote';
 import type { AppSettings, Producer } from '../types';
 import { SHOW_TYPES } from '../types';
 import { COLOR_SCHEMES, type ColorScheme } from '../utils/theme';
@@ -61,6 +62,10 @@ export function Settings({
 }: SettingsProps) {
   const { confirm, confirmDialog } = useConfirm();
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
+  // Listening for the remote's button. While true, the next keypress is the
+  // remote telling us what it sends.
+  const [pairing, setPairing] = useState(false);
+  const [pairError, setPairError] = useState<string | null>(null);
   const [sweepBusy, setSweepBusy] = useState(false);
   const [sweepError, setSweepError] = useState<string | null>(null);
   type Sweep = { scanned: number; removed: number; bytes: number; failed: number };
@@ -76,6 +81,27 @@ export function Settings({
   useEffect(() => {
     setSettings(initialSettings);
   }, [initialSettings]);
+
+  useEffect(() => {
+    if (!pairing) return;
+    function onKey(e: KeyboardEvent) {
+      // Swallow it: the operator is pressing a remote, not typing, and Space
+      // or Enter would otherwise also activate whatever has focus.
+      e.preventDefault();
+      e.stopPropagation();
+      const result = keyFromEvent(e.key);
+      if (!result.ok) {
+        setPairError(explainFailure(result.reason));
+        setPairing(false);
+        return;
+      }
+      setPairError(null);
+      setPairing(false);
+      setSettings((s) => ({ ...s, remoteMusicKey: result.key }));
+    }
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [pairing]);
 
   function handleSave() {
     onSave(settings);
@@ -161,118 +187,135 @@ export function Settings({
           />
         </label>
 
-        <div className="section-field">
-          <span className="section-field__label">Show types</span>
-          <p className="settings__hint">The kinds of shows you produce. Used to tailor your workspace.</p>
-          <div className="settings__show-types">
-            {/* Saved custom types (e.g. an "Other" value) that aren't in the preset list. */}
-            {Array.from(new Set([...SHOW_TYPES, ...(settings.showTypes ?? [])])).map((type) => (
-              <button
-                key={type}
-                type="button"
-                className={`settings__chip ${(settings.showTypes ?? []).includes(type) ? 'settings__chip--active' : ''}`}
-                onClick={() => toggleShowType(type)}
-                aria-pressed={(settings.showTypes ?? []).includes(type)}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="section-field">
-          <span className="section-field__label">Rolodex wording</span>
-          <p className="settings__hint">
-            What you call the people you book. Defaults to{' '}
-            <strong>{defaultRolodexTerm(settings.showTypes).singular} Rolodex</strong> based on your show types — override it here.
-          </p>
-          <div className="settings__term-grid">
-            <label className="settings__term-field">
-              <span className="settings__term-label">Singular</span>
-              <input
-                className="section-field__input"
-                value={settings.rolodexTermSingular ?? ''}
-                onChange={(e) => setSettings((s) => ({ ...s, rolodexTermSingular: e.target.value || undefined }))}
-                placeholder={defaultRolodexTerm(settings.showTypes).singular}
-              />
-            </label>
-            <label className="settings__term-field">
-              <span className="settings__term-label">Plural</span>
-              <input
-                className="section-field__input"
-                value={settings.rolodexTermPlural ?? ''}
-                onChange={(e) => setSettings((s) => ({ ...s, rolodexTermPlural: e.target.value || undefined }))}
-                placeholder={defaultRolodexTerm(settings.showTypes).plural}
-              />
-            </label>
-          </div>
-        </div>
-
-        <div className="section-field">
-          <span className="section-field__label">Producers</span>
-          <div className="settings__producer-block">
-            {settings.producers.length === 0 && (
-              <p className="settings__empty">No producers added yet.</p>
-            )}
-            {settings.producers.map((producer) => (
-              <div key={producer.id} className="settings__producer-row">
-                <div className="settings__producer-content">
-                  <span className="settings__producer-name">{producer.name}</span>
-                  <span className="settings__producer-role">{producer.role}</span>
-                </div>
+        {/* Set once, then rarely touched: the show types that pick your
+            vocabulary, what you call the people you book, your producers,
+            budget and house rules. Left open they made Settings a form you
+            scrolled past rather than a page you could scan — it ran to five
+            phone screens, which is why a card near the bottom was effectively
+            unfindable. Folded away, all of it is still one tap from where it
+            has always been. */}
+        <details className="settings__details">
+          <summary className="settings__details-summary">
+            <span className="settings__details-title">Workspace details</span>
+            <span className="settings__details-hint">
+              Show types, wording, producers, budget, rules
+            </span>
+          </summary>
+          <div className="settings__details-body">
+          <div className="section-field">
+            <span className="section-field__label">Show types</span>
+            <p className="settings__hint">The kinds of shows you produce. Used to tailor your workspace.</p>
+            <div className="settings__show-types">
+              {/* Saved custom types (e.g. an "Other" value) that aren't in the preset list. */}
+              {Array.from(new Set([...SHOW_TYPES, ...(settings.showTypes ?? [])])).map((type) => (
                 <button
-                  className="btn btn--danger btn--sm"
-                  onClick={() => removeProducer(producer.id)}
+                  key={type}
+                  type="button"
+                  className={`settings__chip ${(settings.showTypes ?? []).includes(type) ? 'settings__chip--active' : ''}`}
+                  onClick={() => toggleShowType(type)}
+                  aria-pressed={(settings.showTypes ?? []).includes(type)}
                 >
-                  Remove
+                  {type}
                 </button>
-              </div>
-            ))}
-            <div className="settings__producer-add">
-              <input
-                className="section-field__input settings__producer-input"
-                value={newProducerName}
-                onChange={(e) => setNewProducerName(e.target.value)}
-                placeholder="Producer name"
-              />
-              <input
-                className="section-field__input settings__producer-input"
-                value={newProducerRole}
-                onChange={(e) => setNewProducerRole(e.target.value)}
-                placeholder="Role (e.g., Executive Producer)"
-              />
-              <button className="btn btn--secondary settings__producer-add-btn" onClick={addProducer}>
-                Add
-              </button>
+              ))}
             </div>
           </div>
-        </div>
 
-        <label className="section-field">
-          <span className="section-field__label">Brand budget (Starting Amount)</span>
-          <input
-            className="section-field__input"
-            type="number"
-            value={settings.brandBudget}
-            onChange={(e) => setSettings((s) => ({ ...s, brandBudget: Number(e.target.value) || 0 }))}
-            placeholder="0.00"
-            step="0.01"
-          />
-          <small className="settings__budget-hint">
-            Total spent: ${totalSpent.toFixed(2)} | Remaining: ${remaining.toFixed(2)}
-          </small>
-        </label>
+          <div className="section-field">
+            <span className="section-field__label">Rolodex wording</span>
+            <p className="settings__hint">
+              What you call the people you book. Defaults to{' '}
+              <strong>{defaultRolodexTerm(settings.showTypes).singular} Rolodex</strong> based on your show types — override it here.
+            </p>
+            <div className="settings__term-grid">
+              <label className="settings__term-field">
+                <span className="settings__term-label">Singular</span>
+                <input
+                  className="section-field__input"
+                  value={settings.rolodexTermSingular ?? ''}
+                  onChange={(e) => setSettings((s) => ({ ...s, rolodexTermSingular: e.target.value || undefined }))}
+                  placeholder={defaultRolodexTerm(settings.showTypes).singular}
+                />
+              </label>
+              <label className="settings__term-field">
+                <span className="settings__term-label">Plural</span>
+                <input
+                  className="section-field__input"
+                  value={settings.rolodexTermPlural ?? ''}
+                  onChange={(e) => setSettings((s) => ({ ...s, rolodexTermPlural: e.target.value || undefined }))}
+                  placeholder={defaultRolodexTerm(settings.showTypes).plural}
+                />
+              </label>
+            </div>
+          </div>
 
-        <label className="section-field">
-          <span className="section-field__label">Rules / Notes</span>
-          <textarea
-            className="section-field__textarea"
-            value={settings.rules}
-            onChange={(e) => setSettings((s) => ({ ...s, rules: e.target.value }))}
-            placeholder="Enter rules, guidelines, or important notes..."
-            rows={6}
-          />
-        </label>
+          <div className="section-field">
+            <span className="section-field__label">Producers</span>
+            <div className="settings__producer-block">
+              {settings.producers.length === 0 && (
+                <p className="settings__empty">No producers added yet.</p>
+              )}
+              {settings.producers.map((producer) => (
+                <div key={producer.id} className="settings__producer-row">
+                  <div className="settings__producer-content">
+                    <span className="settings__producer-name">{producer.name}</span>
+                    <span className="settings__producer-role">{producer.role}</span>
+                  </div>
+                  <button
+                    className="btn btn--danger btn--sm"
+                    onClick={() => removeProducer(producer.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <div className="settings__producer-add">
+                <input
+                  className="section-field__input settings__producer-input"
+                  value={newProducerName}
+                  onChange={(e) => setNewProducerName(e.target.value)}
+                  placeholder="Producer name"
+                />
+                <input
+                  className="section-field__input settings__producer-input"
+                  value={newProducerRole}
+                  onChange={(e) => setNewProducerRole(e.target.value)}
+                  placeholder="Role (e.g., Executive Producer)"
+                />
+                <button className="btn btn--secondary settings__producer-add-btn" onClick={addProducer}>
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <label className="section-field">
+            <span className="section-field__label">Brand budget (Starting Amount)</span>
+            <input
+              className="section-field__input"
+              type="number"
+              value={settings.brandBudget}
+              onChange={(e) => setSettings((s) => ({ ...s, brandBudget: Number(e.target.value) || 0 }))}
+              placeholder="0.00"
+              step="0.01"
+            />
+            <small className="settings__budget-hint">
+              Total spent: ${totalSpent.toFixed(2)} | Remaining: ${remaining.toFixed(2)}
+            </small>
+          </label>
+
+          <label className="section-field">
+            <span className="section-field__label">Rules / Notes</span>
+            <textarea
+              className="section-field__textarea"
+              value={settings.rules}
+              onChange={(e) => setSettings((s) => ({ ...s, rules: e.target.value }))}
+              placeholder="Enter rules, guidelines, or important notes..."
+              rows={6}
+            />
+          </label>
+          </div>
+        </details>
       </div>
 
       <button className="btn btn--primary settings__save" onClick={handleSave} disabled={saving}>
@@ -337,6 +380,52 @@ export function Settings({
         </div>
       )}
 
+
+      {/* Running the show from the stage. The operator is often on the bill
+          too, and once they are up there the laptop may as well be in another
+          room — but the music still has to start and stop. A Bluetooth clicker
+          in a pocket does that, and since no two clickers agree on what they
+          send, the app learns this one rather than guessing. */}
+      <div className="settings__card">
+        <h2 className="settings__card-title">Stage remote</h2>
+        <p className="settings__hint">
+          Pair a Bluetooth clicker to this computer, then teach the app its
+          button. Pressing it during a show starts and stops the music, so you
+          can run the sound from the stage.
+        </p>
+
+        {pairError && <p className="settings__sweep-error" role="alert">{pairError}</p>}
+
+        <p className="settings__remote-state">
+          {settings.remoteMusicKey
+            ? `Paired to ${describeKey(settings.remoteMusicKey)}`
+            : 'No remote paired'}
+        </p>
+
+        <div className="settings__remote-actions">
+          <button
+            className="btn btn--secondary btn--sm"
+            onClick={() => { setPairError(null); setPairing(true); }}
+            disabled={pairing}
+          >
+            {pairing ? 'Press the button now\u2026' : settings.remoteMusicKey ? 'Pair a different one' : 'Pair a remote'}
+          </button>
+          {settings.remoteMusicKey && !pairing && (
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={() => setSettings((s) => ({ ...s, remoteMusicKey: undefined }))}
+            >
+              Forget
+            </button>
+          )}
+        </div>
+
+        <p className="settings__hint">
+          The space bar, arrow keys and S do the same jobs on the laptop itself.
+          Keep this window in front during the show — a remote can only reach an
+          app the computer is actually looking at.
+        </p>
+      </div>
 
       {onSweepMedia && (
         <div className="settings__card">
@@ -418,63 +507,78 @@ export function Settings({
           said so, which made careful work feel like a gamble. */}
       <div className="settings__card">
         <h2 className="settings__card-title">Your data</h2>
-        <ul className="settings__assurances">
-          <li className="settings__assurance">
-            <Icon name="lock" size={16} aria-hidden />
-            <div>
-              <strong>Encrypted before it leaves your device</strong>
-              <span>
-                Your password is the encryption key. It's used the moment you sign in and then
-                discarded — never sent to us, and never written to this browser. What's stored
-                is unreadable without it, including to us.
-              </span>
-            </div>
-          </li>
-          <li className="settings__assurance">
-            <Icon name="cloud" size={16} aria-hidden />
-            <div>
-              <strong>Saved as you work</strong>
-              <span>
-                {lastSavedAt
-                  ? `Last confirmed save ${new Date(lastSavedAt).toLocaleString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}. `
-                  : 'Every change saves on its own. '}
-                There's no save button to forget, and a failed save keeps retrying instead of
-                giving up.
-              </span>
-            </div>
-          </li>
-          <li className="settings__assurance">
-            <Icon name="shield" size={16} aria-hidden />
-            <div>
-              <strong>A spare copy on this device</strong>
-              <span>
-                If a save can't get through, your edits are held here and re-sent next time the
-                app opens. Closing the app mid-edit doesn't lose anything.
-              </span>
-            </div>
-          </li>
-          <li className="settings__assurance">
-            <Icon name="download" size={16} aria-hidden />
-            <div>
-              <strong>A copy you own outright</strong>
-              <span>
-                {lastBackupAt
-                  ? `You last downloaded a backup on ${new Date(lastBackupAt).toLocaleDateString(
-                      undefined,
-                      { month: 'long', day: 'numeric', year: 'numeric' },
-                    )}.`
-                  : "You haven't downloaded a backup yet — worth doing once your shows matter."}{' '}
-                It's a plain file with every show, contact, and expense in it, readable without
-                this app.
-              </span>
-            </div>
-          </li>
-        </ul>
+        {/* Reassurance, not instructions. It earns its place — careful work
+            feels like a gamble when nothing says the work is safe — but four
+            paragraphs of it sat between the reader and the backup button, and
+            between them and every card below. Read once, then folded. */}
+        <p className="settings__hint settings__data-line">
+          Encrypted before it leaves your device, saved as you work, with a
+          spare copy kept here.
+        </p>
+        <details className="settings__details">
+          <summary className="settings__details-summary">
+            <span className="settings__details-title">How your data is kept safe</span>
+          </summary>
+          <div className="settings__details-body">
+          <ul className="settings__assurances">
+            <li className="settings__assurance">
+              <Icon name="lock" size={16} aria-hidden />
+              <div>
+                <strong>Encrypted before it leaves your device</strong>
+                <span>
+                  Your password is the encryption key. It's used the moment you sign in and then
+                  discarded — never sent to us, and never written to this browser. What's stored
+                  is unreadable without it, including to us.
+                </span>
+              </div>
+            </li>
+            <li className="settings__assurance">
+              <Icon name="cloud" size={16} aria-hidden />
+              <div>
+                <strong>Saved as you work</strong>
+                <span>
+                  {lastSavedAt
+                    ? `Last confirmed save ${new Date(lastSavedAt).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}. `
+                    : 'Every change saves on its own. '}
+                  There's no save button to forget, and a failed save keeps retrying instead of
+                  giving up.
+                </span>
+              </div>
+            </li>
+            <li className="settings__assurance">
+              <Icon name="shield" size={16} aria-hidden />
+              <div>
+                <strong>A spare copy on this device</strong>
+                <span>
+                  If a save can't get through, your edits are held here and re-sent next time the
+                  app opens. Closing the app mid-edit doesn't lose anything.
+                </span>
+              </div>
+            </li>
+            <li className="settings__assurance">
+              <Icon name="download" size={16} aria-hidden />
+              <div>
+                <strong>A copy you own outright</strong>
+                <span>
+                  {lastBackupAt
+                    ? `You last downloaded a backup on ${new Date(lastBackupAt).toLocaleDateString(
+                        undefined,
+                        { month: 'long', day: 'numeric', year: 'numeric' },
+                      )}.`
+                    : "You haven't downloaded a backup yet — worth doing once your shows matter."}{' '}
+                  It's a plain file with every show, contact, and expense in it, readable without
+                  this app.
+                </span>
+              </div>
+            </li>
+          </ul>
+          </div>
+        </details>
         {onExport && (
           <button className="btn btn--primary settings__backup-btn" onClick={onExport}>
             Download a backup

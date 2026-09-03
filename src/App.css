@@ -1020,29 +1020,11 @@
   white-space: nowrap;
 }
 
-/* Seven tabs is what the bar carries now, and the arithmetic is unforgiving:
-   the tab is a seventh of the width, and the label has to fit inside it. The
-   widest are "Contracts" and "Expenses", measured in the browser at each
-   phone width:
-
-     320px → 44px tab    360px → 48px tab    375px → 50px tab    390px → 53px
-
-   At 11px those labels set 51px, so they overflow every tab up to about
-   400px — including 375px, which is an iPhone SE and far too common to get
-   wrong. At 10px they set 47px, which clears everything down to 360px; below
-   that the tab is 44px and only 9px fits. The icon and the 44px touch target
-   are untouched at every size. */
-@media (max-width: 400px) {
-  .bottom-nav__item span {
-    font-size: 10px;
-  }
-}
-
-@media (max-width: 350px) {
-  .bottom-nav__item span {
-    font-size: 9px;
-  }
-}
+/* The bar carries five tabs, which is what a phone can label. It briefly held
+   seven, and the arithmetic did not work: at 375px — an iPhone SE — a tab was
+   50px and "Contracts" set 51px, so the captions had to be shrunk twice to
+   stop them colliding. Moving the between-shows pages behind More gave the
+   width back, and the caption goes back to one size everywhere. */
 
 .bottom-nav__item--active {
   color: var(--primary-text);
@@ -1886,6 +1868,33 @@
   gap: 8px;
   flex-shrink: 0;
 }
+/* Fullscreen: the practical guard on a stage remote. A remote types into
+   whatever has focus, so removing the browser chrome and every other window
+   for the length of the show is what keeps the button working from the
+   stage. */
+.run-show__fullscreen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-full);
+  padding: 7px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.run-show__fullscreen:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* On a phone the bar is already tight, and fullscreen is a desktop concern —
+   the remote is only ever driving a laptop. Icon only. */
+@media (max-width: 619px) {
+  .run-show__fullscreen span { display: none; }
+  .run-show__fullscreen { padding: 7px 9px; }
+}
+
 .run-show__restart {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);

@@ -41,6 +41,7 @@ import {
 } from '../utils/audioSettings';
 import { Icon } from './Icon';
 import { useConfirm } from './useConfirm';
+import { isRemotePress } from '../utils/stageRemote';
 
 interface RunShowProps {
   showName: string;
@@ -54,6 +55,8 @@ interface RunShowProps {
    * an empty board apart from an empty library — see the empty state below.
    */
   libraryCount?: number;
+  /** The key a paired stage remote sends, if the operator has paired one. */
+  remoteKey?: string;
   onStart?: () => void; // fired once when the show first starts (mark in-progress)
   onFinish?: () => void; // fired when the operator ends the show (mark completed)
   onClose: () => void;
@@ -162,6 +165,7 @@ export function RunShow({
   performers = [],
   djSongs = [],
   libraryCount = 0,
+  remoteKey,
   onStart,
   onFinish,
   onClose,
@@ -618,6 +622,69 @@ export function RunShow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+  /**
+   * Hold the screen awake while the show runs.
+   *
+   * A laptop that sleeps mid-set takes the soundboard with it, and takes the
+   * stage remote with it too — a remote can only reach an app the machine is
+   * still running. Re-requested when the tab comes back, because the lock is
+   * dropped whenever the page is hidden. Unsupported browsers simply carry on
+   * without it.
+   */
+  useEffect(() => {
+    type Sentinel = { release: () => Promise<void> };
+    const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<Sentinel> } };
+    if (!nav.wakeLock) return;
+    let sentinel: Sentinel | null = null;
+    let dropped = false;
+    const acquire = async () => {
+      try {
+        sentinel = await nav.wakeLock!.request('screen');
+      } catch {
+        // Denied (a background tab, or battery saver). Nothing to do but run.
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !dropped) void acquire();
+    };
+    void acquire();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      dropped = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      void sentinel?.release().catch(() => {});
+    };
+  }, []);
+
+  /**
+   * Real fullscreen, not just a full-viewport layout.
+   *
+   * A stage remote types into whatever the computer is looking at, so the one
+   * way it fails is something else taking focus — the browser's own tabs and
+   * address bar, another window, a stray click on the desktop. Fullscreen
+   * removes all of those from reach for the length of the show, which is a
+   * better answer than asking the operator to be careful from thirty feet
+   * away.
+   */
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const sync = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', sync);
+    sync();
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      // Refused (an iframe without permission, or an unsupported browser).
+      // The show runs the same either way.
+    }
+  }
+
   // Keyboard: the clock only. Space would otherwise re-fire whichever
   // soundboard button was last pressed — preventDefault keeps the press from
   // reaching it, so the spacebar always means "start / pause the timer".
@@ -648,11 +715,29 @@ export function RunShow({
       if (isSlider) return;
       if (e.key === 'ArrowRight') goNext();
       if (e.key === 'ArrowLeft') goPrev();
+      // One key for the music, because a remote has few buttons and the
+      // question during a show is only ever "is it playing or not". Playing →
+      // stop. Silent → start whatever this cue calls for: its own track if it
+      // has one, otherwise the walk-on of whoever is on stage. Nothing to play
+      // is a no-op rather than an error; the operator is mid-show.
+      if (e.key === 's' || e.key === 'S' || isRemotePress(e.key, remoteKey)) {
+        e.preventDefault();
+        if (playingKey) {
+          stopAll();
+        } else if (current) {
+          const forCue = board.cues.find((t) => t.key === `cue:${current.id}`);
+          const forPerformer = current.performerId
+            ? board.performers.find((t) => t.key === `performer:${current.performerId}`)
+            : undefined;
+          const track = forCue ?? forPerformer;
+          if (track) toggleTrack(track);
+        }
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, running, isLast, confirmOpen]);
+  }, [idx, running, isLast, confirmOpen, playingKey, current, board, remoteKey]);
 
   const started = running || showElapsed > 0 || idx > 0;
   const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
@@ -686,6 +771,18 @@ export function RunShow({
       <div className="run-show__bar">
         <span className="run-show__name">{showName}</span>
         <div className="run-show__bar-actions">
+          <button
+            className="run-show__fullscreen"
+            onClick={toggleFullscreen}
+            title={isFullscreen
+              ? 'Leave fullscreen'
+              : 'Fill the screen, so nothing else can take focus from your remote'}
+            aria-label={isFullscreen ? 'Leave fullscreen' : 'Enter fullscreen'}
+          >
+            <Icon name={isFullscreen ? 'x' : 'tv'} size={16} />
+            <span>{isFullscreen ? 'Exit full' : 'Fullscreen'}</span>
+          </button>
+
           <button className="run-show__restart" onClick={restartShow} title="Restart the timer from the top">
             Restart
           </button>
