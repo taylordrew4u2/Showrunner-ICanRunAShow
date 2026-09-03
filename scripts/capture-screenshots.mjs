@@ -16,18 +16,41 @@
 //   DEMO_PASS  account password (default "demo1234")
 //   OUT_DIR    output folder (default docs/screenshots)
 //   HEADLESS   "false" to watch it run (default true)
+//   PW_CHROMIUM_PATH  a Chromium already on disk, for sandboxes that cannot
+//              download Playwright's pinned build
+//   MOCK_API   "1" to run against a local build with an in-memory backend —
+//              no account, no database, no credentials. This is the mode the
+//              repository's own screenshots are captured in, and the one to
+//              use when regenerating them from a fresh clone:
+//                npm run build && npx vite preview --port 4173 &
+//                MOCK_API=1 APP_URL=http://localhost:4173 npm run screenshots
 //
 // Note: uses a throwaway demo account. Never point DEMO_USER/DEMO_PASS at a real
 // account — the seed step assumes it can populate an empty workspace.
 
 import { chromium } from 'playwright';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+// The same in-memory backend the end-to-end suite runs against, so the
+// screenshots and the tests exercise one implementation rather than two.
+import { emptyState, installFakeApi } from '../e2e/support/fake-api.mjs';
 
 const APP_URL = process.env.APP_URL || 'https://icanrunashow.com';
 const USER = process.env.DEMO_USER || 'demo';
 const PASS = process.env.DEMO_PASS || 'demo1234';
 const OUT_DIR = process.env.OUT_DIR || 'docs/screenshots';
 const HEADLESS = process.env.HEADLESS !== 'false';
+const MOCK_API = process.env.MOCK_API === '1';
+// One backend shared by every context the run opens (producer and signer).
+const MOCK_STATE = emptyState();
+// Matches playwright.config.ts: use a Chromium already on disk when one is
+// named, and --no-sandbox because container images commonly run as root.
+const LAUNCH = {
+  headless: HEADLESS,
+  args: ['--no-sandbox'],
+  ...(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {}),
+};
 
 const log = (...a) => console.log('•', ...a);
 
@@ -65,13 +88,15 @@ async function signInOrUp(page) {
   await page.getByPlaceholder('Enter your password').fill(PASS);
   await page.getByRole('button', { name: /^Sign In$/ }).click();
 
-  // Wait for one of: app shell, onboarding, or a login error.
-  const err = page.locator('.login__error');
-  await Promise.race([
-    inApp.waitFor({ timeout: 8000 }).catch(() => {}),
-    onboarding.waitFor({ timeout: 8000 }).catch(() => {}),
-    err.waitFor({ timeout: 8000 }).catch(() => {}),
-  ]);
+  // Wait for whichever screen sign-in lands on. A race between three
+  // `waitFor`s settles as soon as any one of them does, which was reporting
+  // "account not found" while onboarding was still a second away from
+  // rendering; a single wait for either outcome cannot get that wrong.
+  await page
+    .waitForSelector('.bottom-nav__item, .login__error, button:text-matches("^Get started$")', {
+      timeout: 20000,
+    })
+    .catch(() => {});
 
   if (!(await inApp.count()) && !(await onboarding.count())) {
     log('account not found — creating it');
@@ -118,8 +143,17 @@ async function seedShow(page) {
   await expandSection(page, 'Performers');
   for (const name of performers) {
     await page.getByPlaceholder('Performer name').fill(name);
-    await page.getByPlaceholder('@instagram').fill('@' + name.toLowerCase().replace(/\s+/g, ''));
-    await page.locator('.section-add-row').getByRole('button', { name: 'Add' }).click();
+    // The social field moved behind a disclosure when the add form was cut
+    // down to a name and a button — fill it only when it is on screen.
+    const social = page.getByPlaceholder('@instagram');
+    if (await social.count()) {
+      await social.fill('@' + name.toLowerCase().replace(/\s+/g, ''));
+    }
+    // `.lineup-add__submit` since the lineup form was rebuilt as a name and a
+    // button on one row; `.section-add-row` is the older shape other sections
+    // still use.
+    const add = page.locator('.lineup-add__submit, .section-add-row button:has-text("Add")');
+    await add.first().click();
     await page.waitForTimeout(150);
   }
 
@@ -156,13 +190,161 @@ async function captureRunShow(page) {
   await page.locator('.show-detail').waitFor();
 }
 
+
+/** A small but valid one-page PDF, so the contract screens have a real file. */
+async function writeDemoContract() {
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>',
+    '<< /Length 46 >>\nstream\nBT /F1 16 Tf 72 700 Td (Performer Agreement) Tj ET\nendstream',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let out = '%PDF-1.4\n';
+  const offsets = [];
+  objects.forEach((body, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const off of offsets) out += `${String(off).padStart(10, '0')} 00000 n \n`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  const path = join(tmpdir(), 'Performer Agreement.pdf');
+  await writeFile(path, out, 'latin1');
+  return path;
+}
+
+/** The More hub: the between-shows pages, one tap off the bar. */
+async function captureMore(page) {
+  await page.locator('.bottom-nav__item', { hasText: 'More' }).click();
+  await page.locator('.more-list').waitFor();
+  await shot(page, 'more');
+}
+
+/**
+ * Contracts, and the signing page a performer sees.
+ *
+ * Sends the same agreement to two people and signs as one of them, so the
+ * status list shows both states rather than an empty or uniformly-green list.
+ */
+async function captureContracts(page, context) {
+  log('seeding contracts');
+  await page.locator('.bottom-nav__item', { hasText: 'More' }).click();
+  await page.locator('.more-item', { hasText: 'Contracts' }).click();
+  await page.locator('.contracts__file').setInputFiles(await writeDemoContract());
+  await page.locator('.contracts__item').first().waitFor();
+  await page.locator('.contracts__item').first().click();
+
+  const links = [];
+  for (const name of ['Maya Reyes', 'Dev Okafor']) {
+    await page.locator('.contracts__send-btn').click();
+    await page.locator('.contracts__manual input').fill(name);
+    await page.locator('.contracts__manual').getByRole('button', { name: 'Send' }).click();
+    await page.waitForTimeout(900);
+    links.push(await page.evaluate(() => navigator.clipboard.readText()));
+  }
+
+  // Sign as the first of them, in a context with no session — which is all a
+  // signer ever has.
+  const signerContext = await context.browser().newContext({
+    viewport: { width: 430, height: 932 },
+    deviceScaleFactor: 2,
+  });
+  if (MOCK_API) await installFakeApi(signerContext, MOCK_STATE);
+  const signer = await signerContext.newPage();
+  await signer.goto(links[0]);
+  await signer.locator('.signing__field input').waitFor();
+  await signer.locator('.signing__field input').fill('Maya Reyes');
+  await signer.locator('.signing__agree input').check();
+  await signer.locator('.signing__cta').click();
+  const done = signer.locator('.signing__panel--done');
+  await done.waitFor();
+  // The panel rather than the page: headless Chromium does not reliably paint
+  // a PDF inside an <object>, and a blank document pane above the receipt
+  // would say something untrue about the app.
+  await signer.waitForTimeout(400);
+  await done.screenshot({ path: `${OUT_DIR}/signing-receipt.png` });
+  log(`captured ${OUT_DIR}/signing-receipt.png`);
+  await signerContext.close();
+
+  // Back on the producer's side, one signed and one still waiting.
+  await page.reload();
+  await page.locator('.bottom-nav__item', { hasText: 'More' }).click();
+  await page.locator('.more-item', { hasText: 'Contracts' }).click();
+  await page.locator('.contracts__item').first().click();
+  await page.locator('.contracts__row').first().waitFor();
+  await shot(page, 'contracts');
+}
+
+/** Settings: the stage remote paired, and the storage sweep. */
+async function captureSettings(page) {
+  await page.locator('.bottom-nav__item', { hasText: 'Settings' }).click();
+  await page.locator('.settings__card').first().waitFor();
+  const pair = page.getByRole('button', { name: /Pair a remote/ });
+  if (await pair.count()) {
+    await pair.click();
+    await page.keyboard.press('Enter'); // stand in for a clicker's button
+    await page.waitForTimeout(300);
+  }
+  await page.locator('.settings__remote-state').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT_DIR}/stage-remote.png` });
+  log(`captured ${OUT_DIR}/stage-remote.png`);
+}
+
+
+/** The run-of-show builder, the Rolodex, a performer profile, and Settings. */
+async function captureShowScreens(page) {
+  // Run-of-show, on the show page.
+  await expandSection(page, 'Schedule');
+  await page.waitForTimeout(400);
+  await shot(page, 'schedule');
+
+  // A performer profile, opened from the lineup.
+  await expandSection(page, 'Performers');
+  // The row is a container; opening the profile is its own button.
+  const performer = page
+    .locator('.section-list-item, .lineup-row')
+    .filter({ hasText: 'Maya Reyes' })
+    .getByRole('button', { name: /View Profile/ })
+    .first();
+  if (await performer.count()) {
+    await performer.click();
+    await page.waitForTimeout(600);
+    await shot(page, 'performer-profile');
+    // Back out of the profile, and wait for the show page before moving on —
+    // the profile covers the show's own back button while it is open.
+    await page.getByRole('button', { name: '← Back' }).first().click();
+    await page.locator('.show-detail__stats, .accordion-section').first().waitFor();
+    await page.waitForTimeout(300);
+  }
+}
+
+async function captureRolodexAndSettings(page) {
+  await page.locator('.bottom-nav__item', { hasText: 'Rolodex' }).click();
+  await page.waitForTimeout(600);
+  await shot(page, 'rolodex');
+
+  await page.locator('.bottom-nav__item', { hasText: 'Settings' }).click();
+  await page.locator('.settings__card').first().waitFor();
+  await page.waitForTimeout(400);
+  await shot(page, 'settings');
+}
+
+
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
-  const browser = await chromium.launch({ headless: HEADLESS });
+  const browser = await chromium.launch(LAUNCH);
   const context = await browser.newContext({
     viewport: { width: 430, height: 932 }, // a roomy phone
     deviceScaleFactor: 2, // crisp @2x output
+    permissions: ['clipboard-read', 'clipboard-write'], // signing links are copied
   });
+  if (MOCK_API) {
+    log('running against the in-memory backend (MOCK_API=1)');
+    await installFakeApi(context, MOCK_STATE);
+  }
   const page = await context.newPage();
   page.setDefaultTimeout(20000);
 
@@ -189,6 +371,17 @@ async function main() {
     await page.locator('.show-detail__back-btn').first().click();
     await page.locator('.shows-list').waitFor();
     await shot(page, 'shows');
+
+    // 4) The rest of the show screens, then the between-shows pages.
+    await page.locator('.show-card').first().click();
+    await page.locator('.show-detail').waitFor();
+    await captureShowScreens(page);
+    await page.locator('.show-detail__back-btn').first().click();
+    await page.locator('.shows-list').waitFor();
+    await captureRolodexAndSettings(page);
+    await captureMore(page);
+    await captureContracts(page, context);
+    await captureSettings(page);
 
     log('done');
   } finally {
