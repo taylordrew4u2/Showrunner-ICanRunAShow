@@ -47,10 +47,10 @@
 Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These are generated with `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)).
 
 <p align="center">
-  <img src="docs/screenshots/run-show.gif" width="280" alt="Run Show live mode — animated demo" />
+  <img src="docs/screenshots/run-show.png" width="280" alt="Run Show live mode" />
 </p>
 <p align="center">
-  <sub><b>Run Show</b> live mode — per-cue countdown, on-time drift, and advancing through cues</sub>
+  <sub><b>Run Show</b> live mode — per-cue countdown, on-time drift, and a soundboard button per performer</sub>
 </p>
 
 <p align="center">
@@ -72,11 +72,19 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These are gener
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/run-show.png" width="32%" alt="Run Show live mode" />
-  <img src="docs/screenshots/viewer.png" width="32%" alt="Public viewer link" />
+  <img src="docs/screenshots/more.png" width="32%" alt="More — the between-shows pages" />
+  <img src="docs/screenshots/contracts.png" width="32%" alt="Contracts — who has signed and who has not" />
+  <img src="docs/screenshots/stage-remote.png" width="32%" alt="Settings — stage remote and storage" />
 </p>
 <p align="center">
-  <sub><b>Run Show</b> — full-screen live mode &nbsp;·&nbsp; <b>Public viewer</b> — live lineup / on-stage link</sub>
+  <sub><b>More</b> — the between-shows pages, off a five-tab bar &nbsp;·&nbsp; <b>Contracts</b> — one signed, one still waiting, each with the hash of the document agreed to &nbsp;·&nbsp; <b>Stage remote &amp; storage</b> — a paired clicker, and the sweep for unreachable uploads</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/signing-receipt.png" width="46%" alt="What the signer sees once they have signed" />
+</p>
+<p align="center">
+  <sub>What the <b>signer</b> sees — no account, no app, and a document reference they can keep. The producer's list flips to signed on its own.</sub>
 </p>
 
 ---
