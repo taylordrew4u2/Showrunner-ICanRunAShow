@@ -20,6 +20,8 @@
  * @property {Record<string, string[]>} media
  * @property {Record<string, string[]>} doc
  * @property {Record<string, {payload: string, signature: string | null, signedAt: string | null}>} sign
+ * @property {Record<string, {userId: string, payload: unknown}>} live  Published viewer state, by token.
+ * @property {boolean} rejectedForeignPublish  Set when a publish from another account was refused.
  * @property {boolean} rejectedSecondSign  Set when a second signature was refused.
  * @property {string[]} mediaDeletes        Every media id the app asked to delete.
  */
@@ -33,7 +35,9 @@ export function emptyState(overrides = {}) {
     media: {},
     doc: {},
     sign: {},
+    live: {},
     rejectedSecondSign: false,
+    rejectedForeignPublish: false,
     mediaDeletes: [],
     ...overrides,
   };
@@ -107,6 +111,28 @@ export async function installFakeApi(ctx, state) {
       }
       delete state.doc[url.searchParams.get('token') ?? ''];
       return ok({ ok: true });
+    }
+
+    if (path === '/api/live') {
+      if (method === 'GET') {
+        // Public: this is the link handed to the room.
+        const row = state.live[url.searchParams.get('token') ?? ''];
+        return ok({ payload: row ? row.payload : null });
+      }
+      if (method === 'POST') {
+        // The rule the real route enforces in SQL. The viewer token is public
+        // by design, so it names the page but does not grant the right to
+        // write to it: only the account that owns the row may publish.
+        const userId = req.headers()['x-user-id'] ?? '';
+        if (!userId) return err(401, 'unauthorized');
+        const row = state.live[body.token];
+        if (row && row.userId !== userId) {
+          state.rejectedForeignPublish = true;
+          return err(403, 'forbidden');
+        }
+        state.live[body.token] = { userId, payload: body.payload };
+        return ok({ ok: true });
+      }
     }
 
     if (path === '/api/sign') {

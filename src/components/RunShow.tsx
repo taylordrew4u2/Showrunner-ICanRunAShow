@@ -3,6 +3,7 @@ import type { DJSong, Performer, ScheduleItem } from '../types';
 import { audioEngine } from '../utils/audioEngine';
 import { padColor } from '../utils/padColor';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
+import type { SessionCredentials } from '../utils/session-vault';
 import { loadColorScheme } from '../utils/theme';
 import {
   DEFAULT_CUE_SECONDS,
@@ -57,6 +58,12 @@ interface RunShowProps {
   libraryCount?: number;
   /** The key a paired stage remote sends, if the operator has paired one. */
   remoteKey?: string;
+  /**
+   * The signed-in session. Publishing to the audience's page is authenticated
+   * — the viewer token names the page but does not grant the right to write to
+   * it. Without a session, live mode still runs; it just does not publish.
+   */
+  session?: SessionCredentials;
   onStart?: () => void; // fired once when the show first starts (mark in-progress)
   onFinish?: () => void; // fired when the operator ends the show (mark completed)
   onClose: () => void;
@@ -166,6 +173,7 @@ export function RunShow({
   djSongs = [],
   libraryCount = 0,
   remoteKey,
+  session,
   onStart,
   onFinish,
   onClose,
@@ -594,7 +602,7 @@ export function RunShow({
           }
         : {}),
     };
-    publishLiveView(viewToken, payload).catch(() => { /* swallow */ });
+    if (session) publishLiveView(viewToken, payload, session).catch(() => { /* swallow */ });
     // playingKey is in the deps on purpose: when the viewer is carrying the
     // sound, a press has to reach it immediately rather than waiting for the
     // next cue change.
@@ -618,7 +626,7 @@ export function RunShow({
       remainingAtLastUpdate: 0,
       lastUpdateMs: Date.now(),
     };
-    publishLiveView(viewToken, payload).catch(() => { /* ignore */ });
+    if (session) publishLiveView(viewToken, payload, session).catch(() => { /* ignore */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
