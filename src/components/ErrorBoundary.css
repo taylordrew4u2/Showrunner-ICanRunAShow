@@ -4,41 +4,43 @@
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
-  padding: 32px;
+  padding: var(--space-8);
   text-align: center;
-  background: var(--bg, #1a1a2e);
-  color: var(--text, #e0e0e0);
+  background: var(--bg);
+  color: var(--text);
+  /* The one screen that must not depend on Inter having loaded: if the render
+     crashed, the webfont may be why. system-ui is always there. */
   font-family: system-ui, sans-serif;
 }
 
 .error-boundary__heading {
-  font-size: 1.75rem;
-  margin-bottom: 12px;
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-3);
 }
 
 .error-boundary__message {
-  color: var(--text-muted, #9ca3af);
-  margin-bottom: 24px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-6);
   max-width: 420px;
   line-height: 1.5;
 }
 
 .error-boundary__detail {
-  color: var(--text-soft, #6b7280);
-  font-size: 0.8rem;
-  font-family: monospace;
-  margin-bottom: 24px;
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  margin-bottom: var(--space-6);
   max-width: 500px;
   word-break: break-word;
 }
 
 .error-boundary__reload {
-  background: var(--primary, #6b46c1);
-  color: var(--on-primary, #fff);
+  background: var(--primary);
+  color: var(--on-primary);
   border: none;
-  padding: 12px 32px;
-  border-radius: var(--radius-md, 8px);
-  font-size: 1rem;
+  padding: var(--space-3) var(--space-8);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
   font-family: inherit;
   font-weight: 600;
   cursor: pointer;

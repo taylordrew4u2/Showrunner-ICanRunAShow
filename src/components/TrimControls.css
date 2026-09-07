@@ -2,22 +2,22 @@
    Sits under a song row, so it stays visually subordinate to the track it
    belongs to rather than reading as a section of its own. */
 .trim {
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
   border-top: 1px dashed var(--border);
 }
 
 .trim__fields {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
 .trim__field {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-0-5);
   /* Wide enough for "end of track" without stretching: these hold a timecode,
      and a full-width box would imply a sentence goes in it. */
   flex: 0 1 118px;
@@ -25,7 +25,7 @@
 }
 
 .trim__label {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 650;
   color: var(--text-muted);
 }
@@ -33,9 +33,9 @@
 .trim__input {
   width: 100%;
   min-width: 0;
-  padding: 7px 9px;
+  padding: var(--space-1-5) var(--space-2);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: var(--text-md);
   font-variant-numeric: tabular-nums;
   color: var(--text);
   background: var(--surface);
@@ -65,7 +65,7 @@
 }
 
 .trim__hint {
-  margin: 6px 0 0;
-  font-size: 0.78rem;
+  margin: var(--space-1-5) 0 0;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }

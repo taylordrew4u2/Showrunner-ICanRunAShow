@@ -5,7 +5,7 @@
 .shows-cal {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 /* ── Header: month title + nav ──────────────────────────────── */
@@ -13,14 +13,14 @@
 .shows-cal__header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .shows-cal__title {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 1.15rem;
+  font-size: var(--text-lg);
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -42,20 +42,20 @@
   cursor: pointer;
   font-family: inherit;
   touch-action: manipulation;
-  transition: background-color 0.12s ease, border-color 0.12s ease;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
   flex-shrink: 0;
 }
 
 .shows-cal__nav-btn {
   width: 44px;
-  font-size: 1.5rem;
+  font-size: var(--text-2xl);
   line-height: 1;
-  padding-bottom: 3px; /* optically center the chevron glyph */
+  padding-bottom: var(--space-0-5); /* optically center the chevron glyph */
 }
 
 .shows-cal__today-btn {
-  padding: 0 14px;
-  font-size: 0.85rem;
+  padding: 0 var(--space-3-5);
+  font-size: var(--text-md);
   font-weight: 700;
 }
 
@@ -81,17 +81,17 @@
 .shows-cal__weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .shows-cal__weekday {
   text-align: center;
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-soft);
-  padding-bottom: 2px;
+  padding-bottom: var(--space-0-5);
 }
 
 /* ── Day grid ───────────────────────────────────────────────── */
@@ -99,7 +99,7 @@
 .shows-cal__grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .shows-cal__day {
@@ -107,7 +107,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: var(--space-0-5);
   aspect-ratio: 1;
   min-height: 42px;
   padding: 0;
@@ -118,7 +118,7 @@
   cursor: pointer;
   font-family: inherit;
   touch-action: manipulation;
-  transition: background-color 0.12s ease, border-color 0.12s ease;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
 }
 
 .shows-cal__day--blank {
@@ -156,7 +156,7 @@
 }
 
 .shows-cal__day-num {
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   font-weight: 600;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -169,7 +169,7 @@
 /* Dot indicators — always reserve the row so numbers align */
 .shows-cal__dots {
   display: flex;
-  gap: 3px;
+  gap: var(--space-0-5);
   height: 5px;
 }
 
@@ -189,13 +189,13 @@
 .shows-cal__agenda {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 .shows-cal__agenda-title {
   margin: 0;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -204,8 +204,8 @@
 
 .shows-cal__agenda-empty {
   margin: 0;
-  padding: 14px 0 6px;
-  font-size: 0.88rem;
+  padding: var(--space-3-5) 0 var(--space-1-5);
+  font-size: var(--text-md);
   color: var(--text-muted);
   text-align: center;
 }
@@ -213,16 +213,16 @@
 .shows-cal__agenda-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .shows-cal__event {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2-5);
   width: 100%;
   min-height: 56px;
-  padding: 10px 12px 10px 14px;
+  padding: var(--space-2-5) var(--space-3) var(--space-2-5) var(--space-3-5);
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -232,7 +232,7 @@
   cursor: pointer;
   font-family: inherit;
   touch-action: manipulation;
-  transition: background-color 0.12s ease, border-color 0.12s ease;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
 }
 
 .shows-cal__event--upcoming    { --event-accent: var(--primary); }
@@ -255,11 +255,11 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 .shows-cal__event-name {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: -0.01em;
   overflow: hidden;
@@ -268,7 +268,7 @@
 }
 
 .shows-cal__event-detail {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   overflow: hidden;
@@ -278,7 +278,7 @@
 
 .shows-cal__event-status {
   flex-shrink: 0;
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -293,11 +293,11 @@
 @media (min-width: 768px) {
   .shows-cal {
     max-width: 720px;
-    gap: 14px;
+    gap: var(--space-3-5);
   }
 
   .shows-cal__title {
-    font-size: 1.3rem;
+    font-size: var(--text-xl);
   }
 
   .shows-cal__day {
@@ -305,6 +305,6 @@
   }
 
   .shows-cal__day-num {
-    font-size: 0.92rem;
+    font-size: var(--text-base);
   }
 }

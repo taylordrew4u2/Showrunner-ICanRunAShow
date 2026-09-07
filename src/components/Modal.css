@@ -9,7 +9,7 @@
   justify-content: center;
   /* Top of the layer scale — see --z-modal in App.css for why. */
   z-index: var(--z-modal);
-  padding: 20px;
+  padding: var(--space-5);
   animation: fadeIn 0.2s ease-out;
 }
 
@@ -27,7 +27,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 32px;
+  padding: var(--space-8);
   width: 100%;
   max-width: 560px;
   max-height: 90dvh;
