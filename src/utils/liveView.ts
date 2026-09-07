@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { SessionCredentials } from './session-vault';
 import type { ColorScheme } from './theme';
 import type { ViewerPlayback, ViewerTrack } from './viewerAudio';
 
@@ -35,8 +36,25 @@ export interface LiveViewPayload {
   playback?: ViewerPlayback;
 }
 
-export async function publishLiveView(token: string, payload: LiveViewPayload): Promise<void> {
-  await api.post('/api/live', { token, payload });
+/**
+ * Push the current state to the audience's page.
+ *
+ * Authenticated, and deliberately so: the viewer token is the link handed to
+ * the room, so it identifies the page but cannot be the permission to write to
+ * it. Without this, anyone holding a viewer link could overwrite what the
+ * room's screen showed mid-show. The server checks the token belongs to this
+ * account — see api/live.ts.
+ */
+export async function publishLiveView(
+  token: string,
+  payload: LiveViewPayload,
+  creds: SessionCredentials,
+): Promise<void> {
+  await api.post(
+    '/api/live',
+    { token, payload },
+    { authUserId: creds.userId, authHash: creds.authHash },
+  );
 }
 
 export async function fetchLiveView(token: string): Promise<LiveViewPayload | null> {
