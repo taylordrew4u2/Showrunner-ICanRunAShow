@@ -9,19 +9,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--primary-soft, rgba(59, 130, 246, 0.12));
-  border: 1px solid var(--primary, #3b82f6);
-  color: var(--primary-text, #3b82f6);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary);
+  color: var(--primary-text);
   cursor: pointer;
-  transition: transform 0.12s ease, background 0.12s ease;
+  transition: transform var(--duration-fast) ease, background var(--duration-fast) ease;
 }
-.track-preview:hover { background: var(--primary, #3b82f6); color: #fff; }
+.track-preview:hover { background: var(--primary); color: var(--on-primary); }
 .track-preview:active { transform: scale(0.93); }
-.track-preview:focus-visible { outline: 2px solid var(--primary, #3b82f6); outline-offset: 2px; }
+.track-preview:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .track-preview--playing {
-  background: var(--success, #16a34a);
-  border-color: var(--success, #16a34a);
-  color: #fff;
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--on-success);
   animation: track-preview-pulse 1.8s ease-in-out infinite;
 }
 @keyframes track-preview-pulse {
@@ -36,9 +36,9 @@
    up and "this one has no file" is visible down the column. */
 .track-preview--empty {
   border-style: dashed;
-  border-color: var(--border-strong, rgba(127, 127, 127, 0.4));
+  border-color: var(--border-strong);
   background: none;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted);
   cursor: default;
 }
-.track-preview--empty:hover { background: none; color: var(--text-muted, #6b7280); }
+.track-preview--empty:hover { background: none; color: var(--text-muted); }

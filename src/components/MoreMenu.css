@@ -15,7 +15,7 @@
   color: var(--text-muted);
   cursor: pointer;
   touch-action: manipulation;
-  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease, border-color var(--duration-fast) ease;
 }
 
 .more-menu__trigger:hover,
@@ -39,7 +39,7 @@
      could reach past the left edge. Never wider than the screen allows. */
   min-width: min(200px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
-  padding: 4px;
+  padding: var(--space-1);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -68,18 +68,18 @@
   display: block;
   width: 100%;
   min-height: 44px;
-  padding: 10px 12px;
+  padding: var(--space-2-5) var(--space-3);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text);
   font-family: inherit;
-  font-size: 0.92rem;
+  font-size: var(--text-base);
   font-weight: 600;
   text-align: left;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background-color 0.12s ease;
+  transition: background-color var(--duration-fast) ease;
 }
 
 .more-menu__item:hover {

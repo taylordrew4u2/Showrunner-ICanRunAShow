@@ -6,19 +6,19 @@
 }
 
 .contracts__error {
-  margin: 0 0 14px;
-  padding: 10px 12px;
+  margin: 0 0 var(--space-3-5);
+  padding: var(--space-2-5) var(--space-3);
   border-radius: var(--radius-md);
   background: var(--danger-soft);
   border: 1px solid var(--danger-soft-border);
   color: var(--danger-text);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   /* A clipboard failure puts the whole link in here to be copied by hand. */
   word-break: break-all;
 }
 
 .contracts__empty {
-  margin: 8px 0 0;
+  margin: var(--space-2) 0 0;
   color: var(--text-muted);
   font-size: var(--text-base);
   line-height: 1.55;
@@ -38,9 +38,9 @@
 .contracts__item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 60px;
-  padding: 11px 14px;
+  padding: var(--space-2-5) var(--space-3-5);
   background: none;
   border: 0;
   border-radius: 0;
@@ -63,11 +63,11 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-0-5);
 }
 
 .contracts__item-name {
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--text);
   overflow: hidden;
@@ -76,7 +76,7 @@
 }
 
 .contracts__item-meta {
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   color: var(--text-soft);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -88,11 +88,11 @@
   flex: 0 0 auto;
   min-width: 22px;
   height: 22px;
-  padding: 0 7px;
+  padding: 0 var(--space-1-5);
   border-radius: var(--radius-full);
   background: var(--primary);
-  color: #fff;
-  font-size: 0.75rem;
+  color: var(--on-primary);
+  font-size: var(--text-xs);
   font-weight: 700;
   display: grid;
   place-items: center;
@@ -109,7 +109,7 @@
 
 /* ── sending ───────────────────────────────────────────────────────────── */
 .contracts__send {
-  margin-bottom: 22px;
+  margin-bottom: var(--space-5-5);
 }
 
 .contracts__send-btn {
@@ -130,27 +130,27 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 14px;
+  padding: var(--space-3-5);
 }
 
 .contracts__picker-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .contracts__picker-head h2 {
   margin: 0;
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--text);
 }
 
 .contracts__manual {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .contracts__manual input {
@@ -159,7 +159,7 @@
 }
 
 .contracts__picker-label {
-  margin: 16px 0 8px;
+  margin: var(--space-4) 0 var(--space-2);
   font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -183,9 +183,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 44px;
-  padding: 10px 12px;
+  padding: var(--space-2-5) var(--space-3);
   background: none;
   border: 0;
   text-align: left;
@@ -217,14 +217,14 @@
 
 .contracts__candidate-hint {
   flex: 0 0 auto;
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--primary-text);
 }
 
 /* ── who has signed ────────────────────────────────────────────────────── */
 .contracts__section-label {
-  margin: 0 0 10px;
+  margin: 0 0 var(--space-2-5);
   font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -244,9 +244,9 @@
 .contracts__row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2-5);
   min-height: 56px;
-  padding: 10px 14px;
+  padding: var(--space-2-5) var(--space-3-5);
 }
 
 .contracts__row + .contracts__row {
@@ -272,7 +272,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 .contracts__row-name {
@@ -293,7 +293,7 @@
 }
 
 .contracts__status {
-  margin-bottom: 26px;
+  margin-bottom: var(--space-6);
 }
 
 .contracts__delete {
@@ -304,22 +304,22 @@
    them shrink before the name does. */
 @media (max-width: 619px) {
   .contracts__row {
-    gap: 8px;
-    padding: 10px 12px;
+    gap: var(--space-2);
+    padding: var(--space-2-5) var(--space-3);
   }
 
   .contracts__row .btn {
     flex: 0 0 auto;
-    padding-inline: 9px;
+    padding-inline: var(--space-2);
   }
 }
 
 /* What the signer is asked for, beyond their name. */
 .contracts__fields {
-  margin: 20px 0 0;
+  margin: var(--space-5) 0 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2-5);
   align-items: flex-start;
 }
 
@@ -328,22 +328,22 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .contracts__fields-note,
 .contracts__fields-empty {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   color: var(--text-muted);
   line-height: 1.5;
 }
 
 .contracts__field-list {
   margin: 0;
-  padding-left: 18px;
+  padding-left: var(--space-4-5);
   color: var(--text);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   line-height: 1.7;
 }
 
@@ -354,7 +354,7 @@
 .contracts__field-rows {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2-5);
   width: 100%;
 }
 
@@ -362,7 +362,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .contracts__field-row input[type='text'] {
@@ -374,22 +374,22 @@
 .contracts__field-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: var(--text-sm);
+  gap: var(--space-1-5);
+  font-size: var(--text-md);
   color: var(--text-muted);
   cursor: pointer;
 }
 
 .contracts__answers {
-  margin: 6px 0 0;
+  margin: var(--space-1-5) 0 0;
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .contracts__answer {
   display: flex;
-  gap: 6px;
-  font-size: var(--text-sm);
+  gap: var(--space-1-5);
+  font-size: var(--text-md);
 }
 
 .contracts__answer dt {

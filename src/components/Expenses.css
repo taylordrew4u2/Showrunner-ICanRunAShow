@@ -10,56 +10,51 @@
 .expenses-page__filter {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
     flex-wrap: wrap;
 }
 
 .expenses-page__filter-label {
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: var(--text-base);
     color: var(--text);
     white-space: nowrap;
 }
 
 .expenses-page__add {
-    margin-bottom: 24px;
-    padding: 16px;
+    margin-bottom: var(--space-6);
+    padding: var(--space-4);
     background: var(--surface-strong);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
 }
 
 .expenses-page__add-title {
-    font-size: 0.95rem;
+    font-size: var(--text-base);
     font-weight: 600;
-    margin: 0 0 12px;
+    margin: 0 0 var(--space-3);
     color: var(--text);
 }
 
-/* Which show an expense belongs to. The blue was written once for dark and
-   left there: #60a5fa on the pale blue tint is 2.2:1 in the light theme. Each
-   theme needs the shade that reads on its own tint — same split SceneList
-   already makes for its status words. */
+/* Which show an expense belongs to. --info-text carries the per-theme shade;
+   this used to hardcode the dark blue in both themes, which was 2.2:1 on the
+   light tint. */
 .section-list-item__show-tag {
     display: inline-block;
-    background: rgba(59, 130, 246, 0.12);
-    color: #1d4ed8;
-    font-size: 0.82rem;
+    background: var(--info-soft);
+    color: var(--info-text);
+    font-size: var(--text-sm);
     font-weight: 700;
-    padding: 3px 9px;
-    border-radius: 5px;
+    padding: var(--space-0-5) var(--space-2);
+    border-radius: var(--radius-xs);
     white-space: nowrap;
-}
-
-[data-theme="dark"] .section-list-item__show-tag {
-    color: #60a5fa;
 }
 
 @media (max-width: 640px) {
     .expenses-page__add {
-        padding: 12px;
-        border-radius: 10px;
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
     }
 }
 
@@ -68,10 +63,10 @@
     width: 40px;
     height: 40px;
     object-fit: cover;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     cursor: pointer;
-    transition: transform 0.15s;
+    transition: transform var(--duration-normal);
 }
 
 .expenses-page .receipt-thumb--inline {
@@ -107,12 +102,12 @@
 .expenses-page .receipt-lightbox__img {
     max-width: 90vw;
     max-height: 80dvh;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     object-fit: contain;
 }
 
 .expenses-page .receipt-lightbox__hint {
     color: rgba(255, 255, 255, 0.5);
-    font-size: 0.8rem;
-    margin-top: 16px;
+    font-size: var(--text-sm);
+    margin-top: var(--space-4);
 }

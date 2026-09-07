@@ -5,8 +5,8 @@
 .page-header {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 20px;
+  gap: var(--space-1-5);
+  margin-bottom: var(--space-5);
 }
 
 /* Back sits above the title (never beside it) so the title's position never
@@ -15,20 +15,20 @@
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-height: 36px;
-  margin-left: -8px;
-  padding: 6px 10px 6px 8px;
+  margin-left: -var(--space-2);
+  padding: var(--space-1-5) var(--space-2-5) var(--space-1-5) var(--space-2);
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: var(--text-md);
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
-  transition: color 0.12s ease, background-color 0.12s ease;
+  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
 }
 
 .page-header__back:hover {
@@ -51,13 +51,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
 .page-header__title {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: var(--text-2xl);
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -68,25 +68,25 @@
 .page-header__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-shrink: 0;
 }
 
 .page-header__subtitle {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: var(--text-md);
   line-height: 1.45;
   max-width: 60ch;
 }
 
 @media (max-width: 640px) {
   .page-header {
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 
   .page-header__title {
-    font-size: 1.4rem;
+    font-size: var(--text-2xl);
   }
 }
 

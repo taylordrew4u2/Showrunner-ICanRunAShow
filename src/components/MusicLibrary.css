@@ -1,7 +1,7 @@
 .music-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
@@ -9,8 +9,8 @@
 
 .music-page__status {
   margin: 0;
-  padding: 10px 12px;
-  font-size: 0.88rem;
+  padding: var(--space-2-5) var(--space-3);
+  font-size: var(--text-md);
   line-height: 1.4;
   color: var(--text);
   background: var(--surface);
@@ -29,7 +29,7 @@
 .music-search {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2-5);
 }
 
 .music-search__input {
@@ -40,7 +40,7 @@
 .music-search__count {
   margin: 0;
   flex-shrink: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -51,7 +51,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .music-list__item {
@@ -62,8 +62,8 @@
      Without it the trim is dragged up beside Edit and × and reads as a third
      column of actions rather than as something belonging to the track. */
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3-5);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -75,7 +75,7 @@
 .music-list__lead {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-width: 0;
   flex: 1;
 }
@@ -83,14 +83,14 @@
 .music-list__body {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1;
 }
 
 .music-list__title {
   font-weight: 650;
-  font-size: 0.98rem;
+  font-size: var(--text-base);
   color: var(--text);
   overflow-wrap: anywhere;
 }
@@ -103,12 +103,12 @@
 .music-list__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-1-5);
 }
 
 .music-list__tag {
-  font-size: 0.75rem;
-  padding: 2px 8px;
+  font-size: var(--text-xs);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: var(--radius-full);
   background: var(--surface-strong);
   color: var(--text-muted);
@@ -132,20 +132,20 @@
 
 .music-list__actions {
   display: flex;
-  gap: 6px;
+  gap: var(--space-1-5);
   flex-shrink: 0;
 }
 
 .music-list__delete {
   color: var(--danger);
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
   line-height: 1;
 }
 
 .music-list__edit {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
 }
 
@@ -178,8 +178,8 @@
 .dj-search {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 10px 0;
+  gap: var(--space-2-5);
+  margin: var(--space-2-5) 0;
 }
 
 .dj-search__input {
@@ -189,15 +189,15 @@
 
 .dj-search__count {
   flex-shrink: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 /* ── Add-from-library picker, inside a show's DJ section ─────────────── */
 .dj-library {
-  margin: 10px 0 4px;
-  padding: 12px;
+  margin: var(--space-2-5) 0 var(--space-1);
+  padding: var(--space-3);
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -207,12 +207,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
 .dj-library__title {
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   font-weight: 700;
   color: var(--text);
 }
@@ -223,7 +223,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1-5);
   max-height: 260px;
   overflow-y: auto;
 }
@@ -232,15 +232,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: var(--space-2-5);
+  padding: var(--space-2) var(--space-2-5);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
 
 .dj-library__name {
-  font-size: 0.9rem;
+  font-size: var(--text-md);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -249,7 +249,7 @@
 
 .dj-library__empty {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   color: var(--text-muted);
   line-height: 1.45;
 }
