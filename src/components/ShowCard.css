@@ -3,13 +3,13 @@
   border: 1px solid var(--border);
   border-left: 3px solid var(--card-accent, var(--border-strong));
   border-radius: var(--radius-md);
-  padding: 14px 14px 12px 16px;
+  padding: var(--space-3-5) var(--space-3-5) var(--space-3) var(--space-4);
   cursor: pointer;
   position: relative;
-  transition: border-color 0.1s ease;
+  transition: border-color var(--duration-fast) ease;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-1);
 }
 
 /* Status accent colors */
@@ -34,7 +34,7 @@
 .show-card__top {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 36px;
 }
 
@@ -43,9 +43,9 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   /* Optically center against the taller date block */
-  padding-top: 2px;
+  padding-top: var(--space-0-5);
 }
 
 /* ── Prominent date block ───────────────────────────────────── */
@@ -57,7 +57,7 @@
   justify-content: center;
   flex-shrink: 0;
   width: 52px;
-  padding: 6px 4px 5px;
+  padding: var(--space-1-5) var(--space-1) var(--space-1);
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -65,7 +65,7 @@
 }
 
 .show-card__date-month {
-  font-size: 0.62rem;
+  font-size: var(--text-2xs);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -73,7 +73,7 @@
 }
 
 .show-card__date-day {
-  font-size: 1.35rem;
+  font-size: var(--text-xl);
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -81,7 +81,7 @@
 }
 
 .show-card__date-sub {
-  font-size: 0.62rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -95,7 +95,7 @@
 }
 
 .show-card__date-tbd {
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-soft);
@@ -112,7 +112,7 @@
 }
 
 .show-card__title {
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
   color: var(--text);
   margin: 0;
@@ -126,10 +126,10 @@
 
 .show-card__actions {
   display: flex;
-  gap: 2px;
+  gap: var(--space-0-5);
   flex-shrink: 0;
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--duration-normal) ease;
 }
 
 .show-card:hover .show-card__actions,
@@ -148,10 +148,10 @@
   color: var(--text-soft);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: var(--text-md);
   line-height: 1;
   touch-action: manipulation;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 
 .show-card__action-btn:hover {
@@ -189,9 +189,9 @@
 .show-card__meta {
   display: flex;
   align-items: center;
-  gap: 4px 10px;
+  gap: var(--space-1) var(--space-2-5);
   flex-wrap: wrap;
-  font-size: 0.83rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   font-weight: 400;
   min-height: 18px;
@@ -230,9 +230,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-top: 6px;
-  padding-left: 64px; /* aligns under the title, clear of the date block */
+  gap: var(--space-2-5);
+  margin-top: var(--space-1-5);
+  padding-left: var(--space-16); /* aligns under the title, clear of the date block */
 }
 
 @media (max-width: 480px) {
@@ -252,8 +252,8 @@
   align-items: baseline;
   /* Wider than the meta row's gap: these facts are all the same weight and
      colour, so spacing is doing all the separating on its own. */
-  gap: 2px 14px;
-  font-size: 0.8rem;
+  gap: var(--space-0-5) var(--space-3-5);
+  font-size: var(--text-sm);
   color: var(--text-muted);
   line-height: 1.4;
   min-width: 0;
@@ -292,11 +292,11 @@
    least legible way to set the one word on the card that tells you where the
    show stands. Same floor and same sentence case as the show page. */
 .show-card__status {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-weight: 650;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1-5);
   flex-shrink: 0;
   color: var(--text-muted);
 }
@@ -321,7 +321,7 @@
 .show-card__progress-wrap {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1-5);
   flex-shrink: 0;
 }
 
@@ -337,11 +337,11 @@
   height: 100%;
   background: var(--card-accent, var(--primary));
   border-radius: var(--radius-full);
-  transition: width 0.35s ease;
+  transition: width var(--duration-slower) ease;
 }
 
 .show-card__progress-label {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--text-soft);
   font-weight: 600;
   white-space: nowrap;
@@ -368,11 +368,11 @@
 
 @media (max-width: 520px) {
   .show-card {
-    padding: 14px 12px 12px 16px;
+    padding: var(--space-3-5) var(--space-3) var(--space-3) var(--space-4);
   }
 
   .show-card__title {
-    font-size: 0.95rem;
+    font-size: var(--text-base);
   }
 }
 
@@ -387,7 +387,7 @@
 .show-card__open {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: var(--z-raised);
   appearance: none;
   background: none;
   border: 0;
@@ -414,7 +414,7 @@
 /* Above the stretched hit area, or they'd be unclickable. */
 .show-card__actions {
   position: relative;
-  z-index: 2;
+  z-index: var(--z-raised-above);
 }
 
 
@@ -426,8 +426,8 @@
    row-shaped card squeezed its title when narrowed, which is why the title and
    status now share a line instead of stacking into a taller block. */
 .show-card {
-  padding: 11px 12px 10px 14px;
-  gap: 3px;
+  padding: var(--space-2-5) var(--space-3) var(--space-2-5) var(--space-3-5);
+  gap: var(--space-0-5);
 }
 
 
@@ -481,8 +481,8 @@
        tap minimum and the list keeps an even rhythm. */
     min-height: 60px;
     justify-content: center;
-    padding: 9px 12px 9px 15px;
-    gap: 2px;
+    padding: var(--space-2) var(--space-3) var(--space-2) var(--space-3-5);
+    gap: var(--space-0-5);
   }
 
   .show-card + .show-card {
@@ -505,12 +505,12 @@
 
   .show-card__top {
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     min-height: 0;
   }
 
   .show-card__main {
-    gap: 2px;
+    gap: var(--space-0-5);
     padding-top: 0;
   }
 
@@ -532,7 +532,7 @@
   }
 
   .show-card__title {
-    font-size: 1.0625rem; /* 17px — iOS body */
+    font-size: var(--text-lg); /* 17px — iOS body */
     font-weight: 600;
     letter-spacing: -0.02em;
     line-height: 1.25;
@@ -540,7 +540,7 @@
 
   .show-card__meta {
     display: block;
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     line-height: 1.35;
   }
 
@@ -578,7 +578,7 @@
   }
 
   .show-card__status {
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
   }
 
   .show-card__chevron {
@@ -586,7 +586,7 @@
     flex-shrink: 0;
     width: 8px;
     height: 8px;
-    margin-right: 2px;
+    margin-right: var(--space-0-5);
     border-right: 2px solid var(--text-soft);
     border-bottom: 2px solid var(--text-soft);
     transform: rotate(-45deg);

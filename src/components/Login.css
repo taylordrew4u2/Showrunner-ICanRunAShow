@@ -8,7 +8,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(24px, 6vw, 64px) 16px;
+  padding: clamp(var(--space-6), 6vw, var(--space-16)) var(--space-4);
 }
 
 /* ── Centered content column ──────────────────────────────────────── */
@@ -18,7 +18,7 @@
   max-width: 400px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 /* ── Wordmark ─────────────────────────────────────────────────────── */
@@ -26,8 +26,8 @@
 .landing__wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .landing__wordmark-dot {
@@ -39,7 +39,7 @@
 }
 
 .landing__wordmark-text {
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text-muted);
@@ -52,7 +52,7 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.15;
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
   color: var(--text);
 }
 
@@ -61,10 +61,10 @@
 }
 
 .landing__lede {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   color: var(--text-muted);
   line-height: 1.55;
-  margin: 0 0 24px;
+  margin: 0 0 var(--space-6);
 }
 
 /* ── Auth card ────────────────────────────────────────────────────── */
@@ -73,19 +73,19 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: var(--space-6);
 }
 
 [data-theme="dark"] .login__container {
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-xl);
 }
 
 .login__header {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .login__title {
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
   margin: 0;
   color: var(--text);
@@ -96,17 +96,17 @@
 .login__form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .login__field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-1);
 }
 
 .login__label {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-muted);
   letter-spacing: 0.02em;
@@ -116,18 +116,18 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 10px 12px;
+  padding: var(--space-2-5) var(--space-3);
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-family: inherit;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
   width: 100%;
 }
 
 .login__input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  box-shadow: var(--focus-ring);
 }
 
 .login__input::placeholder {
@@ -144,16 +144,16 @@
 .login__button {
   width: 100%;
   min-height: 48px;
-  padding: 10px 16px;
+  padding: var(--space-2-5) var(--space-4);
   background: var(--primary);
   color: var(--on-primary);
   border: none;
   border-radius: var(--radius-md);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  transition: background-color 0.15s ease, opacity 0.15s ease;
+  transition: background-color var(--duration-normal) ease, opacity var(--duration-normal) ease;
   touch-action: manipulation;
 }
 
@@ -170,7 +170,7 @@
   background: transparent;
   color: var(--text-muted);
   border: 1px solid var(--border);
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   font-weight: 600;
   min-height: 40px;
 }
@@ -188,23 +188,23 @@
   border: 1px solid var(--primary-soft-border);
   color: var(--primary-text);
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  font-size: 0.875rem;
+  padding: var(--space-2-5) var(--space-3);
+  font-size: var(--text-md);
   font-weight: 500;
 }
 
 /* ── Footer note ──────────────────────────────────────────────────── */
 
 .login__footer {
-  margin-top: 14px;
+  margin-top: var(--space-3-5);
   text-align: center;
 }
 
 .login__note {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.78rem;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
   color: var(--text-soft);
   margin: 0;
 }
@@ -219,11 +219,11 @@
 .login__trust {
   list-style: none;
   margin: 0;
-  padding: 12px 0 0;
+  padding: var(--space-3) 0 0;
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--space-1-5);
   text-align: left;
 }
 
@@ -232,21 +232,21 @@
 .login__trust li {
   display: flex;
   align-items: flex-start;
-  gap: 7px;
-  font-size: 0.78rem;
+  gap: var(--space-1-5);
+  font-size: var(--text-xs);
   line-height: 1.4;
   color: var(--text-muted);
 }
 
 .login__trust svg {
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: var(--space-0-5);
   color: var(--success-text);
 }
 
 .login__legal {
-  margin: 8px 0 0;
-  font-size: 0.75rem;
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
   color: var(--text-soft);
 }
 
@@ -256,7 +256,7 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--tap-min);
-  padding: 0 2px;
+  padding: 0 var(--space-0-5);
   color: var(--text-muted);
   text-decoration: underline;
 }
@@ -266,40 +266,40 @@
 .landing__section {
   width: 100%;
   max-width: 720px;
-  margin: 48px auto 0;
+  margin: var(--space-12) auto 0;
   text-align: left;
 }
 
 .landing__section-title {
-  font-size: 1.2rem;
+  font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text);
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-4);
 }
 
 .landing__features {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .landing__feature {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  padding: var(--space-3-5) var(--space-4);
 }
 
 .landing__feature h3 {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 700;
-  margin: 0 0 6px;
+  margin: 0 0 var(--space-1-5);
   color: var(--text);
 }
 
 .landing__feature p {
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   color: var(--text-muted);
   margin: 0;
   line-height: 1.55;
@@ -311,7 +311,7 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .landing__guides a {
@@ -319,9 +319,9 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   color: var(--text);
-  font-size: 0.92rem;
+  font-size: var(--text-base);
   font-weight: 600;
   text-decoration: none;
 }
@@ -336,14 +336,14 @@
 
 .landing__faq dt {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   color: var(--text);
-  margin-top: 14px;
+  margin-top: var(--space-3-5);
 }
 
 .landing__faq dd {
-  margin: 4px 0 0;
-  font-size: 0.9rem;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-md);
   color: var(--text-muted);
   line-height: 1.6;
 }
