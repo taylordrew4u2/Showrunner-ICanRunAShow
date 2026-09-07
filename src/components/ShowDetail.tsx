@@ -268,11 +268,13 @@ export function ShowDetail({
   useEffect(() => {
     if (!show.viewToken || show.status !== 'upcoming' || runShowOpen) return;
     const timeout = setTimeout(() => {
-      publishLiveView(show.viewToken!, buildScheduledPayload(show.viewNote)).catch(() => {});
+      if (session) {
+        publishLiveView(show.viewToken!, buildScheduledPayload(show.viewNote), session).catch(() => {});
+      }
     }, 1000);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers]);
+  }, [show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers, session]);
 
   // Show the recap once the show is done — either explicitly marked completed
   // or its date has passed.
@@ -542,7 +544,9 @@ export function ShowDetail({
       updates = { ...updates, viewToken: token };
     }
     onUpdate({ ...show, ...updates });
-    try { await publishLiveView(token, buildScheduledPayload(viewerNoteDraft)); } catch { /* ignore */ }
+    try {
+      if (session) await publishLiveView(token, buildScheduledPayload(viewerNoteDraft), session);
+    } catch { /* ignore */ }
   }
 
   function handleCopyViewer() {
@@ -1263,6 +1267,7 @@ export function ShowDetail({
           djSongs={runnableDJSongs}
           libraryCount={(settings.musicLibrary ?? []).length}
           remoteKey={settings.remoteMusicKey}
+          session={session}
           onStart={() => {
             if (show.status !== 'completed' && show.status !== 'in-progress') {
               onUpdate({ ...show, status: 'in-progress' });

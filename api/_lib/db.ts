@@ -69,8 +69,11 @@ const DDL: string[] = [
      backed_up_at   TEXT NOT NULL DEFAULT (datetime('now')),
      PRIMARY KEY (id, backed_up_at)
    )`,
+  // `user_id` is who may publish to this token. The token itself is handed to
+  // the audience, so it cannot also be the permission to write — see api/live.ts.
   `CREATE TABLE IF NOT EXISTS live_view (
      token      TEXT PRIMARY KEY,
+     user_id    TEXT,
      payload    TEXT NOT NULL,
      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
    )`,
@@ -128,6 +131,11 @@ const DDL: string[] = [
 const MIGRATIONS: string[] = [
   `ALTER TABLE users ADD COLUMN auth_salt TEXT`,
   `ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 1`,
+  // Rows published before publishing required auth have no owner. They are
+  // claimed by the first authenticated publish to the same token, which is the
+  // producer whose show it is — nobody else has the token in a state where
+  // they could publish it. See api/live.ts.
+  `ALTER TABLE live_view ADD COLUMN user_id TEXT`,
 ];
 
 async function runMigrations(db: Client): Promise<void> {
