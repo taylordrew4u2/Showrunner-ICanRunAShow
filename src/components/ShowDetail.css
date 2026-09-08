@@ -53,6 +53,24 @@
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
 }
 
+/* The bar leans on the blur to stay readable over whatever scrolls under it.
+   Where there is no blur — some Android WebViews, and any browser told to
+   reduce transparency — 82% is not enough and the lineup reads straight
+   through the controls. Those cases get a solid bar instead. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .show-detail__topbar {
+    background: var(--bg);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .show-detail__topbar {
+    background: var(--bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 /* Where a navigation bar puts the title: the middle, once the big one at the
    top of the page has scrolled by. Until then this is the empty space the bar
    already had between the back control and the actions. */
@@ -1389,11 +1407,14 @@ select.show-detail__status--select {
   gap: var(--space-3);
 }
 
+/* A bill can run to a dozen names, and at three shows a night a producer reads
+   several of these a day. The row was 78px tall for a name and two tags; it is
+   the list, so it gets the density of a list. */
 .section-list-item {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3-5) var(--space-4);
+  padding: var(--space-2-5) var(--space-3-5);
   border-radius: var(--radius-md);
   background: var(--surface-strong);
   border: 1px solid var(--border);
@@ -1452,8 +1473,8 @@ select.show-detail__status--select {
 }
 
 .section-list-item__photo {
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--border);
@@ -1583,11 +1604,17 @@ select.show-detail__status--select {
 .section-list-item__order,
 .section-list-item__time {
   font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--primary-text);
-  background: var(--primary-soft);
-  padding: var(--space-1) var(--space-2-5);
-  border-radius: var(--radius-xs);
+  font-weight: 600;
+  /* A position in a list, not a warning. These were brand-red on a red fill,
+     which put the loudest colour in the app on the least surprising fact in
+     the row — and on a bill of a dozen it made the numbers, not the names,
+     the first thing the eye landed on. */
+  color: var(--text-soft);
+  background: transparent;
+  padding: var(--space-1) 0;
+  min-width: 1.4rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .section-list-item__name {
@@ -1626,13 +1653,18 @@ select.show-detail__status--select {
 }
 
 .section-list-item__tag--link {
-  color: var(--primary-text);
+  /* A handle and an email are how you reach someone, not something to shout.
+     Four of these on a row in brand-red read as four warnings; they are
+     details you glance at, and they behave like links on hover. */
+  color: var(--text-muted);
   text-decoration: none;
-  border: 1px solid var(--primary-soft-border);
-  background: var(--primary-soft);
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .section-list-item__tag--link:hover {
+  color: var(--primary-text);
+  border-color: var(--primary-soft-border);
   text-decoration: underline;
 }
 
@@ -3024,4 +3056,13 @@ select.show-detail__status--select {
   font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1.45;
+}
+
+/* The row opens the profile; this only names that. Quiet until you are on it. */
+.section-list-item__open {
+  color: var(--text-soft);
+}
+
+.section-list-item:hover .section-list-item__open {
+  color: var(--text);
 }
