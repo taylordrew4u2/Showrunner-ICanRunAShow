@@ -2765,6 +2765,13 @@
   white-space: nowrap;
 }
 
+/* A song the app chose, not the producer. Quieter than the track name and
+   said in the app's own words, so nobody reads it as part of the title. */
+.rs-pad__sub--auto {
+  font-style: italic;
+  opacity: 0.75;
+}
+
 /* Playing: a lit ring, a level meter in place of the play badge, and the name
    in green. Three signals, because one of them is always the one you catch. */
 /* Lit: the knob keeps its metal, and the ring around it comes on like an

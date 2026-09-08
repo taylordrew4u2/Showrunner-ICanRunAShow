@@ -179,6 +179,8 @@ export interface PotentialComic {
   // Optional performer data saved from a show
   socialMedia?: string;
   email?: string; // contact email
+  /** Only ever filled in by the person themselves, when they sign a contract. */
+  phone?: string;
 
   credits?: string;
   walkOnMusic?: string;

@@ -1269,6 +1269,7 @@ export function ShowDetail({
           performers={show.performers}
           djSongs={runnableDJSongs}
           libraryCount={(settings.musicLibrary ?? []).length}
+          musicLibrary={settings.musicLibrary ?? []}
           remoteKey={settings.remoteMusicKey}
           session={session}
           onStart={() => {

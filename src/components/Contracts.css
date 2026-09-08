@@ -401,3 +401,91 @@
   color: var(--text);
   white-space: pre-wrap;
 }
+
+/* ── The details a signature brought back ─────────────────────────────────
+   Sits under the answers rather than in a dialog: a contract coming back is
+   already the moment the producer is reading this row, and the whole case for
+   pressing the button is being able to see what it would change. */
+.contracts__import {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-2-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+
+.contracts__import--done {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.contracts__import-head {
+  margin: 0 0 var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.contracts__import-list {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.contracts__import-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.contracts__import-label {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-soft);
+}
+
+/* What is on file now, struck through — the one thing that would be lost. */
+.contracts__import-was {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-soft);
+  text-decoration: line-through;
+}
+
+.contracts__import-new {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.contracts__import-skip {
+  flex: 0 0 auto;
+  padding-inline: var(--space-1);
+  color: var(--text-soft);
+}
+
+@media (max-width: 768px) {
+  .contracts__import-item {
+    flex-wrap: wrap;
+  }
+
+  .contracts__import-new {
+    flex-basis: 100%;
+  }
+}
