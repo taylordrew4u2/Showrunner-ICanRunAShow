@@ -181,6 +181,8 @@ export interface PotentialComic {
   email?: string; // contact email
   /** Only ever filled in by the person themselves, when they sign a contract. */
   phone?: string;
+  /** Headshot (media store reference) — the face on a flyer or a post. */
+  photo?: string;
 
   credits?: string;
   walkOnMusic?: string;
@@ -327,6 +329,14 @@ export interface SignatureRecord {
    * questions are edited or the contract itself is deleted.
    */
   fields?: { label: string; value: string }[];
+  /**
+   * A headshot the signer sent in, as a data URL, for the flyer and the post.
+   *
+   * Carried on the record rather than uploaded separately because the signer
+   * has no account and no media store of their own — it rides the same
+   * per-request encryption as the rest of what they told you.
+   */
+  headshot?: string;
   /** Hash of the exact bytes the signer was shown, so the copy can be proved. */
   documentHash: string;
   userAgent?: string;

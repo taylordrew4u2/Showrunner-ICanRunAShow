@@ -290,3 +290,50 @@
   color: var(--text);
   white-space: pre-wrap;
 }
+
+/* ── The headshot, asked for while they are already here ──────────────────
+   Optional, and it says so: a missing photo must never be the reason a
+   contract goes unsigned. */
+.signing__photo-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+}
+
+.signing__photo-preview,
+.signing__photo-empty {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+.signing__photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-strong);
+  color: var(--text-soft);
+  font-size: 26px;
+}
+
+.signing__photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* A label styled as a button, because a bare file input on a phone is a
+   grey rectangle nobody presses. */
+.signing__photo-pick {
+  cursor: pointer;
+}
+
+.signing__photo-error {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--danger-text);
+}

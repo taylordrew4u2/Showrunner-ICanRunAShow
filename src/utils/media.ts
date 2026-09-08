@@ -83,6 +83,26 @@ export function dataUrlToBytes(dataUrl: string): Uint8Array | null {
   return out;
 }
 
+/**
+ * A `data:` URL as a File, so it can go into the media store.
+ *
+ * Needed for the headshot a performer sends in with a signed contract: it
+ * arrives as a data URL on the encrypted record, and everything else in the
+ * app addresses photos by media-store reference. Built off dataUrlToBytes for
+ * the reason described there — a fetch of a data: URL is blocked by our CSP.
+ *
+ * Returns null for anything that can't be decoded, rather than a File full of
+ * nothing.
+ */
+export function dataUrlToFile(dataUrl: string, name: string): File | null {
+  const bytes = dataUrlToBytes(dataUrl);
+  if (!bytes || bytes.length === 0) return null;
+  const comma = dataUrl.indexOf(',');
+  const meta = comma > 0 ? dataUrl.slice('data:'.length, comma) : '';
+  const type = meta.split(';')[0] || 'application/octet-stream';
+  return new File([bytes as BlobPart], name, { type });
+}
+
 export function readFileAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

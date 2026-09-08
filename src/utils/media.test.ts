@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dataUrlToBytes } from './media';
+import { dataUrlToBytes, dataUrlToFile } from './media';
 
 /**
  * Walk-on music resolves to a `data:` URL and Run Show has to turn that into
@@ -51,5 +51,32 @@ describe('dataUrlToBytes', () => {
 
   it('returns null rather than throwing on undecodable base64', () => {
     expect(dataUrlToBytes('data:audio/mpeg;base64,!!!!not base64!!!!')).toBeNull();
+  });
+});
+
+/**
+ * A headshot a performer sends in with a signed contract arrives as a data URL
+ * — they have no media store of their own — and has to become a File before it
+ * can be filed with every other photo in the app.
+ */
+describe('dataUrlToFile', () => {
+  it('turns a headshot data URL into a file the media store can take', async () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+
+    const file = dataUrlToFile(png, 'Mona Sable.jpg');
+
+    expect(file).toBeInstanceOf(File);
+    expect(file?.name).toBe('Mona Sable.jpg');
+    expect(file?.type).toBe('image/png');
+    expect(new Uint8Array(await file!.arrayBuffer())).toEqual(
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+  });
+
+  it('refuses rather than filing an empty photo', () => {
+    // A zero-byte "photo" on a flyer is worse than no photo: it looks like a
+    // bug on the poster rather than a missing headshot.
+    expect(dataUrlToFile('data:image/png;base64,', 'x.jpg')).toBeNull();
+    expect(dataUrlToFile('not a data url', 'x.jpg')).toBeNull();
   });
 });
