@@ -1398,13 +1398,20 @@ select.show-detail__status--select {
   padding: var(--space-8) var(--space-5);
 }
 
+/* One list, not a stack of cards. Each row already carried its own border and
+   corners with 12px of air between them, so a bill of eight read as eight
+   separate objects you had to scan one at a time — when the whole point of a
+   running order is the order, which you only see by reading down. Same change
+   as the Rolodex, for the same reason and the same producer. */
 .section-list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
 /* A bill can run to a dozen names, and at three shows a night a producer reads
@@ -1415,11 +1422,17 @@ select.show-detail__status--select {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2-5) var(--space-3-5);
-  border-radius: var(--radius-md);
+  border: 0;
+  border-radius: 0;
   background: var(--surface-strong);
-  border: 1px solid var(--border);
   transition: background-color, border-color, box-shadow, color, transform var(--duration-slow);
   flex-wrap: wrap;
+}
+
+/* A hairline between rows rather than a gap: it separates without spending
+   height, and an empty list has no stray rule in it. */
+.section-list-item + .section-list-item {
+  box-shadow: inset 0 1px 0 var(--border);
 }
 
 @media (max-width: 768px) {
@@ -1431,7 +1444,6 @@ select.show-detail__status--select {
 }
 
 .section-list-item:hover {
-  border-color: var(--border-strong);
   background: var(--surface);
 }
 
@@ -1739,14 +1751,23 @@ select.show-detail__status--select {
   padding: var(--space-1) var(--space-2);
 }
 
+/* These two earn their colour — one says "signed and settled", the other says
+   "this is the cue on stage right now". With the row borders gone they say it
+   with an edge marker instead, which reads down a joined list better than a
+   full outline did. */
 .section-list-item--locked {
   background: var(--success-soft);
-  border-color: var(--success);
+  box-shadow: inset 3px 0 0 var(--success);
 }
 
 .section-list-item--active {
-  border-color: var(--primary);
   background: var(--primary-soft);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.section-list-item--locked + .section-list-item,
+.section-list-item--active + .section-list-item {
+  box-shadow: inset 0 1px 0 var(--border);
 }
 
 .section-list-item__lock-badge {
