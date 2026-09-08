@@ -220,3 +220,36 @@
   color: var(--text-muted);
   line-height: 1.45;
 }
+
+/* ── The generator on a phone ─────────────────────────────────────────────
+   Full height, with the decision pinned to the bottom. At phone height the
+   preview pushed the totals and "Use this running order" below the fold, so
+   the primary action on the screen was the one you could not see — and the
+   cue list scrolled inside a dialog that was itself scrolling, which is two
+   scroll regions competing for the same thumb. */
+@media (max-width: 768px) {
+  .gen {
+    min-width: 0;
+  }
+
+  /* One scroll region, not two: the dialog scrolls, the cue list rides along. */
+  .gen__cues {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  /* Pinned to the foot of the dialog's own scrollport, so the decision is
+     reachable however long the running order gets. The bleed covers the
+     dialog's 20px side padding, or the list shows through beside it. */
+  .gen__actions {
+    position: sticky;
+    bottom: calc(env(safe-area-inset-bottom) * -1 - 24px);
+    background: var(--surface);
+    margin-inline: -20px;
+    padding: var(--space-2) 20px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .gen__actions .btn {
+    flex: 1;
+  }
+}

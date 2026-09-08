@@ -292,7 +292,7 @@ const CueRow = memo(function CueRow({
               <button className="icon-btn icon-btn--ghost" onClick={startEdit} aria-label="Edit" title="Edit">
                 <Icon name="edit" size={14} />
               </button>
-              <button className="icon-btn icon-btn--ghost" onClick={() => onDelete(item.id)} aria-label="Delete" title="Delete" style={{ color: 'var(--danger)' }}>
+              <button className="icon-btn icon-btn--ghost cue__delete" onClick={() => onDelete(item.id)} aria-label="Delete" title="Delete">
                 <Icon name="x" size={14} />
               </button>
             </>
