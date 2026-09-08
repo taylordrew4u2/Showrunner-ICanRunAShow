@@ -290,12 +290,16 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
     // no media store of their own. Filing it means putting it into the
     // producer's, where every other photo in the app lives.
     let photoRef: string | undefined;
+    let photoFailed = false;
     if (headshot) {
       try {
         const file = dataUrlToFile(headshot, `${request.signerName.trim() || 'headshot'}.jpg`);
-        if (file) photoRef = await uploadMedia(file);
+        // A photo that will not decode is a failure too, not a no-op: saying
+        // nothing would leave the producer believing the flyer has a face.
+        if (!file) photoFailed = true;
+        else photoRef = await uploadMedia(file);
       } catch {
-        setError('The details were saved, but their photo could not be stored. Try again.');
+        photoFailed = true;
       }
     }
 
@@ -312,6 +316,15 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
           ),
         ];
     onUpdateSettings({ ...settings, potentialComics: nextComics });
+
+    // Said after the save, not before it: the old message asserted "the details
+    // were saved" while the save had yet to happen. The details are safe either
+    // way — only the photo is missing, and re-importing is how you retry it.
+    setError(
+      photoFailed
+        ? `${request.signerName}'s details were saved, but their photo could not be stored.`
+        : null,
+    );
     setImported(request.token);
     setTimeout(() => setImported((t) => (t === request.token ? null : t)), 2500);
   }

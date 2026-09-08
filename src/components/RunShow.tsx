@@ -235,10 +235,18 @@ export function RunShow({
     () => withFallbackWalkOns(performers, musicLibrary),
     [performers, musicLibrary],
   );
-  const filledIn = useMemo(
-    () => new Set(assignFallbackWalkOns(performers, musicLibrary).map((a) => a.performerId)),
-    [performers, musicLibrary],
-  );
+  // Keyed by what the fallback would actually play, not by who was missing a
+  // walk-on. A cue upload beats the stored walk-on on the board, so a performer
+  // with no walk-on of their own but music uploaded against their cue gets that
+  // upload — and labelling it "From your library" would tell the operator the
+  // app chose music they picked themselves. The label has to follow the audio.
+  const fallbackSrc = useMemo(() => {
+    const byPerformer = new Map<string, string>();
+    for (const a of assignFallbackWalkOns(performers, musicLibrary)) {
+      byPerformer.set(a.performerId, a.track.music);
+    }
+    return byPerformer;
+  }, [performers, musicLibrary]);
 
   const board = useMemo(
     () => buildSoundboard(schedule, billWithMusic, djSongs),
@@ -1044,7 +1052,7 @@ export function RunShow({
                     variant="face"
                     isPlaying={playingKey === t.key}
                     isLoading={loadingKey === t.key}
-                    isFallback={filledIn.has(t.key.replace('performer:', ''))}
+                    isFallback={fallbackSrc.get(t.key.replace('performer:', '')) === t.src}
                     onToggle={toggleTrack}
                   />
                 ))}

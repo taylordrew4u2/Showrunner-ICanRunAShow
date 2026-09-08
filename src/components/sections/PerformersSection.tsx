@@ -251,7 +251,7 @@ export function PerformersSection({
                   onClick={() => setSelectedId(p.id)}
                   aria-label={`Open ${p.name}'s profile`}
                 >
-                  Profile
+                  <span className="section-list-item__open-label">Profile</span>
                 </button>
               </div>
             </div>
