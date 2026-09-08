@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   alreadyPending,
   collectFieldAnswers,
@@ -17,9 +17,13 @@ import {
   signedFileName,
   signingUrl,
   splitIntoChunks,
+  submitSignature,
   suggestedFields,
 } from './contracts';
+import { api } from './api';
 import type { SignatureRequest } from '../types';
+
+afterEach(() => vi.restoreAllMocks());
 
 const req = (over: Partial<SignatureRequest>): SignatureRequest => ({
   id: 'r', token: 't', key: 'k', contractId: 'c1', contractName: 'Agreement',
@@ -275,5 +279,43 @@ describe('signerStatus', () => {
 
   it('matches the way the Rolodex matches people, not by exact spelling', () => {
     expect(signerStatus([req({ signerName: 'Ada  COLE', signed })], 'ada cole')).toBe('signed');
+  });
+});
+
+/**
+ * The headshot a performer sends in for the flyer.
+ *
+ * It rides on the signature record because the signer has no account and no
+ * media store — the same per-request key that protects the document and their
+ * answers protects their photo.
+ */
+describe('a headshot sent with a signature', () => {
+  it('is carried on the record when one was chosen', async () => {
+    const posts: { token: string; signature: string }[] = [];
+    vi.spyOn(api, 'post').mockImplementation(async (_path, body) => {
+      posts.push(body as { token: string; signature: string });
+      return {} as never;
+    });
+
+    const record = await submitSignature(
+      'tok',
+      'key',
+      'Mona Sable',
+      'data:application/pdf;base64,AAAA',
+      [],
+      'data:image/jpeg;base64,BBBB',
+    );
+
+    expect(record.headshot).toBe('data:image/jpeg;base64,BBBB');
+    // It leaves the device encrypted, like everything else on the record.
+    expect(posts[0].signature).not.toContain('BBBB');
+  });
+
+  it('is simply absent when they skipped it', async () => {
+    vi.spyOn(api, 'post').mockResolvedValue({} as never);
+
+    const record = await submitSignature('tok', 'key', 'Dev Okonjo', 'data:application/pdf;base64,AAAA');
+
+    expect(record.headshot).toBeUndefined();
   });
 });
