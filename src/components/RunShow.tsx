@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type { DJSong, Performer, ScheduleItem } from '../types';
+import type { DJSong, MusicTrack, Performer, ScheduleItem } from '../types';
 import { audioEngine } from '../utils/audioEngine';
+import { assignFallbackWalkOns, withFallbackWalkOns } from '../utils/walkOnFallback';
 import { padColor } from '../utils/padColor';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import type { SessionCredentials } from '../utils/session-vault';
@@ -56,6 +57,12 @@ interface RunShowProps {
    * an empty board apart from an empty library — see the empty state below.
    */
   libraryCount?: number;
+  /**
+   * The account's Music library, used to give a walk-on to anyone on the bill
+   * who has none — see withFallbackWalkOns. Passed as the tracks rather than a
+   * count because the board needs the audio, not the number.
+   */
+  musicLibrary?: MusicTrack[];
   /** The key a paired stage remote sends, if the operator has paired one. */
   remoteKey?: string;
   /**
@@ -99,6 +106,7 @@ function TrackButton({
   variant,
   isPlaying,
   isLoading,
+  isFallback,
   onToggle,
 }: {
   track: SoundboardTrack;
@@ -106,6 +114,8 @@ function TrackButton({
   isPlaying: boolean;
   /** Pressed, but its audio is still being fetched and decoded. */
   isLoading: boolean;
+  /** The song was picked from the library because this person had none. */
+  isFallback?: boolean;
   onToggle: (track: SoundboardTrack) => void;
 }) {
   // The headshot resolves out of the media store; the initial holds the button
@@ -161,6 +171,9 @@ function TrackButton({
       </span>
       <span className="rs-pad__label">{track.label}</span>
       {track.sublabel && <span className="rs-pad__sub">{track.sublabel}</span>}
+      {/* Said on the pad, because the operator should never be surprised on
+          the night by music they don't remember choosing. */}
+      {isFallback && <span className="rs-pad__sub rs-pad__sub--auto">From your library</span>}
     </button>
   );
 }
@@ -172,6 +185,7 @@ export function RunShow({
   performers = [],
   djSongs = [],
   libraryCount = 0,
+  musicLibrary = [],
   remoteKey,
   session,
   onStart,
@@ -214,9 +228,21 @@ export function RunShow({
   const [auditioning, setAuditioning] = useState(false);
   const auditionTimer = useRef<number | null>(null);
 
+  // Nobody walks on to silence. Anyone without music of their own gets a
+  // library track — the same one every time, so what you saw when you built
+  // the running order is what comes out of the PA.
+  const billWithMusic = useMemo(
+    () => withFallbackWalkOns(performers, musicLibrary),
+    [performers, musicLibrary],
+  );
+  const filledIn = useMemo(
+    () => new Set(assignFallbackWalkOns(performers, musicLibrary).map((a) => a.performerId)),
+    [performers, musicLibrary],
+  );
+
   const board = useMemo(
-    () => buildSoundboard(schedule, performers, djSongs),
-    [schedule, performers, djSongs],
+    () => buildSoundboard(schedule, billWithMusic, djSongs),
+    [schedule, billWithMusic, djSongs],
   );
   const playingTrack = useMemo(() => {
     if (!playingKey) return null;
@@ -1018,6 +1044,7 @@ export function RunShow({
                     variant="face"
                     isPlaying={playingKey === t.key}
                     isLoading={loadingKey === t.key}
+                    isFallback={filledIn.has(t.key.replace('performer:', ''))}
                     onToggle={toggleTrack}
                   />
                 ))}
