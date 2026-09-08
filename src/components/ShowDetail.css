@@ -3066,3 +3066,56 @@ select.show-detail__status--select {
 .section-list-item:hover .section-list-item__open {
   color: var(--text);
 }
+
+/* ── The bill on a phone ──────────────────────────────────────────────────
+   The row was wrapping: name on one line, the reorder arrows and Profile on
+   a second, which made every performer ~150px tall and put three comics on a
+   whole screen. This is the list you scroll on show night, so it stays one
+   row per person and the name truncates instead — the profile has all of it,
+   and the tap targets keep their 44px. */
+@media (max-width: 768px) {
+  .section-list-item__content {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .section-list-item__body {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .section-list-item__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Contact chips are the first thing to go when the row is tight: they are
+     reference, and they are on the profile a tap away. */
+  .section-list-item__tag,
+  .section-list-item__badge {
+    display: none;
+  }
+
+  .section-list-item__buttons {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+/* Under ~480px the name was down to a syllable and an ellipsis ("Mona…"), which
+   is not a bill you can read. The controls give ground first: the row's own tap
+   still opens the profile, so the button can be a small word rather than a
+   button-shaped word. */
+@media (max-width: 480px) {
+  .section-list-item__open {
+    padding-inline: var(--space-1);
+    font-size: var(--text-xs);
+  }
+
+  .section-list-item__buttons {
+    gap: 2px;
+  }
+}
