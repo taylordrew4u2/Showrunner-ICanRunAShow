@@ -1366,10 +1366,14 @@
   margin-left: var(--space-2);
   padding: 1px var(--space-2);
   border-radius: var(--radius-full);
-  background: var(--primary-soft);
-  border: 1px solid var(--primary-soft-border);
-  color: var(--primary-text);
-  /* Who is on stage for this cue — the single most-read word on a run sheet. */
+  /* Who is on stage for this cue — the single most-read word on a run sheet,
+     so it stays emphatic. But emphasis here comes from weight and contrast,
+     not from the brand colour: a run of show is a dozen cues and nearly every
+     one names somebody, so in red the page was a wall of alerts with nothing
+     to distinguish. Red on this screen belongs to the cue that is live. */
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
   font-size: var(--text-sm);
   font-weight: 700;
   vertical-align: middle;
@@ -3793,4 +3797,16 @@ body:has([aria-modal='true']) .status-rail {
    the width; the full wording lives on the button's accessible name. */
 .backup-nudge__btn {
   white-space: nowrap;
+}
+
+/* Deleting a cue is destructive, so it wears the danger colour when you reach
+   for it — but a run of show is a dozen rows and a red ✕ on every one of them
+   made the list read as a page of errors. It is quiet until you are on it. */
+.cue__delete {
+  color: var(--text-soft);
+}
+
+.cue__delete:hover,
+.cue__delete:focus-visible {
+  color: var(--danger);
 }

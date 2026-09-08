@@ -94,6 +94,15 @@
    from 153px to roughly the width of the title beside it, which is the size a
    secondary action should be — you open this app to look at your shows far
    more often than to make one. */
+
+/* The space before it has to be drawn, not typed. `.btn` is inline-flex, so
+   "+ New" and this span are two flex items and the leading space in the text
+   node is collapsed away — the button read "+ NewShow". A margin survives
+   that, and disappears with the word when the noun is hidden below. */
+.page-header__new-noun {
+  margin-left: 0.28em;
+}
+
 @media (max-width: 619px) {
   .page-header__new-noun {
     display: none;

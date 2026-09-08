@@ -242,11 +242,16 @@ export function PerformersSection({
                 >
                   ↓
                 </button>
+                {/* A filled button on every row put the loudest control in the
+                    section on the least urgent action, repeated once per comic.
+                    The row already opens the profile; this is the affordance
+                    that says so. */}
                 <button
-                  className="btn btn--secondary btn--sm"
+                  className="btn btn--ghost btn--sm section-list-item__open"
                   onClick={() => setSelectedId(p.id)}
+                  aria-label={`Open ${p.name}'s profile`}
                 >
-                  View Profile →
+                  Profile
                 </button>
               </div>
             </div>

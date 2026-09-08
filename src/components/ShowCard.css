@@ -17,7 +17,13 @@
    fill — shapes, where a light colour is fine. --card-accent-text is the same
    idea as type, where it has to clear 4.5:1. Sharing one value meant the date
    badge rendered brand red on a dark card at 3.3:1. */
-.show-card--upcoming    { --card-accent: var(--primary);      --card-accent-text: var(--primary-text); }
+/* Upcoming is not a state worth colouring: it is the state nearly every show
+   on the page is in. Painting the default in the brand colour meant a list of
+   ten shows was ten red dates and ten red spines, so nothing on the page could
+   stand out by being red — including the one card that earns it, Next Up,
+   which still marks its date in brand. In progress stays green because it is
+   genuinely exceptional: that show is happening now. */
+.show-card--upcoming    { --card-accent: var(--border-strong); --card-accent-text: var(--text-muted); }
 .show-card--in-progress { --card-accent: var(--success);      --card-accent-text: var(--success-text); }
 .show-card--completed   { --card-accent: var(--border-strong); --card-accent-text: var(--text-muted); }
 .show-card--cancelled   { --card-accent: var(--border);       --card-accent-text: var(--text-muted); }
@@ -313,7 +319,9 @@
   flex-shrink: 0;
 }
 
-.show-card--upcoming .show-card__status   { color: var(--primary-text); }
+/* Same reasoning as the accent above: "Upcoming" is what almost every show
+   says, so it is a label, not a signal. The dot beside it carries the state. */
+.show-card--upcoming .show-card__status   { color: var(--text-muted); }
 .show-card--in-progress .show-card__status { color: var(--success-text); }
 
 /* ── Progress ───────────────────────────────────────────────── */

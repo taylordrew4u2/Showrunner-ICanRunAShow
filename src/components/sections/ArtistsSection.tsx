@@ -142,8 +142,12 @@ export function ArtistsSection({ artists, potentialComics = [], onChange }: Arti
               <div className="section-list-item__buttons">
                 <button className="btn btn--ghost btn--sm" onClick={() => moveUp(idx)} title="Move up" disabled={idx === 0}>↑</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => moveDown(idx)} title="Move down" disabled={idx >= artists.length - 1}>↓</button>
-                <button className="btn btn--secondary btn--sm" onClick={() => setSelectedId(a.id)}>
-                  View Profile →
+                <button
+                  className="btn btn--ghost btn--sm section-list-item__open"
+                  onClick={() => setSelectedId(a.id)}
+                  aria-label={`Open ${a.name}'s profile`}
+                >
+                  Profile
                 </button>
               </div>
             </div>
