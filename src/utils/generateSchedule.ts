@@ -10,6 +10,8 @@
  */
 
 import { generateId } from './id';
+import { parseClockToMinutes } from './showTiming';
+import { clockLabel } from './showTimeline';
 import type { Performer, ScheduleItem } from '../types';
 
 /** One booked act, and how long they have. */
@@ -22,7 +24,7 @@ export interface ScheduleAct {
 }
 
 export interface GenerateScheduleOptions {
-  /** When the room opens, as `Show.time` holds it: "HH:MM". */
+  /** When the room opens, however `Show.time` holds it: "8:00 PM", "20:00", "8pm". */
   startTime: string;
   acts: ScheduleAct[];
   /** Who is running the night. Without one, no handover cues are written. */
@@ -51,24 +53,6 @@ const DEFAULTS = {
   outroMin: 4,
 };
 
-/** Read "20:30" as minutes past midnight. Null when it isn't a time. */
-export function parseClock(input: string): number | null {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(input.trim());
-  if (!match) return null;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) return null;
-  return hours * 60 + minutes;
-}
-
-/** Print minutes past midnight as "HH:MM", wrapping past midnight. */
-export function formatClock(totalMinutes: number): string {
-  const wrapped = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
-  const hours = Math.floor(wrapped / 60);
-  const minutes = wrapped % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-}
-
 /**
  * The cue list for a night, timed from doors.
  *
@@ -76,7 +60,7 @@ export function formatClock(totalMinutes: number): string {
  * a schedule hung off the wrong hour is worse than no schedule.
  */
 export function generateSchedule(options: GenerateScheduleOptions): ScheduleItem[] {
-  const start = parseClock(options.startTime);
+  const start = parseClockToMinutes(options.startTime);
   if (start === null) return [];
 
   const doorsMin = options.doorsMin ?? DEFAULTS.doorsMin;
@@ -99,7 +83,7 @@ export function generateSchedule(options: GenerateScheduleOptions): ScheduleItem
     if (durationMin <= 0) return;
     items.push({
       id: generateId(),
-      time: formatClock(cursor),
+      time: clockLabel(cursor),
       description,
       durationMin,
       ...(performer ? { performer } : {}),
@@ -143,9 +127,9 @@ export function scheduleRuntime(items: ScheduleItem[]): number {
 
 /** When the last cue ends, as "HH:MM". Empty when the start is unreadable. */
 export function scheduleEndTime(startTime: string, items: ScheduleItem[]): string {
-  const start = parseClock(startTime);
+  const start = parseClockToMinutes(startTime);
   if (start === null) return '';
-  return formatClock(start + scheduleRuntime(items));
+  return clockLabel(start + scheduleRuntime(items));
 }
 
 /**

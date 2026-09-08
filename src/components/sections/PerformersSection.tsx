@@ -4,6 +4,7 @@ import { generateId } from '../../utils/id';
 import { rolodexKey } from '../../utils/rolodex';
 import { socialLink, bulkMailto, isEmail } from '../../utils/social';
 import { lineupProgress } from '../../utils/lineupTarget';
+import { describeGaps, lineupGaps } from '../../utils/performerReadiness';
 import { PerformerProfile } from './PerformerProfile';
 import { Icon } from '../Icon';
 import type { SignerStatus } from '../../utils/contracts';
@@ -24,6 +25,8 @@ interface PerformersSectionProps {
    * name. Undefined when this show has no way to send contracts.
    */
   contractStatus?: (performer: Performer) => SignerStatus;
+  /** Open the announcement composer. Absent when there is no show to announce. */
+  onAnnounce?: () => void;
 }
 
 export function PerformersSection({
@@ -36,6 +39,7 @@ export function PerformersSection({
   onTargetChange,
   renderContracts,
   contractStatus,
+  onAnnounce,
 }: PerformersSectionProps) {
   const [name, setName] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -148,6 +152,11 @@ export function PerformersSection({
   // whether a bill is full.
   const progress = lineupProgress(performers.length, performerTarget);
 
+  // Who on the bill is missing something that will fail quietly later: no
+  // address to send a contract to, no handle to tag in the announcement.
+  // Asked of the whole lineup at once, because that is when it is fixable.
+  const gaps = lineupGaps(performers);
+
   const showAddForm = addingOpen || performers.length === 0;
 
   return (
@@ -247,12 +256,49 @@ export function PerformersSection({
 
       {/* Everything below the lineup, not above it. Adding people is what you
           do to this section; the bill is what the section is. */}
-      {mailAllHref && (
+      {gaps.length > 0 && (
+        <div className="lineup-gaps">
+          <span className="lineup-gaps__head">
+            <Icon name="alert" size={13} aria-hidden />
+            {gaps.length} on this bill {gaps.length === 1 ? 'is' : 'are'} missing details
+          </span>
+          <ul className="lineup-gaps__list">
+            {gaps.map(({ performer, readiness }) => (
+              <li key={performer.id} className="lineup-gaps__item">
+                <button
+                  type="button"
+                  className="lineup-gaps__name"
+                  onClick={() => setSelectedId(performer.id)}
+                >
+                  {performer.name}
+                </button>
+                <span className="lineup-gaps__need">{describeGaps(readiness.gaps)}</span>
+              </li>
+            ))}
+          </ul>
+          <span className="lineup-gaps__hint">
+            No email means a contract can't be sent. No handle means they won't be tagged.
+          </span>
+        </div>
+      )}
+
+      {(mailAllHref || onAnnounce) && (
         <div className="section-mass-message">
-          <a className="btn btn--secondary btn--sm" href={mailAllHref}>
-            ✉ Email all performers ({emailablePerformers.length})
-          </a>
-          <span className="section-mass-message__hint">Opens your mail app with everyone BCC'd.</span>
+          {mailAllHref && (
+            <a className="btn btn--secondary btn--sm" href={mailAllHref}>
+              ✉ Email all performers ({emailablePerformers.length})
+            </a>
+          )}
+          {onAnnounce && performers.length > 0 && (
+            <button className="btn btn--secondary btn--sm" onClick={onAnnounce}>
+              Post copy
+            </button>
+          )}
+          <span className="section-mass-message__hint">
+            {mailAllHref
+              ? "Opens your mail app with everyone BCC'd."
+              : 'The bill and every handle, ready to paste.'}
+          </span>
         </div>
       )}
 

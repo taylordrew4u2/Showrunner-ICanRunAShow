@@ -12,6 +12,7 @@
  */
 
 import { toHandle } from './socialPost';
+import { isEmail } from './social';
 import type { Performer } from '../types';
 
 export type ReadinessGap = 'email' | 'social';
@@ -32,15 +33,8 @@ const GAP_LABELS: Record<ReadinessGap, string> = {
   social: 'Social handle',
 };
 
-/** Roughly valid: enough to send to, without pretending to validate deliverability. */
-function hasUsableEmail(performer: Performer): boolean {
-  const email = performer.email?.trim();
-  if (!email) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
 export function performerReadiness(performer: Performer): PerformerReadiness {
-  const canSendContract = hasUsableEmail(performer);
+  const canSendContract = isEmail(performer.email);
   const canTag = toHandle(performer.socialMedia) !== null;
 
   const gaps: ReadinessGap[] = [];
