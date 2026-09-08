@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildSoundboard, cuePerformerName, resolveCuePerformer, soundboardSources } from './soundboard';
+import { withFallbackWalkOns } from './walkOnFallback';
 import type { DJSong, Performer, ScheduleItem } from '../types';
 
 const cue = (over: Partial<ScheduleItem>): ScheduleItem => ({
@@ -181,5 +182,45 @@ describe('soundboardSources', () => {
       [song({ id: 's1', title: 'Closer', music: 'media:closer#1' })],
     );
     expect(soundboardSources(board).sort()).toEqual(['media:closer#1', 'media:shared#1']);
+  });
+});
+
+/**
+ * A filled-in walk-on meeting a cue upload.
+ *
+ * Run Show hands the board a lineup with library tracks substituted in for
+ * anyone missing a walk-on, and then labels those pads "From your library".
+ * But a cue upload outranks a walk-on on the board, so a performer with no
+ * walk-on of their own but music uploaded against their cue plays the upload —
+ * and the pad must not claim the app chose it. Getting that wrong tells the
+ * operator to distrust music they picked themselves.
+ */
+describe('a fallback walk-on beside a cue upload', () => {
+  it('still plays the cue upload, so the substitution never reaches the board', () => {
+    const substituted = withFallbackWalkOns(
+      [performer({ id: 'p1', name: 'Ada Cole' })],
+      [{ id: 't1', title: 'House Bed', artist: 'Various', music: 'media:library#1', addedAt: '' }],
+    );
+    // The lineup handed to the board does carry the library track…
+    expect(substituted[0].walkOnMusic).toBe('media:library#1');
+
+    const board = buildSoundboard(
+      [cue({ id: 'c1', performerId: 'p1', music: 'media:theircue#1' })],
+      substituted,
+    );
+
+    // …but what the pad actually plays is the operator's own upload.
+    expect(board.performers[0].src).toBe('media:theircue#1');
+  });
+
+  it('reaches the board when the cue has no upload of its own', () => {
+    const substituted = withFallbackWalkOns(
+      [performer({ id: 'p1', name: 'Ada Cole' })],
+      [{ id: 't1', title: 'House Bed', artist: 'Various', music: 'media:library#1', addedAt: '' }],
+    );
+
+    const board = buildSoundboard([cue({ id: 'c1', performerId: 'p1' })], substituted);
+
+    expect(board.performers[0].src).toBe('media:library#1');
   });
 });
