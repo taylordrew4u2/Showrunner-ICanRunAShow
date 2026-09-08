@@ -1690,9 +1690,13 @@ select.show-detail__status--select {
   gap: var(--space-2);
   margin: 0 0 var(--space-3);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--success-soft-border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--success-soft);
+  /* Neutral. Filing someone in the Rolodex happens every time a comic is
+     added, which is dozens of times a week — a green panel for it trains you
+     to ignore green, and green is what a signed contract needs. The tick
+     keeps the colour; the panel does not. */
+  background: var(--surface-strong);
   color: var(--text-muted);
   font-size: var(--text-md);
   line-height: 1.45;
@@ -1711,8 +1715,9 @@ select.show-detail__status--select {
 
 .section-list-item__cost {
   font-weight: 700;
-  color: var(--primary-text);
-  background: var(--primary-soft);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: transparent;
 }
 
 .section-list-item__actions {
@@ -2752,11 +2757,16 @@ select.show-detail__status--select {
   font: inherit;
   font-size: var(--text-md);
   font-weight: 650;
-  color: var(--primary-text);
+  /* Quiet: "Add" is the action in this box and it is already the loudest
+     thing in it. Two red links beside a red button made three reds
+     competing, and none of them read as the one to press. */
+  color: var(--text-muted);
   cursor: pointer;
 }
 
-.lineup-add__link:hover {
+.lineup-add__link:hover,
+.lineup-add__link[aria-expanded='true'] {
+  color: var(--primary-text);
   text-decoration: underline;
 }
 
