@@ -7,6 +7,7 @@ import { MoreMenu, type MoreMenuItem } from './MoreMenu';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
 import { PerformerContracts } from './sections/PerformerContracts';
+import { AnnouncePost } from './AnnouncePost';
 import { ArtistsSection } from './sections/ArtistsSection';
 import { ScheduleSection } from './sections/ScheduleSection';
 import { DJMusicSection } from './sections/DJMusicSection';
@@ -196,6 +197,7 @@ export function ShowDetail({
   const [manageSectionsOpen, setManageSectionsOpen] = useState(false);
   /** The repeat sheet, and what it is currently offering to book. */
   const [repeatOpen, setRepeatOpen] = useState(false);
+  const [announceOpen, setAnnounceOpen] = useState(false);
   const [repeatPattern, setRepeatPattern] = useState<RecurrencePattern>('weekly');
   const [repeatCount, setRepeatCount] = useState(4);
 
@@ -613,6 +615,7 @@ export function ShowDetail({
         onSaveToRolodex={onSaveToRolodex}
         onChange={(performers) => handleUpdate({ performers })}
         onTargetChange={(performerTarget) => handleUpdate({ performerTarget })}
+        onAnnounce={() => setAnnounceOpen(true)}
         contractStatus={
           settings.contracts?.length
             ? (performer) => signerStatus(settings.signatureRequests ?? [], performer.name)
@@ -1453,6 +1456,8 @@ export function ShowDetail({
           </div>
         </Modal>
       )}
+      {announceOpen && <AnnouncePost show={show} onClose={() => setAnnounceOpen(false)} />}
+
       {confirmDialog}
     </div>
   );

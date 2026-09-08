@@ -1,0 +1,74 @@
+.announce {
+  display: flex;
+  flex-direction: column;
+  min-width: min(520px, 86vw);
+  padding: var(--space-1-5) var(--space-1) var(--space-1);
+}
+
+.announce__head {
+  margin-bottom: var(--space-3);
+}
+
+.announce__title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-lg);
+  font-weight: 800;
+}
+
+.announce__sub {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* Editable, because the caption is the producer's voice. The app supplies the
+   facts; the jokes are theirs. */
+.announce__text {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-md);
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.announce__text:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.announce__missing {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
+  border: 1px solid var(--danger-soft-border);
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  font-size: var(--text-sm);
+  color: var(--danger-text);
+  line-height: 1.45;
+}
+
+.announce__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.announce__failed {
+  margin: var(--space-1-5) 0 0;
+  font-size: var(--text-sm);
+  color: var(--danger-text);
+  text-align: right;
+}
