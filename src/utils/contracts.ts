@@ -355,11 +355,13 @@ export async function submitSignature(
   typedName: string,
   documentDataUrl: string,
   fields: { label: string; value: string }[] = [],
+  headshot?: string,
 ): Promise<SignatureRecord> {
   const record: SignatureRecord = {
     signedAt: new Date().toISOString(),
     typedName: typedName.trim(),
     fields: fields.length ? fields : undefined,
+    headshot: headshot || undefined,
     documentHash: documentHash(documentDataUrl),
     userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent.slice(0, 200),
   };

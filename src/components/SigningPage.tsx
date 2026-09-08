@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
 import type { SignatureRecord } from '../types';
 import {
   collectFieldAnswers,
@@ -52,6 +53,11 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   // scramble what a signer typed.
   const [values, setValues] = useState<Record<string, string>>({});
   const [agreed, setAgreed] = useState(false);
+  // The headshot, already downscaled, as a data URL. Held here rather than as
+  // a File so the preview and what gets sent are provably the same bytes.
+  const [headshot, setHeadshot] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -116,6 +122,32 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
     return () => observer.disconnect();
   }, [pages.length, readToEnd]);
 
+  /**
+   * Take a photo down to flyer size before it goes anywhere.
+   *
+   * Done on this device: a phone camera hands over four megabytes, and the
+   * person uploading it is often on venue wifi, so the resize is the
+   * difference between a photo arriving and a contract being abandoned.
+   */
+  async function choosePhoto(file: File) {
+    setPhotoBusy(true);
+    setPhotoError(null);
+    try {
+      const small = await downscaleImage(file, FLYER_MAX_DIM);
+      const reader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(small);
+      });
+      setHeadshot(dataUrl);
+    } catch {
+      setPhotoError('That image could not be read. Try a JPEG or PNG.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   async function handleSign() {
     if (!signKey || !docUrl || !payload) return;
     const name = typedName.trim();
@@ -130,6 +162,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
         name,
         docUrl,
         collectFieldAnswers(payload.fields, values),
+        headshot ?? undefined,
       );
       setSigned(record);
       setPhase('done');
@@ -286,6 +319,50 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
               )}
             </label>
           ))}
+
+          {/* The flyer needs a face, and this is the one moment the performer
+              is already filling something in for you. Optional, because a
+              missing photo must never be why a contract goes unsigned. */}
+          <div className="signing__field signing__photo">
+            <span>
+              Headshot <em className="signing__optional">optional — used on the flyer</em>
+            </span>
+            <div className="signing__photo-row">
+              {headshot ? (
+                <img className="signing__photo-preview" src={headshot} alt="Your headshot" />
+              ) : (
+                <span className="signing__photo-empty" aria-hidden="true">
+                  ☺
+                </span>
+              )}
+              <div className="signing__photo-actions">
+                <label className="btn btn--secondary btn--sm signing__photo-pick">
+                  {photoBusy ? 'Adding…' : headshot ? 'Choose a different one' : 'Add a photo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    disabled={photoBusy}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (file) void choosePhoto(file);
+                    }}
+                  />
+                </label>
+                {headshot && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => setHeadshot(null)}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+            {photoError && <p className="signing__photo-error">{photoError}</p>}
+          </div>
 
           <label className="signing__agree">
             <input

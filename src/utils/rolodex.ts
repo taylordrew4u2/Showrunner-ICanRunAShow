@@ -30,6 +30,7 @@ export function performerToComic(performer: Performer): PotentialComic {
   return {
     id: generateId(),
     name: performer.name.trim(),
+    photo: performer.photo,
     socialMedia: performer.socialMedia,
     email: performer.email,
     credits: performer.credits,

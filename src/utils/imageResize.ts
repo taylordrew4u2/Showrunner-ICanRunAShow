@@ -11,6 +11,16 @@
 
 /** Longest edge kept, in pixels. 2× the largest place a photo is displayed. */
 export const AVATAR_MAX_DIM = 640;
+
+/**
+ * Longest edge for a headshot a performer sends in for the flyer.
+ *
+ * Bigger than an avatar because this one leaves the app: it goes on a poster
+ * and into a social post, where 640px is visibly soft. Still bounded, because
+ * it travels through the same encrypt-and-chunk path as everything else and
+ * the person uploading it is on a phone.
+ */
+export const FLYER_MAX_DIM = 1400;
 const JPEG_QUALITY = 0.82;
 
 /**

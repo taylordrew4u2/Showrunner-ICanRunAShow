@@ -20,6 +20,7 @@ import {
   suggestedFields,
 } from '../utils/contracts';
 import { generateId } from '../utils/id';
+import { dataUrlToFile } from '../utils/media';
 import { uploadMedia, deleteMedia } from '../utils/mediaStore';
 import { rolodexKey } from '../utils/rolodex';
 import {
@@ -257,6 +258,8 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
   function pendingImport(request: SignatureRequest): {
     entry: PotentialComic | null;
     changes: ProfileChange[];
+    /** A headshot they sent in that isn't on their profile yet. */
+    headshot?: string;
   } {
     if (!request.signed) return { entry: null, changes: [] };
     const comics = settings.potentialComics ?? [];
@@ -265,21 +268,47 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
       comics.find((c) => rolodexKey(c.name) === rolodexKey(request.signerName)) ??
       null;
     const all = profileChanges(entry ?? undefined, profileFromAnswers(request.signed.fields));
-    return { entry, changes: all.filter((c) => !declined.has(`${request.token}:${c.key}`)) };
+    // A photo they sent replaces nothing: it is only offered where the entry
+    // has no picture, so a headshot the producer chose is never displaced.
+    const headshot =
+      request.signed.headshot && !entry?.photo && !declined.has(`${request.token}:photo`)
+        ? request.signed.headshot
+        : undefined;
+    return {
+      entry,
+      changes: all.filter((c) => !declined.has(`${request.token}:${c.key}`)),
+      headshot,
+    };
   }
 
   /** File the accepted details, creating the entry when there isn't one yet. */
-  function saveToProfile(request: SignatureRequest) {
-    const { entry, changes } = pendingImport(request);
-    if (changes.length === 0) return;
+  async function saveToProfile(request: SignatureRequest) {
+    const { entry, changes, headshot } = pendingImport(request);
+    if (changes.length === 0 && !headshot) return;
+
+    // The headshot arrives as a data URL on the signed record — the signer has
+    // no media store of their own. Filing it means putting it into the
+    // producer's, where every other photo in the app lives.
+    let photoRef: string | undefined;
+    if (headshot) {
+      try {
+        const file = dataUrlToFile(headshot, `${request.signerName.trim() || 'headshot'}.jpg`);
+        if (file) photoRef = await uploadMedia(file);
+      } catch {
+        setError('The details were saved, but their photo could not be stored. Try again.');
+      }
+    }
+
+    const withPhoto = (person: PotentialComic): PotentialComic =>
+      photoRef ? { ...person, photo: photoRef } : person;
+
     const comics = settings.potentialComics ?? [];
     const nextComics = entry
-      ? comics.map((c) => (c.id === entry.id ? applyProfileChanges(c, changes) : c))
+      ? comics.map((c) => (c.id === entry.id ? withPhoto(applyProfileChanges(c, changes)) : c))
       : [
           ...comics,
-          applyProfileChanges(
-            { id: generateId(), name: request.signerName.trim() },
-            changes,
+          withPhoto(
+            applyProfileChanges({ id: generateId(), name: request.signerName.trim() }, changes),
           ),
         ];
     onUpdateSettings({ ...settings, potentialComics: nextComics });
@@ -306,18 +335,35 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
    * empty → 555 0142" is the whole argument for pressing the button.
    */
   function ImportOffer({ request }: { request: SignatureRequest }) {
-    const { entry, changes } = pendingImport(request);
+    const { entry, changes, headshot } = pendingImport(request);
     if (imported === request.token) {
       return <p className="contracts__import contracts__import--done">Saved to their profile</p>;
     }
-    if (changes.length === 0) return null;
+    if (changes.length === 0 && !headshot) return null;
     return (
       <div className="contracts__import">
         <p className="contracts__import-head">
           {entry
-            ? `Their ${rolodexTerm.singular.toLowerCase()} profile: ${describeChanges(changes)}`
-            : `Not in your ${rolodexTerm.plural} yet — saving files them with these details`}
+            ? `Their ${rolodexTerm.singular.toLowerCase()} profile: ${
+                changes.length === 0 ? 'a photo to add' : describeChanges(changes)
+              }`
+            : `Not in your ${rolodexTerm.plural} yet — saving files them with what they sent`}
         </p>
+        {/* The photo is the one thing you can judge at a glance, so it is
+            shown rather than described. */}
+        {headshot && (
+          <div className="contracts__import-photo">
+            <img src={headshot} alt={`Headshot sent by ${request.signerName}`} />
+            <span>They sent a headshot for the flyer</span>
+            <button
+              className="btn btn--ghost btn--sm contracts__import-skip"
+              onClick={() => setDeclined((d) => new Set(d).add(`${request.token}:photo`))}
+              aria-label="Leave their photo out"
+            >
+              Skip
+            </button>
+          </div>
+        )}
         <ul className="contracts__import-list">
           {changes.map((c) => (
             <li key={c.key} className="contracts__import-item">
@@ -336,7 +382,7 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
             </li>
           ))}
         </ul>
-        <button className="btn btn--secondary btn--sm" onClick={() => saveToProfile(request)}>
+        <button className="btn btn--secondary btn--sm" onClick={() => void saveToProfile(request)}>
           {entry ? 'Save to profile' : `Add to ${rolodexTerm.plural}`}
         </button>
       </div>
