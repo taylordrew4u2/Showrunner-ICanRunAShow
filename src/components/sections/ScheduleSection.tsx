@@ -11,6 +11,7 @@ import { useConfirm } from '../useConfirm';
 import { fillCueDurations, isUntimed } from '../../utils/showTiming';
 import { canDeriveTimes, timesFromLengths } from '../../utils/scheduleTemplates';
 import { ScheduleTemplates } from '../ScheduleTemplates';
+import { ScheduleGenerator } from '../ScheduleGenerator';
 import { OnStagePicker } from '../OnStagePicker';
 
 // Loaded on demand — pulls in the AI/OCR/PDF parsing deps only when the
@@ -408,6 +409,7 @@ export function ScheduleSection({
   const [desc, setDesc] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState(false);
   const templatesEnabled = !!onSaveTemplate && !!onDeleteTemplate;
 
   // Keep latest schedule + onChange in refs so the per-row callbacks
@@ -516,6 +518,14 @@ export function ScheduleSection({
     setMode('build');
   }
 
+  /** A generated order replaces the list wholesale, so it lands as one undo-able
+   *  decision rather than cues appended onto cues. */
+  function handleApplyGenerated(items: ScheduleItem[]) {
+    onChange(withMatchedPerformers(items, knownNames));
+    setGeneratorOpen(false);
+    setMode('build');
+  }
+
   function handleApplyImport(items: ScheduleItem[]) {
     onChange([...schedule, ...withMatchedPerformers(items, knownNames)]);
     setImportOpen(false);
@@ -531,6 +541,15 @@ export function ScheduleSection({
             <span className="schedule-choice__label">Build Your Own</span>
             <span className="schedule-choice__desc">Create the show run manually</span>
           </button>
+          {performers.length > 0 && (
+            <button className="schedule-choice__option" onClick={() => setGeneratorOpen(true)}>
+              <span className="schedule-choice__icon"><Icon name="bolt" size={20} /></span>
+              <span className="schedule-choice__label">Build from the lineup</span>
+              <span className="schedule-choice__desc">
+                {performers.length} booked — times the night, intros included
+              </span>
+            </button>
+          )}
           <button className="schedule-choice__option" onClick={() => setImportOpen(true)}>
             <span className="schedule-choice__icon"><Icon name="sparkle" size={20} /></span>
             <span className="schedule-choice__label">Import with AI</span>
@@ -559,6 +578,15 @@ export function ScheduleSection({
               {totalLabel && <div className="schedule-summary__meta">{totalLabel}</div>}
             </div>
             <div className="schedule-summary__actions">
+              {performers.length > 0 && (
+                <button
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => setGeneratorOpen(true)}
+                  title="Rebuild the running order from the people booked on this show"
+                >
+                  Generate
+                </button>
+              )}
               {untimedCount > 0 && (
                 <button
                   className="btn btn--secondary btn--sm"
@@ -685,6 +713,17 @@ export function ScheduleSection({
           onSave={onSaveTemplate!}
           onDelete={onDeleteTemplate!}
           onApply={handleApplyTemplate}
+        />
+      )}
+
+      {generatorOpen && (
+        <ScheduleGenerator
+          performers={performers}
+          host={host}
+          showTime={showTime}
+          existingCount={schedule.length}
+          onApply={handleApplyGenerated}
+          onClose={() => setGeneratorOpen(false)}
         />
       )}
 
