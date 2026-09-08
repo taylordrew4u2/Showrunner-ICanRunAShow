@@ -37,6 +37,7 @@ import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
 import { PageHeader } from './components/PageHeader';
+import { RolodexRow } from './components/RolodexRow';
 import { ShowCard } from './components/ShowCard';
 import { ShowsDashboard, type ShowsFocus } from './components/ShowsDashboard';
 import { ShowsCalendar } from './components/ShowsCalendar';
@@ -1931,26 +1932,11 @@ export default function App() {
                 ) : (
                   <div className="rolodex__list">
                     {settings.potentialComics.map((comic) => (
-                      <article key={comic.id} className="rolodex__item">
-                        <div className="rolodex__photo-placeholder">
-                          {comic.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="rolodex__item-content">
-                          <p className="rolodex__name">{comic.name}</p>
-                          {comic.socialMedia && <p className="rolodex__meta">{comic.socialMedia}</p>}
-                          {(comic.walkOnMusicName || comic.walkOnMusicArtist) && (
-                            <p className="rolodex__meta">{[comic.walkOnMusicName, comic.walkOnMusicArtist].filter(Boolean).join(' — ')}</p>
-                          )}
-                          {comic.notes && <p className="rolodex__notes">{comic.notes}</p>}
-                        </div>
-                        <button
-                          className="btn btn--secondary btn--sm"
-                          type="button"
-                          onClick={() => setSelectedComicId(comic.id)}
-                        >
-                          Edit
-                        </button>
-                      </article>
+                      <RolodexRow
+                        key={comic.id}
+                        comic={comic}
+                        onEdit={() => setSelectedComicId(comic.id)}
+                      />
                     ))}
                   </div>
                 )}

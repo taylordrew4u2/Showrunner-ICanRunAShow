@@ -33,7 +33,15 @@ const GAP_LABELS: Record<ReadinessGap, string> = {
   social: 'Social handle',
 };
 
-export function performerReadiness(performer: Performer): PerformerReadiness {
+/**
+ * Takes only the two fields it reads, rather than a whole Performer, so a
+ * Rolodex entry can be measured by the same rule as someone on a bill. The
+ * question — can I contract them, can I tag them — is the same question in
+ * both places, and it should not have two answers.
+ */
+export function performerReadiness(
+  performer: { email?: string; socialMedia?: string },
+): PerformerReadiness {
   const canSendContract = isEmail(performer.email);
   const canTag = toHandle(performer.socialMedia) !== null;
 
