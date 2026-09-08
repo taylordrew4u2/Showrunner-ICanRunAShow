@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AppSettings, Contract, ContractField, SignatureRequest } from '../types';
+import type {
+  AppSettings,
+  Contract,
+  ContractField,
+  PotentialComic,
+  SignatureRequest,
+} from '../types';
 import {
   alreadyPending,
   contractNameFromFile,
@@ -16,6 +22,13 @@ import {
 import { generateId } from '../utils/id';
 import { uploadMedia, deleteMedia } from '../utils/mediaStore';
 import { rolodexKey } from '../utils/rolodex';
+import {
+  applyProfileChanges,
+  describeChanges,
+  profileChanges,
+  profileFromAnswers,
+  type ProfileChange,
+} from '../utils/signatureImport';
 import type { SessionCredentials } from '../utils/session-vault';
 import { getRolodexTerm } from '../utils/terminology';
 import { PageHeader } from './PageHeader';
@@ -66,6 +79,10 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
   const [picking, setPicking] = useState(false);
   const [manualName, setManualName] = useState('');
   const [editingFields, setEditingFields] = useState(false);
+  // Details the producer has waved off, keyed `${token}:${field}`. Held in
+  // state rather than filed, because declining is about this one import.
+  const [declined, setDeclined] = useState<Set<string>>(new Set());
+  const [imported, setImported] = useState<string | null>(null);
 
   const open = contracts.find((c) => c.id === openId) ?? null;
   const summary = signatureSummary(requests);
@@ -228,6 +245,48 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
     });
   }
 
+  /**
+   * What a signed contract could add to the signer's Rolodex entry.
+   *
+   * The signer answered these questions themselves, which makes this the most
+   * reliable version of their details the app will ever hold — and the only
+   * moment it gets them without a form to send and chase. Matched by the
+   * Rolodex entry the contract was sent to, falling back to the name, since a
+   * contract typed out by hand still belongs to a person you know.
+   */
+  function pendingImport(request: SignatureRequest): {
+    entry: PotentialComic | null;
+    changes: ProfileChange[];
+  } {
+    if (!request.signed) return { entry: null, changes: [] };
+    const comics = settings.potentialComics ?? [];
+    const entry =
+      comics.find((c) => c.id === request.contactId) ??
+      comics.find((c) => rolodexKey(c.name) === rolodexKey(request.signerName)) ??
+      null;
+    const all = profileChanges(entry ?? undefined, profileFromAnswers(request.signed.fields));
+    return { entry, changes: all.filter((c) => !declined.has(`${request.token}:${c.key}`)) };
+  }
+
+  /** File the accepted details, creating the entry when there isn't one yet. */
+  function saveToProfile(request: SignatureRequest) {
+    const { entry, changes } = pendingImport(request);
+    if (changes.length === 0) return;
+    const comics = settings.potentialComics ?? [];
+    const nextComics = entry
+      ? comics.map((c) => (c.id === entry.id ? applyProfileChanges(c, changes) : c))
+      : [
+          ...comics,
+          applyProfileChanges(
+            { id: generateId(), name: request.signerName.trim() },
+            changes,
+          ),
+        ];
+    onUpdateSettings({ ...settings, potentialComics: nextComics });
+    setImported(request.token);
+    setTimeout(() => setImported((t) => (t === request.token ? null : t)), 2500);
+  }
+
   // People from the Rolodex who have not already signed this one.
   const candidates = useMemo(() => {
     if (!open) return [];
@@ -238,6 +297,51 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
       .filter((c) => c.name.trim() && !done.has(rolodexKey(c.name)))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [open, requests, settings.potentialComics]);
+
+  /**
+   * The details a signature brought in, offered rather than applied.
+   *
+   * Shown right under the answers, because that is where the producer is
+   * already looking when a contract comes back, and because seeing "Phone:
+   * empty → 555 0142" is the whole argument for pressing the button.
+   */
+  function ImportOffer({ request }: { request: SignatureRequest }) {
+    const { entry, changes } = pendingImport(request);
+    if (imported === request.token) {
+      return <p className="contracts__import contracts__import--done">Saved to their profile</p>;
+    }
+    if (changes.length === 0) return null;
+    return (
+      <div className="contracts__import">
+        <p className="contracts__import-head">
+          {entry
+            ? `Their ${rolodexTerm.singular.toLowerCase()} profile: ${describeChanges(changes)}`
+            : `Not in your ${rolodexTerm.plural} yet — saving files them with these details`}
+        </p>
+        <ul className="contracts__import-list">
+          {changes.map((c) => (
+            <li key={c.key} className="contracts__import-item">
+              <span className="contracts__import-label">{c.label}</span>
+              {c.from && <span className="contracts__import-was">{c.from}</span>}
+              <span className="contracts__import-new">{c.to}</span>
+              <button
+                className="btn btn--ghost btn--sm contracts__import-skip"
+                onClick={() =>
+                  setDeclined((d) => new Set(d).add(`${request.token}:${c.key}`))
+                }
+                aria-label={`Leave ${c.label} as it is`}
+              >
+                Skip
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button className="btn btn--secondary btn--sm" onClick={() => saveToProfile(request)}>
+          {entry ? 'Save to profile' : `Add to ${rolodexTerm.plural}`}
+        </button>
+      </div>
+    );
+  }
 
   // ── One contract, opened ───────────────────────────────────────────────────
   if (open) {
@@ -433,6 +537,7 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
                         ))}
                       </dl>
                     ) : null}
+                    {r.signed ? <ImportOffer request={r} /> : null}
                   </div>
                   {!r.signed && (
                     <button className="btn btn--ghost btn--sm" onClick={() => copyLink(r)}>
