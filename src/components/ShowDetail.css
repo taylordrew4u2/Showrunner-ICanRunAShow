@@ -3141,9 +3141,23 @@ select.show-detail__status--select {
    still opens the profile, so the button can be a small word rather than a
    button-shaped word. */
 @media (max-width: 480px) {
+  /* The word becomes a chevron. At 390px the reorder arrows and "Profile"
+     were taking more of the row than the name, so the bill read "Dev O…",
+     "Mona …", "Kit An…" — and a bill you cannot read names off is not a
+     bill. The button keeps its aria-label and its 44px target; only the
+     word goes. */
+  .section-list-item__open-label {
+    display: none;
+  }
+
   .section-list-item__open {
-    padding-inline: var(--space-1);
-    font-size: var(--text-xs);
+    padding-inline: var(--space-2);
+  }
+
+  .section-list-item__open::after {
+    content: '\203A';
+    font-size: var(--text-lg);
+    line-height: 1;
   }
 
   .section-list-item__buttons {

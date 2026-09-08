@@ -147,7 +147,7 @@ export function ArtistsSection({ artists, potentialComics = [], onChange }: Arti
                   onClick={() => setSelectedId(a.id)}
                   aria-label={`Open ${a.name}'s profile`}
                 >
-                  Profile
+                  <span className="section-list-item__open-label">Profile</span>
                 </button>
               </div>
             </div>

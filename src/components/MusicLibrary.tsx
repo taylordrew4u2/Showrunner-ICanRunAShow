@@ -117,9 +117,15 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
         onBack={onBack}
         backLabel="Shows"
         actions={
-          <button className="btn btn--primary" onClick={addTracks} disabled={busy}>
-            {busy ? 'Uploading…' : '+ Upload track'}
-          </button>
+          /* Not while the library is empty: the empty state below carries the
+             same button, sitting with the sentence that explains what it does.
+             Two identical red buttons on one screen make the reader choose
+             between them, and there is nothing to choose. */
+          tracks.length > 0 ? (
+            <button className="btn btn--primary" onClick={addTracks} disabled={busy}>
+              {busy ? 'Uploading…' : '+ Upload track'}
+            </button>
+          ) : undefined
         }
       />
 
@@ -143,7 +149,7 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
             gets its own button on the Run Show soundboard.
           </p>
           <button className="btn btn--primary" onClick={addTracks} disabled={busy}>
-            + Upload track
+            {busy ? 'Uploading…' : '+ Upload track'}
           </button>
         </div>
       ) : (
