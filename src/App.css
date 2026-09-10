@@ -3847,3 +3847,132 @@ body:has([aria-modal='true']) .status-rail {
 .cue__delete:focus-visible {
   color: var(--danger);
 }
+
+/* ── Asking someone for their own details ────────────────────────────────
+   The row grows a second line for the link, and a third for the answers
+   when they come back. The person is still one row; the ask and the reply
+   hang off it rather than becoming rows of their own. */
+.rolodex__item {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.rolodex__item-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  min-width: 0;
+}
+
+.rolodex__gaps--waiting {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+
+.rolodex__link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* Readonly and selectable: on a desktop the producer pastes it into a DM,
+   and the clipboard is not always allowed to do that for them. */
+.rolodex__link-url {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: var(--space-1) var(--space-1-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.rolodex__link-hint {
+  flex: 1 1 100%;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+.rolodex__link-error {
+  margin: var(--space-1-5) 0 0;
+  font-size: var(--text-sm);
+  color: var(--danger-text);
+}
+
+.rolodex__import {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-2-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.rolodex__import-head {
+  display: block;
+  margin-bottom: var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.rolodex__import-list {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.rolodex__import-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.rolodex__import-label {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-soft);
+}
+
+/* What is on file now, struck through — the one thing that would be lost. */
+.rolodex__import-was {
+  color: var(--text-soft);
+  text-decoration: line-through;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rolodex__import-new {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rolodex__import-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+@media (max-width: 768px) {
+  .rolodex__import-list li {
+    flex-wrap: wrap;
+  }
+  .rolodex__import-new {
+    flex-basis: 100%;
+  }
+}
