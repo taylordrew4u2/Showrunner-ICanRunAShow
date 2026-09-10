@@ -45,20 +45,7 @@
   color: var(--text-muted);
 }
 
-/* ── Headline + lede ──────────────────────────────────────────────── */
-
-.landing__headline {
-  font-size: clamp(1.6rem, 5vw, 2rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  margin: 0 0 var(--space-2);
-  color: var(--text);
-}
-
-.landing__headline-accent {
-  color: var(--primary-text);
-}
+/* ── Lede ────────────────────────────────────────────────────────── */
 
 .landing__lede {
   font-size: var(--text-base);
@@ -200,50 +187,6 @@
   text-align: center;
 }
 
-.login__note {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-xs);
-  color: var(--text-soft);
-  margin: 0;
-}
-
-.login__note-icon {
-  flex-shrink: 0;
-  opacity: 0.6;
-}
-
-/* Left-aligned on purpose: these are claims to be read, not a centred
-   decorative flourish. */
-.login__trust {
-  list-style: none;
-  margin: 0;
-  padding: var(--space-3) 0 0;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1-5);
-  text-align: left;
-}
-
-/* Icons ride the first line, not the block's centre — a two-line claim
-   shouldn't push its checkmark into the gap between lines. */
-.login__trust li {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-1-5);
-  font-size: var(--text-xs);
-  line-height: 1.4;
-  color: var(--text-muted);
-}
-
-.login__trust svg {
-  flex-shrink: 0;
-  margin-top: var(--space-0-5);
-  color: var(--success-text);
-}
-
 .login__legal {
   margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
@@ -259,95 +202,4 @@
   padding: 0 var(--space-0-5);
   color: var(--text-muted);
   text-decoration: underline;
-}
-
-/* ── Public landing content (features, guides, FAQ) ───────────────── */
-
-.landing__section {
-  width: 100%;
-  max-width: 720px;
-  margin: var(--space-12) auto 0;
-  text-align: left;
-}
-
-.landing__section-title {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--text);
-  margin: 0 0 var(--space-4);
-}
-
-.landing__features {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--space-3);
-}
-
-.landing__feature {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--space-3-5) var(--space-4);
-}
-
-.landing__feature h3 {
-  font-size: var(--text-base);
-  font-weight: 700;
-  margin: 0 0 var(--space-1-5);
-  color: var(--text);
-}
-
-.landing__feature p {
-  font-size: var(--text-md);
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.55;
-}
-
-.landing__guides {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.landing__guides a {
-  display: block;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  color: var(--text);
-  font-size: var(--text-base);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.landing__guides a:hover {
-  border-color: var(--border-strong);
-}
-
-.landing__faq {
-  margin: 0;
-}
-
-.landing__faq dt {
-  font-weight: 700;
-  font-size: var(--text-base);
-  color: var(--text);
-  margin-top: var(--space-3-5);
-}
-
-.landing__faq dd {
-  margin: var(--space-1) 0 0;
-  font-size: var(--text-md);
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-
-.landing__faq a {
-  color: var(--primary-text);
 }
