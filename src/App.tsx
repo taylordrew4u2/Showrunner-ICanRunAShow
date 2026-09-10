@@ -37,6 +37,8 @@ import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
 import { PageHeader } from './components/PageHeader';
+import { uploadMedia } from './utils/mediaStore';
+import { dataUrlToFile } from './utils/media';
 import { ProfilePage } from './components/ProfilePage';
 import { RolodexRow } from './components/RolodexRow';
 import {
@@ -44,6 +46,8 @@ import {
   profileLinkStatus,
   profileUrl,
   refreshProfiles,
+  fetchProfilePhoto,
+  deleteProfilePhoto,
 } from './utils/profileLink';
 import { applyProfileChanges, profileChanges, profileFromAnswers } from './utils/signatureImport';
 import { ShowCard } from './components/ShowCard';
@@ -1214,6 +1218,29 @@ export default function App() {
   const [linkBusyFor, setLinkBusyFor] = useState<string | null>(null);
   const [linkErrorFor, setLinkErrorFor] = useState<string | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
+  // Headshots that came back with a reply, opened once and kept by token.
+  // '' means "fetched, there was none", so a missing photo is not refetched
+  // on every render.
+  const [profilePhotos, setProfilePhotos] = useState<Record<string, string>>({});
+  const photoTokens = (settings.profileRequests ?? [])
+    .filter(r => r.submitted?.photoChunks)
+    .map(r => r.token)
+    .join('|');
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    (async () => {
+      for (const r of settings.profileRequests ?? []) {
+        if (!r.submitted?.photoChunks || profilePhotos[r.token] !== undefined) continue;
+        const url = await fetchProfilePhoto(r, session);
+        if (cancelled) return;
+        setProfilePhotos(prev => ({ ...prev, [r.token]: url ?? '' }));
+      }
+    })();
+    return () => { cancelled = true; };
+    // Keyed on which replies carry a photo, not on the settings object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoTokens, session]);
 
   /**
    * Ask someone for their own details.
@@ -1265,16 +1292,42 @@ export default function App() {
     );
     if (!request?.submitted) return null;
     const changes = profileChanges(comic, profileFromAnswers(request.submitted.fields));
-    return { request, changes };
+    // Only offered where the profile has no picture, so a headshot the
+    // producer chose is never displaced by one that arrived in the post.
+    const photo = !comic.photo ? profilePhotos[request.token] || undefined : undefined;
+    return { request, changes, photo };
   }
 
-  /** File their answers, and retire the link that carried them. */
-  function handleImportProfile(comic: PotentialComic) {
+  /** File their answers — and their photo, into the media store — and retire the link. */
+  async function handleImportProfile(comic: PotentialComic) {
     const pending = pendingProfileImport(comic);
-    if (!pending) return;
-    handleUpdateRolodexComic(applyProfileChanges(comic, pending.changes), {
+    if (!pending || !session) return;
+
+    // The headshot arrives as a data URL under the link's key; filing it means
+    // putting it into the producer's media store, where every other photo
+    // lives. A photo that will not store is a failure said out loud, not a
+    // silent absence — the producer would otherwise believe the flyer has a
+    // face.
+    let photoRef: string | undefined;
+    let photoFailed = false;
+    if (pending.photo) {
+      try {
+        const file = dataUrlToFile(pending.photo, `${comic.name.trim() || 'headshot'}.jpg`);
+        if (!file) photoFailed = true;
+        else photoRef = await uploadMedia(file);
+      } catch {
+        photoFailed = true;
+      }
+    }
+
+    const next = applyProfileChanges(comic, pending.changes);
+    handleUpdateRolodexComic(photoRef ? { ...next, photo: photoRef } : next, {
       profileRequests: (settings.profileRequests ?? []).filter(r => r.token !== pending.request.token),
     });
+    void deleteProfilePhoto(pending.request, session);
+
+    setLinkErrorFor(photoFailed ? comic.id : null);
+    setLinkError(photoFailed ? `${comic.name}'s details were saved, but their photo could not be stored.` : null);
   }
 
   /**
@@ -1291,6 +1344,7 @@ export default function App() {
     };
     setSettings(updatedSettings);
     saveSettings(updatedSettings);
+    void deleteProfilePhoto(pending.request, session);
   }
 
   function handleUpdateRolodexComic(updated: PotentialComic, extra: Partial<AppSettings> = {}) {
@@ -2098,7 +2152,8 @@ export default function App() {
                           linkBusy={linkBusyFor === comic.id}
                           onRequestDetails={() => void handleRequestDetails(comic)}
                           pending={pending?.changes}
-                          onImport={() => handleImportProfile(comic)}
+                          onImport={() => void handleImportProfile(comic)}
+                          pendingPhoto={pending?.photo}
                           onSkipImport={() => handleSkipProfile(comic)}
                           linkError={linkErrorFor === comic.id ? (linkError ?? undefined) : undefined}
                         />

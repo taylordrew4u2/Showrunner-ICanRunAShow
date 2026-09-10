@@ -375,6 +375,8 @@ export interface ProfileSubmission {
   /** What they call themselves, in case it differs from the name on file. */
   typedName: string;
   fields: { label: string; value: string }[];
+  /** How many chunks their headshot arrived in; absent or 0 when they sent none. */
+  photoChunks?: number;
 }
 
 /**

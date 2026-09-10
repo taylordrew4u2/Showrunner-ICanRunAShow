@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { ProfileSubmission } from '../types';
 import { collectFieldAnswers, missingRequiredFields } from '../utils/contracts';
-import { fetchProfileRequest, submitProfile, type ProfilePayload } from '../utils/profileLink';
+import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
+import { readFileAsDataURL } from '../utils/media';
+import {
+  fetchProfileRequest,
+  submitProfile,
+  uploadProfilePhoto,
+  type ProfilePayload,
+} from '../utils/profileLink';
 import './SigningPage.css';
 
 interface ProfilePageProps {
@@ -31,6 +38,11 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
   const [typedName, setTypedName] = useState('');
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  // Already downscaled, as a data URL — the preview and what is sent are the
+  // same bytes.
+  const [headshot, setHeadshot] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profileKey) return;
@@ -54,6 +66,23 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
     return () => { cancelled = true; };
   }, [token, profileKey]);
 
+  /**
+   * Take the photo down to flyer size on this device, before it goes
+   * anywhere. A phone camera hands over four megabytes, and the person on
+   * venue wifi is the one who gives up halfway.
+   */
+  async function choosePhoto(file: File) {
+    setPhotoBusy(true);
+    setPhotoError(null);
+    try {
+      setHeadshot(await readFileAsDataURL(await downscaleImage(file, FLYER_MAX_DIM)));
+    } catch {
+      setPhotoError('That image could not be read. Try a JPEG or PNG.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   async function handleSend() {
     if (!profileKey || !payload) return;
     const name = typedName.trim();
@@ -62,11 +91,25 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
     setPhase('sending');
     setError(null);
     try {
+      // The photo goes first, because the answers are accepted once and seal
+      // the link. If the photo fails, nothing is sent and they can try again —
+      // sending the answers without it would mean the photo can never follow.
+      let photoChunks = 0;
+      if (headshot) {
+        try {
+          photoChunks = await uploadProfilePhoto(token, profileKey, headshot);
+        } catch {
+          setPhase('ready');
+          setError('Your photo did not go through. Try again, or remove it and send without — nothing has been sent yet.');
+          return;
+        }
+      }
       const record = await submitProfile(
         token,
         profileKey,
         name,
         collectFieldAnswers(payload.fields, values),
+        photoChunks,
       );
       setSubmitted(record);
       setPhase('done');
@@ -115,6 +158,7 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
             <p className="signing__done-line">
               {payload.fromName} has what they need to book you and put you on the flyer.
             </p>
+            {headshot && <img className="signing__photo-preview" src={headshot} alt="Your headshot" />}
             <dl className="signing__answers">
               <div className="signing__answer">
                 <dt>Name</dt>
@@ -176,13 +220,43 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
               </label>
             ))}
 
-            {/* No photo here, and it says why: the producer's contract link
-                takes one. Said rather than silently absent, or the performer
-                goes looking for the upload that is not there. */}
-            <p className="signing__note">
-              Your headshot is not asked for here — {payload.fromName} will collect it with your
-              contract.
-            </p>
+            {/* The flyer needs a face, and this is the one moment they are
+                already filling something in. Optional: a missing photo must
+                never be why the details do not arrive. */}
+            <div className="signing__field signing__photo">
+              <span>
+                Headshot <em className="signing__optional">optional — for the flyer</em>
+              </span>
+              <div className="signing__photo-row">
+                {headshot ? (
+                  <img className="signing__photo-preview" src={headshot} alt="Your headshot" />
+                ) : (
+                  <span className="signing__photo-empty" aria-hidden="true">☺</span>
+                )}
+                <div className="signing__photo-actions">
+                  <label className="btn btn--secondary btn--sm signing__photo-pick">
+                    {photoBusy ? 'Adding…' : headshot ? 'Choose a different one' : 'Add a photo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      disabled={photoBusy}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (file) void choosePhoto(file);
+                      }}
+                    />
+                  </label>
+                  {headshot && (
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => setHeadshot(null)}>
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+              {photoError && <p className="signing__photo-error">{photoError}</p>}
+            </div>
 
             <button
               className="btn btn--primary signing__cta"
