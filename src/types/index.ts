@@ -363,6 +363,39 @@ export interface SignatureRequest {
   signed?: SignatureRecord;
 }
 
+/**
+ * What a performer sent back through a self-serve profile link.
+ *
+ * The same shape the contract's field answers arrive in, so the producer's
+ * import offer can read either — one rule for "what do we now know about this
+ * person", rather than two that drift apart.
+ */
+export interface ProfileSubmission {
+  submittedAt: string;
+  /** What they call themselves, in case it differs from the name on file. */
+  typedName: string;
+  fields: { label: string; value: string }[];
+}
+
+/**
+ * One profile link, sent to one person.
+ *
+ * Identical machinery to a signature request — an unguessable token, a
+ * per-request key that lives only in the link's fragment — because the person
+ * filling it in has no account and never gets one. Filed separately from
+ * `signatureRequests` so that asking someone for their details never appears
+ * in the paperwork list as an unsigned contract.
+ */
+export interface ProfileRequest {
+  id: string;
+  token: string;
+  key: string;
+  contactId?: string; // the Rolodex entry this was raised from
+  personName: string;
+  sentAt: string;
+  submitted?: ProfileSubmission;
+}
+
 export interface AppSettings {
   brandName: string;
   producers: Producer[];
@@ -377,6 +410,7 @@ export interface AppSettings {
   musicLibrary: MusicTrack[]; // account-wide DJ tracks, addable to any show
   contracts: Contract[]; // uploaded agreements, sent out for signature
   signatureRequests: SignatureRequest[]; // who was sent what, and who has signed
+  profileRequests?: ProfileRequest[]; // self-serve links asking someone for their own details
   showTypes: string[]; // kinds of shows this producer makes (set during onboarding)
   onboarded: boolean; // whether the account has completed the welcome onboarding
   rolodexTermSingular?: string; // override for the Rolodex noun, e.g. "Comic" / "Queen"
