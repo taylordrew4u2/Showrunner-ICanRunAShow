@@ -136,3 +136,19 @@ describe('writing the details onto the entry', () => {
     expect(next.credits).toBe('Netflix');
   });
 });
+
+describe('a walk-on song, as words', () => {
+  it('lands on the profile as the song name, not as audio', () => {
+    // The producer still has to find the track. What this saves is asking
+    // what it was.
+    const profile = profileFromAnswers(answers(['Walk-on song', 'Get Ur Freak On — Missy Elliott']));
+    expect(profile.walkOnMusicName).toBe('Get Ur Freak On — Missy Elliott');
+  });
+
+  it('is offered as a change beside the others', () => {
+    const changes = profileChanges({}, { walkOnMusicName: 'Roundabout — Yes' });
+    expect(changes).toEqual([
+      { key: 'walkOnMusicName', label: 'Walk-on', from: undefined, to: 'Roundabout — Yes' },
+    ]);
+  });
+});

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Show, AppSettings, PotentialComic, MusicTrack, ScheduleTemplateItem } from './types';
+import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, ScheduleTemplateItem } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { generateId } from './utils/id';
 import { ServerNotConfiguredError } from './utils/api';
@@ -37,7 +37,15 @@ import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
 import { PageHeader } from './components/PageHeader';
+import { ProfilePage } from './components/ProfilePage';
 import { RolodexRow } from './components/RolodexRow';
+import {
+  createProfileLink,
+  profileLinkStatus,
+  profileUrl,
+  refreshProfiles,
+} from './utils/profileLink';
+import { applyProfileChanges, profileChanges, profileFromAnswers } from './utils/signatureImport';
 import { ShowCard } from './components/ShowCard';
 import { ShowsDashboard, type ShowsFocus } from './components/ShowsDashboard';
 import { ShowsCalendar } from './components/ShowsCalendar';
@@ -113,6 +121,36 @@ const NAV_ITEMS: {
  * sign-in (see session-vault) — never the password itself.
  */
 type Session = SessionCredentials;
+
+/**
+ * Look for profile-link answers that arrived while we were away.
+ *
+ * Nobody tells the app when a performer replies — their browser writes to a
+ * row keyed by their token and walks off. So the one moment to check is when
+ * the producer opens the Rolodex, which is also the moment they came to ask.
+ * A component rather than an effect in App, so it runs on entering the view
+ * and not on every settings write (finding an answer writes settings, and an
+ * effect keyed on settings would loop).
+ */
+function RolodexRefresh({
+  requests,
+  onFound,
+}: {
+  requests: ProfileRequest[];
+  onFound: (updated: ProfileRequest[]) => void;
+}) {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const updated = await refreshProfiles(requests);
+      if (!cancelled && updated) onFound(updated);
+    })();
+    return () => { cancelled = true; };
+    // On mount only, by design — see above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
 
 // Unsaved-edit backups. When a save fails (offline, server error), the latest
 // data is parked here so a closed tab or crashed browser can't lose it — it's
@@ -1164,10 +1202,69 @@ export default function App() {
     saveSettings(updatedSettings);
   }
 
-  function handleUpdateRolodexComic(updated: PotentialComic) {
+  // The profile link just made, shown on its row until the producer moves on.
+  const [freshLink, setFreshLink] = useState<{ contactId: string; url: string } | null>(null);
+  const [linkBusyFor, setLinkBusyFor] = useState<string | null>(null);
+  // Answered links the producer has waved off, by token — until the page is
+  // left, so a Skip is not undone by the next re-render.
+  const [skippedProfiles, setSkippedProfiles] = useState<Set<string>>(new Set());
+
+  /**
+   * Ask someone for their own details.
+   *
+   * Makes the link, files the request, and copies the link where the clipboard
+   * allows — the producer's next move is always to send it. Shown on the row
+   * regardless, because a link you cannot see is a link you cannot paste.
+   */
+  async function handleRequestDetails(comic: PotentialComic) {
+    if (!session) return;
+    setLinkBusyFor(comic.id);
+    try {
+      const request = await createProfileLink(
+        { name: comic.name, contactId: comic.id },
+        settings.brandName,
+        session,
+      );
+      const url = profileUrl(window.location.origin, request.token, request.key);
+      const updatedSettings = {
+        ...settings,
+        profileRequests: [request, ...(settings.profileRequests ?? [])],
+      };
+      setSettings(updatedSettings);
+      saveSettings(updatedSettings);
+      setFreshLink({ contactId: comic.id, url });
+      try { await navigator.clipboard?.writeText(url); } catch { /* shown on the row anyway */ }
+    } finally {
+      setLinkBusyFor(null);
+    }
+  }
+
+  /** What an answered link would change on its person's profile. */
+  function pendingProfileImport(comic: PotentialComic) {
+    const request = (settings.profileRequests ?? []).find(
+      r => r.contactId === comic.id && r.submitted && !skippedProfiles.has(r.token),
+    );
+    if (!request?.submitted) return null;
+    const changes = profileChanges(comic, profileFromAnswers(request.submitted.fields));
+    return { request, changes };
+  }
+
+  /** File their answers, and retire the link that carried them. */
+  function handleImportProfile(comic: PotentialComic) {
+    const pending = pendingProfileImport(comic);
+    if (!pending) return;
+    handleUpdateRolodexComic(applyProfileChanges(comic, pending.changes), {
+      profileRequests: (settings.profileRequests ?? []).filter(r => r.token !== pending.request.token),
+    });
+  }
+
+  function handleUpdateRolodexComic(updated: PotentialComic, extra: Partial<AppSettings> = {}) {
     if (!session) return;
     const updatedComics = settings.potentialComics.map(c => c.id === updated.id ? updated : c);
-    const updatedSettings = { ...settings, potentialComics: updatedComics };
+    // `extra` rides in the same save: two writes in a row would race, and the
+    // second — computed from settings that had not caught up — would put the
+    // first one back the way it was.
+    const updatedSettings = { ...settings, ...extra, potentialComics: updatedComics };
     setSettings(updatedSettings);
     saveSettings(updatedSettings);
 
@@ -1423,6 +1520,16 @@ export default function App() {
   }
   // A contract someone was asked to sign. No account, and none offered — the
   // token addresses the row and the key rides in the fragment.
+  // A performer answering a profile link. Checked before the signing link
+  // for the same reason that one is checked before the app: the person
+  // holding it has no account, and must never be shown a login.
+  const profileToken = search.get('profile');
+  if (profileToken) {
+    return (
+      <ProfilePage token={profileToken} profileKey={readSignKeyFromHash(window.location.hash)} />
+    );
+  }
+
   const signToken = search.get('sign');
   if (signToken) {
     return <SigningPage token={signToken} signKey={readSignKeyFromHash(window.location.hash)} />;
@@ -1882,6 +1989,14 @@ export default function App() {
 
             {view === 'rolodex' && (
               <div className="rolodex-page">
+                <RolodexRefresh
+                  requests={settings.profileRequests ?? []}
+                  onFound={(updated) => {
+                    const updatedSettings = { ...settings, profileRequests: updated };
+                    setSettings(updatedSettings);
+                    saveSettings(updatedSettings);
+                  }}
+                />
                 <PageHeader
                   title={`${rolodexTerm.singular} Rolodex`}
                   subtitle={`Keep a running list of ${rolodexTerm.plural.toLowerCase()} you want to book next.`}
@@ -1931,13 +2046,25 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="rolodex__list">
-                    {settings.potentialComics.map((comic) => (
-                      <RolodexRow
-                        key={comic.id}
-                        comic={comic}
-                        onEdit={() => setSelectedComicId(comic.id)}
-                      />
-                    ))}
+                    {settings.potentialComics.map((comic) => {
+                      const pending = pendingProfileImport(comic);
+                      return (
+                        <RolodexRow
+                          key={comic.id}
+                          comic={comic}
+                          onEdit={() => setSelectedComicId(comic.id)}
+                          linkStatus={profileLinkStatus(settings.profileRequests, comic.id)}
+                          linkUrl={freshLink?.contactId === comic.id ? freshLink.url : undefined}
+                          linkBusy={linkBusyFor === comic.id}
+                          onRequestDetails={() => void handleRequestDetails(comic)}
+                          pending={pending?.changes}
+                          onImport={() => handleImportProfile(comic)}
+                          onSkipImport={() => {
+                            if (pending) setSkippedProfiles(prev => new Set(prev).add(pending.request.token));
+                          }}
+                        />
+                      );
+                    })}
                   </div>
                 )}
 

@@ -26,6 +26,8 @@ export interface ImportedProfile {
   phone?: string;
   socialMedia?: string;
   credits?: string;
+  /** The song, as words — a title and artist to go and find, not audio. */
+  walkOnMusicName?: string;
 }
 
 /** One change the producer is being offered, in the words they'll recognise. */
@@ -42,6 +44,7 @@ const LABELS: Record<keyof ImportedProfile, string> = {
   phone: 'Phone',
   socialMedia: 'Socials',
   credits: 'Credits',
+  walkOnMusicName: 'Walk-on',
 };
 
 /**
@@ -84,6 +87,12 @@ export function profileFromAnswers(
       out.socialMedia = toHandle(value) ?? value;
       continue;
     }
+    // Words only. The audio itself still has to be found and uploaded by the
+    // producer; this saves them asking what the song was.
+    if (!out.walkOnMusicName && /walk.?on|entrance|intro (song|music)|song/.test(label)) {
+      out.walkOnMusicName = value;
+      continue;
+    }
   }
   return out;
 }
@@ -96,7 +105,9 @@ export function profileFromAnswers(
  * is someone skipping a question, never an instruction to delete.
  */
 export function profileChanges(
-  existing: Pick<PotentialComic, 'email' | 'phone' | 'socialMedia' | 'credits'> | undefined,
+  existing:
+    | Pick<PotentialComic, 'email' | 'phone' | 'socialMedia' | 'credits' | 'walkOnMusicName'>
+    | undefined,
   incoming: ImportedProfile,
 ): ProfileChange[] {
   const changes: ProfileChange[] = [];
