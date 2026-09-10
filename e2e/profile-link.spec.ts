@@ -66,3 +66,37 @@ test.describe('a self-serve profile link', () => {
     await expect(row.locator('.rolodex__import')).toHaveCount(0);
   });
 });
+
+test.describe('waving a reply off', () => {
+  test('retires the link, so the producer can ask again', async ({ page, context }) => {
+    await installFakeApi(context, emptyState());
+    await signUpAndOnboard(page);
+    const nav = (label: string) =>
+      page.locator('nav button, .sidebar button, .nav-tab').filter({ hasText: new RegExp(`^${label}$`) }).first();
+
+    await nav('Rolodex').click();
+    await page.locator('.rolodex__input').first().fill('Dev Okonjo');
+    await page.locator('.rolodex__form button[type="submit"]').click();
+    const row = page.locator('.rolodex__item').filter({ hasText: 'Dev Okonjo' });
+    await row.locator('button').filter({ hasText: /^Ask for details$/ }).click();
+    const url = await row.locator('.rolodex__link-url').inputValue();
+
+    const performer = await context.newPage();
+    await performer.goto(url);
+    await performer.getByLabel('Email').fill('dev@okonjo.example');
+    await performer.locator('button').filter({ hasText: /^Send my details$/ }).click();
+    await expect(performer.locator('.signing__panel--done')).toBeVisible();
+    await performer.close();
+
+    await nav('Shows').click();
+    await nav('Rolodex').click();
+    await expect(row.locator('.rolodex__import')).toContainText('sent their details');
+
+    // Declining an answer is the moment you most want to be able to ask
+    // again. A skipped reply that stayed on file would hide the ask for good.
+    await row.locator('button').filter({ hasText: /^Skip$/ }).click();
+    await expect(row.locator('.rolodex__import')).toHaveCount(0);
+    await expect(row.locator('.rolodex__gaps')).toContainText('Needs email');
+    await expect(row.locator('button').filter({ hasText: /^Ask for details$/ })).toBeVisible();
+  });
+});

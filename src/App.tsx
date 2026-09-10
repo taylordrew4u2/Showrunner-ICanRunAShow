@@ -139,11 +139,18 @@ function RolodexRefresh({
   requests: ProfileRequest[];
   onFound: (updated: ProfileRequest[]) => void;
 }) {
+  // The check is slow and the producer is not waiting for it: they may make
+  // a new link, or edit anything, before it resolves. Calling the `onFound`
+  // captured at mount would hand it the settings from that first render and
+  // overwrite whatever they did in between. The ref always points at the
+  // latest one, which closes over the latest settings.
+  const onFoundRef = useRef(onFound);
+  onFoundRef.current = onFound;
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const updated = await refreshProfiles(requests);
-      if (!cancelled && updated) onFound(updated);
+      if (!cancelled && updated) onFoundRef.current(updated);
     })();
     return () => { cancelled = true; };
     // On mount only, by design — see above.
@@ -1205,9 +1212,8 @@ export default function App() {
   // The profile link just made, shown on its row until the producer moves on.
   const [freshLink, setFreshLink] = useState<{ contactId: string; url: string } | null>(null);
   const [linkBusyFor, setLinkBusyFor] = useState<string | null>(null);
-  // Answered links the producer has waved off, by token — until the page is
-  // left, so a Skip is not undone by the next re-render.
-  const [skippedProfiles, setSkippedProfiles] = useState<Set<string>>(new Set());
+  const [linkErrorFor, setLinkErrorFor] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   /**
    * Ask someone for their own details.
@@ -1219,6 +1225,7 @@ export default function App() {
   async function handleRequestDetails(comic: PotentialComic) {
     if (!session) return;
     setLinkBusyFor(comic.id);
+    setLinkErrorFor(null);
     try {
       const request = await createProfileLink(
         { name: comic.name, contactId: comic.id },
@@ -1234,15 +1241,27 @@ export default function App() {
       saveSettings(updatedSettings);
       setFreshLink({ contactId: comic.id, url });
       try { await navigator.clipboard?.writeText(url); } catch { /* shown on the row anyway */ }
+    } catch {
+      // Venue wifi. Nothing was filed, so the row goes back to offering the
+      // ask rather than pretending a link exists somewhere.
+      setLinkErrorFor(comic.id);
+      setLinkError('That link could not be made. Check your connection and try again.');
     } finally {
       setLinkBusyFor(null);
     }
   }
 
-  /** What an answered link would change on its person's profile. */
+  /**
+   * What an answered link would change on its person's profile.
+   *
+   * Returned even when the answer changes nothing — every answer they gave
+   * was blank or already on file — so the row can say so and let the link go.
+   * Otherwise it sits "answered" forever with nothing to press and no way to
+   * ask again.
+   */
   function pendingProfileImport(comic: PotentialComic) {
     const request = (settings.profileRequests ?? []).find(
-      r => r.contactId === comic.id && r.submitted && !skippedProfiles.has(r.token),
+      r => r.contactId === comic.id && r.submitted,
     );
     if (!request?.submitted) return null;
     const changes = profileChanges(comic, profileFromAnswers(request.submitted.fields));
@@ -1256,6 +1275,22 @@ export default function App() {
     handleUpdateRolodexComic(applyProfileChanges(comic, pending.changes), {
       profileRequests: (settings.profileRequests ?? []).filter(r => r.token !== pending.request.token),
     });
+  }
+
+  /**
+   * Wave a reply off. The link is retired, not hidden: a skipped reply that
+   * stayed on file would keep "Ask for details" off the row for good, when
+   * declining an answer is the moment you most want to be able to ask again.
+   */
+  function handleSkipProfile(comic: PotentialComic) {
+    const pending = pendingProfileImport(comic);
+    if (!pending || !session) return;
+    const updatedSettings = {
+      ...settings,
+      profileRequests: (settings.profileRequests ?? []).filter(r => r.token !== pending.request.token),
+    };
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
   }
 
   function handleUpdateRolodexComic(updated: PotentialComic, extra: Partial<AppSettings> = {}) {
@@ -1992,7 +2027,12 @@ export default function App() {
                 <RolodexRefresh
                   requests={settings.profileRequests ?? []}
                   onFound={(updated) => {
-                    const updatedSettings = { ...settings, profileRequests: updated };
+                    // Merge by token rather than replace: `updated` is the list
+                    // as it stood when the check began, and a link made since
+                    // then is not in it.
+                    const found = new Map(updated.filter(r => r.submitted).map(r => [r.token, r]));
+                    const merged = (settings.profileRequests ?? []).map(r => found.get(r.token) ?? r);
+                    const updatedSettings = { ...settings, profileRequests: merged };
                     setSettings(updatedSettings);
                     saveSettings(updatedSettings);
                   }}
@@ -2059,9 +2099,8 @@ export default function App() {
                           onRequestDetails={() => void handleRequestDetails(comic)}
                           pending={pending?.changes}
                           onImport={() => handleImportProfile(comic)}
-                          onSkipImport={() => {
-                            if (pending) setSkippedProfiles(prev => new Set(prev).add(pending.request.token));
-                          }}
+                          onSkipImport={() => handleSkipProfile(comic)}
+                          linkError={linkErrorFor === comic.id ? (linkError ?? undefined) : undefined}
                         />
                       );
                     })}

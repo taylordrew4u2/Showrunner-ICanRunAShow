@@ -27,6 +27,7 @@ export function RolodexRow({
   pending,
   onImport,
   onSkipImport,
+  linkError,
 }: {
   comic: PotentialComic;
   onEdit: () => void;
@@ -40,6 +41,8 @@ export function RolodexRow({
   pending?: ProfileChange[];
   onImport?: () => void;
   onSkipImport?: () => void;
+  /** Why the last attempt to make a link failed, if it did. */
+  linkError?: string;
 }) {
   const photoUrl = useMediaUrl(comic.photo);
   const { gaps } = performerReadiness(comic);
@@ -107,9 +110,15 @@ export function RolodexRow({
         </div>
       )}
 
+      {linkError && (
+        <p className="rolodex__link-error" role="alert">{linkError}</p>
+      )}
+
       {/* Their answers, offered rather than applied. Same rule as a signed
-          contract's: nothing is written until the producer says so. */}
-      {pending && pending.length > 0 && (
+          contract's: nothing is written until the producer says so. Shown
+          even when nothing would change, so the reply can be let go and the
+          row does not sit "answered" with nothing to press. */}
+      {pending && (
         <div className="rolodex__import">
           <span className="rolodex__import-head">
             {comic.name} sent their details — {describeChanges(pending)}
@@ -124,11 +133,13 @@ export function RolodexRow({
             ))}
           </ul>
           <div className="rolodex__import-actions">
-            <button className="btn btn--secondary btn--sm" type="button" onClick={onImport}>
-              Save to profile
-            </button>
+            {pending.length > 0 && (
+              <button className="btn btn--secondary btn--sm" type="button" onClick={onImport}>
+                Save to profile
+              </button>
+            )}
             <button className="btn btn--ghost btn--sm" type="button" onClick={onSkipImport}>
-              Skip
+              {pending.length > 0 ? 'Skip' : 'Dismiss'}
             </button>
           </div>
         </div>

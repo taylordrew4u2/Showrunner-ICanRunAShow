@@ -3897,6 +3897,12 @@ body:has([aria-modal='true']) .status-rail {
   color: var(--text-soft);
 }
 
+.rolodex__link-error {
+  margin: var(--space-1-5) 0 0;
+  font-size: var(--text-sm);
+  color: var(--danger-text);
+}
+
 .rolodex__import {
   margin-top: var(--space-2);
   padding: var(--space-2) var(--space-2-5);
