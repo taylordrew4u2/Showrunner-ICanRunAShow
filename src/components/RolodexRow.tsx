@@ -28,6 +28,7 @@ export function RolodexRow({
   onImport,
   onSkipImport,
   linkError,
+  pendingPhoto,
 }: {
   comic: PotentialComic;
   onEdit: () => void;
@@ -43,6 +44,8 @@ export function RolodexRow({
   onSkipImport?: () => void;
   /** Why the last attempt to make a link failed, if it did. */
   linkError?: string;
+  /** The headshot that came with their reply, opened, if they sent one. */
+  pendingPhoto?: string;
 }) {
   const photoUrl = useMediaUrl(comic.photo);
   const { gaps } = performerReadiness(comic);
@@ -122,7 +125,16 @@ export function RolodexRow({
         <div className="rolodex__import">
           <span className="rolodex__import-head">
             {comic.name} sent their details — {describeChanges(pending)}
+            {pendingPhoto ? ', and a headshot' : ''}
           </span>
+          {/* Shown rather than described: a photo is the one thing you can
+              judge at a glance, and the flyer depends on it. */}
+          {pendingPhoto && (
+            <div className="rolodex__import-photo">
+              <img src={pendingPhoto} alt={`Headshot sent by ${comic.name}`} />
+              <span>For the flyer</span>
+            </div>
+          )}
           <ul className="rolodex__import-list">
             {pending.map((c) => (
               <li key={c.key}>
@@ -133,13 +145,13 @@ export function RolodexRow({
             ))}
           </ul>
           <div className="rolodex__import-actions">
-            {pending.length > 0 && (
+            {(pending.length > 0 || pendingPhoto) && (
               <button className="btn btn--secondary btn--sm" type="button" onClick={onImport}>
                 Save to profile
               </button>
             )}
             <button className="btn btn--ghost btn--sm" type="button" onClick={onSkipImport}>
-              {pending.length > 0 ? 'Skip' : 'Dismiss'}
+              {pending.length > 0 || pendingPhoto ? 'Skip' : 'Dismiss'}
             </button>
           </div>
         </div>

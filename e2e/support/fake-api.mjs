@@ -35,6 +35,7 @@ export function emptyState(overrides = {}) {
     media: {},
     doc: {},
     sign: {},
+    profilePhoto: {},
     live: {},
     rejectedSecondSign: false,
     rejectedForeignPublish: false,
@@ -133,6 +134,25 @@ export async function installFakeApi(ctx, state) {
         state.live[body.token] = { userId, payload: body.payload };
         return ok({ ok: true });
       }
+    }
+
+    if (path === '/api/profile-photo') {
+      if (method === 'PUT') {
+        // The rules the real route enforces: a link the producer made, and
+        // still unanswered. The reply seals the photo with it.
+        const link = state.sign[body.token];
+        if (!link) return err(404, 'not_found');
+        if (link.signedAt) return err(409, 'not_open');
+        state.profilePhoto[body.token] ??= {};
+        state.profilePhoto[body.token][body.seq] = { data: body.data, total: body.total };
+        return ok({ ok: true });
+      }
+      if (method === 'GET') {
+        const chunk = state.profilePhoto[url.searchParams.get('token') ?? '']?.[Number(url.searchParams.get('seq'))];
+        return chunk ? ok(chunk) : err(404, 'not_found');
+      }
+      delete state.profilePhoto[url.searchParams.get('token') ?? ''];
+      return ok({ ok: true });
     }
 
     if (path === '/api/sign') {

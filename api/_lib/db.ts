@@ -113,6 +113,18 @@ const DDL: string[] = [
      created_at TEXT NOT NULL DEFAULT (datetime('now')),
      PRIMARY KEY (token, seq)
    )`,
+  // A headshot sent back through a profile link. Written anonymously by the
+  // performer — the one place a stranger may write chunks — and only while the
+  // link is still unanswered; the once-only reply seals it. Ciphertext under
+  // the link's own key, like everything else addressed by a token.
+  `CREATE TABLE IF NOT EXISTS profile_photo (
+     token      TEXT NOT NULL,
+     seq        INTEGER NOT NULL,
+     total      INTEGER NOT NULL,
+     data       TEXT NOT NULL,
+     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+     PRIMARY KEY (token, seq)
+   )`,
   `CREATE TABLE IF NOT EXISTS live_media (
      token      TEXT NOT NULL,
      id         TEXT NOT NULL,
