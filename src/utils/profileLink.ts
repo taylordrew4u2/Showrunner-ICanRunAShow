@@ -1,6 +1,6 @@
 import type { ContractField, ProfileRequest, ProfileSubmission } from '../types';
 import { api } from './api';
-import { generateSignKey, generateSignToken } from './contracts';
+import { generateSignKey, generateSignToken, splitIntoChunks } from './contracts';
 import { decryptWithKey, encryptWithKey } from './encryption';
 import type { SessionCredentials } from './session-vault';
 
@@ -20,10 +20,11 @@ import type { SessionCredentials } from './session-vault';
  * and never sees the key. Nothing new was added to the backend for this, and
  * no new place for an anonymous stranger to write was opened.
  *
- * What it deliberately does not do is take a photo. A headshot is far bigger
- * than the anonymous-reply cap the server enforces on purpose, and lifting that
- * cap or opening a public upload is a security decision, not a UI one. Photos
- * come through the contract, which already carries them.
+ * The one addition to the backend is the photo. A headshot is far bigger than
+ * the anonymous-reply cap, so it goes through its own chunked route — the only
+ * place a stranger may write chunks, and hemmed in accordingly: a link the
+ * producer made, still unanswered, a handful of capped chunks, ciphertext under
+ * the link's own key. See api/profile-photo.ts.
  */
 
 /** What the performer is shown, encrypted under the request key. */
@@ -110,6 +111,7 @@ export async function revokeProfileLink(
 ): Promise<void> {
   const auth = { authUserId: creds.userId, authHash: creds.authHash };
   await api.del(`/api/sign?token=${encodeURIComponent(request.token)}`, auth);
+  await deleteProfilePhoto(request, creds);
 }
 
 /**
@@ -177,6 +179,23 @@ export async function fetchProfileRequest(token: string, key: string): Promise<P
 }
 
 /**
+ * Send the headshot ahead of the answers, chunk by chunk, under the link's key.
+ *
+ * Ahead, because the server only takes a photo while the link is unanswered:
+ * the reply that follows seals it. Returns the chunk count for the record, so
+ * the producer knows there is something to fetch.
+ */
+export async function uploadProfilePhoto(token: string, key: string, dataUrl: string): Promise<number> {
+  const chunks = splitIntoChunks(dataUrl);
+  for (let seq = 0; seq < chunks.length; seq++) {
+    await api.put('/api/profile-photo', {
+      token, seq, total: chunks.length, data: encryptWithKey(chunks[seq], key),
+    });
+  }
+  return chunks.length;
+}
+
+/**
  * Send the answers. The server accepts this once and refuses after, so a
  * second submission cannot overwrite what the producer has already imported.
  */
@@ -185,14 +204,55 @@ export async function submitProfile(
   key: string,
   typedName: string,
   fields: { label: string; value: string }[],
+  photoChunks = 0,
 ): Promise<ProfileSubmission> {
   const record: ProfileSubmission = {
     submittedAt: new Date().toISOString(),
     typedName: typedName.trim(),
     fields,
+    photoChunks: photoChunks || undefined,
   };
   await api.post('/api/sign', { token, signature: encryptWithKey(record, key) });
   return record;
+}
+
+/**
+ * Pull the headshot back and open it, for the producer.
+ *
+ * Null when there is none, or when any chunk fails — a photo with a chunk
+ * missing is not a photo, and half a JPEG on a flyer is worse than no photo.
+ */
+export async function fetchProfilePhoto(
+  request: ProfileRequest,
+  creds: SessionCredentials,
+): Promise<string | null> {
+  const total = request.submitted?.photoChunks ?? 0;
+  if (total <= 0) return null;
+  const auth = { authUserId: creds.userId, authHash: creds.authHash };
+  try {
+    const parts: string[] = [];
+    for (let seq = 0; seq < total; seq++) {
+      const res = await api.get<{ data: string }>(
+        `/api/profile-photo?token=${encodeURIComponent(request.token)}&seq=${seq}`,
+        auth,
+      );
+      const chunk = decryptWithKey<string>(res.data, request.key);
+      if (typeof chunk !== 'string') return null;
+      parts.push(chunk);
+    }
+    const dataUrl = parts.join('');
+    return dataUrl.startsWith('data:image/') ? dataUrl : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Drop the photo once it is filed or waved off. Best effort; ciphertext left behind is harmless. */
+export async function deleteProfilePhoto(request: ProfileRequest, creds: SessionCredentials): Promise<void> {
+  const auth = { authUserId: creds.userId, authHash: creds.authHash };
+  try {
+    await api.del(`/api/profile-photo?token=${encodeURIComponent(request.token)}`, auth);
+  } catch { /* tidy-up only */ }
 }
 
 // ── Status, for the producer ────────────────────────────────────────────────
