@@ -370,6 +370,14 @@
 /* The top padding reserves the status band — the strip the sync pill lives in.
    It's chrome, not spacing: content never slides under the one element that
    tells you whether your work is safe. */
+/* Anything the browser scrolls into view — a focused input, an anchor — has
+   to clear the fixed bottom nav, and on Settings the save bar above it too.
+   Without this, tapping the last field on a page puts it directly underneath
+   the nav, which reads as the app scrolling to the wrong place. */
+html {
+  scroll-padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 88px);
+}
+
 .app-main {
   flex: 1;
   width: 100%;
@@ -3690,6 +3698,9 @@ body:has([aria-modal='true']) .status-rail {
     min-height: 100dvh;
     max-height: 100dvh;
     overflow-y: auto;
+    /* At this width .app-main is the scroll container, not the document, so
+       the scroll-padding has to be set here instead. */
+    scroll-padding-bottom: 88px;
   }
 
   /* ── Sidebar ────────────────────────────────────────────────────────── */

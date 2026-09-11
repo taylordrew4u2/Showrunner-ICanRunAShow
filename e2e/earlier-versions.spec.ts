@@ -25,6 +25,7 @@ test.describe('earlier versions', () => {
     await expect.poll(() => state.showSnapshots.length).toBeGreaterThan(0);
 
     await gotoTab(page, 'Settings');
+    await page.locator('summary:has-text("Earlier versions")').click();
     await page.locator('button:has-text("Show earlier versions")').click();
     const oneShow = page.locator('.settings__version', { hasText: '1 show' }).first();
     await expect(oneShow).toBeVisible();
@@ -40,6 +41,7 @@ test.describe('earlier versions', () => {
     // earlier version.
     await expect.poll(() => state.shows.length).toBe(1);
     await gotoTab(page, 'Settings');
+    await page.locator('summary:has-text("Earlier versions")').click();
     await page.locator('button:has-text("Show earlier versions")').click();
     await expect(page.locator('.settings__version', { hasText: '2 shows' }).first()).toBeVisible();
   });

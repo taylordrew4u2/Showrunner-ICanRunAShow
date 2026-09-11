@@ -175,9 +175,14 @@ export function Settings({
   }
 
   const trash = settings.trash || [];
+  // Nothing on this page saves itself, unlike the rest of the app — so the
+  // page has to say when something is waiting. Comparing against what was
+  // handed in is the whole test: equal means there is nothing to save, and
+  // nothing worth putting a button in front of the reader for.
+  const dirty = JSON.stringify(settings) !== JSON.stringify(initialSettings);
 
   return (
-    <div className="settings">
+    <div className={`settings${dirty ? ' settings--dirty' : ''}`}>
       <PageHeader title="Settings" onBack={onBack} backLabel="Shows" />
 
       {onColorSchemeChange && (
@@ -354,68 +359,6 @@ export function Settings({
         </details>
       </div>
 
-      <button className="btn btn--primary settings__save" onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving…' : 'Save Settings'}
-      </button>
-
-      {/* Deleting a show has always said it goes to the trash "where you can
-          recover it" — this is where you actually recover it. */}
-      {onRestoreShow && onDeleteForever && (
-        <div className="settings__card">
-          <h2 className="settings__card-title">Recently deleted</h2>
-          <p className="settings__hint">
-            Deleted shows are kept here so you can put them back. Walk-on audio isn't kept, so a
-            restored show comes back without it.
-          </p>
-
-          {trash.length === 0 ? (
-            <p className="settings__empty">Nothing deleted.</p>
-          ) : (
-            <>
-              <ul className="settings__trash-list">
-                {trash.map((item) => (
-                  <li key={item.id} className="settings__trash-row">
-                    <div className="settings__trash-info">
-                      <span className="settings__trash-name">{item.data.name || 'Untitled show'}</span>
-                      <span className="settings__trash-date">
-                        Deleted {new Date(item.deletedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="settings__trash-actions">
-                      <button className="btn btn--secondary btn--sm" onClick={() => onRestoreShow(item.id)}>
-                        Restore
-                      </button>
-                      <button
-                        className="btn btn--danger btn--sm"
-                        onClick={async () => {
-                          if (await confirm(`Permanently delete "${item.data.name}"? This can't be undone.`)) {
-                            onDeleteForever(item.id);
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              {onEmptyTrash && (
-                <button
-                  className="btn btn--ghost btn--sm settings__trash-empty"
-                  onClick={async () => {
-                    if (await confirm(`Permanently delete all ${trash.length} item(s)? This can't be undone.`)) {
-                      onEmptyTrash();
-                    }
-                  }}
-                >
-                  Empty trash
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
 
       {/* Running the show from the stage. The operator is often on the bill
           too, and once they are up there the laptop may as well be in another
@@ -463,84 +406,14 @@ export function Settings({
         </p>
       </div>
 
-      {onSweepMedia && (
-        <div className="settings__card">
-          <h2 className="settings__card-title">Storage</h2>
-          <p className="settings__hint">
-            Deleting a show now removes its photos and audio too. Shows deleted
-            before that left their files behind, where nothing can reach them.
-            This finds those and clears them out.
-          </p>
 
-          {sweepError && <p className="settings__sweep-error" role="alert">{sweepError}</p>}
-
-          {sweepFound === null ? (
-            <button
-              className="btn btn--secondary btn--sm"
-              disabled={sweepBusy}
-              onClick={async () => {
-                setSweepBusy(true);
-                setSweepError(null);
-                try {
-                  const report = await onSweepMedia(true);
-                  setSweepFound(report);
-                } catch (err) {
-                  setSweepError(err instanceof Error ? err.message : 'That scan did not finish.');
-                } finally {
-                  setSweepBusy(false);
-                }
-              }}
-            >
-              {sweepBusy ? 'Scanning\u2026' : 'Find unused files'}
-            </button>
-          ) : sweepDone ? (
-            <p className="settings__sweep-result">
-              {sweepDone.removed === 0
-                ? 'Nothing to clear \u2014 every stored file is in use.'
-                : `Cleared ${sweepDone.removed} file${sweepDone.removed === 1 ? '' : 's'}, freeing ${formatBytes(sweepDone.bytes)}.`}
-              {sweepDone.failed > 0 && ` ${sweepDone.failed} could not be removed; try again later.`}
-            </p>
-          ) : sweepFound.removed === 0 ? (
-            <p className="settings__sweep-result">
-              Nothing to clear \u2014 all {sweepFound.scanned} stored file
-              {sweepFound.scanned === 1 ? '' : 's'} are in use.
-            </p>
-          ) : (
-            <>
-              <p className="settings__sweep-result">
-                {sweepFound.removed} unused file{sweepFound.removed === 1 ? '' : 's'},
-                {' '}{formatBytes(sweepFound.bytes)} of {sweepFound.scanned} stored.
-              </p>
-              <button
-                className="btn btn--danger btn--sm"
-                disabled={sweepBusy}
-                onClick={async () => {
-                  const ok = await confirm({
-                    message: `Delete ${sweepFound.removed} unused file(s) and free ${formatBytes(sweepFound.bytes)}? Nothing in your shows points at them, and this can't be undone.`,
-                    confirmLabel: 'Delete them',
-                  });
-                  if (!ok) return;
-                  setSweepBusy(true);
-                  setSweepError(null);
-                  try {
-                    setSweepDone(await onSweepMedia(false));
-                  } catch (err) {
-                    setSweepError(err instanceof Error ? err.message : 'That cleanup did not finish.');
-                  } finally {
-                    setSweepBusy(false);
-                  }
-                }}
-              >
-                {sweepBusy ? 'Clearing\u2026' : 'Delete them'}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* The safety story in one place. It was all true before — encrypted
-          client-side, auto-saved, locally backed up — but nowhere in the app
-          said so, which made careful work feel like a gamble. */}
+      {/* Four cards became one. "Recently deleted", "Earlier versions",
+          "Storage" and the safety story are all one topic — where your work
+          is and how to get it back — and splitting them across four equal
+          cards, with the stage remote wedged between them, made the page
+          four screens longer while saying none of them mattered more than
+          the others. One card now, whose parts open when you need them,
+          which is almost never. */}
       <div className="settings__card">
         <h2 className="settings__card-title">Your data</h2>
         {/* Reassurance, not instructions. It earns its place — careful work
@@ -617,93 +490,232 @@ export function Settings({
           </div>
         </details>
         {onExport && (
-          <button className="btn btn--primary settings__backup-btn" onClick={onExport}>
+          <button className="btn btn--secondary settings__backup-btn" onClick={onExport}>
             Download a backup
           </button>
         )}
-      </div>
+        {onRestoreShow && onDeleteForever && (
+          <details className="settings__details">
+            <summary className="settings__details-summary">
+              <span className="settings__details-title">Recently deleted</span>
+              <span className="settings__details-hint">{trash.length === 0 ? 'Nothing deleted' : `${trash.length} item${trash.length === 1 ? '' : 's'}`}</span>
+            </summary>
+            <div className="settings__details-body">
+              <p className="settings__hint">
+                Deleted shows are kept here so you can put them back. Walk-on audio isn't kept, so a
+                restored show comes back without it.
+              </p>
 
+              {trash.length === 0 ? (
+                <p className="settings__empty">Nothing deleted.</p>
+              ) : (
+                <>
+                  <ul className="settings__trash-list">
+                    {trash.map((item) => (
+                      <li key={item.id} className="settings__trash-row">
+                        <div className="settings__trash-info">
+                          <span className="settings__trash-name">{item.data.name || 'Untitled show'}</span>
+                          <span className="settings__trash-date">
+                            Deleted {new Date(item.deletedAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="settings__trash-actions">
+                          <button className="btn btn--secondary btn--sm" onClick={() => onRestoreShow(item.id)}>
+                            Restore
+                          </button>
+                          <button
+                            className="btn btn--danger btn--sm"
+                            onClick={async () => {
+                              if (await confirm(`Permanently delete "${item.data.name}"? This can't be undone.`)) {
+                                onDeleteForever(item.id);
+                              }
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  {onEmptyTrash && (
+                    <button
+                      className="btn btn--ghost btn--sm settings__trash-empty"
+                      onClick={async () => {
+                        if (await confirm(`Permanently delete all ${trash.length} item(s)? This can't be undone.`)) {
+                          onEmptyTrash();
+                        }
+                      }}
+                    >
+                      Empty trash
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </details>
+        )}
+        {onListSnapshots && onRestoreSnapshot && (
+          <details className="settings__details">
+            <summary className="settings__details-summary">
+              <span className="settings__details-title">Earlier versions</span>
+              <span className="settings__details-hint">Roll back to how it was</span>
+            </summary>
+            <div className="settings__details-body">
+              <p className="settings__hint">
+                A copy is kept before every save: the latest dozen, then one a day for a month.
+                Restoring one is a save like any other, so the version you replace is kept too.
+              </p>
 
-      {/* Where the snapshots the server takes before every save become
-          something a producer can use. Until now they were only ever read by
-          the server's own rollback — invisible, and three saves deep. */}
-      {onListSnapshots && onRestoreSnapshot && (
-        <div className="settings__card">
-          <h2 className="settings__card-title">Earlier versions</h2>
-          <p className="settings__hint">
-            A copy is kept before every save: the latest dozen, then one a day for a month.
-            Restoring one is a save like any other, so the version you replace is kept too.
-          </p>
+              {snapshotsError && <p className="settings__sweep-error" role="alert">{snapshotsError}</p>}
+              {restoredAt && (
+                <p className="settings__sweep-result" role="status">
+                  Restored the version from {snapshotLabel(restoredAt)}.
+                </p>
+              )}
 
-          {snapshotsError && <p className="settings__sweep-error" role="alert">{snapshotsError}</p>}
-          {restoredAt && (
-            <p className="settings__sweep-result" role="status">
-              Restored the version from {snapshotLabel(restoredAt)}.
-            </p>
-          )}
+              {snapshots === null ? (
+                <button
+                  className="btn btn--secondary btn--sm"
+                  disabled={snapshotsBusy}
+                  onClick={async () => {
+                    setSnapshotsBusy(true);
+                    setSnapshotsError(null);
+                    try {
+                      setSnapshots(await onListSnapshots());
+                    } catch (err) {
+                      setSnapshotsError(err instanceof Error ? err.message : 'Could not fetch earlier versions.');
+                    } finally {
+                      setSnapshotsBusy(false);
+                    }
+                  }}
+                >
+                  {snapshotsBusy ? 'Looking\u2026' : 'Show earlier versions'}
+                </button>
+              ) : snapshots.length === 0 ? (
+                <p className="settings__empty">No earlier versions yet — one is kept from your next save.</p>
+              ) : (
+                <ul className="settings__versions">
+                  {snapshots.map((snapshot) => (
+                    <li key={`${snapshot.kind}-${snapshot.at}`} className="settings__version">
+                      <div className="settings__version-info">
+                        <span className="settings__version-when">{snapshotLabel(snapshot.at)}</span>
+                        <span className="settings__version-what">{snapshotWhat(snapshot)}</span>
+                      </div>
+                      <button
+                        className="btn btn--secondary btn--sm"
+                        disabled={snapshotsBusy}
+                        onClick={async () => {
+                          const ok = await confirm({
+                            message:
+                              snapshot.kind === 'shows'
+                                ? `Replace your shows with the ${snapshotWhat(snapshot)} saved ${snapshotLabel(snapshot.at)}? What you have now is kept as an earlier version.`
+                                : `Replace your Rolodex, contracts and settings with the version saved ${snapshotLabel(snapshot.at)}? What you have now is kept as an earlier version.`,
+                            confirmLabel: 'Restore',
+                          });
+                          if (!ok) return;
+                          setSnapshotsBusy(true);
+                          setSnapshotsError(null);
+                          try {
+                            await onRestoreSnapshot(snapshot);
+                            setRestoredAt(snapshot.at);
+                            // The list is stale the moment a restore saves.
+                            setSnapshots(null);
+                          } catch (err) {
+                            setSnapshotsError(err instanceof Error ? err.message : 'That restore did not finish.');
+                          } finally {
+                            setSnapshotsBusy(false);
+                          }
+                        }}
+                      >
+                        Restore
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </details>
+        )}
+        {onSweepMedia && (
+          <details className="settings__details">
+            <summary className="settings__details-summary">
+              <span className="settings__details-title">Unused files</span>
+              <span className="settings__details-hint">Free space left by deleted shows</span>
+            </summary>
+            <div className="settings__details-body">
+              <p className="settings__hint">
+                Deleting a show now removes its photos and audio too. Shows deleted
+                before that left their files behind, where nothing can reach them.
+                This finds those and clears them out.
+              </p>
 
-          {snapshots === null ? (
-            <button
-              className="btn btn--secondary btn--sm"
-              disabled={snapshotsBusy}
-              onClick={async () => {
-                setSnapshotsBusy(true);
-                setSnapshotsError(null);
-                try {
-                  setSnapshots(await onListSnapshots());
-                } catch (err) {
-                  setSnapshotsError(err instanceof Error ? err.message : 'Could not fetch earlier versions.');
-                } finally {
-                  setSnapshotsBusy(false);
-                }
-              }}
-            >
-              {snapshotsBusy ? 'Looking\u2026' : 'Show earlier versions'}
-            </button>
-          ) : snapshots.length === 0 ? (
-            <p className="settings__empty">No earlier versions yet — one is kept from your next save.</p>
-          ) : (
-            <ul className="settings__versions">
-              {snapshots.map((snapshot) => (
-                <li key={`${snapshot.kind}-${snapshot.at}`} className="settings__version">
-                  <div className="settings__version-info">
-                    <span className="settings__version-when">{snapshotLabel(snapshot.at)}</span>
-                    <span className="settings__version-what">{snapshotWhat(snapshot)}</span>
-                  </div>
+              {sweepError && <p className="settings__sweep-error" role="alert">{sweepError}</p>}
+
+              {sweepFound === null ? (
+                <button
+                  className="btn btn--secondary btn--sm"
+                  disabled={sweepBusy}
+                  onClick={async () => {
+                    setSweepBusy(true);
+                    setSweepError(null);
+                    try {
+                      const report = await onSweepMedia(true);
+                      setSweepFound(report);
+                    } catch (err) {
+                      setSweepError(err instanceof Error ? err.message : 'That scan did not finish.');
+                    } finally {
+                      setSweepBusy(false);
+                    }
+                  }}
+                >
+                  {sweepBusy ? 'Scanning\u2026' : 'Find unused files'}
+                </button>
+              ) : sweepDone ? (
+                <p className="settings__sweep-result">
+                  {sweepDone.removed === 0
+                    ? 'Nothing to clear \u2014 every stored file is in use.'
+                    : `Cleared ${sweepDone.removed} file${sweepDone.removed === 1 ? '' : 's'}, freeing ${formatBytes(sweepDone.bytes)}.`}
+                  {sweepDone.failed > 0 && ` ${sweepDone.failed} could not be removed; try again later.`}
+                </p>
+              ) : sweepFound.removed === 0 ? (
+                <p className="settings__sweep-result">
+                  Nothing to clear \u2014 all {sweepFound.scanned} stored file
+                  {sweepFound.scanned === 1 ? '' : 's'} are in use.
+                </p>
+              ) : (
+                <>
+                  <p className="settings__sweep-result">
+                    {sweepFound.removed} unused file{sweepFound.removed === 1 ? '' : 's'},
+                    {' '}{formatBytes(sweepFound.bytes)} of {sweepFound.scanned} stored.
+                  </p>
                   <button
-                    className="btn btn--secondary btn--sm"
-                    disabled={snapshotsBusy}
+                    className="btn btn--danger btn--sm"
+                    disabled={sweepBusy}
                     onClick={async () => {
                       const ok = await confirm({
-                        message:
-                          snapshot.kind === 'shows'
-                            ? `Replace your shows with the ${snapshotWhat(snapshot)} saved ${snapshotLabel(snapshot.at)}? What you have now is kept as an earlier version.`
-                            : `Replace your Rolodex, contracts and settings with the version saved ${snapshotLabel(snapshot.at)}? What you have now is kept as an earlier version.`,
-                        confirmLabel: 'Restore',
+                        message: `Delete ${sweepFound.removed} unused file(s) and free ${formatBytes(sweepFound.bytes)}? Nothing in your shows points at them, and this can't be undone.`,
+                        confirmLabel: 'Delete them',
                       });
                       if (!ok) return;
-                      setSnapshotsBusy(true);
-                      setSnapshotsError(null);
+                      setSweepBusy(true);
+                      setSweepError(null);
                       try {
-                        await onRestoreSnapshot(snapshot);
-                        setRestoredAt(snapshot.at);
-                        // The list is stale the moment a restore saves.
-                        setSnapshots(null);
+                        setSweepDone(await onSweepMedia(false));
                       } catch (err) {
-                        setSnapshotsError(err instanceof Error ? err.message : 'That restore did not finish.');
+                        setSweepError(err instanceof Error ? err.message : 'That cleanup did not finish.');
                       } finally {
-                        setSnapshotsBusy(false);
+                        setSweepBusy(false);
                       }
                     }}
                   >
-                    Restore
+                    {sweepBusy ? 'Clearing\u2026' : 'Delete them'}
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+                </>
+              )}
+            </div>
+          </details>
+        )}
+      </div>
 
       <div className="settings__card">
         <h2 className="settings__card-title">Account</h2>
@@ -724,6 +736,22 @@ export function Settings({
           )}
         </div>
       </div>
+      {/* Every other screen in this app saves itself, so a red button sitting
+          permanently mid-page here asked to be pressed for no reason and gave
+          the page a second thing shouting for attention. It is a bar now, on
+          screen only while something is genuinely unsaved.
+
+          Last in the page, because that is the only place a bottom-sticky
+          element stays put: placed mid-page it pins for the first screen and
+          then scrolls away exactly when you have gone far enough to need it. */}
+      {dirty && (
+        <div className="settings__dock">
+          <span className="settings__dock-text">Unsaved changes</span>
+          <button className="btn btn--primary settings__dock-save" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving\u2026' : 'Save'}
+          </button>
+        </div>
+      )}
       {confirmDialog}
     </div>
   );

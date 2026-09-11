@@ -271,8 +271,40 @@
     display: block;
 }
 
-.settings__save {
-    width: 100%;
+/* Docked above the bottom nav, and only on screen while something is unsaved.
+   It has to clear the nav itself and the phone's home indicator, or it lands
+   under both. */
+.settings__dock {
+    position: sticky;
+    bottom: calc(var(--bottom-nav-height, 64px) + env(safe-area-inset-bottom) + var(--space-2));
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2-5) var(--space-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--surface-strong);
+    box-shadow: var(--shadow-xl);
+}
+
+.settings__dock-text {
+    font-size: var(--text-md);
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.settings__dock-save {
+    min-width: 112px;
+}
+
+/* The dock covers the bottom of the page while it is up, so the page has to
+   end that much higher — otherwise the last card can never be scrolled out
+   from under it. Focus is handled globally by scroll-padding (see App.css):
+   without it, tapping the last field on the page lands it under the bar. */
+.settings--dirty {
+    padding-bottom: calc(var(--tap-min) + var(--space-6));
 }
 
 @media (min-width: 680px) {
@@ -294,10 +326,6 @@
         width: auto;
     }
 
-    .settings__save {
-        width: auto;
-        align-self: flex-start;
-    }
 
     .settings__trash-row {
         flex-direction: row;
@@ -544,4 +572,12 @@
 .settings__version-what {
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* At the rail breakpoint the bottom nav is gone, so the dock only has to
+   clear the edge of the window. */
+@media (min-width: 900px) {
+    .settings__dock {
+        bottom: var(--space-4);
+    }
 }
