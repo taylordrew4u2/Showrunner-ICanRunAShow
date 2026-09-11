@@ -13,6 +13,8 @@ test.describe('storage', () => {
     await signUpAndOnboard(page);
     await gotoTab(page, 'Settings');
 
+    // The data card's parts are folded; the sweep is the last of them.
+    await page.locator('summary:has-text("Unused files")').click();
     await page.locator('button:has-text("Find unused files")').click();
     await expect(page.locator('.settings__sweep-result')).toContainText('1 unused file');
 

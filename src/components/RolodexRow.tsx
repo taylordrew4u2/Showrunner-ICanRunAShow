@@ -61,20 +61,26 @@ export function RolodexRow({
         )}
         <div className="rolodex__item-content">
           <p className="rolodex__name">{comic.name}</p>
+          {/* Stated as what is missing rather than a percentage: "Needs an
+              email" is something you can act on, and 50% is not.
+
+              It belongs under the name, with the rest of what is known about
+              this person, rather than out on the row as its own column. On a
+              phone that column plus the two buttons left the name nothing:
+              a list of contacts rendered as single initials with no names
+              at all. */}
+          {gaps.length > 0 && (
+            <span className="rolodex__gaps" title={`Missing: ${describeGaps(gaps)}`}>
+              Needs {describeGaps(gaps).toLowerCase()}
+            </span>
+          )}
+          {linkStatus === 'waiting' && !linkUrl && (
+            <span className="rolodex__gaps rolodex__gaps--waiting">Asked for details</span>
+          )}
           {comic.socialMedia && <p className="rolodex__meta">{comic.socialMedia}</p>}
           {walkOn && <p className="rolodex__meta">{walkOn}</p>}
           {comic.notes && <p className="rolodex__notes">{comic.notes}</p>}
         </div>
-        {/* Stated as what is missing rather than a percentage: "Needs an email"
-            is something you can act on, and 50% is not. */}
-        {gaps.length > 0 && (
-          <span className="rolodex__gaps" title={`Missing: ${describeGaps(gaps)}`}>
-            Needs {describeGaps(gaps).toLowerCase()}
-          </span>
-        )}
-        {linkStatus === 'waiting' && !linkUrl && (
-          <span className="rolodex__gaps rolodex__gaps--waiting">Asked for details</span>
-        )}
         {/* Offered where there is a gap to close and nothing already out
             asking. A link for someone whose profile is complete is a chore
             for them and a chase for you, and there is nothing at the end of

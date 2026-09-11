@@ -1725,6 +1725,10 @@ select.show-detail__status--select {
   font-weight: 700;
 }
 
+.section-filed__text {
+  min-width: 0;
+}
+
 .section-list-item__cost {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -3162,5 +3166,22 @@ select.show-detail__status--select {
 
   .section-list-item__buttons {
     gap: 2px;
+  }
+
+  /* Even with the word gone, two reorder arrows and a chevron take ~150px of
+     a 366px row, and "Priya Raghunathan" came out as "Priya Raghu…". A name
+     is the one thing on this row that cannot be abbreviated, so a long one
+     takes a second line rather than an ellipsis. Two at most: past that it is
+     a paragraph, not a name, and the profile has all of it.
+
+     The row still holds one person — what made rows 150px tall before was the
+     arrows wrapping below the name, not the name itself wrapping. */
+  .section-list-item__name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    overflow: hidden;
   }
 }

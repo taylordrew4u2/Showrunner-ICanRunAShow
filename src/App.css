@@ -370,6 +370,14 @@
 /* The top padding reserves the status band — the strip the sync pill lives in.
    It's chrome, not spacing: content never slides under the one element that
    tells you whether your work is safe. */
+/* Anything the browser scrolls into view — a focused input, an anchor — has
+   to clear the fixed bottom nav, and on Settings the save bar above it too.
+   Without this, tapping the last field on a page puts it directly underneath
+   the nav, which reads as the app scrolling to the wrong place. */
+html {
+  scroll-padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 88px);
+}
+
 .app-main {
   flex: 1;
   width: 100%;
@@ -681,11 +689,29 @@
 
 /* ── Rolodex Shared ────────────────────────────────────────────────── */
 
+/* Two controls: a name and Add. The third column was held for the notes
+   field, which only exists once you have started typing a name — so with an
+   empty form Add fell into it and rendered as wide as the name field itself,
+   a 340px button for a four-letter word. Notes takes the line below when it
+   appears, which is what the phone was already doing. */
 .rolodex__form {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: var(--space-2-5);
   margin-bottom: var(--space-3);
+}
+
+/* Placed rather than flowed. Notes sits between the name and Add in the
+   markup — it has to, so that tabbing runs name, notes, Add — and left to
+   flow it pushed Add onto a third row of its own. */
+.rolodex__add {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.rolodex__input--notes {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 
 .rolodex__input {
@@ -745,7 +771,10 @@
    Quiet by default — most of a rolodex has a gap somewhere, and a list of red
    badges is a list you stop reading. */
 .rolodex__gaps {
-  flex: 0 0 auto;
+  /* Sits under the name now, inside the name block, so it is no longer a
+     flex item of the row and has no business claiming a column of it. */
+  display: inline-block;
+  margin-top: 3px;
   padding: 2px var(--space-1-5);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -919,14 +948,6 @@
      someone is a name and a tap; stacking Add under a full-width field made a
      two-control form read as a three-step one. Notes, when it appears, takes
      the line below rather than squeezing either of them. */
-  .rolodex__form {
-    grid-template-columns: 1fr auto;
-  }
-
-  .rolodex__input--notes {
-    grid-column: 1 / -1;
-  }
-
   /* Stays a row. Stacked into a column, one rolodex entry ran to ~250px on a
      phone — a 46px avatar on its own line, then the name, then the notes, then
      an Edit button under them — so six people took two and a half screens of a
@@ -3690,6 +3711,9 @@ body:has([aria-modal='true']) .status-rail {
     min-height: 100dvh;
     max-height: 100dvh;
     overflow-y: auto;
+    /* At this width .app-main is the scroll container, not the document, so
+       the scroll-padding has to be set here instead. */
+    scroll-padding-bottom: 88px;
   }
 
   /* ── Sidebar ────────────────────────────────────────────────────────── */
@@ -3992,5 +4016,34 @@ body:has([aria-modal='true']) .status-rail {
   }
   .rolodex__import-new {
     flex-basis: 100%;
+  }
+}
+
+/* ── The Rolodex row on a phone ───────────────────────────────────────── */
+
+/* The row is a flex line of photo, name, what is missing, "Ask for details"
+   and "Edit". The name block was the only item allowed to shrink, so on a
+   phone it shrank to nothing: three contacts rendered as "D", "P" and "M"
+   with no names at all, while "Ask for details" wrapped onto three lines and
+   ran into the Edit button beside it. A rolodex you cannot read the names in
+   is not a rolodex.
+
+   So the name takes the first line outright, and everything else takes the
+   line below, where there is room for it. */
+@media (max-width: 619px) {
+  .rolodex__item-main {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+
+  /* Wide enough that nothing can share the line with it: the photo is 34px
+     plus its gap, and this claims the rest. The buttons take the line below,
+     where they have room to be read and tapped. */
+  .rolodex__item-content {
+    min-width: calc(100% - 34px - var(--space-2-5) - 2px);
+  }
+
+  .rolodex__item-main > .btn {
+    white-space: nowrap;
   }
 }

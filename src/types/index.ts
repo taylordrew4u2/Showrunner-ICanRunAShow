@@ -413,6 +413,16 @@ export interface AppSettings {
   contracts: Contract[]; // uploaded agreements, sent out for signature
   signatureRequests: SignatureRequest[]; // who was sent what, and who has signed
   profileRequests?: ProfileRequest[]; // self-serve links asking someone for their own details
+  /**
+   * Ids of shows deliberately deleted, newest first. Not the trash — the trash
+   * holds whole shows so you can restore them and is capped at twenty, and a
+   * device's held copy of unsaved work now never expires. Once a deletion
+   * ages out of the trash, nothing was left to say the show was deleted on
+   * purpose, and an old held copy that still contained it would put it back.
+   * An id is 36 bytes, so the evidence can outlive the restorable copy by
+   * years.
+   */
+  deletedShowIds?: string[];
   showTypes: string[]; // kinds of shows this producer makes (set during onboarding)
   onboarded: boolean; // whether the account has completed the welcome onboarding
   rolodexTermSingular?: string; // override for the Rolodex noun, e.g. "Comic" / "Queen"
@@ -426,6 +436,9 @@ export interface AppSettings {
    */
   remoteMusicKey?: string;
 }
+
+/** How many deletions stay on record. At 36 bytes an id, years of them. */
+export const MAX_DELETED_SHOW_IDS = 2000;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   brandName: "Show Producer",

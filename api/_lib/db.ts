@@ -69,6 +69,15 @@ const DDL: string[] = [
      backed_up_at   TEXT NOT NULL DEFAULT (datetime('now')),
      PRIMARY KEY (id, backed_up_at)
    )`,
+  // The settings blob carries the Rolodex, the contracts and every signed
+  // record, and used to be overwritten in place with no copy kept anywhere.
+  // Snapshotted on every save now, same as shows — see _lib/snapshots.ts.
+  `CREATE TABLE IF NOT EXISTS user_settings_backup (
+     user_id        TEXT NOT NULL,
+     encrypted_data TEXT NOT NULL,
+     backed_up_at   TEXT NOT NULL DEFAULT (datetime('now')),
+     PRIMARY KEY (user_id, backed_up_at)
+   )`,
   // `user_id` is who may publish to this token. The token itself is handed to
   // the audience, so it cannot also be the permission to write — see api/live.ts.
   `CREATE TABLE IF NOT EXISTS live_view (
