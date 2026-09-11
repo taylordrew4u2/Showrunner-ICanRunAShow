@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { signUpAndOnboard } from './support/app';
+import { gotoTab, signUpAndOnboard } from './support/app';
 
 /**
  * Asking a performer for their own details, and getting them back.
@@ -16,11 +16,9 @@ test.describe('a self-serve profile link', () => {
     await installFakeApi(context, emptyState());
     await signUpAndOnboard(page);
 
-    const nav = (label: string) =>
-      page.locator('nav button, .sidebar button, .nav-tab').filter({ hasText: new RegExp(`^${label}$`) }).first();
 
     // Someone filed with nothing but a name.
-    await nav('Rolodex').click();
+    await gotoTab(page, 'Rolodex');
     await page.locator('.rolodex__input').first().fill('Mona Sable');
     await page.locator('.rolodex__form button[type="submit"]').click();
     const row = page.locator('.rolodex__item').filter({ hasText: 'Mona Sable' });
@@ -51,8 +49,8 @@ test.describe('a self-serve profile link', () => {
     await performer.close();
 
     // Back on the producer's side, the Rolodex checks for replies on open.
-    await nav('Shows').click();
-    await nav('Rolodex').click();
+    await gotoTab(page, 'Shows');
+    await gotoTab(page, 'Rolodex');
     await expect(row.locator('.rolodex__import')).toContainText('sent their details');
     await expect(row.locator('.rolodex__import')).toContainText('mona@sable.example');
     // The pasted URL became a handle, the way the post copy reads it.
@@ -71,10 +69,8 @@ test.describe('waving a reply off', () => {
   test('retires the link, so the producer can ask again', async ({ page, context }) => {
     await installFakeApi(context, emptyState());
     await signUpAndOnboard(page);
-    const nav = (label: string) =>
-      page.locator('nav button, .sidebar button, .nav-tab').filter({ hasText: new RegExp(`^${label}$`) }).first();
 
-    await nav('Rolodex').click();
+    await gotoTab(page, 'Rolodex');
     await page.locator('.rolodex__input').first().fill('Dev Okonjo');
     await page.locator('.rolodex__form button[type="submit"]').click();
     const row = page.locator('.rolodex__item').filter({ hasText: 'Dev Okonjo' });
@@ -88,8 +84,8 @@ test.describe('waving a reply off', () => {
     await expect(performer.locator('.signing__panel--done')).toBeVisible();
     await performer.close();
 
-    await nav('Shows').click();
-    await nav('Rolodex').click();
+    await gotoTab(page, 'Shows');
+    await gotoTab(page, 'Rolodex');
     await expect(row.locator('.rolodex__import')).toContainText('sent their details');
 
     // Declining an answer is the moment you most want to be able to ask

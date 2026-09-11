@@ -17,14 +17,14 @@ export async function signUp(page: Page, username = 'producer'): Promise<void> {
 
 /** Walk the first-run questions, choosing a show type where one is required. */
 export async function completeOnboarding(page: Page): Promise<void> {
-  const nav = page.locator('.bottom-nav__item').first();
+  const nav = page.locator('.app-main');
   const ADVANCE = 'button:text-matches("^(Next|Continue|Skip|Get started|Done|Finish)$", "i")';
 
   // Sign-in is asynchronous — key derivation, then a first load — so the next
   // screen is not on the page the instant the button is clicked. Waiting for
   // *either* outcome rather than a fixed delay: a fresh account lands on
   // onboarding, a returning one straight on the nav.
-  await page.waitForSelector(`.bottom-nav__item, ${ADVANCE}`, { timeout: 30_000 });
+  await page.waitForSelector(`.app-main, ${ADVANCE}`, { timeout: 30_000 });
 
   for (let step = 0; step < 14; step++) {
     if (await nav.isVisible().catch(() => false)) break;
@@ -62,6 +62,10 @@ export async function openSection(page: Page, title: string): Promise<void> {
   await page.locator('button, [role=button]').filter({ hasText: title }).first().click();
 }
 
-export function gotoTab(page: Page, label: string) {
-  return page.locator('.bottom-nav__item', { hasText: label }).click();
+export async function gotoTab(page: Page, label: string) {
+  await page.locator('.app-main').waitFor();
+  const item = page.locator('.bottom-nav__item', { hasText: label });
+  const menu = page.getByRole('button', { name: 'Open navigation menu' });
+  if (await menu.isVisible() && !(await item.isVisible())) await menu.click();
+  return item.click();
 }

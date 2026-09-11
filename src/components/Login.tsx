@@ -1,3 +1,4 @@
+import { BrandMark } from './BrandMark';
 import { useId, useState } from 'react';
 import './Login.css';
 
@@ -55,17 +56,23 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
   return (
     <div className="landing">
       <div className="landing__center">
+        <div className="landing__intro">
         <div className="landing__wordmark">
-          <span className="landing__wordmark-dot" />
+          <BrandMark />
           <span className="landing__wordmark-text">I Can Run A Show</span>
         </div>
 
-        {/* One line, not a pitch. Whoever is here either has an account and
-            wants the form, or was sent the link by someone who already sold
-            them on it. The guides carry the rest. */}
+        <h1 className="landing__headline">Make it a<br /><em>great night.</em></h1>
         <p className="landing__lede">
           Build the lineup, import the schedule, and run the night.
+          Your whole production, in one place.
         </p>
+        <ol className="landing__steps" aria-label="Your show workflow">
+          <li><span>01</span> Plan the lineup</li>
+          <li><span>02</span> Set the cues</li>
+          <li><span>03</span> Run the show</li>
+        </ol>
+        </div>
 
         <div className="login__container">
           <div className="login__header">
@@ -102,7 +109,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
             </div>
 
             {(error || errorMessage) && (
-              <div className="login__error">{error || errorMessage}</div>
+              <div className="login__error" role="alert">{error || errorMessage}</div>
             )}
 
             <button className="login__button" type="submit" disabled={loading}>

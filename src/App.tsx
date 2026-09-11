@@ -1,3 +1,4 @@
+import { BrandMark } from './components/BrandMark';
 import { recoverShowDraft } from './utils/recoverShowDraft';
 import { showBaselineHashes, settingsBaselineHash } from './utils/secure-storage';
 import { createPendingStore } from './utils/pendingStore';
@@ -266,6 +267,21 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [colorScheme, setColorScheme] = useState<ColorScheme>(() => loadColorScheme());
+  const [desktopNavigation, setDesktopNavigation] = useState(() => window.matchMedia('(min-width: 900px)').matches);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const navigationRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 900px)');
+    const update = () => {
+      if (navigationRef.current?.matches(':popover-open')) navigationRef.current.hidePopover();
+      setNavigationOpen(false);
+      setDesktopNavigation(media.matches);
+    };
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
 
   // Apply the chosen color scheme app-wide and persist it.
   useEffect(() => {
@@ -1829,6 +1845,19 @@ export default function App() {
               </div>
             )}
             <div className="status-rail__pill-row">
+              <button
+                className="navigation-toggle"
+                type="button"
+                popoverTarget="primary-navigation"
+                aria-label="Open navigation menu"
+                aria-expanded={navigationOpen}
+                aria-controls="primary-navigation"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <span className="mobile-brand"><BrandMark /><span>I Can Run A Show</span></span>
               <SyncStatus
                 state={syncState}
                 lastSavedAt={lastSavedAt}
@@ -1852,6 +1881,7 @@ export default function App() {
               <div className="shows-list">
                 <PageHeader
                   title="Shows"
+                  subtitle="Your production desk. From first booking to final bow."
                   actions={
                     // With no shows yet the empty state carries the call to
                     // action, so there's only ever one "New Show" button on
@@ -2332,12 +2362,22 @@ export default function App() {
             )}
           </main>
 
-          {/* Four fixed destinations, in the same order and the same place on
-              every screen. Actions that belong to one show now live on that
-              show's page instead of reshaping the nav as you move around. */}
-          <nav className="bottom-nav" aria-label="Primary navigation">
+          {/* Desktop uses a native popover for outside-click and Escape dismissal;
+              the same destinations remain in the phone's bottom bar. */}
+          <nav
+            ref={navigationRef}
+            id="primary-navigation"
+            className="bottom-nav"
+            popover={desktopNavigation ? 'auto' : undefined}
+            aria-label="Primary navigation"
+            onToggle={(event) => {
+              const open = event.newState === 'open';
+              setNavigationOpen(open);
+              if (open) navigationRef.current?.querySelector<HTMLButtonElement>('[aria-current="page"]')?.focus();
+            }}
+          >
             <div className="bottom-nav__brand">
-              <span className="bottom-nav__brand-dot" />
+              <BrandMark />
               <span className="bottom-nav__brand-text">I Can Run A Show</span>
             </div>
 
@@ -2350,6 +2390,7 @@ export default function App() {
                     className={`bottom-nav__item${active ? ' bottom-nav__item--active' : ''}`}
                     aria-current={active ? 'page' : undefined}
                     onClick={() => {
+                      if (desktopNavigation) navigationRef.current?.hidePopover();
                       if (item.id === 'list') {
                         handleBack();
                       } else {

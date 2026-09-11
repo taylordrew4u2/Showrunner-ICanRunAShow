@@ -13,14 +13,14 @@ export const COLOR_SCHEMES: {
   swatch: string; // accent color
   bg: string; // background color, for the swatch preview
 }[] = [
-  { id: 'dark', label: 'Dark', description: 'Default', swatch: '#e5194b', bg: '#0a0a0b' },
-  { id: 'light', label: 'Light', description: 'For bright rooms', swatch: '#e5194b', bg: '#f5f5f5' },
+  { id: 'dark', label: 'Dark', description: 'Default', swatch: '#4285f4', bg: '#111827' },
+  { id: 'light', label: 'Light', description: 'For bright rooms', swatch: '#4285f4', bg: '#f6f8fc' },
 ];
 
 /** The browser/PWA chrome color for each scheme (matches --bg). */
 const THEME_COLORS: Record<ColorScheme, string> = {
-  light: '#f5f5f5',
-  dark: '#0a0a0b',
+  light: '#f6f8fc',
+  dark: '#111827',
 };
 
 const STORAGE_KEY = 'showrunner:theme';
