@@ -32,32 +32,36 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
     body = JSON.stringify(opts.body);
   }
 
-  const res = await fetch(path, { method, headers, body });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const res = await fetch(path, { method, headers, body, signal: controller.signal });
 
-  if (res.status === 503) {
-    let message: string | undefined;
-    try {
-      message = (await res.json())?.message;
-    } catch {
-      /* ignore */
+    if (res.status === 503) {
+      let message: string | undefined;
+      try {
+        message = (await res.json())?.message;
+      } catch {
+        /* ignore */
+      }
+      throw new ServerNotConfiguredError(message);
     }
-    throw new ServerNotConfiguredError(message);
-  }
 
-  if (!res.ok) {
-    let parsed: { error?: string } | null = null;
-    try {
-      parsed = await res.json();
-    } catch {
-      /* ignore */
+    if (!res.ok) {
+      let parsed: { error?: string } | null = null;
+      try {
+        parsed = await res.json();
+      } catch {
+        /* ignore */
+      }
+      const err: ApiError = new Error(parsed?.error || `Request failed (${res.status})`);
+      err.status = res.status;
+      err.code = parsed?.error;
+      throw err;
     }
-    const err: ApiError = new Error(parsed?.error || `Request failed (${res.status})`);
-    err.status = res.status;
-    err.code = parsed?.error;
-    throw err;
-  }
 
-  return (await res.json()) as T;
+    return (await res.json()) as T;
+  } finally { clearTimeout(timeout); }
 }
 
 export const api = {

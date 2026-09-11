@@ -59,27 +59,29 @@ export async function pruneSnapshots(db: Pick<Client, 'execute'> & { batch: Tran
   );
 }
 
-/**
- * Copy the current shows aside before a save replaces them. `OR IGNORE`
- * because `backed_up_at` has one-second resolution and two saves inside the
- * same second are the same snapshot, not a constraint failure that fails the
- * save.
- */
+/** A monotonic millisecond timestamp keeps rapid saves as separate, complete
+ * versions. Called inside the write transaction for ordinary saves. */
+async function nextSnapshotAt(db: Pick<Client, 'execute'>, table: string, userId: string): Promise<string> {
+  const result = await db.execute({ sql: `SELECT MAX(backed_up_at) FROM ${table} WHERE user_id = ?`, args: [userId] });
+  const previous = result.rows[0]?.[0];
+  const last = previous ? Date.parse(String(previous).replace(' ', 'T') + 'Z') : 0;
+  return new Date(Math.max(Date.now(), Number.isFinite(last) ? last + 1 : 0)).toISOString().replace('T', ' ').replace('Z', '');
+}
+
 export async function snapshotShows(db: Pick<Client, 'execute'> & { batch: Transaction['batch'] }, userId: string): Promise<void> {
+  const at = await nextSnapshotAt(db, 'user_shows_backup', userId);
   await db.execute({
-    sql: `INSERT OR IGNORE INTO user_shows_backup (id, user_id, encrypted_data)
-          SELECT id, user_id, encrypted_data FROM user_shows WHERE user_id = ?`,
-    args: [userId],
+    sql: `INSERT INTO user_shows_backup (id, user_id, encrypted_data, backed_up_at)
+          SELECT id, user_id, encrypted_data, ? FROM user_shows WHERE user_id = ?`, args: [at, userId],
   });
   await pruneSnapshots(db, 'user_shows_backup', userId);
 }
 
-/** Copy the current settings blob aside before a save replaces it. */
 export async function snapshotSettings(db: Pick<Client, 'execute'> & { batch: Transaction['batch'] }, userId: string): Promise<void> {
+  const at = await nextSnapshotAt(db, 'user_settings_backup', userId);
   await db.execute({
-    sql: `INSERT OR IGNORE INTO user_settings_backup (user_id, encrypted_data)
-          SELECT user_id, encrypted_data FROM user_settings WHERE user_id = ?`,
-    args: [userId],
+    sql: `INSERT INTO user_settings_backup (user_id, encrypted_data, backed_up_at)
+          SELECT user_id, encrypted_data, ? FROM user_settings WHERE user_id = ?`, args: [at, userId],
   });
   await pruneSnapshots(db, 'user_settings_backup', userId);
 }

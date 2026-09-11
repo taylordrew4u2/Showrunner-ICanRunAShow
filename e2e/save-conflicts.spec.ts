@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { createShow, openSection, signUpAndOnboard } from './support/app';
+import { createShow, gotoTab, openSection, signUpAndOnboard } from './support/app';
 
 test('an older tab cannot erase a newly saved show', async ({ page, context }) => {
   const state = emptyState();
@@ -42,6 +42,59 @@ test('a conflicting edit stays on screen and reports that it has not saved', asy
   await expect(page.locator('.sync-status--blocked')).toBeVisible();
   await expect(page.locator('.cue-list')).toContainText('Unsaved local cue');
   expect(state.shows[0].encryptedData).toBe(remote);
-  const pending = await page.evaluate(() => JSON.parse(localStorage.getItem('showrunner:pendingShows') ?? '{}'));
+  const pending = await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('showrunner:pendingShows')).map(k => JSON.parse(localStorage.getItem(k)!)));
   expect(JSON.stringify(pending)).toContain('Unsaved local cue');
+});
+
+
+test('an unsaved new show survives a failed request and a reload', async ({ page, context }) => {
+  const state = emptyState();
+  await installFakeApi(context, state);
+  await signUpAndOnboard(page);
+  await page.route('**/api/shows', route => route.request().method() === 'PUT'
+    ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"unavailable"}' })
+    : route.fallback());
+  await createShow(page, 'Held show');
+  await expect(page.locator('.sync-status--retrying')).toBeVisible();
+  expect(state.shows).toHaveLength(0);
+  await page.unroute('**/api/shows');
+  page.on('dialog', dialog => dialog.accept());
+  await page.reload();
+  await expect.poll(() => state.shows.length).toBe(1);
+  await expect(page.locator('.dash-next__name')).toHaveText('Held show');
+});
+
+test('storage exhaustion is visible rather than a promise of a safe local copy', async ({ page, context }) => {
+  await installFakeApi(context, emptyState());
+  await signUpAndOnboard(page);
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key.startsWith('showrunner:pending')) throw new DOMException('Full', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+  });
+  await createShow(page, 'No local space');
+  await expect(page.getByRole('alert')).toContainText('could not store a backup');
+});
+
+test('a stale settings save cannot erase another tab’s contact list', async ({ page, context }) => {
+  const state = emptyState();
+  await installFakeApi(context, state);
+  await signUpAndOnboard(page);
+  const oldTab = await context.newPage();
+  await oldTab.goto('/');
+  await expect(oldTab.locator('.bottom-nav__item').first()).toBeVisible();
+  await gotoTab(page, 'Rolodex');
+  await page.locator('.rolodex__input').first().fill('First contact');
+  await page.locator('button').filter({ hasText: /^Add$/ }).first().click();
+  await expect(page.locator('.sync-status--saved')).toBeVisible();
+  const first = state.settings;
+  await gotoTab(oldTab, 'Rolodex');
+  await oldTab.locator('.rolodex__input').first().fill('Second contact');
+  await oldTab.locator('button').filter({ hasText: /^Add$/ }).first().click();
+  await expect(oldTab.getByRole('alert')).toContainText('Settings changed in another tab');
+  await expect(oldTab.locator('.rolodex__name')).toContainText('Second contact');
+  expect(state.settings).toBe(first);
+  await oldTab.close();
 });
