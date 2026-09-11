@@ -5,6 +5,7 @@ import { registerSW } from 'virtual:pwa-register'
 import './fonts.css'
 import './index.css'
 import App from './App.tsx'
+import './design.css'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { applyColorScheme, loadColorScheme } from './utils/theme'
 

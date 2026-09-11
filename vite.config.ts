@@ -10,13 +10,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icons/*.png'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icons/*.png', 'brand/*.svg'],
       manifest: {
         name: 'I Can Run A Show',
         short_name: 'Run A Show',
         description: 'Live-show management for comedians, drag promoters, and variety show producers.',
-        theme_color: '#0a0a0b',
-        background_color: '#0a0a0b',
+        theme_color: '#111827',
+        background_color: '#111827',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',

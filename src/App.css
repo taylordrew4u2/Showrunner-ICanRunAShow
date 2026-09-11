@@ -1,80 +1,46 @@
+/* Brand palette: calendar blue on neutral surfaces. Status colours stay semantic. */
 :root {
-  --bg: #f5f5f5;
-  --backdrop: #f5f5f5;
+  color-scheme: light;
+  --bg: #f6f8fc;
+  --backdrop: #e9eef6;
   --surface: #ffffff;
-  --surface-strong: #f9f9f9;
-  --text: #111111;
-  --text-muted: #555555;
-  /* Passes AA on every app surface. Was #999 — a 2.6:1 grey that failed
-     anywhere it carried a word someone had to read. */
-  --text-soft: #6e6e6e;
-  --border: #e0e0e0;
-  --border-strong: #c8c8c8;
-  --primary: #e5194b;
-  --primary-pressed: #b30f36;
-  --primary-bright: #f2416d;
-  --primary-soft: #fff1f4;
-  --primary-soft-border: #ffccd8;
-  /* --primary is tuned to be *seen* — as a button fill, a border, a dot. As
-     text it lands at 4.4:1, just under AA, and worse on a soft-red fill. These
-     are the shades to use whenever the brand colours become type. */
-  --primary-text: #c2113c;
-  --success-text: #15803d;
-  --danger-text: #c2410c;
-  --on-primary: #ffffff;
+  --surface-strong: #edf2fa;
+  --text: #182234;
+  --text-muted: #526078;
+  --text-soft: #5d6c80;
+  --border: #d7dfeb;
+  --border-strong: #a4b4ca;
+  --primary: #4285f4;
+  --primary-pressed: #6a9cf2;
+  --primary-bright: #8ab4f8;
+  --primary-soft: #e6effd;
+  --primary-soft-border: #a6c3f4;
+  --primary-text: #174ea6;
+  --on-primary: #07162c;
+  --success: #16a34a;
+  --success-strong: #15803d;
+  --success-text: #166534;
+  --success-soft: #f0fdf4;
+  --success-soft-border: #bbf7d0;
+  --on-success: #ffffff;
   --danger: #c2410c;
+  --danger-text: #9a3412;
   --danger-soft: #fff7ed;
   --danger-soft-border: #fed7aa;
   --on-danger: #ffffff;
-  --on-success: #ffffff;
-  /* Chrome that sits *on media* — a close button on a lightbox, a control over
-     a photo — rides a scrim rather than a themed surface, so it is white in
-     both themes on purpose. Named so that "white here is deliberate" is
-     legible, instead of a bare #fff that reads like a token someone forgot. */
-  --on-scrim: #ffffff;
-  /* The bars either side of a video that does not fill its box. Black in both
-     themes: it is the absence of picture, not a surface. */
-  --media-letterbox: #000000;
-  --success: #16a34a;
-  /* --success is tuned to read as green next to text, not to sit *under*
-     white text: at 3.3:1 it fails AA on a filled button. This is the same
-     green darkened to 5.0:1 for solid fills that carry white type. */
-  --success-strong: #15803d;
-  --success-soft: #f0fdf4;
-  --success-soft-border: #bbf7d0;
-  /* Warning is for "we're handling it, keep working" states — a failed save
-     being retried, an offline stretch. It has to read as calm, not alarming:
-     nothing is lost in these states, so they must never look like the red
-     "you need to act" states. */
-  --warning: #b45309;
+  --warning: #92400e;
   --warning-soft: #fffbeb;
   --warning-soft-border: #fde68a;
-  /* Blue, for a neutral classification rather than a state — which show an
-     expense belongs to, a scene that has been filmed. It was written out as a
-     #1d4ed8 / #60a5fa pair in two files, and the light half had been dropped
-     from one of them, leaving a 2.2:1 blue on a pale blue tint. One pair. */
   --info-text: #1d4ed8;
   --info-soft: rgba(59, 130, 246, 0.12);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 28px -8px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.06);
-  /* The top of the scale: a thing that floats over a dimmed page rather than
-     sitting on it — a lightbox image, the onboarding card, the login panel.
-     --shadow-lg is the largest *in-page* elevation; this is the one that says
-     "nothing below me is reachable right now". */
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.5);
-  /* A side drawer casts its shadow sideways, not down, so it cannot come from
-     the vertical scale. Direction is set at the use site by the x offset. */
-  --shadow-drawer: -12px 0 40px rgba(0, 0, 0, 0.12);
-  /* The focus ring. Every field in the app drew its own 3px halo, and three of
-     them had drifted to a different colour; when the ring is a token the shape
-     of "this is focused" is decided once. */
-  --focus-ring: 0 0 0 3px var(--primary-soft);
-  /* Which selector carries it: a text field uses :focus, because the caret is
-     in it and it must look focused however you got there. Everything you press
-     rather than type into — buttons, cards, tabs, the stretched card hit-area —
-     uses :focus-visible, so a mouse click does not leave a ring behind. Both
-     appear throughout the app; that split is the rule, not drift. */
+  --on-scrim: #ffffff;
+  --media-letterbox: #000000;
+  --shadow-sm: 0 1px 2px rgba(17, 24, 19, 0.03);
+  --shadow-md: 0 3px 12px rgba(17, 24, 19, 0.06);
+  --shadow-lg: 0 12px 36px rgba(17, 24, 19, 0.1);
+  --shadow-xl: 0 20px 60px rgba(17, 24, 19, 0.16);
+  --shadow-drawer: -12px 0 40px rgba(17, 24, 19, 0.12);
+  --focus-ring: 0 0 0 3px var(--primary-soft-border);
   --app-bar-height: 48px;
   --bottom-nav-height: 56px;
   /* The strip at the top of the window the sync pill lives in. Named because
@@ -86,7 +52,7 @@
      to reach the window edges, so it needs to be readable rather than a
      literal repeated at every use site. */
   --page-gutter: 16px;
-  --header-bg: #ffffff;
+  --header-bg: #f6f8fc;
 
   /* Typefaces. Inter is the app's voice and is inherited from <html>, so almost
      nothing sets a family at all. These two are the deliberate departures:
@@ -101,7 +67,7 @@
      "raised" means a different direction in each theme: on a light ground the
      chip goes white against grey, on a dark one it goes grey against black.
      One pair of tokens rather than one rule per theme at each use site. */
-  --segment-track: #ececec;
+  --segment-track: #e3eaf4;
   --segment-chip: #ffffff;
 
   /* Smallest comfortable finger target. index.css scales the root font size up
@@ -229,64 +195,47 @@
    A minimal pair: Light is the base :root palette (no attribute); Dark is the
    single override, selected via data-theme="dark" on <html>. */
 
-/* Dark is the app's own look and the default: a near-black canvas with panels
-   lifted just enough to read as surfaces, and one crimson accent. The greys are
-   neutral rather than warm so the crimson is the only colour with a voice.
-   --primary is the fill and only the fill: it is the deepest crimson that still
-   reads as the brand red while carrying white text at 4.59:1. The obvious pick
-   (#e8194b) measures 4.495 — visually identical, and a fail. --primary-text is
-   the same crimson opened up for type, since the fill shade as small text on a
-   panel is only 4.1:1. --success-soft is the lightest of the soft fills, so it
-   is what decides whether muted text on a success panel still passes. */
+/* Dark is the venue default. Blue controls use ink labels for contrast. */
 [data-theme="dark"] {
-  --bg: #0a0a0b;
-  --backdrop: #0a0a0b;
-  /* A real step off the canvas. These were #141416 on #0a0a0b — four values
-     apart, which on an OLED phone is no step at all, so a panel only existed
-     because of the hairline drawn round it. Every card read as an outline
-     rather than as a surface, and the screen came out as a grid of boxes.
-     Now the surface carries itself and the border can go quiet. */
-  --surface: #191a1d;
-  --surface-strong: #232428;
-  --text: #f5f5f6;
-  /* Both lift in dark mode: --text-soft was 2.5:1 and --text-muted had to
-     move with it to keep the two steps of the hierarchy distinguishable. */
-  --text-muted: #b3b3b6;
-  --text-soft: #8a8a8e;
-  /* Lifted with the surfaces so a hairline between two rows of a list still
-     reads, but only just — the surface is doing the separating now. */
-  --border: #2b2c31;
-  --border-strong: #3a3b41;
-  --primary: #e5194b;
-  --primary-pressed: #c2113c;
-  --primary-bright: #ff6b8f;
-  --primary-soft: #2a0912;
-  --primary-soft-border: #7d1030;
-  --primary-text: #f2416d;
-  --on-primary: #ffffff;
+  color-scheme: dark;
+  --bg: #111827;
+  --backdrop: #0b1120;
+  --surface: #1c2738;
+  --surface-strong: #29364b;
+  --text: #f3f6fc;
+  --text-muted: #c0cbdc;
+  --text-soft: #a3b1c6;
+  --border: #35445b;
+  --border-strong: #5b7190;
+  --primary: #4285f4;
+  --primary-pressed: #6a9cf2;
+  --primary-bright: #8ab4f8;
+  --primary-soft: #1c3354;
+  --primary-soft-border: #466590;
+  --primary-text: #8ab4f8;
+  --on-primary: #07162c;
   --danger: #c2410c;
   --danger-soft: #2a1605;
   --danger-soft-border: #7c3a05;
-  --on-danger: #ffffff;
+  --danger-text: #fdba74;
   --success: #22c55e;
   --success-strong: #15803d;
-  --success-text: #4ade80;
-  --danger-text: #fb923c;
+  --success-text: #86efac;
   --success-soft: #03210e;
   --success-soft-border: #14532d;
   --warning: #fbbf24;
-  --info-text: #60a5fa;
-  --info-soft: rgba(59, 130, 246, 0.16);
   --warning-soft: #291a05;
   --warning-soft-border: #78430c;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 34px -8px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.45);
-  --shadow-xl: 0 18px 50px rgba(0, 0, 0, 0.72);
-  --shadow-drawer: -12px 0 40px rgba(0, 0, 0, 0.5);
-  --header-bg: #191a1d;
-  --segment-track: #0e0f11;
-  --segment-chip: #2e3036;
+  --info-text: #93c5fd;
+  --info-soft: rgba(59, 130, 246, 0.16);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 3px 12px rgba(0, 0, 0, 0.18);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.35);
+  --shadow-drawer: -12px 0 40px rgba(0, 0, 0, 0.4);
+  --header-bg: #111827;
+  --segment-track: #111827;
+  --segment-chip: #35445b;
 }
 
 * {
@@ -1461,9 +1410,9 @@ html {
   margin: var(--space-2) 0 0;
   padding: var(--space-2) var(--space-2-5);
   border-radius: var(--radius-sm);
-  background: var(--primary-soft);
-  border: 1px solid var(--primary-soft-border);
-  color: var(--primary-text);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-soft-border);
+  color: var(--danger-text);
   font-size: var(--text-sm);
   font-weight: 600;
 }
@@ -1950,9 +1899,9 @@ html {
 .import-paste:focus { border-color: var(--primary); box-shadow: var(--focus-ring); }
 
 .import-error {
-  background: var(--primary-soft);
-  border: 1px solid var(--primary-soft-border);
-  color: var(--primary-text);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-soft-border);
+  color: var(--danger-text);
   border-radius: var(--radius-md);
   padding: var(--space-2-5) var(--space-3);
   font-size: var(--text-sm);
