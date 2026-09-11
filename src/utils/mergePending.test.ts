@@ -61,6 +61,26 @@ describe('mergePendingShows', () => {
     expect(merged.map((s) => s.id)).toEqual(['a']);
   });
 
+  it('does not resurrect a show whose deletion has aged out of the trash', () => {
+    // The case the record exists for. A save failed on a phone months ago, the
+    // show was deleted on a laptop since, and twenty deletions later the trash
+    // no longer remembers it — but the phone's held copy still does.
+    const gone = show('gone');
+    const merged = mergePendingShows([show('a'), gone], [show('a')], [], ['gone']);
+    expect(merged.map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('keeps a show off the account when the record says it went, held copy or not', () => {
+    const gone = show('gone');
+    const merged = mergePendingShows([show('a')], [show('a'), gone], [], ['gone']);
+    expect(merged.map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('still keeps unsaved work that was never deleted', () => {
+    const merged = mergePendingShows([show('a'), show('new')], [show('a')], [], ['something-else']);
+    expect(merged.map((s) => s.id).sort()).toEqual(['a', 'new']);
+  });
+
   it('returns the server’s list untouched when the held copy is empty', () => {
     expect(mergePendingShows([], [show('a'), show('b')]).map((s) => s.id)).toEqual(['a', 'b']);
   });

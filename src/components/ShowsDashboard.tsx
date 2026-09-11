@@ -56,12 +56,18 @@ export function ShowsDashboard({
         onSelectShow={onSelectShow}
         onRunShow={onRunShow}
       />
-      <AttentionPanel
-        attention={attention}
-        focus={focus}
-        onFocusChange={onFocusChange}
-        onSelectShow={onSelectShow}
-      />
+      {/* With a single show there is nothing to compare it against and
+          nothing to narrow: "1 not ready — show only these" filters a list of
+          one down to one, and the panel above has already said, in words,
+          exactly what that show is still missing. */}
+      {shows.length > 1 && (
+        <AttentionPanel
+          attention={attention}
+          focus={focus}
+          onFocusChange={onFocusChange}
+          onSelectShow={onSelectShow}
+        />
+      )}
     </section>
   );
 }

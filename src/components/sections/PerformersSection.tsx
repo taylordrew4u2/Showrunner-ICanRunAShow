@@ -427,8 +427,14 @@ export function PerformersSection({
       {filed && (
         <p className="section-filed" role="status">
           <span className="section-filed__mark" aria-hidden="true">✓</span>
-          <strong>{filed}</strong> was added to your Rolodex, so they're there next time you build a
-          lineup.
+          {/* The sentence is one flex item, deliberately. Left bare beside the
+              tick, the bold name and the words after it became two anonymous
+              flex items in their own columns, each wrapping on its own — so a
+              long name printed over the middle of its own sentence. */}
+          <span className="section-filed__text">
+            <strong>{filed}</strong> was added to your Rolodex, so they're there next time you
+            build a lineup.
+          </span>
         </p>
       )}
 

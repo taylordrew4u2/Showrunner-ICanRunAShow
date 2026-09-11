@@ -18,19 +18,24 @@ import type { DeletedItem, Show } from '../types';
  *   made last whichever device made it.
  * - Only on the server → kept. The held copy predates it and cannot be
  *   evidence that it was deleted…
- * - …unless the trash says it was. A deletion is recorded there, so a show
- *   the user genuinely deleted stays deleted rather than resurrecting.
- * - Only in the held copy → kept. That is the unsaved work this whole
- *   mechanism exists to protect.
+ * - …unless the record says it was. A deletion is on record, so a show the
+ *   user genuinely deleted stays deleted rather than resurrecting.
+ * - Only in the held copy → kept, unless it is on that same record. That is
+ *   the unsaved work this whole mechanism exists to protect — but a held copy
+ *   no longer expires, so "the server has never seen it" stopped being proof
+ *   that it is new. Without the record, a deletion that had aged out of the
+ *   trash let a months-old held copy put the show back.
  */
 export function mergePendingShows(
   pending: Show[],
   server: Show[],
   trash: DeletedItem[] = [],
+  deletedShowIds: string[] = [],
 ): Show[] {
-  const deleted = new Set(
-    trash.filter((item) => item?.type === 'show' && item.data?.id).map((item) => item.data.id),
-  );
+  const deleted = new Set([
+    ...trash.filter((item) => item?.type === 'show' && item.data?.id).map((item) => item.data.id),
+    ...deletedShowIds,
+  ]);
   const held = new Map(pending.filter((show) => show?.id).map((show) => [show.id, show]));
   const merged: Show[] = [];
 
@@ -47,8 +52,9 @@ export function mergePendingShows(
   }
 
   // Whatever the held copy has that the server has never seen — new shows made
-  // while the save was failing. They lead, the way a new show does in the list.
-  return [...held.values(), ...merged];
+  // while the save was failing. They lead, the way a new show does in the
+  // list. Anything the user deleted on purpose is not among them.
+  return [...[...held.values()].filter((show) => !deleted.has(show.id)), ...merged];
 }
 
 /**

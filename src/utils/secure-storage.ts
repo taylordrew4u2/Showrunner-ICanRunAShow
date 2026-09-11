@@ -113,6 +113,10 @@ export interface LoadedShows {
  */
 export async function loadEncryptedShows(creds: SessionCredentials): Promise<LoadedShows> {
   const { shows } = await api.get<{ shows: EncryptedShowRow[] }>("/api/shows", auth(creds));
+  return decryptShowRows(shows, creds);
+}
+
+function decryptShowRows(shows: EncryptedShowRow[], creds: SessionCredentials): LoadedShows {
   // Keys were derived once at sign-in — PBKDF2 is deliberately slow, so it must
   // not run per row. decryptWithKeys tries the current key, then the legacy key,
   // so shows saved before the KDF upgrade still decrypt (and re-encrypt on the
@@ -367,4 +371,79 @@ export async function saveEncryptedSettings(
     );
   }
   await api.put("/api/settings", { encryptedData }, auth(creds));
+}
+
+/**
+ * One earlier save the server still holds. `shows` snapshots are the whole
+ * list as it stood; `settings` snapshots are the Rolodex, contracts, music
+ * library and the rest, as they stood. See api/_lib/snapshots.ts for how
+ * long each is kept.
+ */
+export interface Snapshot {
+  kind: "shows" | "settings";
+  /** The server's `backed_up_at`, in SQLite's `YYYY-MM-DD HH:MM:SS` UTC form. */
+  at: string;
+  /** Rows in a shows snapshot; absent for settings. */
+  count?: number;
+}
+
+/** Every earlier save of either kind, newest first. */
+export async function listSnapshots(creds: SessionCredentials): Promise<Snapshot[]> {
+  const a = auth(creds);
+  const [shows, settings] = await Promise.all([
+    api.get<{ snapshots: { at: string; count: number }[] }>("/api/shows?history=1", a),
+    api.get<{ snapshots: { at: string }[] }>("/api/settings?history=1", a),
+  ]);
+  const all: Snapshot[] = [
+    ...shows.snapshots.map((s) => ({ kind: "shows" as const, at: s.at, count: s.count })),
+    ...settings.snapshots.map((s) => ({ kind: "settings" as const, at: s.at })),
+  ];
+  return all.sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
+}
+
+/** The shows exactly as one earlier save held them. */
+export async function loadShowsSnapshot(
+  creds: SessionCredentials,
+  at: string,
+): Promise<LoadedShows> {
+  const { shows } = await api.get<{ shows: EncryptedShowRow[] }>(
+    `/api/shows?at=${encodeURIComponent(at)}`,
+    auth(creds),
+  );
+  return decryptShowRows(shows, creds);
+}
+
+/** The settings exactly as one earlier save held them. */
+export async function loadSettingsSnapshot(
+  creds: SessionCredentials,
+  at: string,
+): Promise<AppSettings> {
+  const { encryptedData } = await api.get<{ encryptedData: string }>(
+    `/api/settings?at=${encodeURIComponent(at)}`,
+    auth(creds),
+  );
+  return migrateSettings(decryptWithKeys<AppSettings>(encryptedData, readKeys(creds)));
+}
+
+/**
+ * Keep a copy of these settings on the account without making them current.
+ * For a device's held copy that is too old to trust over what the account has
+ * since become: it goes into the same list as every other earlier version,
+ * where it can be looked at and brought back on purpose, instead of the bin.
+ */
+export async function parkSettingsSnapshot(
+  settings: AppSettings,
+  creds: SessionCredentials,
+): Promise<void> {
+  const encryptedData = encryptWithKey(settings, creds.key);
+  // Throws rather than resolving quietly. The caller drops its held copy once
+  // this resolves, and a blob too large to save is precisely the blob that
+  // held copy was written for — returning here deleted the only copy of a
+  // producer's Rolodex and contracts a week after the save that failed.
+  if (encryptedData.length > MAX_SAVE_BYTES) {
+    throw new PayloadTooLargeError(
+      "Those settings are too large to keep a copy of on your account. Empty the trash to fix it.",
+    );
+  }
+  await api.put("/api/settings", { encryptedData, park: true }, auth(creds));
 }
