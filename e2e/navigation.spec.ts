@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { gotoTab, signUpAndOnboard } from './support/app';
+import { createShow, gotoTab, signUpAndOnboard } from './support/app';
 
 test.describe('navigation', () => {
   test('the bar holds five tabs and More leads to the paperwork', async ({ page, context }) => {
@@ -80,4 +80,16 @@ test('the desktop hamburger frees the workspace and dismisses naturally', async 
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(nav).toBeHidden();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('the calendar month and year fit on a narrow phone', async ({ page, context }) => {
+  await installFakeApi(context, emptyState());
+  await page.setViewportSize({ width: 320, height: 844 });
+  await signUpAndOnboard(page);
+  await createShow(page, 'Calendar layout');
+  await gotoTab(page, 'Shows');
+  await page.getByRole('button', { name: 'Calendar view', exact: true }).click();
+  const title = page.locator('.shows-cal__title');
+  await expect(title).toBeVisible();
+  expect(await title.evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
 });

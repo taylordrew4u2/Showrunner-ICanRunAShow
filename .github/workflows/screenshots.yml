@@ -29,7 +29,7 @@ jobs:
 
       - name: Install Playwright + Chromium
         run: |
-          npm i -D playwright
+          npm ci
           npx playwright install --with-deps chromium
 
       - name: Capture screenshots
@@ -43,7 +43,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: screenshots
-          path: docs/screenshots/*.png
+          path: |
+            docs/screenshots/*.png
+            docs/screenshots/*.gif
 
       - name: Commit to a branch
         run: |
@@ -54,7 +56,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add docs/screenshots/*.png
+          git add docs/screenshots/*.png docs/screenshots/*.gif
           git commit -m "chore: add captured product screenshots"
           git push origin "$BRANCH"
           echo "Open a PR: ${{ github.server_url }}/${{ github.repository }}/pull/new/$BRANCH" >> "$GITHUB_STEP_SUMMARY"

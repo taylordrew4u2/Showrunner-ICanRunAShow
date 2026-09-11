@@ -44,6 +44,18 @@ test.describe('critical path', () => {
     await page.locator('button:has-text("Run Show")').first().click();
     await expect(page.locator('.run-show')).toBeVisible();
 
+    const originalViewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 320, height: 844 });
+    for (const label of await page.locator('.rs-transport button span').all()) {
+      const fits = await label.evaluate((el) => {
+        const text = el.getBoundingClientRect();
+        const button = el.closest('button')!.getBoundingClientRect();
+        return text.left >= button.left && text.right <= button.right;
+      });
+      expect(fits).toBe(true);
+    }
+    await page.setViewportSize(originalViewport);
+
     expect(errors).toEqual([]);
   });
 

@@ -3996,3 +3996,13 @@ body:has([aria-modal='true']) .status-rail {
     white-space: nowrap;
   }
 }
+
+/* Keep cue controls readable on the narrowest phones, including Resume. */
+@media (max-width: 360px) {
+  .rs-transport .rs-btn {
+    flex-direction: column;
+    padding-inline: var(--space-1);
+    gap: var(--space-1);
+    min-width: 0;
+  }
+}
