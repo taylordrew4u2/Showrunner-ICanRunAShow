@@ -308,3 +308,14 @@
     font-size: var(--text-base);
   }
 }
+
+/* Keep the month and year readable above the navigation on phones. */
+@media (max-width: 480px) {
+  .shows-cal__header {
+    flex-wrap: wrap;
+  }
+  .shows-cal__title {
+    flex-basis: 100%;
+    white-space: normal;
+  }
+}

@@ -3201,3 +3201,17 @@ select.show-detail__status--select {
     overflow: hidden;
   }
 }
+
+/* At 320px, the reorder targets leave too little room even for two name lines. */
+@media (max-width: 360px) {
+  .section-list-item__content {
+    flex-wrap: wrap;
+  }
+  .section-list-item__body {
+    flex-basis: 100%;
+  }
+  .section-list-item__name {
+    display: block;
+    overflow: visible;
+  }
+}

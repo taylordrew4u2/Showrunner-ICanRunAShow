@@ -42,12 +42,15 @@ encoded in-process.
 
 ## What gets captured
 
-Everything is shot at 430×932 with `deviceScaleFactor: 2`, so the images are @2x
-and the app is in the phone layout it is designed around.
+Phone screens are captured at 430×932 with `deviceScaleFactor: 2`. Desktop dashboards use 1280×900 at @2x; sign-in uses 1280×900 at @1x. The desktop menu is captured open and closed, with a separate light-theme view. Sample show dates are relative to capture day so the dashboard always has an upcoming show. Cues use elapsed times and explicit segment lengths.
 
 | File | Screen |
 | --- | --- |
-| `shows.png` | The shows dashboard |
+| `shows.png` | The phone shows dashboard |
+| `desktop-shows.png` | Desktop dashboard with the hamburger menu closed |
+| `desktop-menu.png` | Desktop navigation menu open |
+| `desktop-light.png` | Desktop dashboard in the light theme |
+| `sign-in.png` | The redesigned sign-in screen |
 | `show-detail.png` | A show's page — summary tiles and the section accordion |
 | `schedule.png` | The run-of-show builder |
 | `performer-profile.png` | A performer's profile |
