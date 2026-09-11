@@ -1,5 +1,10 @@
 import type { ScheduleItem } from '../types';
 import { baseDurations, parseClockToMinutes } from './showTiming';
+import { clockLabel, elapsedLabel, isElapsedSchedule } from './elapsed';
+
+// The clock formatter moved in beside the elapsed one — they are two answers
+// to the same question — but this is where the app has always reached for it.
+export { clockLabel } from './elapsed';
 
 /**
  * The shape of the night, as one proportional strip.
@@ -38,22 +43,17 @@ export interface TimelineSegment {
 export interface Timeline {
   segments: TimelineSegment[];
   totalSec: number;
+  /**
+   * True when this sheet counts from the top of the show rather than off the
+   * clock. The strip reads the same either way; what changes is whether the
+   * numbers beside it are wall-clock times or minutes into the night.
+   */
+  elapsed: boolean;
   /** Minutes-since-midnight of the top of the show, when it can be derived. */
   startMinutes: number | null;
   endMinutes: number | null;
   /** The longest single segment, which is what sets the eye's reference. */
   longestId: string | null;
-}
-
-/** Minutes-since-midnight → "8:00 PM", wrapping past midnight. */
-export function clockLabel(minutes: number): string {
-  const wrapped = ((minutes % 1440) + 1440) % 1440;
-  const h = Math.floor(wrapped / 60);
-  const m = wrapped % 60;
-  return new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
 }
 
 /**
@@ -78,7 +78,11 @@ export function buildTimeline(schedule: ScheduleItem[], showTime?: string): Time
   const totalSec = durations.reduce((sum, d) => sum + d, 0);
   if (totalSec <= 0) return null;
 
-  const startMinutes = startMinutesFor(schedule, durations, showTime);
+  const elapsed = isElapsedSchedule(schedule);
+  // A sheet counting from zero has no wall clock to report, and reading its
+  // 0:00 as midnight would print a night running from 12:00 AM.
+  const startMinutes = elapsed ? 0 : startMinutesFor(schedule, durations, showTime);
+  const formatAt = elapsed ? elapsedLabel : clockLabel;
 
   let offset = 0;
   let longestId: string | null = null;
@@ -104,7 +108,7 @@ export function buildTimeline(schedule: ScheduleItem[], showTime?: string): Time
       startPct: (startSec / totalSec) * 100,
       widthPct: (durationSec / totalSec) * 100,
       sharePct: (durationSec / totalSec) * 100,
-      clock: startMinutes == null ? null : clockLabel(startMinutes + Math.round(startSec / 60)),
+      clock: startMinutes == null ? null : formatAt(startMinutes + Math.round(startSec / 60)),
       kind: (performer ? 'set' : 'break') as SegmentKind,
     };
   });
@@ -112,6 +116,7 @@ export function buildTimeline(schedule: ScheduleItem[], showTime?: string): Time
   return {
     segments,
     totalSec,
+    elapsed,
     startMinutes,
     endMinutes: startMinutes == null ? null : startMinutes + Math.round(totalSec / 60),
     longestId,
