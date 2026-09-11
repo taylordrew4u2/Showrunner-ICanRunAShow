@@ -67,16 +67,16 @@ describe('buildShowStats — progress', () => {
     expect(find(stats, 'lineup').total).toBe(0);
   });
 
-  it('accepts any of the walk-on music fields as "set"', () => {
+  // A performer with no walk-on still goes on, so the bar was red on every
+  // show and stayed that way. It sat beside meters that do mean something.
+  it('does not grade a show on whose walk-on music is missing', () => {
     const stats = buildShowStats(show({
       performers: [
-        { id: 'p1', name: 'Ada', walkOnMusic: 'media:1' },
-        { id: 'p2', name: 'Bea', walkOnMusicName: 'track.mp3' },
-        { id: 'p3', name: 'Cal', walkOnMusicLink: 'https://example.com/x' },
-        { id: 'p4', name: 'Dee' },
+        { id: 'p1', name: 'Ada', walkOnMusicName: 'track.mp3' },
+        { id: 'p2', name: 'Bea' },
       ],
     }));
-    expect(find(stats, 'walkon')).toMatchObject({ done: 3, total: 4 });
+    expect(stats.progress.map((p) => p.key)).not.toContain('walkon');
   });
 
   it('does not count a zero-minute cue as timed', () => {

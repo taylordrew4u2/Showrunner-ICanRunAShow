@@ -34,8 +34,11 @@ test('a conflicting edit stays on screen and reports that it has not saved', asy
   const remote = state.shows[0].encryptedData + '-changed-elsewhere';
   state.shows[0].encryptedData = remote;
   await openSection(page, 'Schedule');
-  const build = page.locator('.schedule-choice__option').first();
-  if (await build.count()) await build.click();
+  // Named rather than taken by position: the choice screen leads with whatever
+  // route is fastest for the show in front of you, and these tests are about
+  // typing cues in by hand.
+  const build = page.locator('.schedule-choice__option').filter({ hasText: 'Build Your Own' });
+  if (await build.count()) await build.first().click();
   await page.locator('input[aria-label="Description"]').fill('Unsaved local cue');
   await page.locator('button[aria-label="Add cue"]').click();
   await expect(page.getByRole('alert')).toContainText('changed in another tab or device');

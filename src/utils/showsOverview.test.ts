@@ -195,17 +195,13 @@ describe('showReadiness', () => {
     expect(showReadiness(show({ schedule: [cue] }))[1].label).toBe('1 cue');
   });
 
-  it('leaves walk-ons out entirely when there are no performers', () => {
-    // "0 of 0 walk-ons set" is a complaint about an empty list.
-    expect(showReadiness(show({})).map((l) => l.key)).not.toContain('walkon');
-  });
-
-  it('is only ready on walk-ons once every performer has one', () => {
+  // Missing walk-on music never stopped a show going ahead, so it is not one
+  // of the lines you read before walking into the room.
+  it('does not hold a show back over missing walk-on music', () => {
     const withMusic = { id: 'p1', name: 'Ada', walkOnMusicName: 'intro.mp3' };
     const without = { id: 'p2', name: 'Bo' };
-    const lines = showReadiness(show({ performers: [withMusic, without] }));
-    expect(lines.find((l) => l.key === 'walkon')).toMatchObject({ label: '1 of 2 walk-ons set', ready: false });
-    const all = showReadiness(show({ performers: [withMusic] }));
-    expect(all.find((l) => l.key === 'walkon')).toMatchObject({ ready: true });
+    const lines = showReadiness(show({ performers: [withMusic, without], schedule: [cue] }));
+    expect(lines.map((l) => l.key)).toEqual(['lineup', 'schedule']);
+    expect(lines.every((l) => l.ready)).toBe(true);
   });
 });
