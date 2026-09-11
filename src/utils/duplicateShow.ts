@@ -1,20 +1,32 @@
 import type { Show } from '../types';
 import { generateId } from './id';
+import { rolodexKey } from './rolodex';
 
-/**
- * A copy of a show, ready to be a different night.
- *
- * One place, because there are two ways to make one — the Duplicate button and
- * booking a run of repeats — and they must agree about what belongs to the
- * show as a template (the lineup, the running order, the walk-on music) and
- * what belonged to that one night: its viewer link, the note pinned to it, and
- * the recap written afterwards. A copy carrying the original's viewer token
- * would publish over the original's live page.
- */
+/** A new night keeps the show setup, but its cast must be booked separately. */
 export function duplicateShow(original: Show, options: { name?: string; date?: string } = {}): Show {
   const now = new Date().toISOString();
+  const copy = structuredClone(original);
+  const castNames = new Set([...original.performers, ...original.artists]
+    .map((person) => rolodexKey(person.name)).filter(Boolean));
+  let clearedAssignment = false;
+  for (const cue of copy.schedule) {
+    // Retain cue timing and structure, but never link an empty new bill back
+    // to the original cast. Free-text imports have names without IDs.
+    if (cue.performerId || (cue.performer && castNames.has(rolodexKey(cue.performer)))) {
+      delete cue.performerId;
+      delete cue.performer;
+      clearedAssignment = true;
+    }
+  }
+  if (copy.completions) {
+    copy.completions.performers = false;
+    copy.completions.artists = false;
+    if (clearedAssignment) copy.completions.schedule = false;
+  }
   return {
-    ...structuredClone(original),
+    ...copy,
+    performers: [],
+    artists: [],
     id: generateId(),
     name: options.name ?? `${original.name} (copy)`,
     status: 'upcoming',
