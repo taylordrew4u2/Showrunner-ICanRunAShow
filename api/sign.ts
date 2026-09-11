@@ -24,11 +24,11 @@ import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { exceedsSize, handleError, json, readJson, tooLarge } from './_lib/http';
 
-// Both blobs are small records of a few fields. Capped well clear of any
-// legitimate size, because POST is public: this is what an anonymous writer
-// is allowed to put in the row.
+// Request metadata is small, but signatures and profile submissions can also
+// contain a resized headshot. Allow room for its data URL and encryption
+// overhead, while retaining a hard bound on this anonymous, write-once route.
 const MAX_PAYLOAD_BYTES = 32 * 1024;
-const MAX_SIGNATURE_BYTES = 32 * 1024;
+const MAX_SIGNATURE_BYTES = 3 * 1024 * 1024;
 
 function badToken(token: unknown): boolean {
   return typeof token !== 'string' || token.length < 16 || token.length > 128;
