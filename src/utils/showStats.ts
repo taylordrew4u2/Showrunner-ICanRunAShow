@@ -35,10 +35,6 @@ function num(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function hasWalkOn(performer: Show['performers'][number]): boolean {
-  return !!(performer.walkOnMusic || performer.walkOnMusicName || performer.walkOnMusicLink);
-}
-
 export function buildShowStats(show: Show, library: MusicTrack[] = []): ShowStats {
   const performers = show.performers ?? [];
   const artists = show.artists ?? [];
@@ -64,6 +60,10 @@ export function buildShowStats(show: Show, library: MusicTrack[] = []): ShowStat
       todos: todos.length,
     },
     runMinutes: schedule.reduce((sum, cue) => sum + num(cue.durationMin), 0),
+    // Only the things that stop a night going ahead. Walk-on music used to
+    // have a bar here and it was the one that was never full, on every show,
+    // for a reason nobody was going to act on — a performer without a walk-on
+    // still goes on. A meter you learn to ignore devalues the ones beside it.
     progress: [
       // Only meaningful once a target is set; total 0 drops the bar entirely.
       {
@@ -71,12 +71,6 @@ export function buildShowStats(show: Show, library: MusicTrack[] = []): ShowStat
         label: 'Lineup booked',
         done: performers.length,
         total: num(show.performerTarget),
-      },
-      {
-        key: 'walkon',
-        label: 'Walk-on music set',
-        done: performers.filter(hasWalkOn).length,
-        total: performers.length,
       },
       {
         key: 'cues',

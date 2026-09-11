@@ -47,6 +47,14 @@ interface ScheduleSectionProps {
    * walk-on.
    */
   knownNames?: string[];
+  /**
+   * Set the show's start time.
+   *
+   * The generator lets a producer type it there, because a show with no
+   * readable time used to stop the generator dead and send them to Basic Info
+   * to set it — and that is where making a running order ended.
+   */
+  onSetShowTime?: (time: string) => void;
   /** Everyone on file who isn't on this show's bill yet. */
   unbookedComics?: PotentialComic[];
   /**
@@ -397,6 +405,7 @@ export function ScheduleSection({
   showTime,
   performers = [],
   host,
+  onSetShowTime,
   knownNames = [],
   unbookedComics = [],
   onBookPerformer,
@@ -520,7 +529,13 @@ export function ScheduleSection({
 
   /** A generated order replaces the list wholesale, so it lands as one undo-able
    *  decision rather than cues appended onto cues. */
-  function handleApplyGenerated(items: ScheduleItem[]) {
+  function handleApplyGenerated(items: ScheduleItem[], startTime: string) {
+    // The cues are timed from whatever the generator was showing, so the show
+    // has to agree with them — otherwise the run sheet says 8pm and the show
+    // page still says nothing, and the next thing built from the show time is
+    // built from the wrong one.
+    const trimmed = startTime.trim();
+    if (trimmed && trimmed !== (showTime ?? '').trim()) onSetShowTime?.(trimmed);
     onChange(withMatchedPerformers(items, knownNames));
     setGeneratorOpen(false);
     setMode('build');
@@ -536,25 +551,23 @@ export function ScheduleSection({
     <div className="section-body">
       {mode === 'choose' && (
         <div className="schedule-choice">
-          <button className="schedule-choice__option" onClick={() => setMode('build')}>
-            <span className="schedule-choice__icon"><Icon name="edit" size={20} /></span>
-            <span className="schedule-choice__label">Build Your Own</span>
-            <span className="schedule-choice__desc">Create the show run manually</span>
-          </button>
+          {/* The lineup leads. It is the only option that already knows who is
+              on and can finish the job in one screen, and it used to sit
+              second — under "Build Your Own", which is the longest road on the
+              page and was being taken because it was first. */}
           {performers.length > 0 && (
-            <button className="schedule-choice__option" onClick={() => setGeneratorOpen(true)}>
+            <button
+              className="schedule-choice__option schedule-choice__option--lead"
+              onClick={() => setGeneratorOpen(true)}
+            >
               <span className="schedule-choice__icon"><Icon name="bolt" size={20} /></span>
               <span className="schedule-choice__label">Build from the lineup</span>
               <span className="schedule-choice__desc">
-                {performers.length} booked — times the night, intros included
+                {performers.length} booked — times the whole night, intros included. Change the
+                order and set lengths before you commit.
               </span>
             </button>
           )}
-          <button className="schedule-choice__option" onClick={() => setImportOpen(true)}>
-            <span className="schedule-choice__icon"><Icon name="sparkle" size={20} /></span>
-            <span className="schedule-choice__label">Import with AI</span>
-            <span className="schedule-choice__desc">Photo, PDF, or paste — AI extracts cues</span>
-          </button>
           {templatesEnabled && templates.length > 0 && (
             <button className="schedule-choice__option" onClick={() => setTemplatesOpen(true)}>
               <span className="schedule-choice__icon"><Icon name="file" size={20} /></span>
@@ -563,6 +576,22 @@ export function ScheduleSection({
                 {templates.length} saved run-of-show{templates.length === 1 ? '' : 's'}
               </span>
             </button>
+          )}
+          <button className="schedule-choice__option" onClick={() => setImportOpen(true)}>
+            <span className="schedule-choice__icon"><Icon name="sparkle" size={20} /></span>
+            <span className="schedule-choice__label">Import with AI</span>
+            <span className="schedule-choice__desc">Photo, PDF, or paste — AI extracts cues</span>
+          </button>
+          <button className="schedule-choice__option" onClick={() => setMode('build')}>
+            <span className="schedule-choice__icon"><Icon name="edit" size={20} /></span>
+            <span className="schedule-choice__label">Build Your Own</span>
+            <span className="schedule-choice__desc">Type the cues in one at a time</span>
+          </button>
+          {performers.length === 0 && (
+            <p className="schedule-choice__note">
+              Book the bill first and the running order can be built from it — times, host
+              handovers and all — instead of typed out.
+            </p>
           )}
         </div>
       )}

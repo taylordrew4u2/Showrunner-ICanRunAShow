@@ -84,6 +84,63 @@ test.describe('generating a run-of-show', () => {
     await expect(page.locator('.gen')).not.toContainText('Your handovers');
   });
 
+  test('sets the start time and the running order in the one dialog', async ({
+    page,
+    context,
+  }) => {
+    const state = emptyState();
+    await installFakeApi(context, state);
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+
+    await signUpAndOnboard(page);
+    await createShow(page, 'No Clock Yet');
+
+    for (const name of ['Dev Okonjo', 'Mona Sable']) {
+      await page.getByLabel('Performer name').fill(name);
+      await page.locator('button').filter({ hasText: /^Add$/ }).first().click();
+      await expect(page.locator('.section-list')).toContainText(name);
+    }
+
+    // A host, so the handovers get written — but deliberately no start time.
+    // That used to be a dead end: the generator refused and sent the producer
+    // to Basic Info, which is where making a running order stopped.
+    await openSection(page, 'Basic Info');
+    await page.locator('#show-host-input').fill('Renata Cruz');
+
+    await openSection(page, 'Schedule');
+    await page.locator('.schedule-choice__option').filter({ hasText: 'Build from the lineup' }).click();
+
+    const dialog = page.locator('.gen');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('.gen__cue')).toHaveCount(0);
+
+    await dialog.getByLabel('Show starts').fill('8:00 PM');
+    await expect(dialog.locator('.gen__cue').first()).toContainText('Doors — house music');
+
+    // The closer closes: move the first act down, and give them twenty.
+    await dialog.getByLabel('Move Dev Okonjo later').click();
+    await dialog.getByLabel('Set length for Dev Okonjo, in minutes').fill('20');
+
+    // The end of the night moves with the edit rather than being discovered
+    // afterwards in the cue list.
+    await expect(dialog.locator('.gen__totals')).toContainText('Runs');
+
+    await dialog.locator('button').filter({ hasText: /Use this running order/ }).click();
+
+    const cues = page.locator('.cue-list');
+    await expect(cues).toContainText('Intro — Dev Okonjo');
+    // Mona now opens, so she is the one folded into the host's welcome.
+    await expect(cues).not.toContainText('Intro — Mona Sable');
+
+    // And the time typed in the generator is the show's time, so anything else
+    // built from it agrees with the sheet. Basic Info is still open from
+    // setting the host, so this reads the field rather than re-toggling it.
+    await expect(page.getByLabel('Show Time')).toHaveValue('8:00 PM');
+
+    expect(errors).toEqual([]);
+  });
+
   test('is not offered before anyone is booked', async ({ page, context }) => {
     const state = emptyState();
     await installFakeApi(context, state);

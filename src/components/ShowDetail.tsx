@@ -442,6 +442,11 @@ export function ShowDetail({
       merged.djSongs = newDJSongs;
     }
 
+    // Two edits in the same tick — the generator writing a running order and
+    // the start time it was timed from — both read this ref before React has
+    // re-rendered, so without this the second silently threw the first away.
+    // The show as we last knew it is the one we are about to send.
+    showRef.current = merged;
     onUpdate(merged);
   }
 
@@ -671,6 +676,7 @@ export function ShowDetail({
         showTime={show.time}
         performers={show.performers}
         host={show.host}
+        onSetShowTime={(time) => handleUpdate({ time })}
         knownNames={knownNames}
         unbookedComics={unbookedComics}
         onBookPerformer={bookFromRolodex}
