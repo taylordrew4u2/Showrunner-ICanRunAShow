@@ -103,7 +103,8 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const documentReady = !!docUrl && !docError && pageCount > 0 && pages.length === pageCount;
 
   useEffect(() => {
-    if (showForm) formHeadingRef.current?.focus();
+    if (showForm) formHeadingRef.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, [showForm]);
 
   /**
@@ -196,10 +197,14 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       <header className="signing__bar">
         <span className="signing__from">{payload.fromName}</span>
         <h1 className="signing__title">{payload.contractName}</h1>
-        <p className="signing__intro">Read the full contract below. Your details and signature come after the last page.</p>
+        <p className="signing__intro">
+          {phase === 'done' ? 'Your signature has been recorded. Save a copy below.' : showForm
+            ? 'Step 2 of 2: Fill in your details and sign. You can go back to review the contract at any time.'
+            : 'Step 1 of 2: Read the full contract, then continue to your details and signature.'}
+        </p>
       </header>
 
-      <main className="signing__main">
+      {!showForm && phase !== 'done' && <main className="signing__main">
         {!docUrl ? (
           <p className="signing__error" role="alert">
             The document could not be loaded, so there is nothing to agree to yet. Reload the page,
@@ -238,7 +243,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             )}
           </div>
         )}
-      </main>
+      </main>}
 
       {phase === 'done' && signed ? (
         <section className="signing__panel signing__panel--done">
@@ -275,6 +280,9 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
         </section>
       ) : documentReady && showForm ? (
         <section className="signing__panel" aria-labelledby="signing-form-title">
+          <button className="btn btn--secondary" onClick={() => setShowForm(false)} disabled={phase === 'signing'}>
+            Back to contract
+          </button>
           <h2 id="signing-form-title" ref={formHeadingRef} tabIndex={-1}>Your details and signature</h2>
           {error && <p className="signing__error" role="alert">{error}</p>}
 
