@@ -99,7 +99,10 @@ export function recurringDates(
 
   const weekday = start.getDay();
   const nth = weekdayOrdinal(start);
-  for (let i = 1; dates.length < wanted && i <= wanted * 2 + 12; i++) {
+  // A fifth weekday skips most months. Two months per occurrence can stop
+  // a long run early; each year contains every fifth weekday at least once,
+  // so a year per requested date is a safe, still-bounded search window.
+  for (let i = 1; dates.length < wanted && i <= wanted * 12; i++) {
     const month = new Date(start.getFullYear(), start.getMonth() + i, 1);
     const candidate = nthWeekdayOfMonth(month.getFullYear(), month.getMonth(), weekday, nth);
     if (!candidate) continue; // No fifth Friday this month.

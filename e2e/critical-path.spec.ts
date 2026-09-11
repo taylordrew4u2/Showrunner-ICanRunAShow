@@ -45,14 +45,16 @@ test.describe('critical path', () => {
     await expect(page.locator('.run-show')).toBeVisible();
 
     const originalViewport = page.viewportSize()!;
-    await page.setViewportSize({ width: 320, height: 844 });
-    for (const label of await page.locator('.rs-transport button span').all()) {
-      const fits = await label.evaluate((el) => {
-        const text = el.getBoundingClientRect();
-        const button = el.closest('button')!.getBoundingClientRect();
-        return text.left >= button.left && text.right <= button.right;
-      });
-      expect(fits).toBe(true);
+    for (const width of [320, 360, 375, 390, 430, 768, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      for (const label of await page.locator('.rs-transport button span').all()) {
+        const fits = await label.evaluate((el) => {
+          const text = el.getBoundingClientRect();
+          const button = el.closest('button')!.getBoundingClientRect();
+          return text.left >= button.left && text.right <= button.right;
+        });
+        expect(fits, `cue control label fits at ${width}px`).toBe(true);
+      }
     }
     await page.setViewportSize(originalViewport);
 
