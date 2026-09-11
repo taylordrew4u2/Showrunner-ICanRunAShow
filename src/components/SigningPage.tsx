@@ -44,9 +44,8 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [pages, setPages] = useState<RenderedPage[]>([]);
   const [pageCount, setPageCount] = useState(0);
   const [docError, setDocError] = useState(false);
-  /** True once the last page has been scrolled past at least once. */
-  const [readToEnd, setReadToEnd] = useState(false);
-  const endRef = useRef<HTMLDivElement | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const formHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const [signed, setSigned] = useState<SignatureRecord | null>(null);
   const [typedName, setTypedName] = useState('');
   // Keyed by field id, so editing the contract's questions later cannot
@@ -101,26 +100,11 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
     return () => { cancelled = true; };
   }, [token, signKey]);
 
-  /**
-   * Notice when the end of the document has been reached.
-   *
-   * Not a gate on signing — a signer who scrolls fast, or reads the copy they
-   * were emailed, still gets to sign — but the page can then say plainly
-   * whether there is more above the fold, which on a phone is otherwise
-   * invisible.
-   */
+  const documentReady = !!docUrl && !docError && pageCount > 0 && pages.length === pageCount;
+
   useEffect(() => {
-    const end = endRef.current;
-    if (!end || pages.length === 0 || readToEnd) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) setReadToEnd(true);
-      },
-      { rootMargin: '0px 0px -8% 0px' },
-    );
-    observer.observe(end);
-    return () => observer.disconnect();
-  }, [pages.length, readToEnd]);
+    if (showForm) formHeadingRef.current?.focus();
+  }, [showForm]);
 
   /**
    * Take a photo down to flyer size before it goes anywhere.
@@ -149,7 +133,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   }
 
   async function handleSign() {
-    if (!signKey || !docUrl || !payload) return;
+    if (!signKey || !docUrl || !payload || !documentReady || !showForm || phase !== 'ready') return;
     const name = typedName.trim();
     const missing = missingRequiredFields(payload.fields, values);
     if (!name || !agreed || missing.length > 0) return;
@@ -212,6 +196,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       <header className="signing__bar">
         <span className="signing__from">{payload.fromName}</span>
         <h1 className="signing__title">{payload.contractName}</h1>
+        <p className="signing__intro">Read the full contract below. Your details and signature come after the last page.</p>
       </header>
 
       <main className="signing__main">
@@ -220,11 +205,11 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             The document could not be loaded, so there is nothing to agree to yet. Reload the page,
             or ask for the link again.
           </p>
-        ) : docError && pages.length === 0 ? (
+        ) : docError ? (
           /* Drawing the pages failed — an encrypted or malformed PDF. The file
              itself is still here, so offer it rather than leaving them stuck. */
           <div className="signing__doc-fallback">
-            <p>This document could not be displayed here.</p>
+            <p role="alert">The full contract could not be displayed. Signing is unavailable until every page can be shown. Reload the page or ask the sender for a readable PDF.</p>
             <button className="btn btn--secondary" onClick={download}>Open the PDF</button>
           </div>
         ) : pages.length === 0 ? (
@@ -251,7 +236,6 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
                 Page {pages.length + 1} of {pageCount}…
               </p>
             )}
-            <div ref={endRef} className="signing__doc-end" aria-hidden="true" />
           </div>
         )}
       </main>
@@ -281,8 +265,17 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             link is the only place it lives.
           </p>
         </section>
-      ) : (
-        <section className="signing__panel">
+      ) : documentReady && !showForm ? (
+        <section className="signing__panel" aria-label="Contract review">
+          <p className="signing__hint">End of contract · {pageCount} {pageCount === 1 ? 'page' : 'pages'}. When you have reviewed it, continue to fill in your details and sign.</p>
+          <button className="btn btn--primary" onClick={() => setShowForm(true)}>
+            Continue to signature
+          </button>
+          <button className="signing__link" onClick={download}>Download the original PDF</button>
+        </section>
+      ) : documentReady && showForm ? (
+        <section className="signing__panel" aria-labelledby="signing-form-title">
+          <h2 id="signing-form-title" ref={formHeadingRef} tabIndex={-1}>Your details and signature</h2>
           {error && <p className="signing__error" role="alert">{error}</p>}
 
           <label className="signing__field signing__field--name">
@@ -381,7 +374,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             disabled={
               !typedName.trim() ||
               !agreed ||
-              !docUrl ||
+              !documentReady ||
               phase === 'signing' ||
               missingRequiredFields(payload.fields, values).length > 0
             }
@@ -396,21 +389,13 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             </p>
           )}
 
-          {pages.length > 0 && !readToEnd && (
-            <p className="signing__hint">
-              {pageCount > 1
-                ? `This agreement is ${pageCount} pages. Scroll up through all of it before you sign.`
-                : 'Scroll up through the whole agreement before you sign.'}
-            </p>
-          )}
-
           <p className="signing__note">
             You can save your own copy once you have signed, or{' '}
             <button className="signing__link" onClick={download}>open the original PDF</button>.
             You will not need an account.
           </p>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }

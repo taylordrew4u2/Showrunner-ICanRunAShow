@@ -78,7 +78,8 @@ test.describe('contracts', () => {
     expect(JSON.stringify(state.sign) + JSON.stringify(state.doc)).not.toContain('Nadia');
 
     // The signer: a different browser context, no session, no account.
-    const signerContext = await browser.newContext();
+    // Carry the project's phone/desktop viewport into the anonymous context.
+    const signerContext = await browser.newContext({ viewport: page.viewportSize()! });
     await installFakeApi(signerContext, state);
     const signer = await signerContext.newPage();
     await signer.goto(link);
@@ -94,6 +95,36 @@ test.describe('contracts', () => {
     );
     await expect(signer.locator('.signing__page img').last()).toBeVisible();
 
+    // Opening the link shows the contract first, with no fields to cover it.
+    await expect(signer.locator('.signing__page img').first()).toBeInViewport();
+    await expect(signer.locator('.signing__field input')).toHaveCount(0);
+    const continueButton = signer.getByRole('button', { name: 'Continue to signature' });
+    await expect(continueButton).not.toBeInViewport();
+    await continueButton.click();
+    await expect(signer.getByRole('heading', { name: 'Your details and signature' })).toBeFocused();
+
+    // The full form is taller than a phone screen. Scroll back through each
+    // PDF page and check actual geometry, not just the existence of images.
+    const assertNoOverlap = async () => {
+      for (const image of await signer.locator('.signing__page img').all()) {
+        await image.scrollIntoViewIfNeeded();
+        const imageBox = (await image.boundingBox())!;
+        const panelBox = (await signer.locator('.signing__panel').boundingBox())!;
+        expect(panelBox.y).toBeGreaterThanOrEqual(imageBox.y + imageBox.height);
+      }
+    };
+    await assertNoOverlap();
+
+    // A PDF that cannot render must never reveal fields or a signing action.
+    const broken = await signerContext.newPage();
+    await broken.route('**/*pdf.worker*', (route) => route.abort());
+    await broken.goto(link);
+    await expect(broken.getByRole('alert')).toContainText('full contract could not be displayed');
+    await expect(broken.locator('.signing__field input')).toHaveCount(0);
+    await expect(broken.getByRole('button', { name: 'Continue to signature' })).toHaveCount(0);
+    await expect(broken.getByRole('button', { name: 'Agree and sign' })).toHaveCount(0);
+    await broken.close();
+
     await signer.locator('.signing__field--name input').fill('Nadia Okonjo');
     // The contract asks for a few details as well as a signature; Email is the
     // one it insists on.
@@ -101,6 +132,7 @@ test.describe('contracts', () => {
     await signer.locator('.signing__agree input').check();
     await signer.locator('.signing__cta').click();
     await expect(signer.locator('.signing__panel--done')).toContainText('Signed');
+    await assertNoOverlap();
 
     // Reopening cannot re-sign: the row is spent.
     const replay = await signerContext.newPage();
