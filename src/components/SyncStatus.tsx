@@ -40,11 +40,11 @@ const PILL: Record<SyncState, { label: string; headline: string; detail: string 
     label: 'Holding',
     headline: 'Held safely on this device',
     detail:
-      "We couldn't reach your account, so your latest work is being kept here and re-sent automatically. Nothing is lost — you can close the app.",
+      "We couldn't reach your account, so your latest work is being kept here and re-sent automatically. Download a backup for a separate copy.",
   },
   offline: {
     label: 'Offline',
-    headline: "You're offline — nothing is lost",
+    headline: "You're offline",
     detail:
       'Your latest work is kept on this device and syncs the moment you have a connection. Keep working.',
   },
@@ -173,8 +173,8 @@ export function SyncStatus({
                 <strong>{hasLocalCopy ? 'Spare copy held on this device' : 'Safety net on this device'}</strong>
                 <span>
                   {hasLocalCopy
-                    ? 'Unsent edits are stored here too. Close the app, lose signal, crash the browser — they come back and re-send on your next visit.'
-                    : 'If a save ever fails, your edits are parked on this device and re-sent automatically. Closing the app cannot lose them.'}
+                    ? 'Unsent edits are stored here too. They can be recovered on your next visit. Download a backup for a separate copy.'
+                    : 'If a save ever fails, your edits are parked on this device and re-sent automatically. Keep this page open if the browser reports it cannot store a backup.'}
                 </span>
               </div>
             </li>

@@ -4,10 +4,11 @@
 //   GET ?at=<backed_up_at>   → { encryptedData } of that earlier save
 //   PUT { encryptedData }    → save; the previous blob is kept as a snapshot
 //   PUT { encryptedData, park: true } → keep as a snapshot only, live row untouched
+import { applySettingsWrite } from './_lib/settingsWrites';
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson } from './_lib/http';
-import { parkSettingsSnapshot, snapshotSettings } from './_lib/snapshots';
+import { parkSettingsSnapshot } from './_lib/snapshots';
 
 export default async function handler(req: Request): Promise<Response> {
   try {
@@ -43,7 +44,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     if (req.method === 'PUT') {
-      const { encryptedData, park } = await readJson<{ encryptedData: string; park?: boolean }>(req);
+      const { encryptedData, park, expectedHash } = await readJson<{ encryptedData: string; park?: boolean; expectedHash?: unknown }>(req);
       if (typeof encryptedData !== 'string' || encryptedData.length === 0) {
         return json({ error: 'bad_request' }, 400);
       }
@@ -53,19 +54,7 @@ export default async function handler(req: Request): Promise<Response> {
         const parked = await parkSettingsSnapshot(db, userId, encryptedData);
         return parked ? json({ ok: true }) : json({ error: 'not_stored' }, 503);
       }
-      // The copy being replaced is kept before anything is written, so the
-      // replacement can be undone — which was not true of any settings save
-      // before this.
-      await snapshotSettings(db, userId);
-      await db.execute({
-        sql: `INSERT INTO user_settings (user_id, encrypted_data, updated_at)
-              VALUES (?, ?, datetime('now'))
-              ON CONFLICT(user_id) DO UPDATE SET
-                encrypted_data = excluded.encrypted_data,
-                updated_at = excluded.updated_at`,
-        args: [userId, encryptedData],
-      });
-      return json({ ok: true });
+      return await applySettingsWrite(db, userId, encryptedData, expectedHash);
     }
 
     return json({ error: 'method_not_allowed' }, 405);

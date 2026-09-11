@@ -1,4 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { recoverShowDraft } from './utils/recoverShowDraft';
+import { showBaselineHashes, settingsBaselineHash } from './utils/secure-storage';
+import { createPendingStore } from './utils/pendingStore';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, ScheduleTemplateItem } from './types';
 import { DEFAULT_SETTINGS, MAX_DELETED_SHOW_IDS } from './types';
 import { generateId } from './utils/id';
@@ -242,59 +245,24 @@ function shouldNudgeBackup(showCount: number, lastBackupAt: string | null): bool
   return Date.now() - at > 30 * 24 * 60 * 60 * 1000;
 }
 
-// A held settings copy is only trusted outright for so long. It is one blob,
-// applied whole, so an old one would drag the Rolodex and contracts back to
-// how they stood when this device last saved — possibly undoing a week of
-// work from another device. Past this age it is parked on the account as an
-// earlier version instead, where it can still be looked at and brought back.
-//
-// Shows have no such limit: a held copy of the list is merged one show at a
-// time by `updatedAt` (see mergePendingShows), so an old one can only ever
-// contribute the edits it actually holds.
-const PENDING_SETTINGS_TRUST_MS = 7 * 24 * 60 * 60 * 1000;
-
-interface Pending<T> {
-  data: T;
-  /** When this copy was written, or 0 for a copy from before timestamps. */
-  at: number;
-}
-
-/**
- * The copy this device holds, if any, with its age — never deleted here. A
- * copy that is too old to apply is the caller's to park, not the reader's to
- * throw away: the whole point of the copy is that it is the only place some
- * edit may exist.
- */
-function readPending<T>(key: string, username: string): Pending<T> | null {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { username: string; data: T; at?: number };
-    if (parsed.username !== username) return null;
-    return { data: parsed.data, at: parsed.at ?? 0 };
-  } catch {
-    return null;
-  }
-}
-
-function writePending(key: string, username: string, data: unknown): void {
-  try {
-    localStorage.setItem(key, JSON.stringify({ username, data, at: Date.now() }));
-  } catch {
-    /* quota exceeded or unavailable — in-memory retry still covers us */
-  }
-}
-
-function clearPending(key: string): void {
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    /* ignore */
-  }
-}
+// Drafts are isolated by tab and account. Recovery uses the saved version,
+// not the age of a backup, to decide whether an edit can safely be reapplied.
+const pendingStore = createPendingStore(() => localStorage, crypto.randomUUID());
+const readPending = pendingStore.read;
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
+  const activeSessionRef = useRef(session);
+  activeSessionRef.current = session;
+  const [localBackupFailed, setLocalBackupFailed] = useState(false);
+  const writePending = useCallback((key: string, username: string, data: unknown): boolean => {
+    const written = pendingStore.write(key, username, data, session ? {
+      settingsHash: key === PENDING_SETTINGS_KEY ? settingsBaselineHash(session) : undefined,
+      showHashes: key === PENDING_SHOWS_KEY ? showBaselineHashes(session) : undefined,
+    } : undefined);
+    setLocalBackupFailed(!written);
+    return written;
+  }, [session]);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [colorScheme, setColorScheme] = useState<ColorScheme>(() => loadColorScheme());
@@ -462,12 +430,14 @@ export default function App() {
     const currentSession = session;
 
     if (!dataLoaded.current) setLoadingData(true);
+    let cancelled = false;
     async function loadData() {
       try {
         const [loaded, loadedSettings] = await Promise.all([
           loadEncryptedShows(currentSession),
           loadEncryptedSettings(currentSession),
         ]);
+        if (cancelled) return;
         // Rows this device couldn't decrypt. They're not in the list, so hold
         // their ciphertext for the saver to write straight back — otherwise the
         // next edit to any other show would delete them off the account.
@@ -503,9 +473,11 @@ export default function App() {
         );
 
         // If a previous session had unsaved edits (save failed, tab closed),
-        // prefer that local backup — it's strictly newer than what the server
-        // has. Setting state marks it dirty, so the auto-save re-persists it.
-        const rawPendingShows = readPending<Show[]>(PENDING_SHOWS_KEY, currentSession.username)?.data ?? null;
+        // recover edits against their original baseline. Conflicting versions
+        // get separate show IDs so both survive.
+        const showDrafts = pendingStore.readAll<Show[]>(PENDING_SHOWS_KEY, currentSession.username);
+        const rawPendingShows = showDrafts.length ? showDrafts.reduce((current, draft) =>
+          recoverShowDraft(draft.data, current, draft.metadata?.showHashes), autoStatusShows) : null;
         // Same healing as the server rows: a local backup written by an older
         // build can be missing list fields the list renders without checking.
         const pendingShows = rawPendingShows
@@ -521,15 +493,15 @@ export default function App() {
         const healedHeldSettings = heldSettings
           ? stripLegacySettingsMedia(healSettings(heldSettings.data))
           : null;
-        // Too old to apply over the account — but kept, as an earlier version
+        // Based on a different saved version — but kept, as an earlier version
         // on the account, and only let go of this device once it is there.
         let pendingSettings: AppSettings | null = null;
         if (healedHeldSettings && heldSettings) {
-          if (Date.now() - heldSettings.at <= PENDING_SETTINGS_TRUST_MS) {
+          if (heldSettings.metadata?.settingsHash !== undefined && heldSettings.metadata.settingsHash === settingsBaselineHash(currentSession)) {
             pendingSettings = healedHeldSettings;
           } else {
-            void parkSettingsSnapshot(healedHeldSettings, currentSession)
-              .then(() => clearPending(PENDING_SETTINGS_KEY))
+            void parkSettingsSnapshot(heldSettings.data, currentSession)
+              .then(pendingStore.capture(PENDING_SETTINGS_KEY, currentSession.username))
               .catch((err) => console.error('Failed to park held settings:', err));
           }
         }
@@ -563,16 +535,18 @@ export default function App() {
         if (pendingSettings) saveSettings(pendingSettings);
         setLoadError(null);
       } catch (error) {
+        if (cancelled) return;
         console.error('Failed to load shows:', error);
         // Never overwrite in-memory shows on load failure — leave state unchanged
         // so the auto-save effect cannot wipe the database.
         setLoadError("Couldn't load your shows. Check your connection and refresh the page.");
       } finally {
-        setLoadingData(false);
+        if (!cancelled) setLoadingData(false);
       }
     }
 
     loadData();
+    return () => { cancelled = true; };
     // saveSettings is deliberately not a dependency. It is redeclared every
     // render but closes over nothing mutable except `session`, which is this
     // effect's only dependency — so the copy this run calls always agrees with
@@ -617,6 +591,7 @@ export default function App() {
   const [installPromptShown, setInstallPromptShown] = useState(false);
 
   const showSaveConflictRef = useRef(false);
+  const settingsSaveFailedRef = useRef(false);
 
   // Records a confirmed round-trip to the server. Everything the status pill
   // claims about "saved" traces back to this being called.
@@ -624,7 +599,7 @@ export default function App() {
     const at = Date.now();
     setLastSavedAt(at);
     writeLastSync(username, at);
-    if (!showSaveConflictRef.current && latestShowsRef.current === savedShowsRef.current) setSyncState('saved');
+    if (!showSaveConflictRef.current && !settingsSaveFailedRef.current && latestShowsRef.current === savedShowsRef.current) setSyncState('saved');
   }
 
   // A failed save must never be the end of the story: retry as soon as the
@@ -650,22 +625,18 @@ export default function App() {
   // Park every edit on this device as soon as it happens, not only after a
   // save fails. The save is debounced and then takes a round-trip; closing the
   // tab inside that window used to drop the edit on the floor. Writing the
-  // local copy first means the only way to lose work is to lose the device.
+  // local copy first narrows the window before the network confirms the save.
   useEffect(() => {
     if (!session || !dataLoaded.current) return;
-    const currentSession = session;
-    const timeout = setTimeout(() => {
-      writePending(PENDING_SHOWS_KEY, currentSession.username, latestShowsRef.current);
-      setHasLocalCopy(true);
-    }, 400);
-    return () => clearTimeout(timeout);
-  }, [shows, session]);
+    if (latestShowsRef.current === savedShowsRef.current) return;
+    setHasLocalCopy(writePending(PENDING_SHOWS_KEY, session.username, latestShowsRef.current));
+  }, [shows, session, writePending]);
 
   /**
    * Write the local copy the instant the app is put away.
    *
    * Every edit is held in memory for up to a second before anything durable
-   * happens to it: the local backup is on a 400ms timer and the save on a
+   * happens to it: the server save is on a
    * 1000ms debounce, and the save then takes a round trip on top. Close the
    * app inside that window and the edit is gone from everywhere — which is
    * exactly what a phone does. Backgrounding a PWA freezes its timers, and iOS
@@ -684,8 +655,7 @@ export default function App() {
     const currentSession = session;
     function flush() {
       if (!dataLoaded.current || latestShowsRef.current === savedShowsRef.current) return;
-      writePending(PENDING_SHOWS_KEY, currentSession.username, latestShowsRef.current);
-      setHasLocalCopy(true);
+      setHasLocalCopy(writePending(PENDING_SHOWS_KEY, currentSession.username, latestShowsRef.current));
     }
     function onVisibility() {
       if (document.visibilityState === 'hidden') flush();
@@ -697,21 +667,21 @@ export default function App() {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', flush);
     };
-  }, [session]);
+  }, [session, writePending]);
 
   // If work exists only on this device, closing the tab risks it being the
   // only copy — worth one confirm. Deliberately not shown while a normal save
   // is simply in flight: that case is already covered by the local copy above
   // and re-sends itself on the next launch.
   useEffect(() => {
-    if (syncState !== 'retrying' && syncState !== 'offline' && syncState !== 'blocked') return;
+    if (!localBackupFailed && syncState !== 'retrying' && syncState !== 'offline' && syncState !== 'blocked') return;
     function onBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
       e.returnValue = '';
     }
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [syncState]);
+  }, [syncState, localBackupFailed]);
 
   // Save shows when changed
   useEffect(() => {
@@ -733,22 +703,25 @@ export default function App() {
           // always wins and is never lost to an overlapping request.
           let saved: Show[] | null = null;
           while (latestShowsRef.current !== saved) {
+            if (activeSessionRef.current !== currentSession) return;
             saved = latestShowsRef.current;
+            const acknowledge = pendingStore.capture(PENDING_SHOWS_KEY, currentSession.username);
             await saveEncryptedShows(saved, currentSession, unreadableRowsRef.current);
+            acknowledge();
+            if (activeSessionRef.current !== currentSession) return;
           }
           showSaveConflictRef.current = false;
           settledClean = true;
           savedShowsRef.current = saved;
-          clearPending(PENDING_SHOWS_KEY);
           setHasLocalCopy(false);
           retryDelayRef.current = 5000;
-          setSaveError(null);
+          if (!settingsSaveFailedRef.current) setSaveError(null);
           markSynced(currentSession.username);
         } catch (error) {
+          if (activeSessionRef.current !== currentSession) return;
           console.error('Failed to save shows:', error);
           // Park the unsaved data locally so even closing the tab can't lose it.
-          writePending(PENDING_SHOWS_KEY, currentSession.username, latestShowsRef.current);
-          setHasLocalCopy(true);
+          setHasLocalCopy(writePending(PENDING_SHOWS_KEY, currentSession.username, latestShowsRef.current));
           // A too-large payload (client-side guard or a 413 from the server) can
           // never succeed by retrying — the data has to get smaller first. Show
           // an actionable message and skip the backoff loop; the save effect
@@ -793,7 +766,7 @@ export default function App() {
           // Deleting is where that goes from an unsaved edit to a resurrected
           // row: a show only leaves the server when a save actually runs, so a
           // deletion dropped here comes back on the next load.
-          if (settledClean && latestShowsRef.current !== savedShowsRef.current) {
+          if ((settledClean || activeSessionRef.current !== currentSession) && activeSessionRef.current && latestShowsRef.current !== savedShowsRef.current) {
             setSaveRetryTick((t) => t + 1);
           }
         }
@@ -801,7 +774,7 @@ export default function App() {
     }, 1000); // Debounce saves
 
     return () => clearTimeout(timeout);
-  }, [shows, session, saveRetryTick]);
+  }, [shows, session, saveRetryTick, writePending]);
 
   /**
    * Take a freshly entered password and turn it into a stored session.
@@ -914,6 +887,11 @@ export default function App() {
   }
 
   function handleLogout() {
+    if (session && dataLoaded.current) {
+      if (latestShowsRef.current !== savedShowsRef.current) writePending(PENDING_SHOWS_KEY, session.username, latestShowsRef.current);
+    }
+    ++settingsSaveSeqRef.current;
+    activeSessionRef.current = null;
     setSession(null);
     clearSession();
     dataLoaded.current = false;
@@ -933,7 +911,12 @@ export default function App() {
   async function handleDownloadBackup() {
     if (!session) return;
     try {
-      const url = await exportUserData(session, { shows: latestShowsRef.current, unreadable: unreadableRowsRef.current, settings });
+      const url = await exportUserData(session, { shows: latestShowsRef.current, unreadable: unreadableRowsRef.current, settings,
+        recoveryDrafts: [
+          ...pendingStore.list(PENDING_SHOWS_KEY, session.username).map(p => ({ kind: 'shows', at: p.at, data: p.data })),
+          ...pendingStore.list(PENDING_SETTINGS_KEY, session.username).map(p => ({ kind: 'settings', at: p.at, data: p.data })),
+        ],
+      });
       const a = document.createElement('a');
       a.href = url;
       a.download = `showrunner-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -955,6 +938,7 @@ export default function App() {
 
   async function handleCompleteOnboarding(data: { brandName: string; showTypes: string[] }) {
     if (!session) return;
+    const savingSession = session;
     setOnboardingSaving(true);
     // Merge onto whatever loaded for this account so we never clobber existing data.
     const updatedSettings: AppSettings = {
@@ -964,27 +948,40 @@ export default function App() {
       onboarded: true,
     };
     try {
+      writePending(PENDING_SETTINGS_KEY, session.username, updatedSettings);
+      const acknowledge = pendingStore.capture(PENDING_SETTINGS_KEY, session.username);
       await saveEncryptedSettings(updatedSettings, session);
+      acknowledge();
+      if (activeSessionRef.current !== savingSession) return;
       setSettings(updatedSettings);
     } catch (error) {
+      if (activeSessionRef.current !== savingSession) return;
       console.error('Failed to save onboarding:', error);
-      // Mark onboarded locally so a save hiccup doesn't trap the user on this screen.
       setSettings(updatedSettings);
+      saveSettings(updatedSettings);
     } finally {
-      setOnboardingSaving(false);
+      if (activeSessionRef.current === savingSession) setOnboardingSaving(false);
     }
   }
 
   async function handleSaveSettings(updatedSettings: AppSettings) {
     if (!session) return;
+    const savingSession = session;
 
     setSettingsSaving(true);
     try {
+      writePending(PENDING_SETTINGS_KEY, session.username, updatedSettings);
+      const acknowledge = pendingStore.capture(PENDING_SETTINGS_KEY, session.username);
       await saveEncryptedSettings(updatedSettings, session);
+      acknowledge();
+      if (activeSessionRef.current !== savingSession) return;
+      settingsSaveFailedRef.current = false;
+      if (!showSaveConflictRef.current) setSaveError(null);
       setSettings(updatedSettings);
       markSynced(session.username);
       setView('list');
     } catch (error) {
+      if (activeSessionRef.current !== savingSession) return;
       console.error('Failed to save settings:', error);
       // Never make someone retype what they just entered. Keep their edits in
       // the app and hand them to the retrying saver, which backs them up on
@@ -993,7 +990,7 @@ export default function App() {
       saveSettings(updatedSettings);
       setView('list');
     } finally {
-      setSettingsSaving(false);
+      if (activeSessionRef.current === savingSession) setSettingsSaving(false);
     }
   }
 
@@ -1042,7 +1039,7 @@ export default function App() {
 
     const remaining = shows.filter((s) => s.id !== id);
     setShows(remaining);
-    // Written now, synchronously, rather than left to the 400ms local-copy
+    // Written now, synchronously, rather than left to the next local-copy
     // timer and the 1s save debounce.
     //
     // Deleting and then switching away is one gesture on a phone, and
@@ -1200,21 +1197,21 @@ export default function App() {
     // Each call supersedes any still-retrying older one, so a stale snapshot
     // can never land after (and clobber) a newer save.
     const seq = ++settingsSaveSeqRef.current;
+    settingsSaveFailedRef.current = true;
+    setHasLocalCopy(writePending(PENDING_SETTINGS_KEY, currentSession.username, updatedSettings));
+    setSyncState(prev => prev === 'blocked' ? prev : 'saving');
     void (async () => {
       // Retry with backoff until the save lands; back the data up locally in
       // the meantime so a closed tab can't lose it.
       let delay = 5000;
-      let toSave = updatedSettings;
+      const toSave = updatedSettings;
       while (seq === settingsSaveSeqRef.current) {
         try {
+          const acknowledge = pendingStore.capture(PENDING_SETTINGS_KEY, currentSession.username);
           await saveEncryptedSettings(toSave, currentSession);
+          acknowledge();
           if (seq === settingsSaveSeqRef.current) {
-            // If we had to prune trash to fit under the size limit, reflect
-            // that in state so the app matches what actually persisted.
-            if (toSave !== updatedSettings) {
-              setSettings((prev) => ({ ...prev, trash: [] }));
-            }
-            clearPending(PENDING_SETTINGS_KEY);
+            settingsSaveFailedRef.current = false;
             if (!showSaveConflictRef.current) setSaveError(null);
             markSynced(currentSession.username);
           }
@@ -1225,16 +1222,13 @@ export default function App() {
           const tooLarge =
             err instanceof PayloadTooLargeError ||
             (err as { status?: number })?.status === 413;
+          if ((err as { code?: string })?.code === 'save_conflict') {
+            setSyncState('blocked');
+            setSaveError('Settings changed in another tab or device. Your local edits are still here. Download a backup before reviewing the saved version.');
+            return;
+          }
           if (tooLarge) {
-            // Retrying an oversized payload can never succeed — the data has
-            // to shrink. Trash (deleted shows) is the usual culprit and is
-            // droppable, so self-heal by emptying it and retrying once.
-            if ((toSave.trash?.length ?? 0) > 0) {
-              toSave = { ...toSave, trash: [] };
-              continue;
-            }
-            writePending(PENDING_SETTINGS_KEY, currentSession.username, toSave);
-            setHasLocalCopy(true);
+            setHasLocalCopy(writePending(PENDING_SETTINGS_KEY, currentSession.username, toSave));
             setSyncState('blocked');
             setSaveError(
               err instanceof PayloadTooLargeError
@@ -1243,8 +1237,7 @@ export default function App() {
             );
             return;
           }
-          writePending(PENDING_SETTINGS_KEY, currentSession.username, toSave);
-          setHasLocalCopy(true);
+          setHasLocalCopy(writePending(PENDING_SETTINGS_KEY, currentSession.username, toSave));
           // Same as shows: a retry in progress is not an error to shout about.
           setSyncState(navigator.onLine ? 'retrying' : 'offline');
           await new Promise((resolve) => setTimeout(resolve, delay));
@@ -1816,6 +1809,7 @@ export default function App() {
                 </button>
               </div>
             )}
+            {localBackupFailed && <div className="system-notice" role="alert">This browser could not store a backup. Keep this page open and download a backup of your work.</div>}
             {saveError && (
               <div className="system-notice" role="alert">
                 <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />

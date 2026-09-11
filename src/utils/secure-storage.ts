@@ -147,6 +147,11 @@ function decryptShowRows(shows: EncryptedShowRow[], creds: SessionCredentials): 
 
 interface SavedRow { cipher: string; plain?: string }
 const showBaselines = new WeakMap<SessionCredentials, Map<string, SavedRow>>();
+export function showBaselineHashes(creds: SessionCredentials): Record<string, string> {
+  return Object.fromEntries([...showBaselines.get(creds) ?? []].filter(([, row]) => row.plain !== undefined)
+    .map(([id, row]) => [id, CryptoJS.SHA256(row.plain!).toString()]));
+}
+
 const showCipherCache = new WeakMap<Show, { key: string; cipher: string }>();
 
 /** Save only changes against the version this tab actually loaded. */
@@ -194,7 +199,8 @@ export async function saveEncryptedShows(
   }
   if (batch.length) batches.push(batch);
   for (const changes of batches) {
-    await api.put('/api/shows', { changes }, auth(creds));
+    const response = await api.put<{ ok: boolean }>('/api/shows', { changes }, auth(creds));
+    if (response.ok !== true) throw new Error('The server did not confirm the show save.');
     for (const change of changes) {
       const saved = desired.get(change.id);
       if (saved) baseline.set(change.id, saved); else baseline.delete(change.id);
@@ -208,11 +214,11 @@ export async function saveEncryptedShows(
  */
 export async function exportUserData(
   creds: SessionCredentials,
-  local?: LoadedShows & { settings: AppSettings },
+  local?: LoadedShows & { settings: AppSettings; recoveryDrafts?: unknown[] },
 ): Promise<string> {
   const data = local ?? await (async () => {
     const rows = await api.get<{ shows: EncryptedShowRow[] }>("/api/shows", auth(creds));
-    return { ...decryptShowRows(rows.shows, creds), settings: await loadEncryptedSettings(creds) };
+    return { ...decryptShowRows(rows.shows, creds), settings: await loadEncryptedSettings(creds, false) };
   })();
   const { shows, unreadable, settings } = data;
   const payload = JSON.stringify(
@@ -224,6 +230,7 @@ export async function exportUserData(
       // rows out of it is the one place that omission really costs something.
       // The key is absent entirely when there's nothing to report.
       ...(unreadable.length > 0 ? { unreadableShows: unreadable } : {}),
+      ...(local?.recoveryDrafts?.length ? { recoveryDrafts: local.recoveryDrafts } : {}),
       exportedAt: new Date().toISOString(),
     },
     null,
@@ -236,13 +243,21 @@ export async function exportUserData(
 /**
  * Load encrypted settings from the backend.
  */
-export async function loadEncryptedSettings(creds: SessionCredentials): Promise<AppSettings> {
+export async function loadEncryptedSettings(creds: SessionCredentials, trackBaseline = true): Promise<AppSettings> {
   const { encryptedData } = await api.get<{ encryptedData: string | null }>(
     "/api/settings",
     auth(creds),
   );
-  if (!encryptedData) return DEFAULT_SETTINGS;
-  const settings = decryptWithKeys<AppSettings>(encryptedData, readKeys(creds));
+  if (!encryptedData) {
+    if (trackBaseline) settingsBaselines.set(creds, null);
+    return DEFAULT_SETTINGS;
+  }
+  let settings: AppSettings | null = null;
+  try { settings = decryptWithKeys<AppSettings>(encryptedData, readKeys(creds)); } catch { /* Refuse to overwrite unreadable data. */ }
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+    throw new Error('Settings could not be decrypted. The saved copy has not been changed.');
+  }
+  if (trackBaseline) settingsBaselines.set(creds, encryptedData);
   // Migrate old settings format
   return migrateSettings(settings);
 }
@@ -329,21 +344,37 @@ function migrateSettings(settings: LegacySettings): AppSettings {
   return settings as AppSettings;
 }
 
-/**
- * Save encrypted settings to the backend.
- */
-export async function saveEncryptedSettings(
-  settings: AppSettings,
-  creds: SessionCredentials,
-): Promise<void> {
-  const encryptedData = encryptWithKey(settings, creds.key);
-  // Same platform request-size ceiling as shows — never fire a doomed request.
-  if (encryptedData.length > MAX_SAVE_BYTES) {
-    throw new PayloadTooLargeError(
-      "Your settings are too large to save — usually an over-full trash or a large embedded walk-on track. Empty the trash to fix it.",
-    );
-  }
-  await api.put("/api/settings", { encryptedData }, auth(creds));
+const settingsBaselines = new WeakMap<SessionCredentials, string | null>();
+export function settingsBaselineHash(creds: SessionCredentials): string | null | undefined {
+  if (!settingsBaselines.has(creds)) return undefined;
+  const cipher = settingsBaselines.get(creds);
+  return cipher ? CryptoJS.SHA256(cipher).toString() : null;
+}
+const settingsQueues = new WeakMap<SessionCredentials, Promise<void>>();
+const settingsCiphers = new WeakMap<AppSettings, { key: string; cipher: string }>();
+
+/** Serialize this tab's saves; compare against what it actually loaded. */
+export function saveEncryptedSettings(settings: AppSettings, creds: SessionCredentials): Promise<void> {
+  const previous = settingsQueues.get(creds) ?? Promise.resolve();
+  const next = previous.catch(() => {}).then(async () => {
+    if (!settingsBaselines.has(creds)) throw new Error('Load settings before saving.');
+    let held = settingsCiphers.get(settings);
+    if (!held || held.key !== creds.key) {
+      held = { key: creds.key, cipher: encryptWithKey(settings, creds.key) };
+      settingsCiphers.set(settings, held);
+    }
+    const encryptedData = held.cipher;
+    if (encryptedData.length > MAX_SAVE_BYTES) throw new PayloadTooLargeError('Your settings are too large to save. Download a backup before reducing large files. Nothing has been discarded.');
+    const before = settingsBaselines.get(creds)!;
+    if (before === encryptedData) return;
+    const response = await api.put<{ ok: boolean }>('/api/settings', {
+      encryptedData, expectedHash: before === null ? null : CryptoJS.SHA256(before).toString(),
+    }, auth(creds));
+    if (response.ok !== true) throw new Error('The server did not confirm the settings save.');
+    settingsBaselines.set(creds, encryptedData);
+  });
+  settingsQueues.set(creds, next);
+  return next;
 }
 
 /**

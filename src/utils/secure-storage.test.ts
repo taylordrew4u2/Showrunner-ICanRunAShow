@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   exportUserData,
+  loadEncryptedSettings,
+  saveEncryptedSettings,
   loadEncryptedShows,
   saveEncryptedShows,
   type EncryptedShowRow,
@@ -195,5 +197,37 @@ describe('exportUserData', () => {
     await exportUserData(CREDS);
 
     expect(JSON.parse(written[0])).not.toHaveProperty('unreadableShows');
+  });
+});
+
+
+describe('settings save protection', () => {
+  it('will not replace settings that it could not decrypt', async () => {
+    const creds = { ...CREDS };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200,
+      json: async () => ({ encryptedData: 'unreadable' }) }));
+    await expect(loadEncryptedSettings(creds)).rejects.toThrow('could not be decrypted');
+    await expect(saveEncryptedSettings(DEFAULT_SETTINGS, creds)).rejects.toThrow('Load settings');
+  });
+
+  it('queues same-tab saves using the version confirmed by the previous write', async () => {
+    const creds = { ...CREDS };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ encryptedData: null }) }));
+    await loadEncryptedSettings(creds);
+    const bodies = mockPut();
+    await Promise.all([
+      saveEncryptedSettings({ ...DEFAULT_SETTINGS, brandName: 'First' }, creds),
+      saveEncryptedSettings({ ...DEFAULT_SETTINGS, brandName: 'Second' }, creds),
+    ]);
+    expect(bodies[0].expectedHash).toBe(null);
+    expect(bodies[1].expectedHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(bodies).toHaveLength(2);
+  });
+
+  it('refuses a 200 response that does not actually acknowledge the write', async () => {
+    const creds = { ...CREDS };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ encryptedData: null }) }));
+    await loadEncryptedSettings(creds);
+    await expect(saveEncryptedSettings(DEFAULT_SETTINGS, creds)).rejects.toThrow('did not confirm');
   });
 });

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { createClient, type Client } from '@libsql/client';
+import { applySettingsWrite } from '../../api/_lib/settingsWrites';
 import { applyShowChanges, cipherHash } from '../../api/_lib/showWrites';
 
 let db: Client;
@@ -11,6 +12,9 @@ beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'show-save-test-'));
   db = createClient({ url: `file:${join(dir, 'test.db')}` });
   await db.executeMultiple(`
+    CREATE TABLE user_settings (user_id TEXT PRIMARY KEY, encrypted_data TEXT, updated_at TEXT);
+    CREATE TABLE user_settings_backup (user_id TEXT, encrypted_data TEXT,
+      backed_up_at TEXT DEFAULT (datetime('now')), PRIMARY KEY(user_id, backed_up_at));
     CREATE TABLE user_shows (id TEXT PRIMARY KEY, user_id TEXT, encrypted_data TEXT, updated_at TEXT);
     CREATE TABLE user_shows_backup (id TEXT, user_id TEXT, encrypted_data TEXT,
       backed_up_at TEXT DEFAULT (datetime('now')), PRIMARY KEY(id, backed_up_at));
@@ -65,4 +69,22 @@ it('cannot overwrite another account’s row', async () => {
   await put('a', 'private');
   const result = await applyShowChanges(db, 'other', [{ id: 'a', encryptedData: 'changed', expectedHash: await cipherHash('private') }]);
   expect(result.status).toBe(409);
+});
+
+
+it('settings reject stale writes and accept a replay after a lost response', async () => {
+  expect((await applySettingsWrite(db, 'u', 'first', null)).status).toBe(200);
+  expect((await applySettingsWrite(db, 'u', 'first', null)).status).toBe(200);
+  expect((await applySettingsWrite(db, 'u', 'second', await cipherHash('first'))).status).toBe(200);
+  expect((await applySettingsWrite(db, 'u', 'stale', await cipherHash('first'))).status).toBe(409);
+  expect((await applySettingsWrite(db, 'u', 'legacy', undefined)).status).toBe(428);
+  expect((await db.execute('SELECT encrypted_data FROM user_settings')).rows[0][0]).toBe('second');
+});
+
+it('rapid saves retain separate complete earlier versions', async () => {
+  await put('a', 'one');
+  await put('a', 'two', await cipherHash('one'));
+  await put('a', 'three', await cipherHash('two'));
+  const versions = (await db.execute('SELECT encrypted_data FROM user_shows_backup ORDER BY backed_up_at')).rows;
+  expect(versions.map(r => r[0])).toEqual(['one', 'two']);
 });

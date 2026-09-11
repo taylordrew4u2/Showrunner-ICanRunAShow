@@ -114,6 +114,9 @@ export async function installFakeApi(ctx, state) {
         state.settingsSnapshots.push({ at: stamp(), encryptedData: body.encryptedData });
         return ok({ ok: true });
       }
+      if (body.expectedHash === undefined) return err(428, 'client_update_required');
+      const hash = state.settings === null ? null : createHash('sha256').update(state.settings).digest('hex');
+      if (state.settings !== body.encryptedData && hash !== body.expectedHash) return err(409, 'save_conflict');
       if (state.settings) state.settingsSnapshots.push({ at: stamp(), encryptedData: state.settings });
       state.settings = body.encryptedData;
       return ok({ ok: true });
