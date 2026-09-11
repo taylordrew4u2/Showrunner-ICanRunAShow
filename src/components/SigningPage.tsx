@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
 import type { SignatureRecord } from '../types';
 import {
@@ -44,8 +44,6 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [pages, setPages] = useState<RenderedPage[]>([]);
   const [pageCount, setPageCount] = useState(0);
   const [docError, setDocError] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const formHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const [signed, setSigned] = useState<SignatureRecord | null>(null);
   const [typedName, setTypedName] = useState('');
   // Keyed by field id, so editing the contract's questions later cannot
@@ -102,11 +100,6 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
 
   const documentReady = !!docUrl && !docError && pageCount > 0 && pages.length === pageCount;
 
-  useEffect(() => {
-    if (showForm) formHeadingRef.current?.focus({ preventScroll: true });
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [showForm]);
-
   /**
    * Take a photo down to flyer size before it goes anywhere.
    *
@@ -134,7 +127,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   }
 
   async function handleSign() {
-    if (!signKey || !docUrl || !payload || !documentReady || !showForm || phase !== 'ready') return;
+    if (!signKey || !docUrl || !payload || !documentReady || phase !== 'ready') return;
     const name = typedName.trim();
     const missing = missingRequiredFields(payload.fields, values);
     if (!name || !agreed || missing.length > 0) return;
@@ -198,13 +191,11 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
         <span className="signing__from">{payload.fromName}</span>
         <h1 className="signing__title">{payload.contractName}</h1>
         <p className="signing__intro">
-          {phase === 'done' ? 'Your signature has been recorded. Save a copy below.' : showForm
-            ? 'Step 2 of 2: Fill in your details and sign. You can go back to review the contract at any time.'
-            : 'Step 1 of 2: Read the full contract, then continue to your details and signature.'}
+          Read the full contract below. Fill in your details and sign underneath the last page.
         </p>
       </header>
 
-      {!showForm && phase !== 'done' && <main className="signing__main">
+      <main className="signing__main">
         {!docUrl ? (
           <p className="signing__error" role="alert">
             The document could not be loaded, so there is nothing to agree to yet. Reload the page,
@@ -243,7 +234,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             )}
           </div>
         )}
-      </main>}
+      </main>
 
       {phase === 'done' && signed ? (
         <section className="signing__panel signing__panel--done">
@@ -270,20 +261,9 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             link is the only place it lives.
           </p>
         </section>
-      ) : documentReady && !showForm ? (
-        <section className="signing__panel" aria-label="Contract review">
-          <p className="signing__hint">End of contract · {pageCount} {pageCount === 1 ? 'page' : 'pages'}. When you have reviewed it, continue to fill in your details and sign.</p>
-          <button className="btn btn--primary" onClick={() => setShowForm(true)}>
-            Continue to signature
-          </button>
-          <button className="signing__link" onClick={download}>Download the original PDF</button>
-        </section>
-      ) : documentReady && showForm ? (
+      ) : documentReady ? (
         <section className="signing__panel" aria-labelledby="signing-form-title">
-          <button className="btn btn--secondary" onClick={() => setShowForm(false)} disabled={phase === 'signing'}>
-            Back to contract
-          </button>
-          <h2 id="signing-form-title" ref={formHeadingRef} tabIndex={-1}>Your details and signature</h2>
+          <h2 id="signing-form-title">Your details and signature</h2>
           {error && <p className="signing__error" role="alert">{error}</p>}
 
           <label className="signing__field signing__field--name">

@@ -95,32 +95,22 @@ test.describe('contracts', () => {
     );
     await expect(signer.locator('.signing__page img').last()).toBeVisible();
 
-    // Opening the link shows the contract first, with no fields to cover it.
+    // One continuous page: all PDF pages, then the form, with no layered
+    // panel or separate step. Check their real positions throughout scrolling.
     await expect(signer.locator('.signing__page img').first()).toBeInViewport();
-    await expect(signer.locator('.signing__field input')).toHaveCount(0);
-    const continueButton = signer.getByRole('button', { name: 'Continue to signature' });
-    await expect(continueButton).not.toBeInViewport();
-    await continueButton.click();
-    await expect(signer.getByRole('heading', { name: 'Your details and signature' })).toBeFocused();
-
-    // Switching steps brings the form into view, with no PDF in front of it
-    // or a long document left above it. Reviewing again preserves the draft.
-    await expect(signer.getByRole('heading', { name: 'Your details and signature' })).toBeInViewport();
-    await expect(signer.locator('.signing__field--name input')).toBeInViewport();
-    await expect(signer.locator('.signing__page')).toHaveCount(0);
-    await signer.locator('.signing__field--name input').fill('Nadia Okonjo');
-    await signer.getByLabel('Email').fill('nadia@example.com');
-    await signer.locator('.signing__agree input').check();
-    await signer.getByRole('button', { name: 'Back to contract' }).click();
-    await expect(signer.locator('.signing__page img')).toHaveCount(2);
-    await expect(signer.locator('.signing__page img').first()).toBeInViewport();
-    await expect(signer.locator('.signing__field input')).toHaveCount(0);
-    await continueButton.click();
-    await expect(signer.locator('.signing__field--name input')).toBeInViewport();
-    await expect(signer.locator('.signing__field--name input')).toHaveValue('Nadia Okonjo');
-    await expect(signer.getByLabel('Email')).toHaveValue('nadia@example.com');
-    await expect(signer.locator('.signing__agree input')).toBeChecked();
-    await signer.screenshot({ path: testInfo.outputPath('signature-step.png') });
+    await expect(signer.locator('.signing__field--name input')).not.toBeInViewport();
+    await expect(signer.getByRole('button', { name: 'Continue to signature' })).toHaveCount(0);
+    const assertStacked = async () => {
+      const lastPage = (await signer.locator('.signing__page').last().boundingBox())!;
+      const panel = (await signer.locator('.signing__panel').boundingBox())!;
+      expect(panel.y).toBeGreaterThanOrEqual(lastPage.y + lastPage.height);
+    };
+    await assertStacked();
+    await signer.locator('.signing__page').last().scrollIntoViewIfNeeded();
+    await assertStacked();
+    await signer.getByRole('heading', { name: 'Your details and signature' }).scrollIntoViewIfNeeded();
+    await assertStacked();
+    await signer.screenshot({ path: testInfo.outputPath('stacked-contract.png'), fullPage: true });
 
     // A PDF that cannot render must never reveal fields or a signing action.
     const broken = await signerContext.newPage();
@@ -139,7 +129,8 @@ test.describe('contracts', () => {
     await signer.locator('.signing__agree input').check();
     await signer.locator('.signing__cta').click();
     await expect(signer.locator('.signing__panel--done')).toContainText('Signed');
-    await expect(signer.locator('.signing__page')).toHaveCount(0);
+    await expect(signer.locator('.signing__page')).toHaveCount(2);
+    await assertStacked();
 
     // Reopening cannot re-sign: the row is spent.
     const replay = await signerContext.newPage();
