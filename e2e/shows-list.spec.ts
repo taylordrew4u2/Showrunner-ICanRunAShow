@@ -44,3 +44,24 @@ test.describe('the shows list', () => {
     await expect(page.locator('.dash-panel--attention')).toBeVisible();
   });
 });
+
+/**
+ * A rolodex you cannot read the names in is not a rolodex. On a phone the
+ * row's name block was the only thing allowed to shrink, so "Ask for details"
+ * and "Edit" squeezed it to nothing: four contacts rendered as the letters
+ * D, P, M and N with no names at all.
+ */
+test('a Rolodex row shows the name at any width', async ({ page, context }) => {
+  await installFakeApi(context, emptyState());
+  await signUpAndOnboard(page);
+  await gotoTab(page, 'Rolodex');
+  await page.locator('.rolodex__input').first().fill('Priya Raghunathan');
+  await page.locator('button').filter({ hasText: /^Add$/ }).first().click();
+
+  const name = page.locator('.rolodex__name');
+  await expect(name).toHaveText('Priya Raghunathan');
+  // Not merely present — actually wide enough to read, beside a button that
+  // is still its full self.
+  expect((await name.boundingBox())!.width).toBeGreaterThan(120);
+  await expect(page.locator('button:has-text("Ask for details")')).toBeVisible();
+});

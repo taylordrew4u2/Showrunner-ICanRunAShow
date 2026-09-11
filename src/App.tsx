@@ -2201,7 +2201,7 @@ export default function App() {
                     />
                   )}
                   <button
-                    className="btn btn--secondary"
+                    className="btn btn--secondary rolodex__add"
                     type="submit"
                     disabled={!newComicName.trim()}
                   >
