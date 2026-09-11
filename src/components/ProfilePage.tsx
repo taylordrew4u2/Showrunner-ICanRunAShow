@@ -1,3 +1,4 @@
+import { clarifyIntroductionCredits } from '../utils/introductionCredits';
 import { useEffect, useState } from 'react';
 import type { ProfileSubmission } from '../types';
 import { collectFieldAnswers, missingRequiredFields } from '../utils/contracts';
@@ -195,7 +196,7 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
               />
             </label>
 
-            {payload.fields.map((f) => (
+            {payload.fields.map(clarifyIntroductionCredits).map((f) => (
               <label className="signing__field" key={f.id}>
                 <span>
                   {f.label}

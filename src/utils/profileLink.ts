@@ -1,3 +1,4 @@
+import { INTRODUCTION_CREDITS_LABEL, INTRODUCTION_CREDITS_PLACEHOLDER } from './introductionCredits';
 import type { ContractField, ProfileRequest, ProfileSubmission } from '../types';
 import { api } from './api';
 import { generateSignKey, generateSignToken, splitIntoChunks } from './contracts';
@@ -54,8 +55,8 @@ export function profileFields(): ContractField[] {
     { id: 'social', label: 'Instagram or main social', placeholder: '@handle or a link' },
     {
       id: 'credits',
-      label: 'How to credit you',
-      placeholder: 'The line the host reads — credits, pronouns, anything',
+      label: INTRODUCTION_CREDITS_LABEL,
+      placeholder: INTRODUCTION_CREDITS_PLACEHOLDER,
       multiline: true,
     },
     { id: 'walkon', label: 'Walk-on song', placeholder: 'Title — artist' },
