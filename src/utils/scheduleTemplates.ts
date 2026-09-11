@@ -9,7 +9,7 @@
  */
 import type { ScheduleItem, ScheduleTemplateItem } from '../types';
 import { parseClockToMinutes } from './showTiming';
-import { clockLabel } from './showTimeline';
+import { timeLabelFor } from './elapsed';
 
 /**
  * Set each cue's time by running the lengths forward from the first cue.
@@ -21,6 +21,10 @@ import { clockLabel } from './showTimeline';
 export function timesFromLengths(items: ScheduleItem[]): ScheduleItem[] {
   let clock = parseClockToMinutes(items[0]?.time);
   if (clock == null) return items;
+  // Re-timing writes the sheet back in the units it is already written in: a
+  // running order counting from 0:00 stays counting from 0:00 rather than
+  // becoming a row of times just after midnight.
+  const label = timeLabelFor(items);
   return items.map((item, i) => {
     if (i === 0) return item;
     const prevLength = items[i - 1]?.durationMin;
@@ -28,10 +32,10 @@ export function timesFromLengths(items: ScheduleItem[]): ScheduleItem[] {
       clock = null;
       return item;
     }
-    // clockLabel wraps past midnight, so a late show reads 12:10 AM rather
-    // than a 25th hour.
+    // The clock formatter wraps past midnight, so a late show reads 12:10 AM
+    // rather than a 25th hour.
     clock += prevLength;
-    return { ...item, time: clockLabel(clock) };
+    return { ...item, time: label(clock) };
   });
 }
 

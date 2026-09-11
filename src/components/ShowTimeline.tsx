@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ScheduleItem } from '../types';
-import { buildTimeline, segmentLength, billBalance, clockLabel } from '../utils/showTimeline';
+import { buildTimeline, segmentLength, billBalance } from '../utils/showTimeline';
+import { clockLabel, elapsedLabel } from '../utils/elapsed';
 import './ShowTimeline.css';
 
 interface ShowTimelineProps {
@@ -22,7 +23,7 @@ export function ShowTimeline({ schedule, showTime }: ShowTimelineProps) {
   const timeline = buildTimeline(schedule, showTime);
   if (!timeline) return null;
 
-  const { segments, totalSec, startMinutes, endMinutes, longestId } = timeline;
+  const { segments, totalSec, startMinutes, endMinutes, longestId, elapsed } = timeline;
   const balance = billBalance(segments);
   const setCount = segments.filter((s) => s.kind === 'set').length;
   const open = segments.find((s) => s.id === openId) ?? null;
@@ -35,9 +36,13 @@ export function ShowTimeline({ schedule, showTime }: ShowTimelineProps) {
       <div className="timeline__head">
         <h3 className="timeline__heading" id="timeline-heading">Shape of the night</h3>
         <p className="timeline__totals">
+          {/* A sheet counting from zero has no wall clock to report, so it
+              reports the span instead: 0:00 – 1:27. Printing clock times for
+              it would read as a show that runs from midnight. */}
           {startMinutes != null && endMinutes != null && (
             <span className="timeline__totals-clock">
-              {clockLabel(startMinutes)} – {clockLabel(endMinutes)}
+              {elapsed ? elapsedLabel(startMinutes) : clockLabel(startMinutes)} –{' '}
+              {elapsed ? elapsedLabel(endMinutes) : clockLabel(endMinutes)}
             </span>
           )}
           <span>{segmentLength(totalSec)}</span>

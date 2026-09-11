@@ -10,8 +10,7 @@
  */
 
 import { generateId } from './id';
-import { parseClockToMinutes } from './showTiming';
-import { clockLabel } from './showTimeline';
+import { elapsedLabel } from './elapsed';
 import type { Performer, ScheduleItem } from '../types';
 
 /** One booked act, and how long they have. */
@@ -24,12 +23,10 @@ export interface ScheduleAct {
 }
 
 export interface GenerateScheduleOptions {
-  /** When the first thing happens on stage, however `Show.time` holds it. */
-  startTime: string;
   acts: ScheduleAct[];
   /** Who is running the night. Without one, no handover cues are written. */
   hostName?: string;
-  /** How long the room is open *before* `startTime`. */
+  /** How long the room is open before the first thing on stage. */
   doorsMin?: number;
   /** The host's opening, which carries the first act's introduction. */
   welcomeMin?: number;
@@ -54,15 +51,15 @@ const DEFAULTS = {
 };
 
 /**
- * The cue list for a night, timed from doors.
+ * The cue list for a night, timed from the top of the sheet.
  *
- * Returns an empty list rather than guessing when the start time is unreadable —
- * a schedule hung off the wrong hour is worse than no schedule.
+ * 0:00 is whenever you start running it — doors, when there are doors. Not a
+ * wall-clock time: shows do not start when the poster says, and from the
+ * moment the first one slips, a sheet of clock times is wrong on every row for
+ * the rest of the night. How far into the show a cue lands is the one number
+ * that stays true, and it is the number people already speak in.
  */
 export function generateSchedule(options: GenerateScheduleOptions): ScheduleItem[] {
-  const start = parseClockToMinutes(options.startTime);
-  if (start === null) return [];
-
   const doorsMin = options.doorsMin ?? DEFAULTS.doorsMin;
   const welcomeMin = options.welcomeMin ?? DEFAULTS.welcomeMin;
   const introMin = options.introMin ?? DEFAULTS.introMin;
@@ -72,12 +69,7 @@ export function generateSchedule(options: GenerateScheduleOptions): ScheduleItem
   const host = options.hostName?.trim();
 
   const items: ScheduleItem[] = [];
-  // Doors run up to the start time, not from it. A show billed at 8 with
-  // thirty minutes of doors opens the room at 7:30 and starts at 8 — it does
-  // not start at 8:35. Timing doors forward from the billed time quietly moved
-  // every act half an hour later than the poster said, which is the one number
-  // an audience actually holds you to.
-  let cursor = start - doorsMin;
+  let cursor = 0;
 
   const push = (
     description: string,
@@ -88,7 +80,7 @@ export function generateSchedule(options: GenerateScheduleOptions): ScheduleItem
     if (durationMin <= 0) return;
     items.push({
       id: generateId(),
-      time: clockLabel(cursor),
+      time: elapsedLabel(cursor),
       description,
       durationMin,
       ...(performer ? { performer } : {}),
@@ -128,15 +120,6 @@ export function generateSchedule(options: GenerateScheduleOptions): ScheduleItem
 /** How long the whole night runs, in minutes. */
 export function scheduleRuntime(items: ScheduleItem[]): number {
   return items.reduce((total, item) => total + (item.durationMin ?? 0), 0);
-}
-
-/** When the last cue ends, as "HH:MM". Empty when the start is unreadable. */
-export function scheduleEndTime(startTime: string, items: ScheduleItem[]): string {
-  // From the top of the sheet, which is doors when there are doors — not from
-  // the billed start time, or the night reads half an hour longer than it is.
-  const first = parseClockToMinutes(items[0]?.time) ?? parseClockToMinutes(startTime);
-  if (first === null) return '';
-  return clockLabel(first + scheduleRuntime(items));
 }
 
 /**

@@ -676,7 +676,6 @@ export function ShowDetail({
         showTime={show.time}
         performers={show.performers}
         host={show.host}
-        onSetShowTime={(time) => handleUpdate({ time })}
         knownNames={knownNames}
         unbookedComics={unbookedComics}
         onBookPerformer={bookFromRolodex}

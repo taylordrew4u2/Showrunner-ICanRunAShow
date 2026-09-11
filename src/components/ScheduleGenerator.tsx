@@ -3,11 +3,9 @@ import type { Performer, ScheduleItem } from '../types';
 import {
   generateSchedule,
   handoverRuntime,
-  scheduleEndTime,
   scheduleRuntime,
   type ScheduleAct,
 } from '../utils/generateSchedule';
-import { readShowStart } from '../utils/readShowStart';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
 import './ScheduleGenerator.css';
@@ -15,16 +13,9 @@ import './ScheduleGenerator.css';
 interface ScheduleGeneratorProps {
   performers: Performer[];
   host?: string;
-  /** The show's start time, however it was typed: "8:00 PM", "20:00", "8pm". */
-  showTime?: string;
   /** How many cues the show already has, so a replace can warn first. */
   existingCount: number;
-  /**
-   * Hands back the cues and the start time they were timed from. The time can
-   * differ from the show's: it is editable here, because being sent to another
-   * section to set it was the step that ended the job.
-   */
-  onApply: (items: ScheduleItem[], startTime: string) => void;
+  onApply: (items: ScheduleItem[]) => void;
   onClose: () => void;
 }
 
@@ -54,14 +45,11 @@ const SET_CHOICES = [5, 8, 10, 15];
 export function ScheduleGenerator({
   performers,
   host,
-  showTime,
   existingCount,
   onApply,
   onClose,
 }: ScheduleGeneratorProps) {
-  const [startTime, setStartTime] = useState(showTime ?? '');
-  /** Null until the doors chips are touched: the typed time gets first say. */
-  const [doorsChoice, setDoorsChoice] = useState<number | null>(null);
+  const [doorsMin, setDoorsMin] = useState(30);
   const [introMin, setIntroMin] = useState(1);
   const [setMin, setSetMin] = useState(10);
   const [withIntermission, setWithIntermission] = useState(performers.length >= 4);
@@ -100,18 +88,9 @@ export function ScheduleGenerator({
     [ordered, lengths, setMin],
   );
 
-  // Read rather than validated. A run sheet says "Doors 8:30 Show 9", and the
-  // field used to reject exactly that — the most natural thing to type was the
-  // one thing that stopped the job.
-  const read = useMemo(() => readShowStart(startTime), [startTime]);
-  // Doors written into the time is doors stated; the chips override it once
-  // they are touched, and default to half an hour when nothing said otherwise.
-  const doorsMin = doorsChoice ?? read?.doorsMin ?? 30;
-
   const items = useMemo(
     () =>
       generateSchedule({
-        startTime: read?.label ?? '',
         acts,
         hostName: host,
         doorsMin,
@@ -119,7 +98,7 @@ export function ScheduleGenerator({
         defaultSetMin: setMin,
         intermissionAfter: withIntermission ? Math.ceil(acts.length / 2) : 0,
       }),
-    [read, acts, host, doorsMin, introMin, setMin, withIntermission],
+    [acts, host, doorsMin, introMin, setMin, withIntermission],
   );
 
   /** Where each act sits in the order, so a preview row knows it can be moved. */
@@ -131,21 +110,7 @@ export function ScheduleGenerator({
 
   const runtime = scheduleRuntime(items);
   const handover = handoverRuntime(items);
-  const endsAt = scheduleEndTime(read?.label ?? '', items);
-  const startReadable = read !== null;
-  const canApply = startReadable && items.length > 0;
-
-  // Whatever was typed, the show is stored as a time the rest of the app can
-  // read — otherwise the run sheet says 9pm and everything built from the show
-  // time afterwards is built from a string nothing can parse.
-  const applyTime = read?.label ?? startTime;
-
-  // Doors the text stated, kept beside the usual choices so a 45-minute gap
-  // does not vanish the moment the chips are drawn.
-  const doorsChoices = useMemo(
-    () => Array.from(new Set([...DOORS_CHOICES, doorsMin])).sort((a, b) => a - b),
-    [doorsMin],
-  );
+  const canApply = items.length > 0;
 
   function moveAct(index: number, dir: -1 | 1) {
     const ids = ordered.map((person) => person.id);
@@ -207,53 +172,15 @@ export function ScheduleGenerator({
             )}
 
             <div className="gen__controls">
-              {/* Editable here rather than on another section. A show with no
-                  readable start time used to stop the generator dead and send
-                  the producer away to set it — which is where the job ended. */}
-              <div className="gen__control gen__control--start">
-                <label className="gen__control-label" htmlFor="gen-start-time">
-                  Show starts
-                </label>
-                <input
-                  id="gen-start-time"
-                  className="gen__time gen__time--wide"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  placeholder="Doors 8:30, show 9"
-                  autoFocus={!startReadable}
-                />
-                {/* Read back, not validated. The line is understood however it
-                    was written, and what was understood is on screen — so an
-                    inference that went the wrong way is visible and one edit
-                    from being right, rather than a schedule quietly hung off
-                    the wrong hour. */}
-                {read ? (
-                  <p className="gen__hint gen__hint--read">
-                    <Icon name="check" size={13} aria-hidden />
-                    <span>
-                      Reading that as {read.doorsLabel ? <>doors <strong>{read.doorsLabel}</strong>, </> : null}
-                      show <strong>{read.label}</strong>
-                      {read.assumedEvening ? ' — evening, not morning' : ''}.
-                    </span>
-                  </p>
-                ) : (
-                  <p className="gen__hint">
-                    Write it however you write it — <strong>9pm</strong>,{' '}
-                    <strong>Doors 8:30 show 9</strong>, <strong>21:00</strong>. Every cue below
-                    hangs off it.
-                  </p>
-                )}
-              </div>
-
               <div className="gen__control">
-                <span className="gen__control-label">Doors — house music first</span>
+                <span className="gen__control-label">Doors — house music from 0:00</span>
                 <div className="gen__choices">
-                  {doorsChoices.map((value) => (
+                  {DOORS_CHOICES.map((value) => (
                     <button
                       key={value}
                       type="button"
                       className={`gen__choice${doorsMin === value ? ' gen__choice--on' : ''}`}
-                      onClick={() => setDoorsChoice(value)}
+                      onClick={() => setDoorsMin(value)}
                     >
                       {value === 0 ? 'None' : `${value} min`}
                     </button>
@@ -309,14 +236,13 @@ export function ScheduleGenerator({
               </label>
             </div>
 
-            {startReadable ? (
-              <>
+            <>
                 {/* The preview is the editor. Every act row carries its own
                     minutes and its place in the order, so the running order is
                     changed where it is read — rather than applied, found wrong,
                     and then fixed a cue at a time in the list underneath. */}
                 <p className="gen__nudge">
-                  Move an act or change its minutes right here — the clock times follow.
+                  Move an act or change its minutes right here — the running times follow.
                 </p>
 
                 <ol className="gen__cues">
@@ -389,10 +315,6 @@ export function ScheduleGenerator({
                     <span className="gen__total-label">Runs</span>
                     <span className="gen__total-value">{runtime} min</span>
                   </div>
-                  <div className="gen__total">
-                    <span className="gen__total-label">Ends</span>
-                    <span className="gen__total-value">{endsAt}</span>
-                  </div>
                   {host && (
                     <div className="gen__total gen__total--note">
                       <span className="gen__total-label">Your handovers</span>
@@ -400,12 +322,7 @@ export function ScheduleGenerator({
                     </div>
                   )}
                 </div>
-              </>
-            ) : (
-              <p className="gen__empty">
-                The running order appears as soon as there is a start time to hang it off.
-              </p>
-            )}
+            </>
 
             {existingCount > 0 && (
               <p className="gen__warn">
@@ -424,7 +341,7 @@ export function ScheduleGenerator({
           <button
             className="btn btn--primary"
             disabled={!canApply}
-            onClick={() => onApply(items, applyTime)}
+            onClick={() => onApply(items)}
           >
             {existingCount > 0 ? 'Replace the running order' : 'Use this running order'}
           </button>

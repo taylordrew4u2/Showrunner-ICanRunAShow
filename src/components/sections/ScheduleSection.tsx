@@ -47,14 +47,6 @@ interface ScheduleSectionProps {
    * walk-on.
    */
   knownNames?: string[];
-  /**
-   * Set the show's start time.
-   *
-   * The generator lets a producer type it there, because a show with no
-   * readable time used to stop the generator dead and send them to Basic Info
-   * to set it — and that is where making a running order ended.
-   */
-  onSetShowTime?: (time: string) => void;
   /** Everyone on file who isn't on this show's bill yet. */
   unbookedComics?: PotentialComic[];
   /**
@@ -405,7 +397,6 @@ export function ScheduleSection({
   showTime,
   performers = [],
   host,
-  onSetShowTime,
   knownNames = [],
   unbookedComics = [],
   onBookPerformer,
@@ -529,13 +520,7 @@ export function ScheduleSection({
 
   /** A generated order replaces the list wholesale, so it lands as one undo-able
    *  decision rather than cues appended onto cues. */
-  function handleApplyGenerated(items: ScheduleItem[], startTime: string) {
-    // The cues are timed from whatever the generator was showing, so the show
-    // has to agree with them — otherwise the run sheet says 8pm and the show
-    // page still says nothing, and the next thing built from the show time is
-    // built from the wrong one.
-    const trimmed = startTime.trim();
-    if (trimmed && trimmed !== (showTime ?? '').trim()) onSetShowTime?.(trimmed);
+  function handleApplyGenerated(items: ScheduleItem[]) {
     onChange(withMatchedPerformers(items, knownNames));
     setGeneratorOpen(false);
     setMode('build');
@@ -749,7 +734,6 @@ export function ScheduleSection({
         <ScheduleGenerator
           performers={performers}
           host={host}
-          showTime={showTime}
           existingCount={schedule.length}
           onApply={handleApplyGenerated}
           onClose={() => setGeneratorOpen(false)}
