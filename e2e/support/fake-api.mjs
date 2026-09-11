@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 /**
  * An in-memory stand-in for the edge API.
  *
@@ -84,12 +85,18 @@ export async function installFakeApi(ctx, state) {
         return ok({ shows: snap.shows });
       }
       if (method === 'GET') return ok({ shows: state.shows });
-      // The real route copies the rows aside before a full replace, and
-      // before the first chunk of a chunked one.
-      if ((body.snapshot || !body.partial) && state.shows.length > 0) {
-        state.showSnapshots.push({ at: stamp(), shows: [...state.shows] });
+      if (!Array.isArray(body.changes)) return err(428, 'client_update_required');
+      for (const c of body.changes) {
+        const current = state.shows.find(s => s.id === c.id)?.encryptedData ?? null;
+        if (current === c.encryptedData) continue;
+        const hash = current === null ? null : createHash('sha256').update(current).digest('hex');
+        if (hash !== c.expectedHash) return err(409, 'save_conflict');
       }
-      if (Array.isArray(body.shows)) state.shows = body.shows;
+      if (state.shows.length) state.showSnapshots.push({ at: stamp(), shows: [...state.shows] });
+      for (const c of body.changes) {
+        state.shows = state.shows.filter(s => s.id !== c.id);
+        if (c.encryptedData !== null) state.shows.push({ id: c.id, encryptedData: c.encryptedData });
+      }
       return ok({ ok: true });
     }
 

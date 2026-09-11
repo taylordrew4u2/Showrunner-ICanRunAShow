@@ -616,13 +616,15 @@ export default function App() {
   // that, two are not — so the backup nudge waits its turn.
   const [installPromptShown, setInstallPromptShown] = useState(false);
 
+  const showSaveConflictRef = useRef(false);
+
   // Records a confirmed round-trip to the server. Everything the status pill
   // claims about "saved" traces back to this being called.
   function markSynced(username: string) {
     const at = Date.now();
     setLastSavedAt(at);
     writeLastSync(username, at);
-    setSyncState('saved');
+    if (!showSaveConflictRef.current && latestShowsRef.current === savedShowsRef.current) setSyncState('saved');
   }
 
   // A failed save must never be the end of the story: retry as soon as the
@@ -720,7 +722,7 @@ export default function App() {
       // A save is already running; it will pick up the latest shows before it
       // finishes, so we don't need to start a second one. This pass is spent
       // either way — see the re-check once that save settles.
-      if (savingRef.current) return;
+      if (savingRef.current || latestShowsRef.current === savedShowsRef.current) return;
 
       void (async () => {
         savingRef.current = true;
@@ -734,6 +736,7 @@ export default function App() {
             saved = latestShowsRef.current;
             await saveEncryptedShows(saved, currentSession, unreadableRowsRef.current);
           }
+          showSaveConflictRef.current = false;
           settledClean = true;
           savedShowsRef.current = saved;
           clearPending(PENDING_SHOWS_KEY);
@@ -750,6 +753,12 @@ export default function App() {
           // never succeed by retrying — the data has to get smaller first. Show
           // an actionable message and skip the backoff loop; the save effect
           // re-runs on its own when the user trims a file, so it recovers then.
+          if ((error as { code?: string })?.code === 'save_conflict') {
+            showSaveConflictRef.current = true;
+            setSyncState('blocked');
+            setSaveError('This show changed in another tab or device. Your edits are kept here; the newer saved version has not been overwritten. Download a backup before reloading to reconcile the two versions.');
+            return;
+          }
           const tooLarge =
             error instanceof PayloadTooLargeError ||
             (error as { status?: number })?.status === 413;
@@ -924,7 +933,7 @@ export default function App() {
   async function handleDownloadBackup() {
     if (!session) return;
     try {
-      const url = await exportUserData(session);
+      const url = await exportUserData(session, { shows: latestShowsRef.current, unreadable: unreadableRowsRef.current, settings });
       const a = document.createElement('a');
       a.href = url;
       a.download = `showrunner-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1206,7 +1215,7 @@ export default function App() {
               setSettings((prev) => ({ ...prev, trash: [] }));
             }
             clearPending(PENDING_SETTINGS_KEY);
-            setSaveError(null);
+            if (!showSaveConflictRef.current) setSaveError(null);
             markSynced(currentSession.username);
           }
           return;
@@ -1813,8 +1822,7 @@ export default function App() {
                 <div className="system-notice__body">
                   <span className="system-notice__text">{saveError}</span>
                   <span className="system-notice__reassurance">
-                    Everything you'd already saved is untouched, and this change is held on this
-                    device until it fits.
+                    Download a backup to keep a separate copy of your current work.
                   </span>
                 </div>
                 <button

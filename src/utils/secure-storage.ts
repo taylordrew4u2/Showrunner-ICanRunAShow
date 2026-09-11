@@ -1,3 +1,4 @@
+import CryptoJS from "crypto-js";
 import type { Show, AppSettings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 import { encryptWithKey, decryptWithKeys, deriveUserId, hashPassword } from "./encryption";
@@ -113,7 +114,12 @@ export interface LoadedShows {
  */
 export async function loadEncryptedShows(creds: SessionCredentials): Promise<LoadedShows> {
   const { shows } = await api.get<{ shows: EncryptedShowRow[] }>("/api/shows", auth(creds));
-  return decryptShowRows(shows, creds);
+  const loaded = decryptShowRows(shows, creds);
+  const readable = new Map(loaded.shows.map(show => [show.id, JSON.stringify(show)]));
+  showBaselines.set(creds, new Map(shows.map(row => [row.id, {
+    cipher: row.encryptedData, plain: readable.get(row.id),
+  }])));
+  return loaded;
 }
 
 function decryptShowRows(shows: EncryptedShowRow[], creds: SessionCredentials): LoadedShows {
@@ -139,109 +145,76 @@ function decryptShowRows(shows: EncryptedShowRow[], creds: SessionCredentials): 
   return { shows: readable, unreadable };
 }
 
-/**
- * Per-show ciphertext cache. AES over a show with embedded media is expensive
- * and runs on the main thread, so we avoid re-encrypting shows that haven't
- * changed. The app updates state immutably, so an unchanged show keeps the same
- * object reference and hits this cache; only edited shows are re-encrypted.
- * A WeakMap lets dropped shows be garbage-collected automatically.
- */
+interface SavedRow { cipher: string; plain?: string }
+const showBaselines = new WeakMap<SessionCredentials, Map<string, SavedRow>>();
 const showCipherCache = new WeakMap<Show, { key: string; cipher: string }>();
 
-/**
- * Encrypt shows client-side and save them. The server handles backup + verify
- * and refuses to wipe existing data with an empty array.
- */
+/** Save only changes against the version this tab actually loaded. */
 export async function saveEncryptedShows(
-  shows: Show[],
-  creds: SessionCredentials,
-  /**
-   * Rows loadEncryptedShows couldn't decrypt. Every save replaces the whole
-   * set, so these have to be written back verbatim — otherwise a row this
-   * device merely failed to *read* gets deleted the moment anything else is
-   * edited. Untouched ciphertext in, untouched ciphertext out.
-   */
-  unreadable: EncryptedShowRow[] = [],
+  shows: Show[], creds: SessionCredentials, unreadable: EncryptedShowRow[] = [],
 ): Promise<void> {
-  const key = creds.key;
-  const encrypted = shows.map((show) => {
-    const cached = showCipherCache.get(show);
-    if (cached && cached.key === key) {
-      return { id: show.id, encryptedData: cached.cipher };
+  const baseline = showBaselines.get(creds);
+  if (!baseline) throw new Error('Load the account before saving shows.');
+  const desired = new Map<string, SavedRow>();
+  for (const show of shows) {
+    const plain = JSON.stringify(show);
+    const previous = baseline.get(show.id);
+    if (previous?.plain === plain) { desired.set(show.id, previous); continue; }
+    let cached = showCipherCache.get(show);
+    if (!cached || cached.key !== creds.key) {
+      cached = { key: creds.key, cipher: encryptWithKey(show, creds.key) };
+      showCipherCache.set(show, cached);
     }
-    const cipher = encryptWithKey(show, key);
-    showCipherCache.set(show, { key, cipher });
-    return { id: show.id, encryptedData: cipher };
-  });
-  // A row that has since become readable (and is now in `shows`) wins over the
-  // carried copy, so an id can never appear twice — the id column is a primary
-  // key, and a duplicate would fail the whole write.
-  const known = new Set(shows.map((show) => show.id));
-  const carried = unreadable.filter((row) => !known.has(row.id));
-  const payload = [...encrypted, ...carried];
-  // An empty list is a deliberate "delete everything" from the app (saves only
-  // run after the initial load), so tell the server it's intentional — without
-  // the flag it refuses empty saves as a safety net against bugs. Carried rows
-  // count: with one of those still to write, this isn't an empty save.
-  const deleteAll = payload.length === 0;
-  const a = auth(creds);
-  const body = JSON.stringify({ shows: payload, deleteAll });
-  if (body.length <= MAX_SAVE_BYTES) {
-    await api.put("/api/shows", { shows: payload, deleteAll }, a);
-    return;
+    desired.set(show.id, { cipher: cached.cipher, plain });
   }
-
-  // The whole set doesn't fit in one request, so sync in chunks — the request
-  // ceiling then applies per show rather than to the entire account.
-  const ENVELOPE = 4000; // JSON wrapper + headers margin per request
-  const perRequestLimit = MAX_SAVE_BYTES - ENVELOPE;
-
-  // A single show that can't fit even alone can never sync — tell the user
-  // exactly which files inside it are the problem.
-  const oversized = payload.filter((row) => row.encryptedData.length > perRequestLimit);
-  if (oversized.length > 0) {
-    const details = oversized.map((row) => {
-      const show = shows.find((s) => s.id === row.id);
-      if (!show) return "a show this device couldn't open";
-      const files = describeLargestMedia(show);
-      return `"${show.name}"${files ? ` — biggest files: ${files}` : ""}`;
-    });
-    throw new PayloadTooLargeError(
-      `One of your shows is too large to save even by itself: ${details.join("; ")}. Remove or shrink those walk-on tracks.`,
-    );
+  for (const row of unreadable) {
+    if (!desired.has(row.id)) desired.set(row.id, { cipher: row.encryptedData });
   }
-
-  // Greedy-pack rows into batches under the per-request ceiling.
-  const batches: typeof payload[] = [];
-  let current: typeof payload = [];
-  let size = 0;
-  for (const row of payload) {
-    const rowSize = row.encryptedData.length + row.id.length + 64;
-    if (current.length > 0 && size + rowSize > perRequestLimit) {
-      batches.push(current);
-      current = [];
-      size = 0;
+  const changes = [];
+  for (const id of new Set([...baseline.keys(), ...desired.keys()])) {
+    const previous = baseline.get(id);
+    const next = desired.get(id);
+    if (previous?.cipher === next?.cipher) continue;
+    changes.push({ id, expectedHash: previous ? CryptoJS.SHA256(previous.cipher).toString() : null,
+      encryptedData: next?.cipher ?? null });
+  }
+  // Independent batches only touch named rows; there is no destructive final
+  // "prune everything missing" request. A failed batch can be safely retried.
+  let batch: typeof changes = [];
+  let bytes = 32;
+  const batches: (typeof changes)[] = [];
+  for (const change of changes) {
+    const size = new TextEncoder().encode(JSON.stringify(change)).length + 1;
+    if (size + 32 > MAX_SAVE_BYTES) {
+      const show = shows.find(s => s.id === change.id);
+      throw new PayloadTooLargeError(`One show is too large to save: ${show?.name ?? change.id}. ${show ? describeLargestMedia(show) : ''}`);
     }
-    current.push(row);
-    size += rowSize;
+    if (bytes + size > MAX_SAVE_BYTES) { batches.push(batch); batch = []; bytes = 32; }
+    batch.push(change); bytes += size;
   }
-  if (current.length > 0) batches.push(current);
-
-  // Upsert each batch (the server snapshots a backup before the first), then
-  // prune deletions and verify completeness in a final request.
-  for (let i = 0; i < batches.length; i++) {
-    await api.put("/api/shows", { partial: true, snapshot: i === 0, shows: batches[i] }, a);
+  if (batch.length) batches.push(batch);
+  for (const changes of batches) {
+    await api.put('/api/shows', { changes }, auth(creds));
+    for (const change of changes) {
+      const saved = desired.get(change.id);
+      if (saved) baseline.set(change.id, saved); else baseline.delete(change.id);
+    }
   }
-  await api.put("/api/shows", { partial: true, keepIds: payload.map((row) => row.id) }, a);
 }
 
 /**
  * Export all user data as a downloadable JSON blob (unencrypted).
  * Returns a Blob URL the caller can use for a download link.
  */
-export async function exportUserData(creds: SessionCredentials): Promise<string> {
-  const { shows, unreadable } = await loadEncryptedShows(creds);
-  const settings = await loadEncryptedSettings(creds);
+export async function exportUserData(
+  creds: SessionCredentials,
+  local?: LoadedShows & { settings: AppSettings },
+): Promise<string> {
+  const data = local ?? await (async () => {
+    const rows = await api.get<{ shows: EncryptedShowRow[] }>("/api/shows", auth(creds));
+    return { ...decryptShowRows(rows.shows, creds), settings: await loadEncryptedSettings(creds) };
+  })();
+  const { shows, unreadable, settings } = data;
   const payload = JSON.stringify(
     {
       shows,
