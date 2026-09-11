@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, ScheduleTemplateItem } from './types';
-import { DEFAULT_SETTINGS } from './types';
+import { DEFAULT_SETTINGS, MAX_DELETED_SHOW_IDS } from './types';
 import { generateId } from './utils/id';
 import { ServerNotConfiguredError } from './utils/api';
 import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
@@ -539,7 +539,19 @@ export default function App() {
         // so a show added elsewhere since the failed save is not deleted by
         // this launch. See mergePendingShows.
         const initialShows = pendingShows
-          ? mergePendingShows(pendingShows, autoStatusShows, (pendingSettings ?? migratedSettings).trash ?? [])
+          ? mergePendingShows(
+              pendingShows,
+              autoStatusShows,
+              (pendingSettings ?? migratedSettings).trash ?? [],
+              // The record of what was deleted on purpose has to come from
+              // whichever settings this launch is actually going to use, and
+              // from the account's copy as well — a deletion made on another
+              // device is on the server's record and not on this device's.
+              [
+                ...(migratedSettings.deletedShowIds ?? []),
+                ...(pendingSettings?.deletedShowIds ?? []),
+              ],
+            )
           : autoStatusShows;
         // A pending copy is by definition *not* what the server has; anything
         // else came straight off it and needs no local copy until it's edited.
@@ -826,6 +838,16 @@ export default function App() {
       setShows(restored);
       writePending(PENDING_SHOWS_KEY, session.username, restored);
       setHasLocalCopy(true);
+      // Bringing a version back retracts every deletion it undoes. A show in
+      // the restored list that is still on the deleted record would be read
+      // as deliberately deleted and dropped again on the next launch.
+      const back = new Set(restored.map((show) => show.id));
+      const record = settings.deletedShowIds ?? [];
+      if (record.some((id) => back.has(id))) {
+        const updated = { ...settings, deletedShowIds: record.filter((id) => !back.has(id)) };
+        setSettings(updated);
+        saveSettings(updated);
+      }
       return;
     }
     const restored = stripLegacySettingsMedia(await loadSettingsSnapshot(session, snapshot.at));
@@ -1045,6 +1067,14 @@ export default function App() {
     const updatedSettings = {
       ...settings,
       trash: nextTrash.slice(0, MAX_TRASH_ITEMS),
+      // The deletion outlives the restorable copy. A device's held copy of
+      // unsaved work never expires now, so once this show fell off the end of
+      // the trash there was nothing left to stop an old held copy putting it
+      // back. An id costs 36 bytes; the show it stands for costs kilobytes.
+      deletedShowIds: [id, ...(settings.deletedShowIds ?? []).filter((x) => x !== id)].slice(
+        0,
+        MAX_DELETED_SHOW_IDS,
+      ),
     };
     setSettings(updatedSettings);
     if (session) {
@@ -1099,6 +1129,10 @@ export default function App() {
     const updatedSettings = {
       ...settings,
       trash: (settings.trash || []).filter((t) => t.id !== trashId),
+      // Putting it back retracts the deletion. Left on the record, the merge
+      // would read this show as deliberately deleted on the next launch and
+      // drop it off the account again.
+      deletedShowIds: (settings.deletedShowIds ?? []).filter((x) => x !== item.data.id),
     };
     setSettings(updatedSettings);
     saveSettings(updatedSettings);
@@ -1945,7 +1979,11 @@ export default function App() {
                       {searchQuery.trim() ? 'Clear search' : 'Show all'}
                     </button>
                   </div>
-                ) : shows.length === 1 && showsView === 'grid' && !showsFocus && !searchQuery.trim() ? (
+                ) : shows.length === 1 &&
+                  buildOverview(shows).nextShow?.id === shows[0].id &&
+                  showsView === 'grid' &&
+                  !showsFocus &&
+                  !searchQuery.trim() ? (
                   // One show, printed twice: the panel above already gives its
                   // name, its date, what it still needs and a way into it, and
                   // then "ALL SHOWS 1" repeated the same show underneath. A
@@ -1953,6 +1991,14 @@ export default function App() {
                   // because a month with one show on it is a different answer —
                   // and a search or a filter is a question about the list, so
                   // the list comes back to answer it.
+                  //
+                  // Only when the panel is genuinely showing *this* show. It
+                  // leads with a show that is dated and still ahead, so an
+                  // undated one, a cancelled one, or — the one that would have
+                  // bitten — the morning after the only show on the books,
+                  // once it auto-completes, all leave the panel saying
+                  // "Nothing dated yet". Hiding the list on top of that would
+                  // leave the producer's only show nowhere on the page.
                   null
                 ) : (
                   <>

@@ -436,6 +436,14 @@ export async function parkSettingsSnapshot(
   creds: SessionCredentials,
 ): Promise<void> {
   const encryptedData = encryptWithKey(settings, creds.key);
-  if (encryptedData.length > MAX_SAVE_BYTES) return;
+  // Throws rather than resolving quietly. The caller drops its held copy once
+  // this resolves, and a blob too large to save is precisely the blob that
+  // held copy was written for — returning here deleted the only copy of a
+  // producer's Rolodex and contracts a week after the save that failed.
+  if (encryptedData.length > MAX_SAVE_BYTES) {
+    throw new PayloadTooLargeError(
+      "Those settings are too large to keep a copy of on your account. Empty the trash to fix it.",
+    );
+  }
   await api.put("/api/settings", { encryptedData, park: true }, auth(creds));
 }

@@ -48,8 +48,10 @@ export default async function handler(req: Request): Promise<Response> {
         return json({ error: 'bad_request' }, 400);
       }
       if (park) {
-        await parkSettingsSnapshot(db, userId, encryptedData);
-        return json({ ok: true });
+        // A park the server could not store must not read as stored: the
+        // client throws away its only copy of this blob on success.
+        const parked = await parkSettingsSnapshot(db, userId, encryptedData);
+        return parked ? json({ ok: true }) : json({ error: 'not_stored' }, 503);
       }
       // The copy being replaced is kept before anything is written, so the
       // replacement can be undone — which was not true of any settings save

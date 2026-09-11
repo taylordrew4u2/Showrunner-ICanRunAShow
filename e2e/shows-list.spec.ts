@@ -31,6 +31,24 @@ test.describe('the shows list', () => {
     await expect(page.getByText('No matches')).toBeVisible();
   });
 
+  test('never hides the only show when the panel is not showing it', async ({ page, context }) => {
+    // The panel leads with a show that is dated and still ahead. An undated
+    // show — or, the one that would really have bitten, the morning after the
+    // only show on the books, once it auto-completes — leaves the panel saying
+    // "Nothing dated yet". Hiding the list on top of that put the producer's
+    // only show nowhere on the page at all.
+    await installFakeApi(context, emptyState());
+    await signUpAndOnboard(page);
+    // A night that has already happened. The panel only leads with a show
+    // still ahead, so this one leaves it saying "Nothing dated yet".
+    await createShow(page, 'Last Tuesday', '2020-01-07');
+    await gotoTab(page, 'Shows');
+
+    await expect(page.locator('.dash-next__name')).toHaveCount(0);
+    await expect(page.locator('.show-card')).toHaveCount(1);
+    await expect(page.locator('.show-card')).toContainText('Last Tuesday');
+  });
+
   test('lists every show once there is more than one', async ({ page, context }) => {
     await installFakeApi(context, emptyState());
     await signUpAndOnboard(page);

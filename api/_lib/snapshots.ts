@@ -24,24 +24,35 @@ export const KEEP_DAYS = 30;
  * dropped together, which is what makes a shows snapshot restorable as a set.
  */
 export async function pruneSnapshots(db: Client, table: string, userId: string): Promise<void> {
+  // The recent-snapshots exception applies to the age rule too. Without it, a
+  // producer who works through January and does not open the app again until
+  // mid-February loses every January snapshot on their first save that day —
+  // all twelve recent ones included — and is left with a history of exactly
+  // the save that destroyed it. "The latest twelve, regardless of age" has to
+  // mean regardless of age.
+  const keepRecent = `backed_up_at IN (
+      SELECT DISTINCT backed_up_at FROM ${table}
+      WHERE user_id = ? ORDER BY backed_up_at DESC LIMIT ${KEEP_RECENT}
+    )`;
+  const keepDaily = `backed_up_at IN (
+      SELECT MIN(backed_up_at) FROM ${table}
+      WHERE user_id = ? GROUP BY date(backed_up_at)
+    )`;
+
   await db.batch(
     [
       {
         sql: `DELETE FROM ${table}
-              WHERE user_id = ? AND backed_up_at < datetime('now', '-${KEEP_DAYS} days')`,
-        args: [userId],
+              WHERE user_id = ?
+                AND backed_up_at < datetime('now', '-${KEEP_DAYS} days')
+                AND NOT ${keepRecent}`,
+        args: [userId, userId],
       },
       {
         sql: `DELETE FROM ${table}
               WHERE user_id = ?
-                AND backed_up_at NOT IN (
-                  SELECT DISTINCT backed_up_at FROM ${table}
-                  WHERE user_id = ? ORDER BY backed_up_at DESC LIMIT ${KEEP_RECENT}
-                )
-                AND backed_up_at NOT IN (
-                  SELECT MIN(backed_up_at) FROM ${table}
-                  WHERE user_id = ? GROUP BY date(backed_up_at)
-                )`,
+                AND NOT ${keepRecent}
+                AND NOT ${keepDaily}`,
         args: [userId, userId, userId],
       },
     ],
@@ -84,10 +95,23 @@ export async function parkSettingsSnapshot(
   db: Client,
   userId: string,
   encryptedData: string,
-): Promise<void> {
-  await db.execute({
-    sql: `INSERT OR IGNORE INTO user_settings_backup (user_id, encrypted_data) VALUES (?, ?)`,
-    args: [userId, encryptedData],
-  });
-  await pruneSnapshots(db, 'user_settings_backup', userId);
+): Promise<boolean> {
+  // `backed_up_at` has one-second resolution, so a snapshot taken by any other
+  // write in the same second takes this row's place and OR IGNORE drops it
+  // silently. The caller deletes its only copy of this blob on success, so a
+  // discarded write reported as `{ok:true}` is how the held copy is lost —
+  // exactly what parking exists to prevent. Try the next second instead, and
+  // say so if it still will not land.
+  for (let offset = 0; offset < 5; offset++) {
+    const result = await db.execute({
+      sql: `INSERT OR IGNORE INTO user_settings_backup (user_id, encrypted_data, backed_up_at)
+            VALUES (?, ?, datetime('now', ?))`,
+      args: [userId, encryptedData, `+${offset} seconds`],
+    });
+    if (result.rowsAffected > 0) {
+      await pruneSnapshots(db, 'user_settings_backup', userId);
+      return true;
+    }
+  }
+  return false;
 }
