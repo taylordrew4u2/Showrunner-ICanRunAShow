@@ -66,6 +66,15 @@ test.describe('contracts', () => {
     await page.locator('.contracts__send-btn').click();
     await page.locator('.contracts__candidate').first().click();
     await expect(page.locator('.contracts__row')).toContainText('Nadia Okonjo');
+    const originalViewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 320, height: 844 });
+    const recipient = page.locator('.contracts__row-name').first();
+    expect(await recipient.evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
+    const recipientBox = (await recipient.boundingBox())!;
+    const actionBox = (await page.locator('.contracts__row .btn').first().boundingBox())!;
+    expect(actionBox.y).toBeGreaterThanOrEqual(recipientBox.y + recipientBox.height);
+    await page.setViewportSize(originalViewport);
+
 
     const link = await page.evaluate(() => navigator.clipboard.readText());
     const key = link.split('#k=')[1];

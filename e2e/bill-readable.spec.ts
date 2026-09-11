@@ -32,6 +32,10 @@ test.describe('the bill', () => {
     // Not cut off: an ellipsised name overflows its own box.
     const overflowing = await name.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
     expect(overflowing).toBe(false);
+    const originalViewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 320, height: 844 });
+    expect(await name.evaluate((el) => el.scrollHeight > el.clientHeight + 1)).toBe(false);
+    await page.setViewportSize(originalViewport);
     // And the reorder controls are still there to be tapped.
     await expect(page.locator('.section-list-item__buttons').first()).toBeVisible();
   });

@@ -1,5 +1,10 @@
 <div align="center">
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/brand/logo-on-dark.svg" />
+  <img src="public/brand/logo.svg" width="520" alt="I Can Run A Show" />
+</picture>
+
 # I Can Run A Show
 
 **Live-show management for comedians, drag promoters, and variety producers — build the lineup, import the schedule, and run the show.**
@@ -21,6 +26,7 @@
 
 ## Table of Contents
 
+- [Screenshots](#screenshots)
 - [Overview](#overview)
 - [Problem](#problem)
 - [Solution](#solution)
@@ -44,7 +50,25 @@
 
 ## Screenshots
 
-Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These are generated with `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)).
+Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These screenshots show the blue design, desktop hamburger navigation, and phone bottom bar. They are captured from the local production build with sample data using `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)).
+
+<p align="center">
+  <img src="docs/screenshots/desktop-shows.png" width="100%" alt="Blue desktop dashboard with the sidebar hidden behind a hamburger menu" />
+</p>
+<p align="center">
+  <sub><b>Desktop workspace</b> — the next show and its readiness checks, with navigation tucked into the hamburger menu</sub>
+</p>
+
+<details>
+<summary>Desktop menu, light theme, and sign-in</summary>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-menu.png" width="100%" alt="Desktop hamburger menu open with Shows, Rolodex, Music, More, and Settings" />
+  <img src="docs/screenshots/desktop-light.png" width="100%" alt="Desktop dashboard in the light theme with the selected blue accent" />
+  <img src="docs/screenshots/sign-in.png" width="100%" alt="New sign-in design with the app logo, show workflow, and account form" />
+</p>
+
+</details>
 
 <p align="center">
   <img src="docs/screenshots/run-show.gif" width="300" alt="Run Show live mode — the clock running and the running order advancing" />

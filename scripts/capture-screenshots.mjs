@@ -6,7 +6,7 @@
 // docs/screenshots/.
 //
 // Usage:
-//   npm i -D playwright && npx playwright install chromium
+//   npm ci && npx playwright install chromium
 //   DEMO_USER=demo DEMO_PASS=demo1234 APP_URL=https://icanrunashow.com \
 //     node scripts/capture-screenshots.mjs
 //
@@ -116,7 +116,7 @@ async function signInOrUp(page) {
 }
 
 async function openNewShowForm(page) {
-  await page.getByRole('button', { name: '+ New Show' }).first().click();
+  await page.locator('button').filter({ hasText: /New Show/i }).first().click();
   await page.locator('.show-form').waitFor();
 }
 
@@ -134,7 +134,7 @@ async function seedShow(page) {
   log('seeding a demo show');
   await openNewShowForm(page);
   await page.getByPlaceholder('Show name').fill('Friday Night Comedy');
-  await page.locator('.show-form__input[type="date"]').fill('2026-07-17');
+  await page.locator('.show-form__input[type="date"]').fill(futureDate(7));
   await page.getByPlaceholder('e.g. 8:00 PM').fill('8:00 PM');
   await page.getByPlaceholder('Venue name').fill('The Basement');
   await page.getByPlaceholder(/City, address/).fill('Brooklyn, NY');
@@ -165,18 +165,21 @@ async function seedShow(page) {
   const buildBtn = page.getByRole('button', { name: 'Build Your Own' });
   if (await buildBtn.count()) await buildBtn.click();
   const cues = [
-    ['8:00 PM', 'Doors + house music'],
-    ['8:15 PM', 'Host intro'],
-    ['8:20 PM', 'Corey Cooley'],
-    ['8:35 PM', 'Maya Reyes'],
-    ['8:50 PM', 'Dev Okafor'],
-    ['9:05 PM', 'Headliner: Sam Tran'],
+    ['0:00', 'Doors + house music'],
+    ['15:00', 'Host intro'],
+    ['20:00', 'Corey Cooley'],
+    ['35:00', 'Maya Reyes'],
+    ['50:00', 'Dev Okafor'],
+    ['1:05:00', 'Headliner: Sam Tran'],
   ];
-  for (const [time, desc] of cues) {
+  for (const [index, [time, desc]] of cues.entries()) {
     await page.getByPlaceholder('8:00 PM').fill(time);
     await page.getByPlaceholder('Add a cue...').fill(desc);
     await page.getByRole('button', { name: 'Add cue' }).click();
-    await page.waitForTimeout(150);
+    const row = page.locator('.cue').last();
+    await row.getByRole('button', { name: 'Edit', exact: true }).click();
+    await row.getByLabel('Segment length in minutes').fill(String(index === 1 ? 5 : 15));
+    await row.getByRole('button', { name: 'Save', exact: true }).click();
   }
 
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -257,8 +260,9 @@ async function captureContracts(page, context) {
   if (MOCK_API) await installFakeApi(signerContext, MOCK_STATE);
   const signer = await signerContext.newPage();
   await signer.goto(links[0]);
-  await signer.locator('.signing__field input').waitFor();
-  await signer.locator('.signing__field input').fill('Maya Reyes');
+  await signer.getByRole('textbox', { name: 'Your full name', exact: true }).waitFor();
+  await signer.getByRole('textbox', { name: 'Your full name', exact: true }).fill('Maya Reyes');
+  await signer.getByRole('textbox', { name: 'Email', exact: true }).fill('maya@example.com');
   await signer.locator('.signing__agree input').check();
   await signer.locator('.signing__cta').click();
   const done = signer.locator('.signing__panel--done');
@@ -302,7 +306,10 @@ async function captureShowScreens(page) {
   // Run-of-show, on the show page.
   await expandSection(page, 'Schedule');
   await page.waitForTimeout(400);
-  await shot(page, 'schedule');
+  const schedule = page.locator('.accordion-section', { hasText: 'Schedule' }).first();
+  await schedule.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${OUT_DIR}/schedule.png` });
+  log(`captured ${OUT_DIR}/schedule.png`);
 
   // A performer profile, opened from the lineup.
   await expandSection(page, 'Performers');
@@ -310,18 +317,17 @@ async function captureShowScreens(page) {
   const performer = page
     .locator('.section-list-item, .lineup-row')
     .filter({ hasText: 'Maya Reyes' })
-    .getByRole('button', { name: /View Profile/ })
+    .getByRole('button', { name: "Open Maya Reyes's profile", exact: true })
     .first();
-  if (await performer.count()) {
-    await performer.click();
-    await page.waitForTimeout(600);
-    await shot(page, 'performer-profile');
-    // Back out of the profile, and wait for the show page before moving on —
-    // the profile covers the show's own back button while it is open.
-    await page.getByRole('button', { name: '← Back' }).first().click();
-    await page.locator('.show-detail__stats, .accordion-section').first().waitFor();
-    await page.waitForTimeout(300);
-  }
+  await performer.waitFor();
+  await performer.click();
+  await page.waitForTimeout(600);
+  await shot(page, 'performer-profile');
+  // Back out of the profile, and wait for the show page before moving on —
+  // the profile covers the show's own back button while it is open.
+  await page.getByRole('button', { name: '← Back' }).first().click();
+  await page.locator('.show-detail__stats, .accordion-section').first().waitFor();
+  await page.waitForTimeout(300);
 }
 
 async function captureRolodexAndSettings(page) {
@@ -424,6 +430,40 @@ async function captureRunShowGif(page) {
   await page.locator('.show-detail').waitFor();
 }
 
+function futureDate(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+async function openDemoShow(page) {
+  const next = page.locator('.dash-next__name');
+  if (await next.count()) await next.click();
+  else await page.locator('.show-card').first().click();
+}
+
+async function captureDesktop(page) {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await shot(page, 'desktop-shows');
+  await page.getByRole('button', { name: 'Open navigation menu' }).click();
+  await shot(page, 'desktop-menu');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+  await shot(page, 'desktop-light');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.setViewportSize({ width: 430, height: 932 });
+}
+
+async function captureSignIn(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+  const page = await context.newPage();
+  await page.goto(APP_URL);
+  await page.getByPlaceholder('Enter username').waitFor();
+  await page.locator('#boot-splash').waitFor({ state: 'detached' });
+  await shot(page, 'sign-in');
+  await context.close();
+}
+
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
   const browser = await chromium.launch(LAUNCH);
@@ -443,12 +483,12 @@ async function main() {
     await signInOrUp(page);
 
     // Seed only if the workspace is empty.
-    const hasShow = await page.locator('.show-card').count();
+    const hasShow = await page.locator('.show-card, .dash-next__name').count();
     if (!hasShow) {
       await seedShow(page);
     } else {
       log('account already has shows — capturing as-is');
-      await page.locator('.show-card').first().click();
+      await openDemoShow(page);
       await page.locator('.show-detail').waitFor();
     }
 
@@ -461,10 +501,23 @@ async function main() {
     // 3) Shows dashboard.
     await page.locator('.show-detail__back-btn').first().click();
     await page.locator('.shows-list').waitFor();
+    if (MOCK_API) {
+      // A second, unbooked night makes both dashboard states visible.
+      await openNewShowForm(page);
+      await page.getByPlaceholder('Show name').fill('After Hours Open Mic');
+      await page.locator('.show-form__input[type="date"]').fill(futureDate(14));
+      await page.getByPlaceholder('e.g. 8:00 PM').fill('7:00 PM');
+      await page.getByPlaceholder('Venue name').fill('The Back Room');
+      await page.locator('.show-form').getByRole('button', { name: 'Save' }).click();
+      await page.locator('.show-detail').waitFor();
+      await page.locator('.bottom-nav__item', { hasText: 'Shows' }).click();
+    }
     await shot(page, 'shows');
+    await captureDesktop(page);
+    await captureSignIn(browser);
 
     // 4) The rest of the show screens, then the between-shows pages.
-    await page.locator('.show-card').first().click();
+    await openDemoShow(page);
     await page.locator('.show-detail').waitFor();
     await captureShowScreens(page);
     await page.locator('.show-detail__back-btn').first().click();
@@ -477,7 +530,7 @@ async function main() {
     // Last: it needs the show page, and leaves Run Show on the way out.
     await page.locator('.bottom-nav__item', { hasText: 'Shows' }).click();
     await page.locator('.shows-list').waitFor();
-    await page.locator('.show-card').first().click();
+    await openDemoShow(page);
     await page.locator('.show-detail').waitFor();
     await captureRunShowGif(page);
 

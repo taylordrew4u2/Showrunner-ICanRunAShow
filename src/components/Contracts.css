@@ -514,3 +514,28 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* Recipient names need their own line before the actions on a phone. */
+@media (max-width: 619px) {
+  .contracts__row {
+    display: grid;
+    grid-template-columns: 9px minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .contracts__row-who {
+    grid-column: 2 / -1;
+  }
+  .contracts__row-name,
+  .contracts__row-meta {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .contracts__row > .btn {
+    grid-column: 2 / -1;
+  }
+  .contracts__row > .btn:has(~ .btn) {
+    grid-column: 2;
+  }
+  .contracts__row > .btn ~ .btn {
+    grid-column: 3;
+  }
+}
