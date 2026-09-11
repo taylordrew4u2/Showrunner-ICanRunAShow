@@ -7,7 +7,7 @@ import {
   scheduleRuntime,
   type ScheduleAct,
 } from '../utils/generateSchedule';
-import { parseClockToMinutes } from '../utils/showTiming';
+import { readShowStart } from '../utils/readShowStart';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
 import './ScheduleGenerator.css';
@@ -60,7 +60,8 @@ export function ScheduleGenerator({
   onClose,
 }: ScheduleGeneratorProps) {
   const [startTime, setStartTime] = useState(showTime ?? '');
-  const [doorsMin, setDoorsMin] = useState(30);
+  /** Null until the doors chips are touched: the typed time gets first say. */
+  const [doorsChoice, setDoorsChoice] = useState<number | null>(null);
   const [introMin, setIntroMin] = useState(1);
   const [setMin, setSetMin] = useState(10);
   const [withIntermission, setWithIntermission] = useState(performers.length >= 4);
@@ -99,10 +100,18 @@ export function ScheduleGenerator({
     [ordered, lengths, setMin],
   );
 
+  // Read rather than validated. A run sheet says "Doors 8:30 Show 9", and the
+  // field used to reject exactly that — the most natural thing to type was the
+  // one thing that stopped the job.
+  const read = useMemo(() => readShowStart(startTime), [startTime]);
+  // Doors written into the time is doors stated; the chips override it once
+  // they are touched, and default to half an hour when nothing said otherwise.
+  const doorsMin = doorsChoice ?? read?.doorsMin ?? 30;
+
   const items = useMemo(
     () =>
       generateSchedule({
-        startTime,
+        startTime: read?.label ?? '',
         acts,
         hostName: host,
         doorsMin,
@@ -110,7 +119,7 @@ export function ScheduleGenerator({
         defaultSetMin: setMin,
         intermissionAfter: withIntermission ? Math.ceil(acts.length / 2) : 0,
       }),
-    [startTime, acts, host, doorsMin, introMin, setMin, withIntermission],
+    [read, acts, host, doorsMin, introMin, setMin, withIntermission],
   );
 
   /** Where each act sits in the order, so a preview row knows it can be moved. */
@@ -122,9 +131,21 @@ export function ScheduleGenerator({
 
   const runtime = scheduleRuntime(items);
   const handover = handoverRuntime(items);
-  const endsAt = scheduleEndTime(startTime, items);
-  const startReadable = parseClockToMinutes(startTime) !== null;
+  const endsAt = scheduleEndTime(read?.label ?? '', items);
+  const startReadable = read !== null;
   const canApply = startReadable && items.length > 0;
+
+  // Whatever was typed, the show is stored as a time the rest of the app can
+  // read — otherwise the run sheet says 9pm and everything built from the show
+  // time afterwards is built from a string nothing can parse.
+  const applyTime = read?.label ?? startTime;
+
+  // Doors the text stated, kept beside the usual choices so a 45-minute gap
+  // does not vanish the moment the chips are drawn.
+  const doorsChoices = useMemo(
+    () => Array.from(new Set([...DOORS_CHOICES, doorsMin])).sort((a, b) => a - b),
+    [doorsMin],
+  );
 
   function moveAct(index: number, dir: -1 | 1) {
     const ids = ordered.map((person) => person.id);
@@ -195,16 +216,31 @@ export function ScheduleGenerator({
                 </label>
                 <input
                   id="gen-start-time"
-                  className="gen__time"
+                  className="gen__time gen__time--wide"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  placeholder="8:00 PM"
+                  placeholder="Doors 8:30, show 9"
                   autoFocus={!startReadable}
                 />
-                {!startReadable && (
+                {/* Read back, not validated. The line is understood however it
+                    was written, and what was understood is on screen — so an
+                    inference that went the wrong way is visible and one edit
+                    from being right, rather than a schedule quietly hung off
+                    the wrong hour. */}
+                {read ? (
+                  <p className="gen__hint gen__hint--read">
+                    <Icon name="check" size={13} aria-hidden />
+                    <span>
+                      Reading that as {read.doorsLabel ? <>doors <strong>{read.doorsLabel}</strong>, </> : null}
+                      show <strong>{read.label}</strong>
+                      {read.assumedEvening ? ' — evening, not morning' : ''}.
+                    </span>
+                  </p>
+                ) : (
                   <p className="gen__hint">
-                    Type a time like <strong>8:00 PM</strong> — every cue below hangs off it.
-                    {showTime ? '' : ' This sets the show’s start time too.'}
+                    Write it however you write it — <strong>9pm</strong>,{' '}
+                    <strong>Doors 8:30 show 9</strong>, <strong>21:00</strong>. Every cue below
+                    hangs off it.
                   </p>
                 )}
               </div>
@@ -212,12 +248,12 @@ export function ScheduleGenerator({
               <div className="gen__control">
                 <span className="gen__control-label">Doors — house music first</span>
                 <div className="gen__choices">
-                  {DOORS_CHOICES.map((value) => (
+                  {doorsChoices.map((value) => (
                     <button
                       key={value}
                       type="button"
                       className={`gen__choice${doorsMin === value ? ' gen__choice--on' : ''}`}
-                      onClick={() => setDoorsMin(value)}
+                      onClick={() => setDoorsChoice(value)}
                     >
                       {value === 0 ? 'None' : `${value} min`}
                     </button>
@@ -388,7 +424,7 @@ export function ScheduleGenerator({
           <button
             className="btn btn--primary"
             disabled={!canApply}
-            onClick={() => onApply(items, startTime)}
+            onClick={() => onApply(items, applyTime)}
           >
             {existingCount > 0 ? 'Replace the running order' : 'Use this running order'}
           </button>

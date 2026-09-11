@@ -141,6 +141,45 @@ test.describe('generating a run-of-show', () => {
     expect(errors).toEqual([]);
   });
 
+  test('takes the start time the way a run sheet writes it', async ({ page, context }) => {
+    const state = emptyState();
+    await installFakeApi(context, state);
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+
+    await signUpAndOnboard(page);
+    await createShow(page, 'Doors And Show');
+
+    for (const name of ['Dev Okonjo', 'Mona Sable']) {
+      await page.getByLabel('Performer name').fill(name);
+      await page.locator('button').filter({ hasText: /^Add$/ }).first().click();
+      await expect(page.locator('.section-list')).toContainText(name);
+    }
+
+    await openSection(page, 'Schedule');
+    await page.locator('.schedule-choice__option').filter({ hasText: 'Build from the lineup' }).click();
+
+    const dialog = page.locator('.gen');
+    // The line a producer actually types. It used to be rejected outright,
+    // which left the only obvious thing to write as the one thing that failed.
+    await dialog.getByLabel('Show starts').fill('Doors 8:30 Show 9:');
+
+    // Understood, and said back — including the doors gap, which was in the
+    // line all along and used to be thrown away.
+    await expect(dialog.locator('.gen__hint--read')).toContainText('9:00 PM');
+    await expect(dialog.locator('.gen__hint--read')).toContainText('8:30 PM');
+    await expect(dialog.locator('.gen__cue').first()).toContainText('Doors — house music');
+
+    await dialog.locator('button').filter({ hasText: /Use this running order/ }).click();
+
+    // Doors at 8:30, the first thing on stage at 9 — the line, as cues.
+    const cues = page.locator('.cue-list');
+    await expect(cues).toContainText('8:30 PM');
+    await expect(cues).toContainText('9:00 PM');
+
+    expect(errors).toEqual([]);
+  });
+
   test('is not offered before anyone is booked', async ({ page, context }) => {
     const state = emptyState();
     await installFakeApi(context, state);

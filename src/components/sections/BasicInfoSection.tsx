@@ -1,4 +1,5 @@
 import type { Show } from '../../types';
+import { normaliseShowTime } from '../../utils/readShowStart';
 
 interface BasicInfoSectionProps {
   show: Show;
@@ -21,11 +22,21 @@ export function BasicInfoSection({ show, onChange }: BasicInfoSectionProps) {
       </label>
       <label className="section-field">
         <span className="section-field__label">Show Time</span>
+        {/* Typed freely, stored as a clock time. "Doors 8:30 Show 9" is how a
+            run sheet says it, and it used to be stored verbatim — which reads
+            back as no time at all to everything downstream, so the timeline
+            drew nothing and the generator refused to run. Tidied on the way
+            out of the field rather than as you type, so the caret doesn't jump
+            around mid-word. */}
         <input
           className="section-field__input"
           value={show.time}
           onChange={(e) => onChange({ time: e.target.value })}
-          placeholder="e.g. 8:00 PM"
+          onBlur={(e) => {
+            const tidy = normaliseShowTime(e.target.value);
+            if (tidy && tidy !== e.target.value) onChange({ time: tidy });
+          }}
+          placeholder="e.g. 8:00 PM, or doors 8:30 show 9"
         />
       </label>
       <label className="section-field">
