@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ApiError } from '../utils/api';
 import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
 import type { SignatureRecord } from '../types';
 import {
@@ -144,10 +145,12 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       );
       setSigned(record);
       setPhase('done');
-    } catch {
+    } catch (err) {
       setPhase('ready');
       setError(
-        'That did not go through. Check your connection and try again — nothing has been signed yet.',
+        (err as ApiError).status === 413
+          ? 'This submission is too large. Remove the optional headshot or choose a smaller photo, then try again. Your answers are still here.'
+          : 'That did not go through. Check your connection and try again. Your answers are still here.',
       );
     }
   }
