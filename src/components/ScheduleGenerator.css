@@ -77,6 +77,33 @@
   color: var(--primary-text);
 }
 
+/* The start time, editable here. It is the one field the whole sheet hangs
+   off, so it leads the controls rather than sitting among the chips. */
+.gen__time {
+  width: 100%;
+  max-width: 11rem;
+  padding: var(--space-1-5) var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gen__time:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.gen__hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
 .gen__toggle {
   display: flex;
   align-items: center;
@@ -109,6 +136,85 @@
 
 .gen__cue:last-child {
   border-bottom: 0;
+}
+
+/* An act row is the only kind you can change, so it centres its controls
+   rather than sitting on the shared baseline the static rows use. */
+.gen__cue--act {
+  align-items: center;
+}
+
+.gen__nudge {
+  margin: 0 0 var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.gen__cue-edit {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.gen__move {
+  display: flex;
+  flex-direction: column;
+  margin-right: var(--space-1);
+}
+
+.gen__move-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gen__move-btn:hover:not(:disabled) {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.gen__move-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Wide enough for three digits so a headliner's 90 does not clip, and the
+   spinner is hidden because the arrows beside it mean something else. */
+.gen__cue-min {
+  width: 3.2rem;
+  padding: var(--space-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.gen__cue-min::-webkit-outer-spin-button,
+.gen__cue-min::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.gen__cue-min-unit {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
 }
 
 /* The host's handovers sit back a step: they are the connective tissue of the
@@ -251,5 +357,17 @@
 
   .gen__actions .btn {
     flex: 1;
+  }
+
+  /* Thumb-sized on a phone; at 18px tall these were a coin toss between
+     "earlier" and "later" on the act you were trying to move. */
+  .gen__move-btn {
+    width: 32px;
+    height: 26px;
+  }
+
+  .gen__cue-min {
+    width: 3.6rem;
+    padding: var(--space-1-5) var(--space-1);
   }
 }

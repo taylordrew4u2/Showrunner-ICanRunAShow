@@ -121,9 +121,11 @@ function sortKey(show: Show): number {
  * you walk into the room.
  *
  * Deliberately not every number the show page can produce. This answers "is
- * this show ready", and the three things that stop a night going ahead are
- * having nobody on, having no order to put them in, and not having the music
- * their walk-ons need. Expenses and vendors matter, but not at 7pm.
+ * this show ready", and the two things that stop a night going ahead are
+ * having nobody on and having no order to put them in. Expenses and vendors
+ * matter, but not at 7pm — and neither does a missing walk-on, which this
+ * used to count: a performer without one still goes on, so the line was a
+ * permanent red mark nobody was going to clear.
  */
 export interface ReadinessLine {
   key: string;
@@ -133,9 +135,6 @@ export interface ReadinessLine {
 
 export function showReadiness(show: Show): ReadinessLine[] {
   const bill = show.performers.length + show.artists.length;
-  const withWalkOn = show.performers.filter(
-    (p) => p.walkOnMusic || p.walkOnMusicName || p.walkOnMusicLink,
-  ).length;
 
   const lines: ReadinessLine[] = [
     {
@@ -152,16 +151,6 @@ export function showReadiness(show: Show): ReadinessLine[] {
       ready: show.schedule.length > 0,
     },
   ];
-
-  // Only worth a line once there are performers to have walk-ons: "0 of 0
-  // walk-ons set" is a complaint about an empty list.
-  if (show.performers.length > 0) {
-    lines.push({
-      key: 'walkon',
-      label: `${withWalkOn} of ${show.performers.length} walk-ons set`,
-      ready: withWalkOn === show.performers.length,
-    });
-  }
 
   return lines;
 }

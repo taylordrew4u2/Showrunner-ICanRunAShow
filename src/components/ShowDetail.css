@@ -665,19 +665,14 @@ select.show-detail__status--select {
   transition: width var(--duration-slow) ease;
 }
 
-/* Four bars in a row all in one colour read as a single meter. Giving each its
-   own hue makes them four separate answers — using the theme's own tokens, so
-   they stay legible against the track in both schemes. */
-.show-progress__bar--walkon {
-  background: var(--success-strong);
-}
-
+/* Bars in a row all in one colour read as a single meter. Giving each its own
+   hue makes them separate answers — using the theme's own tokens, so they stay
+   legible against the track in both schemes. */
 .show-progress__bar--cues {
   background: var(--warning);
 }
 
-/* The palette has exactly one more distinguishable hue than this row needs, so
-   the fourth bar goes neutral rather than repeating a red already used above. */
+/* The last bar goes neutral rather than repeating a red already used above. */
 .show-progress__bar--vendors {
   background: var(--text);
 }
@@ -1956,6 +1951,27 @@ select.show-detail__status--select {
 .schedule-choice__desc {
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* The lineup option spans the grid and carries the accent. In a 2×2 of equal
+   tiles the fastest route looked like one of four equivalent choices, and the
+   one people picked was whichever they read first. */
+.schedule-choice__option--lead {
+  grid-column: 1 / -1;
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.schedule-choice__option--lead .schedule-choice__desc {
+  max-width: 34rem;
+}
+
+.schedule-choice__note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  line-height: 1.5;
 }
 
 /* Schedule upload / drop zone */
