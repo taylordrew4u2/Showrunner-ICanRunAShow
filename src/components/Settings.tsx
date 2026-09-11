@@ -9,6 +9,7 @@ import { PageHeader } from './PageHeader';
 import { Icon } from './Icon';
 import './Settings.css';
 import { useConfirm } from './useConfirm';
+import type { Snapshot } from '../utils/secure-storage';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -34,6 +35,33 @@ interface SettingsProps {
    * half-loaded client would delete everything.
    */
   onSweepMedia?: (dryRun: boolean) => Promise<{ scanned: number; removed: number; bytes: number; failed: number }>;
+  /**
+   * Every earlier save the account still holds. Absent, like the sweep, until
+   * the account has loaded — offering a restore over a half-loaded client
+   * would be offering to replace data with data.
+   */
+  onListSnapshots?: () => Promise<Snapshot[]>;
+  onRestoreSnapshot?: (snapshot: Snapshot) => Promise<void>;
+}
+
+/** The server stamps snapshots in UTC without a zone marker. */
+function snapshotDate(at: string): Date {
+  return new Date(at.replace(' ', 'T') + 'Z');
+}
+
+function snapshotLabel(at: string): string {
+  return snapshotDate(at).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function snapshotWhat(snapshot: Snapshot): string {
+  if (snapshot.kind === 'settings') return 'Rolodex, contracts and settings';
+  const n = snapshot.count ?? 0;
+  return `${n} show${n === 1 ? '' : 's'}`;
 }
 
 /** Bytes as something a person reads, for the storage card. */
@@ -59,6 +87,8 @@ export function Settings({
   onDeleteForever,
   onEmptyTrash,
   onSweepMedia,
+  onListSnapshots,
+  onRestoreSnapshot,
 }: SettingsProps) {
   const { confirm, confirmDialog } = useConfirm();
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
@@ -72,6 +102,12 @@ export function Settings({
   // What the scan found, then what the cleanup actually did.
   const [sweepFound, setSweepFound] = useState<Sweep | null>(null);
   const [sweepDone, setSweepDone] = useState<Sweep | null>(null);
+  // Earlier versions are fetched on request, not on open: it is two requests
+  // that most visits to this page never need.
+  const [snapshots, setSnapshots] = useState<Snapshot[] | null>(null);
+  const [snapshotsBusy, setSnapshotsBusy] = useState(false);
+  const [snapshotsError, setSnapshotsError] = useState<string | null>(null);
+  const [restoredAt, setRestoredAt] = useState<string | null>(null);
   const [newProducerName, setNewProducerName] = useState('');
   const [newProducerRole, setNewProducerRole] = useState('');
 
@@ -553,10 +589,11 @@ export function Settings({
             <li className="settings__assurance">
               <Icon name="shield" size={16} aria-hidden />
               <div>
-                <strong>A spare copy on this device</strong>
+                <strong>A spare copy on this device, and earlier versions on the account</strong>
                 <span>
                   If a save can't get through, your edits are held here and re-sent next time the
-                  app opens. Closing the app mid-edit doesn't lose anything.
+                  app opens. Closing the app mid-edit doesn't lose anything. And every save keeps
+                  the version it replaced, so a wrong edit can be undone from the list below.
                 </span>
               </div>
             </li>
@@ -585,6 +622,88 @@ export function Settings({
           </button>
         )}
       </div>
+
+
+      {/* Where the snapshots the server takes before every save become
+          something a producer can use. Until now they were only ever read by
+          the server's own rollback — invisible, and three saves deep. */}
+      {onListSnapshots && onRestoreSnapshot && (
+        <div className="settings__card">
+          <h2 className="settings__card-title">Earlier versions</h2>
+          <p className="settings__hint">
+            A copy is kept before every save: the latest dozen, then one a day for a month.
+            Restoring one is a save like any other, so the version you replace is kept too.
+          </p>
+
+          {snapshotsError && <p className="settings__sweep-error" role="alert">{snapshotsError}</p>}
+          {restoredAt && (
+            <p className="settings__sweep-result" role="status">
+              Restored the version from {snapshotLabel(restoredAt)}.
+            </p>
+          )}
+
+          {snapshots === null ? (
+            <button
+              className="btn btn--secondary btn--sm"
+              disabled={snapshotsBusy}
+              onClick={async () => {
+                setSnapshotsBusy(true);
+                setSnapshotsError(null);
+                try {
+                  setSnapshots(await onListSnapshots());
+                } catch (err) {
+                  setSnapshotsError(err instanceof Error ? err.message : 'Could not fetch earlier versions.');
+                } finally {
+                  setSnapshotsBusy(false);
+                }
+              }}
+            >
+              {snapshotsBusy ? 'Looking\u2026' : 'Show earlier versions'}
+            </button>
+          ) : snapshots.length === 0 ? (
+            <p className="settings__empty">No earlier versions yet — one is kept from your next save.</p>
+          ) : (
+            <ul className="settings__versions">
+              {snapshots.map((snapshot) => (
+                <li key={`${snapshot.kind}-${snapshot.at}`} className="settings__version">
+                  <div className="settings__version-info">
+                    <span className="settings__version-when">{snapshotLabel(snapshot.at)}</span>
+                    <span className="settings__version-what">{snapshotWhat(snapshot)}</span>
+                  </div>
+                  <button
+                    className="btn btn--secondary btn--sm"
+                    disabled={snapshotsBusy}
+                    onClick={async () => {
+                      const ok = await confirm({
+                        message:
+                          snapshot.kind === 'shows'
+                            ? `Replace your shows with the ${snapshotWhat(snapshot)} saved ${snapshotLabel(snapshot.at)}? What you have now is kept as an earlier version.`
+                            : `Replace your Rolodex, contracts and settings with the version saved ${snapshotLabel(snapshot.at)}? What you have now is kept as an earlier version.`,
+                        confirmLabel: 'Restore',
+                      });
+                      if (!ok) return;
+                      setSnapshotsBusy(true);
+                      setSnapshotsError(null);
+                      try {
+                        await onRestoreSnapshot(snapshot);
+                        setRestoredAt(snapshot.at);
+                        // The list is stale the moment a restore saves.
+                        setSnapshots(null);
+                      } catch (err) {
+                        setSnapshotsError(err instanceof Error ? err.message : 'That restore did not finish.');
+                      } finally {
+                        setSnapshotsBusy(false);
+                      }
+                    }}
+                  >
+                    Restore
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="settings__card">
         <h2 className="settings__card-title">Account</h2>

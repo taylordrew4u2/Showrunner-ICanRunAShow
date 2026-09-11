@@ -18,8 +18,13 @@ import {
   createAccount,
   authenticateUser,
   healSettings,
+  listSnapshots,
+  loadShowsSnapshot,
+  loadSettingsSnapshot,
+  parkSettingsSnapshot,
   PayloadTooLargeError,
   type EncryptedShowRow,
+  type Snapshot,
 } from './utils/secure-storage';
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from './utils/trash';
 import { stripLegacyShowMedia, stripLegacySettingsMedia } from './utils/stripMedia';
@@ -237,24 +242,36 @@ function shouldNudgeBackup(showCount: number, lastBackupAt: string | null): bool
   return Date.now() - at > 30 * 24 * 60 * 60 * 1000;
 }
 
-// A pending backup is only trustworthy for a short window. Preferring an old
-// one over the server would resurrect data the user has since deleted (possibly
-// on another device) — and then re-save the resurrected copy over the server.
-const PENDING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+// A held settings copy is only trusted outright for so long. It is one blob,
+// applied whole, so an old one would drag the Rolodex and contracts back to
+// how they stood when this device last saved — possibly undoing a week of
+// work from another device. Past this age it is parked on the account as an
+// earlier version instead, where it can still be looked at and brought back.
+//
+// Shows have no such limit: a held copy of the list is merged one show at a
+// time by `updatedAt` (see mergePendingShows), so an old one can only ever
+// contribute the edits it actually holds.
+const PENDING_SETTINGS_TRUST_MS = 7 * 24 * 60 * 60 * 1000;
 
-function readPending<T>(key: string, username: string): T | null {
+interface Pending<T> {
+  data: T;
+  /** When this copy was written, or 0 for a copy from before timestamps. */
+  at: number;
+}
+
+/**
+ * The copy this device holds, if any, with its age — never deleted here. A
+ * copy that is too old to apply is the caller's to park, not the reader's to
+ * throw away: the whole point of the copy is that it is the only place some
+ * edit may exist.
+ */
+function readPending<T>(key: string, username: string): Pending<T> | null {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { username: string; data: T; at?: number };
     if (parsed.username !== username) return null;
-    // Backups written before timestamps existed (at === undefined) are from the
-    // failing-saves era and are exactly the stale copies we must not restore.
-    if (!parsed.at || Date.now() - parsed.at > PENDING_MAX_AGE_MS) {
-      localStorage.removeItem(key);
-      return null;
-    }
-    return parsed.data;
+    return { data: parsed.data, at: parsed.at ?? 0 };
   } catch {
     return null;
   }
@@ -488,7 +505,7 @@ export default function App() {
         // If a previous session had unsaved edits (save failed, tab closed),
         // prefer that local backup — it's strictly newer than what the server
         // has. Setting state marks it dirty, so the auto-save re-persists it.
-        const rawPendingShows = readPending<Show[]>(PENDING_SHOWS_KEY, currentSession.username);
+        const rawPendingShows = readPending<Show[]>(PENDING_SHOWS_KEY, currentSession.username)?.data ?? null;
         // Same healing as the server rows: a local backup written by an older
         // build can be missing list fields the list renders without checking.
         const pendingShows = rawPendingShows
@@ -500,8 +517,22 @@ export default function App() {
         // Pending backups bypass loadEncryptedSettings, so run them through the
         // same healing (trash media stripping, oversized-audio removal) —
         // otherwise a poisoned backup keeps the account unsavable forever.
-        const rawPendingSettings = readPending<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
-        const pendingSettings = rawPendingSettings ? stripLegacySettingsMedia(healSettings(rawPendingSettings)) : null;
+        const heldSettings = readPending<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
+        const healedHeldSettings = heldSettings
+          ? stripLegacySettingsMedia(healSettings(heldSettings.data))
+          : null;
+        // Too old to apply over the account — but kept, as an earlier version
+        // on the account, and only let go of this device once it is there.
+        let pendingSettings: AppSettings | null = null;
+        if (healedHeldSettings && heldSettings) {
+          if (Date.now() - heldSettings.at <= PENDING_SETTINGS_TRUST_MS) {
+            pendingSettings = healedHeldSettings;
+          } else {
+            void parkSettingsSnapshot(healedHeldSettings, currentSession)
+              .then(() => clearPending(PENDING_SETTINGS_KEY))
+              .catch((err) => console.error('Failed to park held settings:', err));
+          }
+        }
 
         // A held copy is this device's unsaved work, not a picture of the whole
         // account: merged with what the server holds rather than replacing it,
@@ -762,6 +793,44 @@ export default function App() {
     const creds = credentialsFrom(username, password);
     await saveSession(creds);
     setSession(creds);
+  }
+
+  // Ask the browser not to evict what this device holds. Without it, storage
+  // is "best effort": Safari clears a site's data after a week unopened and
+  // Chrome sheds it under disk pressure — and the held copy of unsaved work
+  // is exactly what goes. Granted silently for an installed app; a no-op
+  // where unsupported.
+  useEffect(() => {
+    if (!session) return;
+    void navigator.storage?.persist?.().catch(() => undefined);
+  }, [session]);
+
+  /**
+   * Bring back a whole earlier save. A restore is itself a save, so the
+   * version being replaced is snapshotted first — there is always a way back
+   * from a restore, including from a wrong one.
+   */
+  async function handleListSnapshots(): Promise<Snapshot[]> {
+    if (!session) return [];
+    return listSnapshots(session);
+  }
+
+  async function handleRestoreSnapshot(snapshot: Snapshot): Promise<void> {
+    if (!session) return;
+    if (snapshot.kind === 'shows') {
+      const loaded = await loadShowsSnapshot(session, snapshot.at);
+      unreadableRowsRef.current = loaded.unreadable;
+      setUnreadableCount(loaded.unreadable.length);
+      const restored = loaded.shows.map((show) => stripLegacyShowMedia(show));
+      latestShowsRef.current = restored;
+      setShows(restored);
+      writePending(PENDING_SHOWS_KEY, session.username, restored);
+      setHasLocalCopy(true);
+      return;
+    }
+    const restored = stripLegacySettingsMedia(await loadSettingsSnapshot(session, snapshot.at));
+    setSettings(restored);
+    saveSettings(restored);
   }
 
   async function handleSignIn(username: string, password: string) {
@@ -2198,6 +2267,8 @@ export default function App() {
                 onEmptyTrash={handleEmptyTrash}
                 onSweepMedia={loadError ? undefined : handleSweepMedia}
                 onExport={handleDownloadBackup}
+                onListSnapshots={loadError ? undefined : handleListSnapshots}
+                onRestoreSnapshot={handleRestoreSnapshot}
                 lastBackupAt={lastBackupAt}
                 lastSavedAt={lastSavedAt}
               />

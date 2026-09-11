@@ -17,6 +17,8 @@
  * @typedef {object} FakeState
  * @property {{id: string, encryptedData: string}[]} shows
  * @property {string | null} settings
+ * @property {{at: string, shows: {id: string, encryptedData: string}[]}[]} showSnapshots  Earlier saves, newest last.
+ * @property {{at: string, encryptedData: string}[]} settingsSnapshots
  * @property {Record<string, string[]>} media
  * @property {Record<string, string[]>} doc
  * @property {Record<string, {payload: string, signature: string | null, signedAt: string | null}>} sign
@@ -32,6 +34,8 @@ export function emptyState(overrides = {}) {
   return {
     shows: [],
     settings: null,
+    showSnapshots: [],
+    settingsSnapshots: [],
     media: {},
     doc: {},
     sign: {},
@@ -59,14 +63,51 @@ export async function installFakeApi(ctx, state) {
 
     if (path === '/api/auth') return ok({ ok: true, userId: body.userId });
 
+    // The real routes stamp snapshots to the second, so a burst of saves in
+    // one second is one snapshot. Distinct stamps here, so a test's quick
+    // edits stay separately restorable.
+    const stamp = () => {
+      const at = new Date(Date.now() + state.showSnapshots.length * 1000 + state.settingsSnapshots.length * 1000)
+        .toISOString().slice(0, 19).replace('T', ' ');
+      return at;
+    };
+
     if (path === '/api/shows') {
+      if (method === 'GET' && url.searchParams.get('history')) {
+        return ok({
+          snapshots: [...state.showSnapshots].reverse().map((s) => ({ at: s.at, count: s.shows.length })),
+        });
+      }
+      if (method === 'GET' && url.searchParams.get('at')) {
+        const snap = state.showSnapshots.find((s) => s.at === url.searchParams.get('at'));
+        if (!snap) return err(404, 'not_found');
+        return ok({ shows: snap.shows });
+      }
       if (method === 'GET') return ok({ shows: state.shows });
+      // The real route copies the rows aside before a full replace, and
+      // before the first chunk of a chunked one.
+      if ((body.snapshot || !body.partial) && state.shows.length > 0) {
+        state.showSnapshots.push({ at: stamp(), shows: [...state.shows] });
+      }
       if (Array.isArray(body.shows)) state.shows = body.shows;
       return ok({ ok: true });
     }
 
     if (path === '/api/settings') {
+      if (method === 'GET' && url.searchParams.get('history')) {
+        return ok({ snapshots: [...state.settingsSnapshots].reverse().map((s) => ({ at: s.at })) });
+      }
+      if (method === 'GET' && url.searchParams.get('at')) {
+        const snap = state.settingsSnapshots.find((s) => s.at === url.searchParams.get('at'));
+        if (!snap) return err(404, 'not_found');
+        return ok({ encryptedData: snap.encryptedData });
+      }
       if (method === 'GET') return ok({ encryptedData: state.settings });
+      if (body.park) {
+        state.settingsSnapshots.push({ at: stamp(), encryptedData: body.encryptedData });
+        return ok({ ok: true });
+      }
+      if (state.settings) state.settingsSnapshots.push({ at: stamp(), encryptedData: state.settings });
       state.settings = body.encryptedData;
       return ok({ ok: true });
     }

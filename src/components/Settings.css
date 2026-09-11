@@ -506,3 +506,42 @@
   flex-wrap: wrap;
   margin-bottom: var(--space-3);
 }
+
+/* ── Earlier versions ─────────────────────────────────────────────── */
+
+/* Joined with hairlines like the trash: this is a ledger to scan, not a
+   stack of cards to admire. */
+.settings__versions {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.settings__version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings__version-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings__version-when {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings__version-what {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
