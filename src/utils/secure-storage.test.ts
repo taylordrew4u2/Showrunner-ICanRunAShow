@@ -6,7 +6,7 @@ import {
   type EncryptedShowRow,
 } from './secure-storage';
 import { encryptWithKey } from './encryption';
-import type { Show } from '../types';
+import { DEFAULT_SETTINGS, type Show } from '../types';
 import type { SessionCredentials } from './session-vault';
 
 // Keys are supplied directly rather than derived: PBKDF2 runs 100k iterations
@@ -101,47 +101,46 @@ describe('loadEncryptedShows', () => {
 });
 
 describe('saveEncryptedShows', () => {
-  it('writes unreadable rows back untouched', async () => {
-    // Every save replaces the whole set, so a row we merely failed to read
-    // would otherwise be deleted by the next edit to any other show.
-    const carried: EncryptedShowRow = { id: 'b', encryptedData: 'opaque-blob' };
+  it('leaves unchanged and unreadable rows alone', async () => {
+    const bad = { id: 'b', encryptedData: 'opaque-blob' };
+    mockGet([row(show({ id: 'a' })), bad]);
+    const loaded = await loadEncryptedShows(CREDS);
     const bodies = mockPut();
-
-    await saveEncryptedShows([show({ id: 'a' })], CREDS, [carried]);
-
-    const sent = bodies[0].shows as EncryptedShowRow[];
-    expect(sent).toHaveLength(2);
-    expect(sent).toContainEqual(carried);
+    await saveEncryptedShows(loaded.shows, CREDS, loaded.unreadable);
+    expect(bodies).toEqual([]);
   });
 
-  it('does not treat a save as a wipe when only unreadable rows remain', async () => {
+  it('adds a new show without replacing the account list', async () => {
+    mockGet([row(show({ id: 'a' }))]);
+    const loaded = await loadEncryptedShows(CREDS);
     const bodies = mockPut();
-
-    await saveEncryptedShows([], CREDS, [{ id: 'b', encryptedData: 'opaque-blob' }]);
-
-    expect(bodies[0].deleteAll).toBe(false);
-    expect(bodies[0].shows).toHaveLength(1);
+    await saveEncryptedShows([...loaded.shows, show({ id: 'new' })], CREDS);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).not.toHaveProperty('shows');
+    expect(bodies[0].changes).toEqual([{ id: 'new', expectedHash: null, encryptedData: expect.any(String) }]);
   });
 
-  it('still flags a genuinely empty save as intentional', async () => {
+  it('deletes only a show the tab had actually loaded', async () => {
+    mockGet([row(show({ id: 'a' }))]);
+    await loadEncryptedShows(CREDS);
     const bodies = mockPut();
-
     await saveEncryptedShows([], CREDS);
-
-    expect(bodies[0].deleteAll).toBe(true);
-    expect(bodies[0].shows).toEqual([]);
+    expect(bodies[0].changes).toEqual([{ id: 'a', expectedHash: expect.stringMatching(/^[a-f0-9]{64}$/), encryptedData: null }]);
+    expect(bodies[0]).not.toHaveProperty('deleteAll');
   });
 
-  it('never writes an id twice when a carried row is readable again', async () => {
-    // id is a primary key — a duplicate fails the entire batch, taking every
-    // other show's save down with it.
-    const bodies = mockPut();
-
-    await saveEncryptedShows([show({ id: 'a' })], CREDS, [{ id: 'a', encryptedData: 'stale' }]);
-
-    const sent = bodies[0].shows as EncryptedShowRow[];
-    expect(sent).toHaveLength(1);
-    expect(sent[0].encryptedData).not.toBe('stale');
+  it('does not advance the baseline when the server rejects an edit', async () => {
+    mockGet([row(show({ id: 'a' }))]);
+    const loaded = await loadEncryptedShows(CREDS);
+    const changed = [{ ...loaded.shows[0], name: 'Edited' }];
+    const sent: string[] = [];
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_path, init) => {
+      sent.push(init.body);
+      return Promise.resolve({ ok: false, status: 409, json: async () => ({ error: 'save_conflict' }) });
+    }));
+    await expect(saveEncryptedShows(changed, CREDS)).rejects.toThrow('save_conflict');
+    await expect(saveEncryptedShows(changed, CREDS)).rejects.toThrow('save_conflict');
+    expect(sent[0]).toBe(sent[1]);
   });
 });
 
@@ -180,6 +179,14 @@ describe('exportUserData', () => {
     const backup = JSON.parse(written[0]);
     expect(backup.shows.map((s: Show) => s.name)).toEqual(['Late Night']);
     expect(backup.unreadableShows).toEqual([bad]);
+  });
+
+  it('exports unsaved on-screen edits without needing the network', async () => {
+    const written = mockExport([]);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    await exportUserData(CREDS, { shows: [show({ name: 'Unsaved work' })], unreadable: [], settings: DEFAULT_SETTINGS });
+    expect(JSON.parse(written[0]).shows[0].name).toBe('Unsaved work');
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('leaves the key out entirely when every row read cleanly', async () => {
