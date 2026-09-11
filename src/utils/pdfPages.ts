@@ -29,9 +29,6 @@ export interface RenderedPage {
  */
 const RENDER_WIDTH = 1100;
 
-/** Pages beyond this are still rendered, just not all at once. See renderPdfPages. */
-const MAX_PAGES = 60;
-
 function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -84,7 +81,7 @@ export async function renderPdfPages(
   ).toString();
 
   const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-  const total = Math.min(pdf.numPages, MAX_PAGES);
+  const total = pdf.numPages;
   const pages: RenderedPage[] = [];
 
   for (let n = 1; n <= total; n++) {

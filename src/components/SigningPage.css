@@ -62,7 +62,7 @@
 }
 
 .signing__main {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 240px;
   display: flex;
 }
@@ -79,8 +79,6 @@
   align-items: center;
   gap: var(--space-3-5);
   padding: var(--space-3-5) var(--space-3);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .signing__page {
@@ -113,9 +111,10 @@
   color: var(--text-muted);
 }
 
-.signing__doc-end {
-  height: 1px;
-  width: 100%;
+.signing__intro {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 
 /* A plain-text button, for the original file inside a sentence. */
@@ -152,18 +151,22 @@
   line-height: 1.5;
 }
 
-/* The panel is the only thing pinned — on a long contract the document
-   scrolls behind it and the action stays reachable. */
+/* Keep the form after the entire PDF in normal page flow, even when it is
+   taller than a phone screen. Nothing may float over the agreement. */
 .signing__panel {
   flex: 0 0 auto;
-  position: sticky;
-  bottom: 0;
+  position: static;
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding: 16px 18px calc(16px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: var(--space-3-5);
+}
+
+.signing__panel h2 {
+  margin: 0;
+  font-size: var(--text-xl);
 }
 
 .signing__field {
