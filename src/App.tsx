@@ -1945,6 +1945,15 @@ export default function App() {
                       {searchQuery.trim() ? 'Clear search' : 'Show all'}
                     </button>
                   </div>
+                ) : shows.length === 1 && showsView === 'grid' && !showsFocus && !searchQuery.trim() ? (
+                  // One show, printed twice: the panel above already gives its
+                  // name, its date, what it still needs and a way into it, and
+                  // then "ALL SHOWS 1" repeated the same show underneath. A
+                  // list of one is not a list. The calendar still draws it,
+                  // because a month with one show on it is a different answer —
+                  // and a search or a filter is a question about the list, so
+                  // the list comes back to answer it.
+                  null
                 ) : (
                   <>
                     {/* Above both views: whichever one you're in, the question

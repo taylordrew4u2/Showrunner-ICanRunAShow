@@ -34,8 +34,9 @@ test.describe('earlier versions', () => {
     await expect(page.locator('.settings__sweep-result')).toContainText('Restored the version');
 
     await gotoTab(page, 'Shows');
-    await expect(page.locator('.show-card')).toHaveCount(1);
-    await expect(page.locator('.show-card')).toContainText('First night');
+    // Back to one show, so the list gives way to the panel (see shows-list).
+    await expect(page.locator('.show-card')).toHaveCount(0);
+    await expect(page.locator('.dash-next__name')).toHaveText('First night');
 
     // A way back: the two-show list the restore replaced is now itself an
     // earlier version.
