@@ -29,7 +29,7 @@ describe('generateSchedule', () => {
     expect(intros[1].description).toBe('Intro — Kit Anders');
   });
 
-  it('times every cue from doors, so the running order is real clock time', () => {
+  it('opens doors before the billed time, so the show starts when the poster says', () => {
     const items = generateSchedule({
       startTime: '20:00',
       acts: ACTS,
@@ -41,15 +41,17 @@ describe('generateSchedule', () => {
 
     // clockLabel renders in the viewer's locale, so the expectation is built
     // the same way the app builds it rather than hard-coding one region's format.
+    // Doors at half seven for an eight o'clock show, and the host is on at
+    // eight — not at half past, which is what timing doors forward produced.
     expect(items.map((item) => `${item.time} ${item.description}`)).toEqual([
-      `${clockLabel(20 * 60)} Doors — house music`,
-      `${clockLabel(20 * 60 + 30)} Welcome, rules, first intro`,
-      `${clockLabel(20 * 60 + 35)} Guest`,
-      `${clockLabel(20 * 60 + 45)} Intro — Mona Sable`,
-      `${clockLabel(20 * 60 + 46)} Feature`,
-      `${clockLabel(21 * 60 + 1)} Intro — Kit Anders`,
-      `${clockLabel(21 * 60 + 2)} Headliner`,
-      `${clockLabel(21 * 60 + 27)} Outro and plugs`,
+      `${clockLabel(19 * 60 + 30)} Doors — house music`,
+      `${clockLabel(20 * 60)} Welcome, rules, first intro`,
+      `${clockLabel(20 * 60 + 5)} Guest`,
+      `${clockLabel(20 * 60 + 15)} Intro — Mona Sable`,
+      `${clockLabel(20 * 60 + 16)} Feature`,
+      `${clockLabel(20 * 60 + 31)} Intro — Kit Anders`,
+      `${clockLabel(20 * 60 + 32)} Headliner`,
+      `${clockLabel(20 * 60 + 57)} Outro and plugs`,
     ]);
   });
 
@@ -86,6 +88,11 @@ describe('generateSchedule', () => {
     expect(items.some((item) => item.description === 'Outro and plugs')).toBe(false);
   });
 
+  it('starts exactly on the billed time when there are no doors', () => {
+    const items = generateSchedule({ startTime: '20:00', acts: ACTS, doorsMin: 0 });
+    expect(items[0].time).toBe(clockLabel(20 * 60));
+  });
+
   it('falls back to a default length for an act with no set time', () => {
     const items = generateSchedule({
       startTime: '20:00',
@@ -108,7 +115,9 @@ describe('generateSchedule', () => {
     const twentyFour = generateSchedule({ startTime: '20:00', acts: ACTS });
     const terse = generateSchedule({ startTime: '8pm', acts: ACTS });
 
-    expect(evening[0].time).toBe(clockLabel(20 * 60));
+    // All three say eight o'clock, so all three put the default half-hour of
+    // doors at half seven and the host on at eight.
+    expect(evening[0].time).toBe(clockLabel(19 * 60 + 30));
     expect(twentyFour[0].time).toBe(evening[0].time);
     expect(terse[0].time).toBe(evening[0].time);
   });
@@ -131,9 +140,10 @@ describe('runtime reporting', () => {
     expect(scheduleRuntime(items)).toBe(30 + 5 + 10 + 2 + 15 + 2 + 25 + 4);
   });
 
-  it('says when the room gets its stage back', () => {
-    expect(scheduleEndTime('20:00', items)).toBe(clockLabel(21 * 60 + 33));
-    expect(scheduleEndTime('not a time', items)).toBe('');
+  it('says when the room gets its stage back, counting from doors', () => {
+    // 93 minutes of night, starting when the doors open at 19:30.
+    expect(scheduleEndTime('20:00', items)).toBe(clockLabel(21 * 60 + 3));
+    expect(scheduleEndTime('not a time', [])).toBe('');
   });
 
   it('counts the handover time separately, since that is the surprise', () => {

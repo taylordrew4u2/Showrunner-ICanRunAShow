@@ -24,12 +24,12 @@ export interface ScheduleAct {
 }
 
 export interface GenerateScheduleOptions {
-  /** When the room opens, however `Show.time` holds it: "8:00 PM", "20:00", "8pm". */
+  /** When the first thing happens on stage, however `Show.time` holds it. */
   startTime: string;
   acts: ScheduleAct[];
   /** Who is running the night. Without one, no handover cues are written. */
   hostName?: string;
-  /** How long the room is open before the first cue. */
+  /** How long the room is open *before* `startTime`. */
   doorsMin?: number;
   /** The host's opening, which carries the first act's introduction. */
   welcomeMin?: number;
@@ -72,7 +72,12 @@ export function generateSchedule(options: GenerateScheduleOptions): ScheduleItem
   const host = options.hostName?.trim();
 
   const items: ScheduleItem[] = [];
-  let cursor = start;
+  // Doors run up to the start time, not from it. A show billed at 8 with
+  // thirty minutes of doors opens the room at 7:30 and starts at 8 — it does
+  // not start at 8:35. Timing doors forward from the billed time quietly moved
+  // every act half an hour later than the poster said, which is the one number
+  // an audience actually holds you to.
+  let cursor = start - doorsMin;
 
   const push = (
     description: string,
@@ -127,9 +132,11 @@ export function scheduleRuntime(items: ScheduleItem[]): number {
 
 /** When the last cue ends, as "HH:MM". Empty when the start is unreadable. */
 export function scheduleEndTime(startTime: string, items: ScheduleItem[]): string {
-  const start = parseClockToMinutes(startTime);
-  if (start === null) return '';
-  return clockLabel(start + scheduleRuntime(items));
+  // From the top of the sheet, which is doors when there are doors — not from
+  // the billed start time, or the night reads half an hour longer than it is.
+  const first = parseClockToMinutes(items[0]?.time) ?? parseClockToMinutes(startTime);
+  if (first === null) return '';
+  return clockLabel(first + scheduleRuntime(items));
 }
 
 /**

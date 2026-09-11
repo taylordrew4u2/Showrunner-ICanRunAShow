@@ -92,6 +92,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Wide enough for a whole line ("Doors 8:30, show 9"), because that is what
+   gets typed here now rather than four characters. */
+.gen__time--wide {
+  max-width: 18rem;
+}
+
 .gen__time:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 1px;
@@ -102,6 +108,15 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
   line-height: 1.45;
+}
+
+/* What the line was understood to mean. Green because it is a confirmation,
+   not a correction — the field took what was typed. */
+.gen__hint--read {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  color: var(--success-strong, var(--text-muted));
 }
 
 .gen__toggle {
