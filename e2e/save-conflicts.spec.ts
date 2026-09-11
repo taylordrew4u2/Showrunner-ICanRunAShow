@@ -8,7 +8,7 @@ test('an older tab cannot erase a newly saved show', async ({ page, context }) =
   await signUpAndOnboard(page);
   const oldTab = await context.newPage();
   await oldTab.goto('/');
-  await expect(oldTab.locator('.bottom-nav__item').first()).toBeVisible();
+  await expect(oldTab.locator('.app-main')).toBeVisible();
   await createShow(page, 'Newly saved show');
   await expect.poll(() => state.shows.length).toBe(1);
   const firstId = state.shows[0].id;
@@ -87,7 +87,7 @@ test('a stale settings save cannot erase another tab’s contact list', async ({
   await signUpAndOnboard(page);
   const oldTab = await context.newPage();
   await oldTab.goto('/');
-  await expect(oldTab.locator('.bottom-nav__item').first()).toBeVisible();
+  await expect(oldTab.locator('.app-main')).toBeVisible();
   await gotoTab(page, 'Rolodex');
   await page.locator('.rolodex__input').first().fill('First contact');
   await page.locator('button').filter({ hasText: /^Add$/ }).first().click();

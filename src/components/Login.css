@@ -171,9 +171,9 @@
 /* ── Error ────────────────────────────────────────────────────────── */
 
 .login__error {
-  background: var(--primary-soft);
-  border: 1px solid var(--primary-soft-border);
-  color: var(--primary-text);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-soft-border);
+  color: var(--danger-text);
   border-radius: var(--radius-sm);
   padding: var(--space-2-5) var(--space-3);
   font-size: var(--text-md);
