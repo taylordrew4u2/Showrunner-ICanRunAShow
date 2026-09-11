@@ -225,12 +225,12 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               )}
             </div>
             <div className="perf-profile__field perf-profile__field--full">
-              <label className="perf-profile__label" htmlFor={`${fieldId}-credits-intro-notes`}>Credits / Intro Notes</label>
+              <label className="perf-profile__label" htmlFor={`${fieldId}-credits-intro-notes`}>Credits for the stage introduction</label>
               <input id={`${fieldId}-credits-intro-notes`}
                 className="perf-profile__input"
                 value={credits}
                 onChange={e => { setCredits(e.target.value); mark(); }}
-                placeholder="Stage intro, credits, any notes..."
+                placeholder="Credits the host should mention when bringing them onstage"
               />
             </div>
             <div className="perf-profile__field">

@@ -1,3 +1,4 @@
+import { clarifyIntroductionCredits } from '../utils/introductionCredits';
 import { useEffect, useState } from 'react';
 import type { ApiError } from '../utils/api';
 import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
@@ -280,7 +281,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             />
           </label>
 
-          {(payload.fields ?? []).map((f) => (
+          {(payload.fields ?? []).map(clarifyIntroductionCredits).map((f) => (
             <label className="signing__field" key={f.id}>
               <span>
                 {f.label}
