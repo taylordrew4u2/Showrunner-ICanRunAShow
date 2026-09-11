@@ -1,3 +1,4 @@
+import { INTRODUCTION_CREDITS_LABEL, INTRODUCTION_CREDITS_PLACEHOLDER } from './introductionCredits';
 import CryptoJS from 'crypto-js';
 import type { Contract, ContractField, SignatureRecord, SignatureRequest } from '../types';
 import { api } from './api';
@@ -98,7 +99,7 @@ export function prefillFromShow(
 export function suggestedFields(): ContractField[] {
   return [
     { id: 'stage-name', label: 'Stage name', placeholder: 'If different from your legal name' },
-    { id: 'credit', label: 'How to credit you', placeholder: 'Name, pronouns, socials', multiline: true },
+    { id: 'credit', label: INTRODUCTION_CREDITS_LABEL, placeholder: INTRODUCTION_CREDITS_PLACEHOLDER, multiline: true },
     { id: 'email', label: 'Email', required: true },
     { id: 'phone', label: 'Phone' },
     // These two answer themselves when the contract is sent from a show.

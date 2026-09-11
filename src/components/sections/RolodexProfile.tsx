@@ -148,12 +148,12 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
               )}
             </div>
             <div className="perf-profile__field">
-              <label className="perf-profile__label" htmlFor={`${fieldId}-credits`}>Credits</label>
+              <label className="perf-profile__label" htmlFor={`${fieldId}-credits`}>Credits for the stage introduction</label>
               <input id={`${fieldId}-credits`}
                 className="perf-profile__input"
                 value={credits}
                 onChange={e => { setCredits(e.target.value); mark(); }}
-                placeholder="Stage credits, intro notes..."
+                placeholder="Credits the host should mention when bringing them onstage"
               />
             </div>
             <div className="perf-profile__field perf-profile__field--full">
