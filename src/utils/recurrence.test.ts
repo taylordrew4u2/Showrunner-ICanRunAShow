@@ -64,6 +64,21 @@ describe('recurringDates', () => {
     expect(recurringDates('2026-01-30', 'monthly-weekday', 6)).toHaveLength(6);
   });
 
+  it('fills a maximum-length run for every fifth weekday', () => {
+    // Cover Sunday through Saturday, each on its fifth occurrence.
+    for (const start of ['2026-03-29', '2026-03-30', '2026-03-31', '2026-04-29', '2026-04-30', '2026-01-30', '2026-01-31']) {
+      const dates = recurringDates(start, 'monthly-weekday', MAX_OCCURRENCES);
+      expect(dates, start).toHaveLength(MAX_OCCURRENCES);
+      expect(new Set(dates).size).toBe(MAX_OCCURRENCES);
+      const weekday = new Date(`${start}T00:00:00`).getDay();
+      for (const date of dates) {
+        const day = new Date(`${date}T00:00:00`);
+        expect(day.getDay()).toBe(weekday);
+        expect(weekdayOrdinal(day)).toBe(5);
+      }
+    }
+  });
+
   it('refuses a bad date or a nonsense count rather than inventing shows', () => {
     expect(recurringDates('', 'weekly', 4)).toEqual([]);
     expect(recurringDates('not a date', 'weekly', 4)).toEqual([]);
