@@ -12,7 +12,7 @@ const original = {
   status: 'completed',
   performers: [{ id: 'p1', name: 'Ada Cole' }],
   artists: [],
-  schedule: [{ id: 's1', title: 'Doors' }],
+  schedule: [{ id: 's1', time: '0:00', description: 'Doors', durationMin: 10 }],
   hosts: [],
   djSongs: [],
   staff: [],
@@ -24,9 +24,10 @@ const original = {
 } as unknown as Show;
 
 describe('duplicateShow', () => {
-  it('carries the bill and the running order — that is the point of a copy', () => {
+  it('keeps the show setup and starts a fresh lineup', () => {
     const copy = duplicateShow(original);
-    expect(copy.performers).toEqual(original.performers);
+    expect(copy.performers).toEqual([]);
+    expect(copy.artists).toEqual([]);
     expect(copy.schedule).toEqual(original.schedule);
     expect(copy.venueName).toBe('The Basement');
     expect(copy.time).toBe('20:00');
@@ -52,12 +53,16 @@ describe('duplicateShow', () => {
     const copy = duplicateShow(original, { name: original.name, date: '2026-04-14' });
     expect(copy.date).toBe('2026-04-14');
     expect(copy.name).toBe('Late Night Laughs');
+    expect(copy.performers).toEqual([]);
+    expect(original.performers).toHaveLength(1);
   });
 
   it('is a deep copy — editing the copy cannot reach back into the original', () => {
     const copy = duplicateShow(original);
-    copy.performers[0].name = 'Someone Else';
-    expect(original.performers[0].name).toBe('Ada Cole');
+    copy.schedule[0].description = 'Different doors';
+    copy.performers.push({ id: 'p2', name: 'Someone Else' });
+    expect(original.schedule[0].description).toBe('Doors');
+    expect(original.performers).toEqual([{ id: 'p1', name: 'Ada Cole' }]);
   });
 
   it('gives every copy its own id', () => {
@@ -65,3 +70,31 @@ describe('duplicateShow', () => {
     expect(ids.size).toBe(20);
   });
 });
+
+for (const options of [{}, { name: original.name, date: '2026-04-14' }]) {
+  it(`clears artist bookings and old cue assignments for ${options.date ? 'a repeat' : 'a duplicate'}`, () => {
+    const source: Show = {
+      ...original,
+      artists: [{ id: 'a1', name: 'Jo Park' }],
+      schedule: [
+        { id: 's1', time: '0:00', description: 'Doors', music: 'media:house' },
+        { id: 's2', time: '10:00', description: 'Opening set', performerId: 'p1', performer: 'Ada Cole', durationMin: 10 },
+        { id: 's3', time: '20:00', description: 'Feature', performer: '  JO   park ', durationMin: 15 },
+        { id: 's4', time: '35:00', description: 'Welcome', performer: 'Host' },
+      ],
+      completions: { performers: true, artists: true, schedule: true, basic: true },
+    };
+    const before = structuredClone(source);
+    const copy = duplicateShow(source, options);
+    expect(copy.performers).toEqual([]);
+    expect(copy.artists).toEqual([]);
+    expect(copy.schedule).toEqual([
+      source.schedule[0],
+      { id: 's2', time: '10:00', description: 'Opening set', durationMin: 10 },
+      { id: 's3', time: '20:00', description: 'Feature', durationMin: 15 },
+      source.schedule[3],
+    ]);
+    expect(copy.completions).toEqual({ performers: false, artists: false, schedule: false, basic: true });
+    expect(source).toEqual(before);
+  });
+}

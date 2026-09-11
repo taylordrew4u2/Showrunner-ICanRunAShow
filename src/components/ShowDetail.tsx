@@ -1299,8 +1299,8 @@ export function ShowDetail({
               <>
                 <p className="repeat-show__sub">
                   Books more nights of “{show.name}”, each a copy of this one: the same venue,
-                  lineup and running order, on the dates below. Each is an ordinary show
-                  afterwards, so changing one changes only that night.
+                  running order and an empty performer lineup, on the dates below.
+                  Book performers separately for each night. Changing one show changes only that night.
                 </p>
 
                 <label className="repeat-show__field">

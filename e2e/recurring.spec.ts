@@ -1,48 +1,53 @@
 import { expect, test } from '@playwright/test';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { createShow, signUpAndOnboard } from './support/app';
+import { createShow, gotoTab, signUpAndOnboard } from './support/app';
 
-/**
- * Booking a weekly room.
- *
- * A producer's most repetitive job is building the same night over and over,
- * so this walks the whole of it: a show with a lineup, repeated four times,
- * and the copies carrying the bill on the right dates.
- */
-test.describe('repeating a show', () => {
-  test('books a run of the same show, lineup and all', async ({ page, context }) => {
+for (const action of ['duplicate', 'repeat'] as const) {
+  test(`${action} starts empty lineups without changing the original or Rolodex`, async ({ page, context }) => {
     await installFakeApi(context, emptyState());
     await signUpAndOnboard(page);
-
-    // A show on a known Tuesday, with someone on the bill.
     await createShow(page, 'Tuesday Night Laughs', '2026-04-07');
-
-    // Performers is open on a new show already — clicking it here would close it.
     await page.getByPlaceholder('Performer name').fill('Ada Cole');
     await page.locator('button').filter({ hasText: /^Add$/ }).first().click();
     await expect(page.locator('.section-list-item__name').filter({ hasText: 'Ada Cole' })).toBeVisible();
 
-    // Repeat it weekly, four more times.
     await page.locator('button[aria-label="More"], .more-menu__trigger').first().click();
-    await page.getByText('Repeat this show…').click();
-    await expect(page.locator('.repeat-show__rule')).toHaveText('Every week on Tuesday');
+    if (action === 'repeat') {
+      await page.getByText('Repeat this show…').click();
+      await expect(page.locator('.repeat-show__sub')).toContainText('empty performer lineup');
+      await expect(page.locator('.repeat-show__rule')).toHaveText('Every week on Tuesday');
+      await expect(page.locator('.repeat-show__dates li')).toHaveCount(4);
+      await expect(page.locator('.repeat-show__dates li').first()).toContainText(/14/);
+      await expect(page.locator('.repeat-show__dates li').last()).toContainText(/May|5/);
+      await page.locator('.repeat-show__actions .btn--primary').click();
+    } else {
+      await page.getByText('Duplicate show', { exact: true }).click();
+    }
 
-    // The dates are shown before anything is booked — this is the last point
-    // at which a wrong one costs nothing.
-    await expect(page.locator('.repeat-show__dates li')).toHaveCount(4);
-    // The runner's locale decides the order of the parts, so assert on what
-    // the date means rather than how it is punctuated: the Tuesday a week on.
-    await expect(page.locator('.repeat-show__dates li').first()).toContainText(/Tue/);
-    await expect(page.locator('.repeat-show__dates li').first()).toContainText(/14/);
-    await expect(page.locator('.repeat-show__dates li').last()).toContainText(/May|5/);
-
-    await page.locator('.repeat-show__actions .btn--primary').click();
-
-    // Five nights now: the original and four repeats, each with the bill.
-    await expect(page.locator('.show-card')).toHaveCount(5);
-    await page.locator('.show-card').filter({ hasText: 'Tuesday Night Laughs' }).first().click();
-    await expect(
-      page.locator('.section-list-item__name').filter({ hasText: 'Ada Cole' }),
-    ).toBeVisible();
+    const count = action === 'repeat' ? 5 : 2;
+    await expect(page.locator('.show-card')).toHaveCount(count);
+    // Inspect every new date, not merely the first card (which may be the original).
+    for (let i = 0; i < count; i++) {
+      const card = page.locator('.show-card').nth(i);
+      const date = card.locator('.show-card__date-day');
+      const day = await date.count() ? await date.textContent() : '';
+      const isOriginal = day?.trim() === '7';
+      await card.click();
+      await expect(page.locator('.show-detail')).toBeVisible();
+      const performer = page.locator('.section-list-item__name').filter({ hasText: 'Ada Cole' });
+      if (isOriginal) await expect(performer).toBeVisible();
+      else {
+        await expect(performer).toHaveCount(0);
+        await expect(page.getByPlaceholder('Performer name')).toBeVisible();
+      }
+      await gotoTab(page, 'Shows');
+    }
+    // The contact is still filed once, with no copy created by either action.
+    await gotoTab(page, 'Rolodex');
+    await expect(page.locator('.rolodex__item')).toHaveCount(1);
+    await expect(page.locator('.rolodex__name')).toHaveText('Ada Cole');
+    await page.reload();
+    await gotoTab(page, 'Shows');
+    await expect(page.locator('.show-card')).toHaveCount(count);
   });
-});
+}
