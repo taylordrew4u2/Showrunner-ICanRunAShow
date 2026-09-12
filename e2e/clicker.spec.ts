@@ -75,6 +75,7 @@ for (const remoteKey of ['F18', ' ']) {
 
     // Moving the timer neither starts music nor discards the selected song.
     await run.getByRole('button', { name: 'Next', exact: true }).click();
+    await slider.focus();
     await expect(pad).toHaveAttribute('aria-pressed', 'false');
     await remotePress();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
