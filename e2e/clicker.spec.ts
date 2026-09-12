@@ -38,9 +38,21 @@ for (const remoteKey of ['F18', ' ']) {
     const run = page.locator('.run-show');
     const pad = run.locator('.rs-pad').filter({ hasText: 'Test music' });
     await expect(run.locator('.rs-board__now')).toContainText('Choose a song');
+    await expect(run).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(run.locator('.rs-lineup__row').last()).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(run.getByRole('button', { name: 'Enter fullscreen' })).toBeFocused();
+    if (test.info().project.name === 'desktop') {
+      await expect(pad).toBeInViewport();
+      const musicBox = await run.locator('.rs-board').boundingBox();
+      const timerBox = await run.locator('.rs-clock').boundingBox();
+      expect(musicBox!.x).toBeLessThan(timerBox!.x);
+    }
     await pad.click();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
     await expect(run.locator('.rs-board__now')).toContainText('Playing:');
+    await page.screenshot({ path: test.info().outputPath('run-show.png') });
 
     const slider = run.locator('input[type=range]').last();
     await slider.focus();
@@ -62,7 +74,8 @@ for (const remoteKey of ['F18', ' ']) {
     await remotePress();
     await expect(pad).toHaveAttribute('aria-pressed', 'false');
     await expect(slider).toHaveValue(level);
-    await expect(run.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
+    await expect(run.locator('.rs-music-card')).toContainText('Test music');
+    await expect(run.getByRole('button', { name: 'Start timer', exact: true })).toBeVisible();
     await remotePress();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
 
@@ -79,7 +92,12 @@ for (const remoteKey of ['F18', ' ']) {
     await expect(pad).toHaveAttribute('aria-pressed', 'false');
     await remotePress();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
-    await expect(run.getByRole('button', { name: 'Resume', exact: true })).toBeVisible();
-    await run.getByRole('button', { name: 'Stop audio', exact: true }).click();
+    await expect(run.getByRole('button', { name: 'Resume timer', exact: true })).toBeVisible();
+    await run.getByRole('button', { name: 'Stop music', exact: true }).click();
+    await run.getByRole('button', { name: 'Play music', exact: true }).click();
+    await expect(pad).toHaveAttribute('aria-pressed', 'true');
+    await run.getByRole('button', { name: 'Stop music', exact: true }).click();
+    await run.getByRole('button', { name: 'Close run show', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Run Show', exact: true })).toBeFocused();
   });
 }

@@ -9,6 +9,7 @@ import { ShowTimeline } from '../ShowTimeline';
 import { withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
 import { useConfirm } from '../useConfirm';
 import { fillCueDurations, isUntimed } from '../../utils/showTiming';
+import { cueAudioPatch, totalRuntimeLabel } from '../../utils/scheduleEditing';
 import { canDeriveTimes, timesFromLengths } from '../../utils/scheduleTemplates';
 import { ScheduleTemplates } from '../ScheduleTemplates';
 import { ScheduleGenerator } from '../ScheduleGenerator';
@@ -89,17 +90,6 @@ function durationLabel(items: ScheduleItem[], idx: number): string | null {
   const next = timeToMinutes(items[idx + 1]?.time || '');
   if (cur != null && next != null && next > cur) return formatMinutes(next - cur);
   return null;
-}
-
-function totalRuntimeLabel(items: ScheduleItem[]): string | null {
-  if (items.length < 2) return null;
-  const first = timeToMinutes(items[0]?.time || '');
-  const last = timeToMinutes(items[items.length - 1]?.time || '');
-  if (first == null || last == null || last <= first) return null;
-  const total = last - first;
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return h === 0 ? `${m}m total` : m === 0 ? `${h}h total` : `${h}h ${m}m total`;
 }
 
 function cueMusicLabelFor(item: ScheduleItem, performers: Performer[]): string | null {
@@ -284,7 +274,7 @@ const CueRow = memo(function CueRow({
                 className={`icon-btn icon-btn--ghost ${mediaOpen || musicLabel ? 'icon-btn--active' : ''}`}
                 onClick={() => { setMusicError(null); setMediaOpen((v) => !v); }}
                 aria-label="Segment audio"
-                title="Add segment audio (plays at the start of this cue)"
+                title="Choose segment audio to play manually in Run Show"
                 style={musicLabel ? { color: 'var(--primary)' } : undefined}
               >
                 <Icon name="music" size={14} />
@@ -308,7 +298,7 @@ const CueRow = memo(function CueRow({
               <div className="cue-media__music">
                 <span className="cue-media__music-name"><Icon name="music" size={12} /> {item.musicName || 'Uploaded track'}</span>
                 <button className="btn btn--ghost btn--sm" onClick={handlePickMusic}>Replace</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => onPatch(item.id, { music: undefined, musicName: undefined })}>Remove</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => onPatch(item.id, cueAudioPatch())}>Remove</button>
               </div>
             ) : (
               <div className="cue-media__music">
@@ -327,20 +317,19 @@ const CueRow = memo(function CueRow({
               <select
                 className="section-field__select cue-media__pick"
                 value=""
-                aria-label="Play a song from this show"
+                aria-label="Choose a song for this segment"
                 onChange={(e) => {
                   const song = musicChoices.find((c) => c.id === e.target.value);
                   if (!song?.music) return;
                   // Points at the same media the song uses. Nothing here ever
                   // deletes a cue's audio, so sharing the reference is safe —
                   // and it means no second upload of a track already on file.
-                  onPatch(item.id, {
+                  onPatch(item.id, cueAudioPatch({
                     music: song.music,
-                    // The title the producer gave it, not the file it came from:
-                    // a cue reading "Intermission Bed" beats one reading
-                    // "track_final_v2.mp3".
                     musicName: song.title || song.musicName,
-                  });
+                    startSec: song.startSec,
+                    endSec: song.endSec,
+                  }));
                 }}
               >
                 <option value="">Use a song from this show…</option>
@@ -482,7 +471,7 @@ export function ScheduleSection({
     if (err) return err;
     try {
       const ref = await uploadMedia(file);
-      onChangeRef.current(scheduleRef.current.map((s) => (s.id === id ? { ...s, music: ref, musicName: file.name } : s)));
+      onChangeRef.current(scheduleRef.current.map((s) => (s.id === id ? { ...s, ...cueAudioPatch({ music: ref, musicName: file.name }) } : s)));
       return null;
     } catch {
       return 'Could not upload that audio file. Check your connection and try again.';
