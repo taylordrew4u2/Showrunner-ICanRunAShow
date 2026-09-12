@@ -30,7 +30,7 @@ for (const remoteKey of ['F18', ' ']) {
     };
     await installFakeApi(context, emptyState({
       shows: [{ id: show.id, encryptedData: encryptWithKey(show, key) }],
-      settings: encryptWithKey({ onboarded: true, remoteMusicKey, brandName: 'Test', musicLibrary: [] }, key),
+      settings: encryptWithKey({ onboarded: true, remoteMusicKey: remoteKey, brandName: 'Test', musicLibrary: [] }, key),
     }));
     await signUp(page);
     await page.getByRole('button', { name: /Open Clicker Test,/ }).click();
@@ -46,24 +46,37 @@ for (const remoteKey of ['F18', ' ']) {
     await slider.focus();
     await page.keyboard.press('ArrowRight');
     const level = await slider.inputValue();
-    await page.keyboard.press(remoteKey === ' ' ? 'Space' : remoteKey);
+    // Playwright's keyboard API does not expose F18; dispatch the key reported
+    // by the paired Mac clicker. Space uses native keyboard events/defaults.
+    const remoteDown = async (repeat = false) => {
+      if (remoteKey === 'F18') {
+        await page.locator(':focus').dispatchEvent('keydown', { key: 'F18', code: 'F18', repeat, bubbles: true });
+      } else await page.keyboard.down('Space');
+    };
+    const remoteUp = async () => {
+      if (remoteKey === 'F18') {
+        await page.locator(':focus').dispatchEvent('keyup', { key: 'F18', code: 'F18', bubbles: true });
+      } else await page.keyboard.up('Space');
+    };
+    const remotePress = async () => { await remoteDown(); await remoteUp(); };
+    await remotePress();
     await expect(pad).toHaveAttribute('aria-pressed', 'false');
     await expect(slider).toHaveValue(level);
     await expect(run.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
-    await page.keyboard.press(remoteKey === ' ' ? 'Space' : remoteKey);
+    await remotePress();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
 
     // A held button must not alternate stop/start on key-repeat.
-    await page.keyboard.down(remoteKey === ' ' ? 'Space' : remoteKey);
+    await remoteDown();
     await expect(pad).toHaveAttribute('aria-pressed', 'false');
-    await page.keyboard.down(remoteKey === ' ' ? 'Space' : remoteKey);
+    await remoteDown(true);
     await expect(pad).toHaveAttribute('aria-pressed', 'false');
-    await page.keyboard.up(remoteKey === ' ' ? 'Space' : remoteKey);
+    await remoteUp();
 
     // Moving the timer neither starts music nor discards the selected song.
     await run.getByRole('button', { name: 'Next', exact: true }).click();
     await expect(pad).toHaveAttribute('aria-pressed', 'false');
-    await page.keyboard.press(remoteKey === ' ' ? 'Space' : remoteKey);
+    await remotePress();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
     await expect(run.getByRole('button', { name: 'Resume', exact: true })).toBeVisible();
     await run.getByRole('button', { name: 'Stop audio', exact: true }).click();
