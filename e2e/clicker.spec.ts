@@ -26,7 +26,10 @@ for (const remoteKey of ['F18', ' ']) {
         { id: 'welcome', time: '0:00', description: 'Welcome', durationMin: 10 },
         { id: 'next', time: '0:10', description: 'Next section', durationMin: 10 },
       ],
-      djSongs: [{ id: 'music', title: 'Test music', artist: '', music: silentWav() }],
+      djSongs: [
+        { id: 'music', title: 'Test music', artist: '', music: silentWav() },
+        { id: 'other', title: 'Other music', artist: '', music: silentWav() },
+      ],
     };
     await installFakeApi(context, emptyState({
       shows: [{ id: show.id, encryptedData: encryptWithKey(show, key) }],
@@ -97,6 +100,12 @@ for (const remoteKey of ['F18', ' ']) {
     await run.getByRole('button', { name: 'Play music', exact: true }).click();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
     await run.getByRole('button', { name: 'Stop music', exact: true }).click();
+    await run.locator('.rs-pad').filter({ hasText: 'Other music' }).click();
+    await run.getByRole('button', { name: 'Stop music', exact: true }).click();
+    await run.getByRole('button', { name: '▶ Hear it', exact: true }).click();
+    await expect(run.locator('.rs-music-card__track')).toHaveText('Test music');
+    await run.getByRole('button', { name: 'Stop music', exact: true }).click();
+    await expect(run.locator('.rs-music-card__track')).toHaveText('Other music');
     await run.getByRole('button', { name: 'Close run show', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Run Show', exact: true })).toBeFocused();
   });

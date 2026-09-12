@@ -570,6 +570,8 @@ export function RunShow({
     ?? board.cues.find((track) => track.key === `cue:${current?.id}`)
     ?? board.performers.find((track) => track.key === `performer:${cuePerformer?.id}`);
 
+  const displayTrack = playingTrack ?? musicTarget;
+
   function toggleMusic() {
     if (playingKey || loadingKey) {
       stopAll();
@@ -880,9 +882,9 @@ export function RunShow({
           </div>
           <div className="rs-music-card">
             <div className="rs-music-card__info">
-              <span className="rs-music-card__status">{loadingKey ? 'Loading' : playingKey ? 'Playing' : 'Selected / stopped'}</span>
-              <strong className="rs-music-card__track">{musicTarget?.sublabel || musicTarget?.label || 'Choose a song'}</strong>
-              {musicTarget?.sublabel && <span>{musicTarget.label}</span>}
+              <span className="rs-music-card__status">{auditioning ? 'Testing fade' : loadingKey ? 'Loading' : playingKey ? 'Playing' : 'Selected / stopped'}</span>
+              <strong className="rs-music-card__track">{displayTrack?.sublabel || displayTrack?.label || 'Choose a song'}</strong>
+              {displayTrack?.sublabel && <span>{displayTrack.label}</span>}
               <span className="rs-music-card__remote">{remoteKey ? `Clicker: ${describeKey(remoteKey)} configured` : 'Music shortcut: S'}</span>
             </div>
             <div className="rs-board__actions">
