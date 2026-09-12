@@ -203,6 +203,9 @@ export function RunShow({
   // It is deliberately independent of `idx`: the clock and the sound are two
   // separate instruments and neither one drives the other.
   const [playingKey, setPlayingKey] = useState<string | null>(null);
+  // Keep the chosen song after Stop. The timer can move independently; the
+  // clicker must still restart the song the operator selected on the board.
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   // The pad that has been pressed but whose audio is still being fetched and
   // decoded. Kept apart from playingKey so the board can show "coming" rather
   // than claiming it is already playing.
@@ -489,6 +492,7 @@ export function RunShow({
 
   function toggleTrack(track: SoundboardTrack) {
     cancelAudition();
+    setSelectedKey(track.key);
     if (playingKey === track.key) {
       audioEngine.stop({ fadeMs: fade.fadeOutMs });
       setPlayingKey(null);
@@ -531,6 +535,21 @@ export function RunShow({
     setPlayingKey(null);
     setLoadingKey(null);
     setAudioError(null);
+  }
+
+  function toggleMusic() {
+    if (playingKey || loadingKey) {
+      stopAll();
+      return;
+    }
+    const selected = [...board.performers, ...board.cues, ...board.dj]
+      .find((track) => track.key === selectedKey);
+    const performer = resolveCuePerformer(current, billWithMusic);
+    const cued = board.cues.find((track) => track.key === `cue:${current?.id}`)
+      ?? board.performers.find((track) => track.key === `performer:${performer?.id}`);
+    const track = selected ?? cued;
+    if (track) toggleTrack(track);
+    else setAudioError('Choose a song on the soundboard first. The clicker will start and stop it.');
   }
 
   // ── Viewer audio ─────────────────────────────────────────────────────────
@@ -747,6 +766,13 @@ export function RunShow({
         !!el &&
         ((el.tagName === 'INPUT' && !isSlider) || el.tagName === 'TEXTAREA' || el.isContentEditable);
       if (typing) return;
+      // Handle music before the slider guard and timer shortcuts. A paired
+      // button must neither adjust a focused slider nor also start the clock.
+      if (e.key === 's' || e.key === 'S' || isRemotePress(e.key, remoteKey)) {
+        e.preventDefault();
+        if (!e.repeat) toggleMusic();
+        return;
+      }
       if (e.key === 'Escape') onClose();
       if (e.key === ' ') {
         e.preventDefault();
@@ -757,29 +783,11 @@ export function RunShow({
       if (isSlider) return;
       if (e.key === 'ArrowRight') goNext();
       if (e.key === 'ArrowLeft') goPrev();
-      // One key for the music, because a remote has few buttons and the
-      // question during a show is only ever "is it playing or not". Playing →
-      // stop. Silent → start whatever this cue calls for: its own track if it
-      // has one, otherwise the walk-on of whoever is on stage. Nothing to play
-      // is a no-op rather than an error; the operator is mid-show.
-      if (e.key === 's' || e.key === 'S' || isRemotePress(e.key, remoteKey)) {
-        e.preventDefault();
-        if (playingKey) {
-          stopAll();
-        } else if (current) {
-          const forCue = board.cues.find((t) => t.key === `cue:${current.id}`);
-          const forPerformer = current.performerId
-            ? board.performers.find((t) => t.key === `performer:${current.performerId}`)
-            : undefined;
-          const track = forCue ?? forPerformer;
-          if (track) toggleTrack(track);
-        }
-      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, running, isLast, confirmOpen, playingKey, current, board, remoteKey]);
+  }, [idx, running, isLast, confirmOpen, playingKey, loadingKey, selectedKey, current, board, billWithMusic, remoteKey, fade]);
 
   const started = running || showElapsed > 0 || idx > 0;
   const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
@@ -998,7 +1006,9 @@ export function RunShow({
               </span>
             ) : (
               <span className="rs-board__now-text">
-                Nothing playing. Press a face to start their song, press it again to stop.
+                {selectedKey
+                  ? 'Stopped. Press the clicker or the song again to start it.'
+                  : 'Choose a song to start it. The clicker starts and stops your selected song.'}
               </span>
             )}
           </div>
