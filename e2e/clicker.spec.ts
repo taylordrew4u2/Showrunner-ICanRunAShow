@@ -26,7 +26,10 @@ for (const remoteKey of ['F18', ' ']) {
         { id: 'welcome', time: '0:00', description: 'Welcome', durationMin: 10 },
         { id: 'next', time: '0:10', description: 'Next section', durationMin: 10 },
       ],
-      djSongs: [{ id: 'music', title: 'Test music', artist: '', music: silentWav() }],
+      djSongs: [
+        { id: 'music', title: 'Test music', artist: '', music: silentWav() },
+        { id: 'other', title: 'Other music', artist: '', music: silentWav() },
+      ],
     };
     await installFakeApi(context, emptyState({
       shows: [{ id: show.id, encryptedData: encryptWithKey(show, key) }],
@@ -38,9 +41,21 @@ for (const remoteKey of ['F18', ' ']) {
     const run = page.locator('.run-show');
     const pad = run.locator('.rs-pad').filter({ hasText: 'Test music' });
     await expect(run.locator('.rs-board__now')).toContainText('Choose a song');
+    await expect(run).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(run.locator('.rs-lineup__row').last()).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(run.getByRole('button', { name: 'Enter fullscreen' })).toBeFocused();
+    if (test.info().project.name === 'desktop') {
+      await expect(pad).toBeInViewport();
+      const musicBox = await run.locator('.rs-board').boundingBox();
+      const timerBox = await run.locator('.rs-clock').boundingBox();
+      expect(musicBox!.x).toBeLessThan(timerBox!.x);
+    }
     await pad.click();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
     await expect(run.locator('.rs-board__now')).toContainText('Playing:');
+    await page.screenshot({ path: test.info().outputPath('run-show.png') });
 
     const slider = run.locator('input[type=range]').last();
     await slider.focus();
@@ -62,7 +77,8 @@ for (const remoteKey of ['F18', ' ']) {
     await remotePress();
     await expect(pad).toHaveAttribute('aria-pressed', 'false');
     await expect(slider).toHaveValue(level);
-    await expect(run.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
+    await expect(run.locator('.rs-music-card')).toContainText('Test music');
+    await expect(run.getByRole('button', { name: 'Start timer', exact: true })).toBeVisible();
     await remotePress();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
 
@@ -79,7 +95,18 @@ for (const remoteKey of ['F18', ' ']) {
     await expect(pad).toHaveAttribute('aria-pressed', 'false');
     await remotePress();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
-    await expect(run.getByRole('button', { name: 'Resume', exact: true })).toBeVisible();
-    await run.getByRole('button', { name: 'Stop audio', exact: true }).click();
+    await expect(run.getByRole('button', { name: 'Resume timer', exact: true })).toBeVisible();
+    await run.getByRole('button', { name: 'Stop music', exact: true }).click();
+    await run.getByRole('button', { name: 'Play music', exact: true }).click();
+    await expect(pad).toHaveAttribute('aria-pressed', 'true');
+    await run.getByRole('button', { name: 'Stop music', exact: true }).click();
+    await run.locator('.rs-pad').filter({ hasText: 'Other music' }).click();
+    await run.getByRole('button', { name: 'Stop music', exact: true }).click();
+    await run.getByRole('button', { name: '▶ Hear it', exact: true }).click();
+    await expect(run.locator('.rs-music-card__track')).toHaveText('Test music');
+    await run.getByRole('button', { name: 'Stop music', exact: true }).click();
+    await expect(run.locator('.rs-music-card__track')).toHaveText('Other music');
+    await run.getByRole('button', { name: 'Close run show', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Run Show', exact: true })).toBeFocused();
   });
 }

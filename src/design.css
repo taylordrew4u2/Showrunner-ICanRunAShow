@@ -115,3 +115,68 @@
   .bottom-nav__brand { padding: 12px 20px 20px; }
   .bottom-nav__brand-text { max-width: none; }
 }
+
+/* Run Show: music is the primary instrument; the clock remains independent. */
+.run-show__scroll {
+  max-width: 1440px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(320px, 1fr);
+  grid-template-areas: 'board clock' 'board lineup';
+  grid-template-rows: auto 1fr;
+  align-items: start;
+}
+.rs-board { grid-area: board; min-width: 0; }
+.rs-clock { grid-area: clock; min-width: 0; }
+.rs-lineup { grid-area: lineup; min-width: 0; }
+.rs-clock__time { font-size: clamp(3.25rem, 6vw, 4rem); }
+.rs-clock__note, .rs-clock__total { color: var(--rs-dim); font-size: var(--text-xs); }
+.rs-clock__note { margin: 14px 0 4px; }
+.rs-clock__total { font-family: var(--font-mono); }
+.rs-transport { grid-template-columns: 1fr 1.6fr 1fr; gap: 6px; }
+.rs-transport .rs-btn { padding: 10px 6px; font-size: var(--text-sm); gap: 4px; }
+.rs-transport .rs-btn span { white-space: normal; }
+.rs-btn--start, .rs-btn--start:hover:not(:disabled) {
+  background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.1); color: #fff;
+}
+.rs-music-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin: 12px 0; padding: 16px; background: var(--rs-deck);
+  border: 1px solid var(--rs-panel-border); border-radius: var(--radius-lg);
+}
+.rs-music-card__info { min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--text-muted); }
+.rs-music-card__status { font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.rs-music-card__track { font-size: var(--text-lg); color: #fff; overflow-wrap: anywhere; }
+.rs-music-card__remote { font-size: var(--text-xs); }
+.rs-music-card__play {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 10px 16px; border: 1px solid var(--primary);
+  border-radius: var(--radius-lg); background: var(--primary); color: var(--on-primary);
+  font: inherit; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.rs-music-card__play:disabled { opacity: .45; cursor: not-allowed; }
+.run-show button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.run-show:focus { outline: none; }
+.rs-board__actions { align-items: center; flex-shrink: 0; }
+.rs-board__now { margin-bottom: 10px; }
+.rs-fade { padding: 10px 12px; gap: 6px; }
+.rs-console { gap: 12px; }
+.rs-console__levels { gap: 6px; padding: 10px 6px; }
+.rs-fader { min-width: 40px; }
+.rs-fader__slot { height: 156px; }
+.rs-fader__slot .rs-fade__slider { width: 156px; }
+.rs-pad { --rs-pad-face: 104px; }
+.rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 16px 10px; }
+.rs-lineup__row { gap: 8px; padding: 10px 8px; font-size: var(--text-sm); }
+.rs-lineup__range { min-width: 0; font-size: var(--text-2xs); }
+.rs-lineup__desc, .rs-lineup__who { white-space: normal; overflow-wrap: anywhere; }
+.run-show__finish { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1); color: var(--rs-dim); }
+@media (max-width: 899px) {
+  .run-show__scroll { display: flex; max-width: 700px; }
+  .rs-clock { width: 100%; }
+  .rs-music-card { flex-wrap: wrap; padding: 12px; gap: 10px; }
+  .rs-music-card__info { flex: 1 1 150px; }
+  .rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); padding: 14px 8px 12px; }
+  .rs-pad { --rs-pad-face: 96px; }
+  .rs-transport .rs-btn { font-size: var(--text-xs); }
+  .rs-music-card__play { padding: 10px 12px; font-size: var(--text-sm); }
+}

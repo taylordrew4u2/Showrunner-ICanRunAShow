@@ -14,3 +14,6 @@ dist-ssr
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Temporary design exports
+/.superdesign/tmp/
