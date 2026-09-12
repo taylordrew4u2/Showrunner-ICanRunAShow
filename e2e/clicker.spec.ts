@@ -33,7 +33,7 @@ for (const remoteKey of ['F18', ' ']) {
       settings: encryptWithKey({ onboarded: true, remoteMusicKey: remoteKey, brandName: 'Test', musicLibrary: [] }, key),
     }));
     await signUp(page);
-    await page.getByRole('button', { name: /Open Clicker Test,/ }).click();
+    await page.getByRole('button', { name: 'Clicker Test', exact: true }).click();
     await page.getByRole('button', { name: 'Run Show', exact: true }).click();
     const run = page.locator('.run-show');
     const pad = run.locator('.rs-pad').filter({ hasText: 'Test music' });
