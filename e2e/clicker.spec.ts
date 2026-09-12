@@ -40,7 +40,7 @@ for (const remoteKey of ['F18', ' ']) {
     await page.getByRole('button', { name: 'Run Show', exact: true }).click();
     const run = page.locator('.run-show');
     const pad = run.locator('.rs-pad').filter({ hasText: 'Test music' });
-    await expect(run.locator('.rs-board__now')).toContainText('Choose a song');
+    await expect(run.locator('.rs-music-card')).toContainText('Random song ready');
     await expect(run).toBeFocused();
     await page.keyboard.press('Shift+Tab');
     await expect(run.locator('.rs-lineup__row').last()).toBeFocused();
@@ -52,6 +52,11 @@ for (const remoteKey of ['F18', ' ']) {
       const timerBox = await run.locator('.rs-clock').boundingBox();
       expect(musicBox!.x).toBeLessThan(timerBox!.x);
     }
+    // No cue assignment or manual song selection: Play must choose a track.
+    await run.getByRole('button', { name: 'Play music', exact: true }).click();
+    await expect(run.locator('.rs-pad[aria-pressed="true"]')).toHaveCount(1);
+    await expect(run.getByRole('button', { name: 'Start timer', exact: true })).toBeVisible();
+    await run.getByRole('button', { name: 'Stop music', exact: true }).click();
     await pad.click();
     await expect(pad).toHaveAttribute('aria-pressed', 'true');
     await expect(run.locator('.rs-board__now')).toContainText('Playing:');

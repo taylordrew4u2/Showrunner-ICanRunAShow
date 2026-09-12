@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { DJSong, MusicTrack, Performer, ScheduleItem } from '../types';
 import { audioEngine } from '../utils/audioEngine';
 import { assignFallbackWalkOns, withFallbackWalkOns } from '../utils/walkOnFallback';
+import { randomMusic } from '../utils/randomMusic';
 import { padColor } from '../utils/padColor';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import type { SessionCredentials } from '../utils/session-vault';
@@ -231,6 +232,7 @@ export function RunShow({
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   // Keep the chosen song after Stop. The timer can move independently; the
   // clicker must still restart the song the operator selected on the board.
+  const [fallbackDraw] = useState(Math.random);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   // The pad that has been pressed but whose audio is still being fetched and
   // decoded. Kept apart from playingKey so the board can show "coming" rather
@@ -566,9 +568,15 @@ export function RunShow({
   const selectedTrack = [...board.performers, ...board.cues, ...board.dj]
     .find((track) => track.key === selectedKey);
   const cuePerformer = resolveCuePerformer(current, billWithMusic);
-  const musicTarget = selectedTrack
-    ?? board.cues.find((track) => track.key === `cue:${current?.id}`)
+  const assignedTrack = board.cues.find((track) => track.key === `cue:${current?.id}`)
     ?? board.performers.find((track) => track.key === `performer:${cuePerformer?.id}`);
+  const fallbackTrack = randomMusic(
+    [...board.performers, ...board.cues, ...board.dj], fallbackDraw,
+    (src) => audioEngine.isReady(src),
+  );
+  const musicTarget = selectedTrack
+    ?? assignedTrack
+    ?? fallbackTrack;
 
   const displayTrack = playingTrack ?? musicTarget;
 
@@ -578,7 +586,7 @@ export function RunShow({
       return;
     }
     if (musicTarget) toggleTrack(musicTarget);
-    else setAudioError('Choose a song on the soundboard first. The clicker will start and stop it.');
+    else setAudioError('No playable audio is available. Upload a song to the Music library or this show.');
   }
 
   // ── Viewer audio ─────────────────────────────────────────────────────────
@@ -816,7 +824,7 @@ export function RunShow({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, running, isLast, confirmOpen, playingKey, loadingKey, selectedKey, current, board, billWithMusic, remoteKey, fade]);
+  }, [idx, running, isLast, confirmOpen, playingKey, loadingKey, selectedKey, current, board, billWithMusic, remoteKey, fade, readyCount]);
 
   const started = running || showElapsed > 0 || idx > 0;
   const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
@@ -882,8 +890,8 @@ export function RunShow({
           </div>
           <div className="rs-music-card">
             <div className="rs-music-card__info">
-              <span className="rs-music-card__status">{auditioning ? 'Testing fade' : loadingKey ? 'Loading' : playingKey ? 'Playing' : 'Selected / stopped'}</span>
-              <strong className="rs-music-card__track">{displayTrack?.sublabel || displayTrack?.label || 'Choose a song'}</strong>
+              <span className="rs-music-card__status">{auditioning ? 'Testing fade' : loadingKey ? 'Loading' : playingKey ? 'Playing' : !selectedTrack && !assignedTrack && fallbackTrack ? (audioEngine.isReady(fallbackTrack.src) ? 'Random song ready' : 'Preparing random song') : 'Selected / stopped'}</span>
+              <strong className="rs-music-card__track">{displayTrack?.sublabel || displayTrack?.label || 'No audio available'}</strong>
               {displayTrack?.sublabel && <span>{displayTrack.label}</span>}
               <span className="rs-music-card__remote">{remoteKey ? `Clicker: ${describeKey(remoteKey)} configured` : 'Music shortcut: S'}</span>
             </div>
@@ -983,7 +991,7 @@ export function RunShow({
               <span className="rs-board__now-text">
                 {selectedTrack
                   ? `Stopped: ${selectedTrack.sublabel || selectedTrack.label}. Press Play music or the clicker to restart.`
-                  : 'Choose a song to start it. The clicker starts and stops your selected song.'}
+                  : musicTarget ? 'Press Play music or the clicker to start. A random song is ready when none is assigned.' : 'Upload a song to the Music library or this show to enable playback.'}
               </span>
             )}
           </div>
