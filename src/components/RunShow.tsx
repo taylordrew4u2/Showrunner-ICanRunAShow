@@ -43,7 +43,7 @@ import {
 } from '../utils/audioSettings';
 import { Icon } from './Icon';
 import { useConfirm } from './useConfirm';
-import { isRemotePress } from '../utils/stageRemote';
+import { describeKey, isRemotePress } from '../utils/stageRemote';
 
 interface RunShowProps {
   showName: string;
@@ -91,8 +91,7 @@ const FAILURE_MESSAGE: Record<string, string> = {
   'decode-failed': "this browser can't play that audio format. Try re-uploading it as MP3 or M4A.",
   'no-audio-support': 'this browser has no audio support.',
   blocked:
-    'the browser is blocking audio. Press Start on the timer once, then try again — ' +
-    'and on iPhone check the side switch is off silent.',
+    'the browser is blocking audio. Click the song or Play music on this screen to try again.',
 };
 
 /**
@@ -193,6 +192,33 @@ export function RunShow({
   onClose,
 }: RunShowProps) {
   const { confirm, confirmDialog, confirmOpen } = useConfirm();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const root = dialogRef.current;
+    root?.focus();
+    function containFocus(event: KeyboardEvent) {
+      if (event.key !== 'Tab' || !root) return;
+      // Confirmations own focus while open; keep Tab inside the top dialog.
+      const scope = root.querySelector<HTMLElement>('[role="dialog"]') ?? root;
+      const controls = [...scope.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      )].filter((el) => el.getClientRects().length > 0 && !el.closest('[inert]'));
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!first) { event.preventDefault(); scope.focus(); return; }
+      const active = document.activeElement;
+      if (!scope.contains(active) || active === scope || (event.shiftKey ? active === first : active === last)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      }
+    }
+    document.addEventListener('keydown', containFocus, true);
+    return () => {
+      document.removeEventListener('keydown', containFocus, true);
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
   const [idx, setIdx] = useState(0);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0); // within current cue
@@ -537,18 +563,21 @@ export function RunShow({
     setAudioError(null);
   }
 
+  const selectedTrack = [...board.performers, ...board.cues, ...board.dj]
+    .find((track) => track.key === selectedKey);
+  const cuePerformer = resolveCuePerformer(current, billWithMusic);
+  const musicTarget = selectedTrack
+    ?? board.cues.find((track) => track.key === `cue:${current?.id}`)
+    ?? board.performers.find((track) => track.key === `performer:${cuePerformer?.id}`);
+
+  const displayTrack = playingTrack ?? musicTarget;
+
   function toggleMusic() {
     if (playingKey || loadingKey) {
       stopAll();
       return;
     }
-    const selected = [...board.performers, ...board.cues, ...board.dj]
-      .find((track) => track.key === selectedKey);
-    const performer = resolveCuePerformer(current, billWithMusic);
-    const cued = board.cues.find((track) => track.key === `cue:${current?.id}`)
-      ?? board.performers.find((track) => track.key === `performer:${performer?.id}`);
-    const track = selected ?? cued;
-    if (track) toggleTrack(track);
+    if (musicTarget) toggleTrack(musicTarget);
     else setAudioError('Choose a song on the soundboard first. The clicker will start and stop it.');
   }
 
@@ -801,7 +830,7 @@ export function RunShow({
 
   if (schedule.length === 0) {
     return (
-      <div className="run-show" role="dialog" aria-modal="true" aria-label="Run show">
+      <div ref={dialogRef} tabIndex={-1} className="run-show" role="dialog" aria-modal="true" aria-label="Run show">
         <div className="run-show__bar">
           <span className="run-show__name">{showName}</span>
           <button className="run-show__close" onClick={onClose} aria-label="Close run show">
@@ -817,7 +846,7 @@ export function RunShow({
   }
 
   return (
-    <div className="run-show" role="dialog" aria-modal="true" aria-label="Run show">
+    <div ref={dialogRef} tabIndex={-1} className="run-show" role="dialog" aria-modal="true" aria-label="Run show">
       <div className="run-show__bar">
         <span className="run-show__name">{showName}</span>
         <div className="run-show__bar-actions">
@@ -846,79 +875,25 @@ export function RunShow({
       </div>
 
       <div className="run-show__scroll">
-        {/* ── Clock ───────────────────────────────────────────────────── */}
-        <section className="rs-panel rs-clock">
-          <div className="rs-clock__head">
-            <span className="rs-clock__pos">
-              Cue {idx + 1} / {schedule.length}
-            </span>
-            <span className={`rs-clock__status rs-clock__status--${status.toLowerCase().replace(' ', '-')}`}>
-              {status}
-            </span>
-            <span className="rs-clock__showtime">{fmtShowTime(showElapsed)}</span>
-          </div>
-
-          <div
-            className={`rs-clock__time ${isOver ? 'rs-clock__time--over' : ''} ${
-              !isOver && remaining <= WARNING_SECONDS ? 'rs-clock__time--warning' : ''
-            }`}
-          >
-            {fmtCountdown(remaining)}
-          </div>
-
-          <div className="rs-clock__cue">
-            <span className="rs-clock__cue-desc">{current?.description || 'Untitled cue'}</span>
-            {onStageName && <span className="rs-clock__cue-who">{onStageName}</span>}
-          </div>
-          <div className="rs-clock__range">
-            {fmtOffset(offsets[idx] ?? 0)}–{fmtOffset((offsets[idx] ?? 0) + totalSec)}
-            {next ? ` · Next: ${next.description || 'Untitled cue'}${nextName ? ` (${nextName})` : ''}` : ' · Last cue'}
-          </div>
-
-          <div className="rs-progress">
-            <div
-              className={`rs-progress__bar ${isOver ? 'rs-progress__bar--over' : ''}`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-
-          {/* Transport — the only controls that touch the clock. */}
-          <div className="rs-transport">
-            <button className="rs-btn" onClick={goPrev} disabled={idx === 0} title="Previous cue">
-              <Icon name="back-skip" size={18} />
-              <span>Prev</span>
-            </button>
-            <button
-              className={`rs-btn rs-btn--transport ${running ? 'rs-btn--pause' : 'rs-btn--start'}`}
-              onClick={toggleRunning}
-            >
-              <Icon name={running ? 'pause' : 'play'} size={20} />
-              <span>{startLabel}</span>
-            </button>
-            <button className="rs-btn" onClick={goNext} disabled={isLast} title="Next cue">
-              <Icon name="skip" size={18} />
-              <span>Next</span>
-            </button>
-          </div>
-          <div className="rs-nudge">
-            <button className="rs-chip" onClick={() => adjustTime(-STEP_SECONDS)}>−2 min</button>
-            <button className="rs-chip" onClick={() => adjustTime(-FINE_STEP_SECONDS)}>−30s</button>
-            <button className="rs-chip" onClick={() => adjustTime(FINE_STEP_SECONDS)}>+30s</button>
-            <button className="rs-chip" onClick={() => adjustTime(STEP_SECONDS)}>+2 min</button>
-            <button className="rs-chip" onClick={resetCueTimer}>Reset cue</button>
-          </div>
-        </section>
-
         {/* ── Soundboard ──────────────────────────────────────────────── */}
         <section className="rs-panel rs-board">
           <div className="rs-board__head">
             <h2 className="rs-board__title">Soundboard</h2>
+          </div>
+          <div className="rs-music-card">
+            <div className="rs-music-card__info">
+              <span className="rs-music-card__status">{auditioning ? 'Testing fade' : loadingKey ? 'Loading' : playingKey ? 'Playing' : 'Selected / stopped'}</span>
+              <strong className="rs-music-card__track">{displayTrack?.sublabel || displayTrack?.label || 'Choose a song'}</strong>
+              {displayTrack?.sublabel && <span>{displayTrack.label}</span>}
+              <span className="rs-music-card__remote">{remoteKey ? `Clicker: ${describeKey(remoteKey)} configured` : 'Music shortcut: S'}</span>
+            </div>
             <div className="rs-board__actions">
-              <button className="rs-chip" onClick={stopAll} disabled={!playingKey}>
-                Stop audio
-              </button>
               <button className={`rs-chip ${muted ? 'rs-chip--active' : ''}`} onClick={toggleMute}>
                 {muted ? 'Unmute' : 'Mute'}
+              </button>
+              <button className="rs-music-card__play" onClick={toggleMusic} disabled={!musicTarget && !playingKey && !loadingKey}>
+                <Icon name={playingKey || loadingKey ? 'stop' : 'play'} size={20} />
+                {playingKey || loadingKey ? 'Stop music' : 'Play music'}
               </button>
             </div>
           </div>
@@ -1006,8 +981,8 @@ export function RunShow({
               </span>
             ) : (
               <span className="rs-board__now-text">
-                {selectedKey
-                  ? 'Stopped. Press the clicker or the song again to start it.'
+                {selectedTrack
+                  ? `Stopped: ${selectedTrack.sublabel || selectedTrack.label}. Press Play music or the clicker to restart.`
                   : 'Choose a song to start it. The clicker starts and stops your selected song.'}
               </span>
             )}
@@ -1140,9 +1115,74 @@ export function RunShow({
           </div>
         </section>
 
+        {/* ── Clock ───────────────────────────────────────────────────── */}
+        <section className="rs-panel rs-clock" aria-label="Independent timer">
+          <div className="rs-clock__head">
+            <span className="rs-clock__pos">
+              Cue {idx + 1} / {schedule.length}
+            </span>
+            <span className={`rs-clock__status rs-clock__status--${status.toLowerCase().replace(' ', '-')}`}>
+              {status}
+            </span>
+            <span className="rs-clock__showtime">{fmtShowTime(showElapsed)} elapsed</span>
+          </div>
+
+          <div
+            className={`rs-clock__time ${isOver ? 'rs-clock__time--over' : ''} ${
+              !isOver && remaining <= WARNING_SECONDS ? 'rs-clock__time--warning' : ''
+            }`}
+          >
+            {fmtCountdown(remaining)}
+          </div>
+
+          <div className="rs-clock__cue">
+            <span className="rs-clock__cue-desc">{current?.description || 'Untitled cue'}</span>
+            {onStageName && <span className="rs-clock__cue-who">{onStageName}</span>}
+          </div>
+          <div className="rs-clock__range">
+            {fmtOffset(offsets[idx] ?? 0)}–{fmtOffset((offsets[idx] ?? 0) + totalSec)}
+            {next ? ` · Next: ${next.description || 'Untitled cue'}${nextName ? ` (${nextName})` : ''}` : ' · Last cue'}
+          </div>
+
+          <div className="rs-progress">
+            <div
+              className={`rs-progress__bar ${isOver ? 'rs-progress__bar--over' : ''}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+
+          {/* Transport — the only controls that touch the clock. */}
+          <div className="rs-transport">
+            <button className="rs-btn" onClick={goPrev} disabled={idx === 0} title="Previous cue">
+              <Icon name="back-skip" size={18} />
+              <span>Prev</span>
+            </button>
+            <button
+              className={`rs-btn rs-btn--transport ${running ? 'rs-btn--pause' : 'rs-btn--start'}`}
+              onClick={toggleRunning}
+            >
+              <Icon name={running ? 'pause' : 'play'} size={20} />
+              <span>{startLabel} timer</span>
+            </button>
+            <button className="rs-btn" onClick={goNext} disabled={isLast} title="Next cue">
+              <Icon name="skip" size={18} />
+              <span>Next</span>
+            </button>
+          </div>
+          <div className="rs-nudge">
+            <button className="rs-chip" onClick={() => adjustTime(-STEP_SECONDS)}>−2 min</button>
+            <button className="rs-chip" onClick={() => adjustTime(-FINE_STEP_SECONDS)}>−30s</button>
+            <button className="rs-chip" onClick={() => adjustTime(FINE_STEP_SECONDS)}>+30s</button>
+            <button className="rs-chip" onClick={() => adjustTime(STEP_SECONDS)}>+2 min</button>
+            <button className="rs-chip" onClick={resetCueTimer}>Reset cue</button>
+          </div>
+          <p className="rs-clock__note">Timer changes do not control music.</p>
+          <span className="rs-clock__total">Total {fmtOffset(effDurations.reduce((sum, duration) => sum + duration, 0))}</span>
+        </section>
+
         {/* ── Lineup ──────────────────────────────────────────────────── */}
         <section className="rs-panel rs-lineup">
-          <h2 className="rs-lineup__title">Lineup</h2>
+          <h2 className="rs-lineup__title">Running order</h2>
           <ol className="rs-lineup__list">
             {schedule.map((cue, i) => {
               const who = cuePerformerName(cue, performers);
