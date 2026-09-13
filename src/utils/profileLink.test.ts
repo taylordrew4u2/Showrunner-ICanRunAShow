@@ -48,7 +48,7 @@ describe('the questions a profile link asks', () => {
     expect(profile.walkOnMusicName).toBe('answer for walkon');
   });
 
-  it('only insists on an email — the one thing a contract cannot be sent without', () => {
+  it('collects the required email from the recipient when they fill in the form', () => {
     const required = profileFields().filter((f) => f.required).map((f) => f.id);
     expect(required).toEqual(['email']);
   });

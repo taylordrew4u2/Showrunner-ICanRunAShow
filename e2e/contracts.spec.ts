@@ -41,7 +41,7 @@ function writeTestPdf(): string {
 }
 
 test.describe('contracts', () => {
-  test('a signer with no account can open a link and sign, once', async ({ page, context, browser }, testInfo) => {
+  test('a recipient with no saved email can receive a link and supply their details while signing', async ({ page, context, browser }, testInfo) => {
     const state = emptyState();
     await installFakeApi(context, state);
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -52,7 +52,7 @@ test.describe('contracts', () => {
 
     await signUpAndOnboard(page);
 
-    // Someone to send it to.
+    // Create the recipient with only a name; no email is known before sharing.
     await gotoTab(page, 'Rolodex');
     await page.locator('.rolodex__input').first().fill('Nadia Okonjo');
     await page.locator('button').filter({ hasText: /^Add$/ }).first().click();

@@ -282,7 +282,7 @@ export function PerformersSection({
             ))}
           </ul>
           <span className="lineup-gaps__hint">
-            No email means a contract can't be sent. No handle means they won't be tagged.
+            Share a contract link without an email. They fill in their details when they open it. Add a social handle to tag them.
           </span>
         </div>
       )}
