@@ -1,0 +1,4473 @@
+# Theme
+
+## Part 1 — Compact actual token summary
+
+Custom vanilla CSS; no Tailwind configuration. Dark is default through data-theme="dark" on html; no `.dark` class. RunShow always uses a dark console regardless of theme. Inter variable 350–800 is self-hosted; body stack: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif. Mono: ui-monospace/SF Mono/SFMono-Regular/Menlo/monospace. Display: Helvetica Neue/Arial Black/Impact/sans-serif. Base desktop browser root 16px, <=768px 19px, <=430px 20px. Coarse-pointer fields have a 16px minimum; tap target floor 44px.
+
+### :root
+
+--bg: #f6f8fc; --backdrop: #e9eef6; --surface: #ffffff; --surface-strong: #edf2fa; --text: #182234; --text-muted: #526078; --text-soft: #5d6c80; --border: #d7dfeb; --border-strong: #a4b4ca; --primary: #4285f4; --primary-pressed: #6a9cf2; --primary-bright: #8ab4f8; --primary-soft: #e6effd; --primary-soft-border: #a6c3f4; --primary-text: #174ea6; --on-primary: #07162c; --success: #16a34a; --success-strong: #15803d; --success-text: #166534; --success-soft: #f0fdf4; --success-soft-border: #bbf7d0; --on-success: #ffffff; --danger: #c2410c; --danger-text: #9a3412; --danger-soft: #fff7ed; --danger-soft-border: #fed7aa; --on-danger: #ffffff; --warning: #92400e; --warning-soft: #fffbeb; --warning-soft-border: #fde68a; --info-text: #1d4ed8; --info-soft: rgba(59, 130, 246, 0.12); --on-scrim: #ffffff; --media-letterbox: #000000; --shadow-sm: 0 1px 2px rgba(17, 24, 19, 0.03); --shadow-md: 0 3px 12px rgba(17, 24, 19, 0.06); --shadow-lg: 0 12px 36px rgba(17, 24, 19, 0.1); --shadow-xl: 0 20px 60px rgba(17, 24, 19, 0.16); --shadow-drawer: -12px 0 40px rgba(17, 24, 19, 0.12); --focus-ring: 0 0 0 3px var(--primary-soft-border); --app-bar-height: 48px; --bottom-nav-height: 56px; --status-band: 44px; --page-gutter: 16px; --header-bg: #f6f8fc; --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace; --font-display: 'Helvetica Neue', 'Arial Black', Impact, sans-serif; --segment-track: #e3eaf4; --segment-chip: #ffffff; --tap-min: 44px; --radius-xs: 4px; --radius-sm: 7px; --radius-md: 10px; --radius-lg: 14px; --radius-xl: 18px; --radius-2xl: 22px; --radius-full: 999px; --text-2xs: 0.6875rem; --text-xs: 0.75rem; --text-sm: 0.8125rem; --text-md: 0.875rem; --text-base: 0.95rem; --text-lg: 1.0625rem; --text-xl: 1.25rem; --text-2xl: 1.5rem; --text-3xl: 1.75rem; --text-4xl: 2rem; --space-0-5: 2px; --space-1: 4px; --space-1-5: 6px; --space-2: 8px; --space-2-5: 10px; --space-3: 12px; --space-3-5: 14px; --space-4: 16px; --space-4-5: 18px; --space-5: 20px; --space-5-5: 22px; --space-6: 24px; --space-7: 28px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px; --duration-instant: 0.05s; --duration-fast: 0.12s; --duration-normal: 0.15s; --duration-slow: 0.2s; --duration-slower: 0.3s; --ease-default: ease; --ease-out: cubic-bezier(0.32, 0.72, 0, 1); --z-base: 0; --z-raised: 1; --z-raised-above: 2; --z-sticky: 60; --z-drawer-backdrop: 200; --z-overlay: 80; --z-runshow: 90; --z-runshow-ui: 120; --z-loading: 150; --z-banner: 200; --z-drawer: 201; --z-lightbox: 1000; --z-modal: 1100.
+
+### [data-theme="dark"]
+
+--bg: #111827; --backdrop: #0b1120; --surface: #1c2738; --surface-strong: #29364b; --text: #f3f6fc; --text-muted: #c0cbdc; --text-soft: #a3b1c6; --border: #35445b; --border-strong: #5b7190; --primary: #4285f4; --primary-pressed: #6a9cf2; --primary-bright: #8ab4f8; --primary-soft: #1c3354; --primary-soft-border: #466590; --primary-text: #8ab4f8; --on-primary: #07162c; --danger: #c2410c; --danger-soft: #2a1605; --danger-soft-border: #7c3a05; --danger-text: #fdba74; --success: #22c55e; --success-strong: #15803d; --success-text: #86efac; --success-soft: #03210e; --success-soft-border: #14532d; --warning: #fbbf24; --warning-soft: #291a05; --warning-soft-border: #78430c; --info-text: #93c5fd; --info-soft: rgba(59, 130, 246, 0.16); --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.12); --shadow-md: 0 3px 12px rgba(0, 0, 0, 0.18); --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.3); --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.35); --shadow-drawer: -12px 0 40px rgba(0, 0, 0, 0.4); --header-bg: #111827; --segment-track: #111827; --segment-chip: #35445b.
+
+### Responsive and cascade constraints
+Desktop navigation switches at 900px; bottom navigation below that. Common component breakpoints 640px/768px; detailed show overview also 560px/700px/1040px/1100px. Dashboard container breakpoint 620px. RunShow compact layout <=640px. Final design.css overrides preceding App.css/component styles: calendar blue #4285f4, console background #0b1120, deck #29364b and edge #1c2738. Preserve amber/red timing semantics. Motion uses duration tokens and reduced-motion fallbacks. No universal spacing or type numbers should be invented outside these actual token scales.
+
+## Part 2 — Complete raw source
+
+### `src/App.css`
+
+```css
+/* Brand palette: calendar blue on neutral surfaces. Status colours stay semantic. */
+:root {
+  color-scheme: light;
+  --bg: #f6f8fc;
+  --backdrop: #e9eef6;
+  --surface: #ffffff;
+  --surface-strong: #edf2fa;
+  --text: #182234;
+  --text-muted: #526078;
+  --text-soft: #5d6c80;
+  --border: #d7dfeb;
+  --border-strong: #a4b4ca;
+  --primary: #4285f4;
+  --primary-pressed: #6a9cf2;
+  --primary-bright: #8ab4f8;
+  --primary-soft: #e6effd;
+  --primary-soft-border: #a6c3f4;
+  --primary-text: #174ea6;
+  --on-primary: #07162c;
+  --success: #16a34a;
+  --success-strong: #15803d;
+  --success-text: #166534;
+  --success-soft: #f0fdf4;
+  --success-soft-border: #bbf7d0;
+  --on-success: #ffffff;
+  --danger: #c2410c;
+  --danger-text: #9a3412;
+  --danger-soft: #fff7ed;
+  --danger-soft-border: #fed7aa;
+  --on-danger: #ffffff;
+  --warning: #92400e;
+  --warning-soft: #fffbeb;
+  --warning-soft-border: #fde68a;
+  --info-text: #1d4ed8;
+  --info-soft: rgba(59, 130, 246, 0.12);
+  --on-scrim: #ffffff;
+  --media-letterbox: #000000;
+  --shadow-sm: 0 1px 2px rgba(17, 24, 19, 0.03);
+  --shadow-md: 0 3px 12px rgba(17, 24, 19, 0.06);
+  --shadow-lg: 0 12px 36px rgba(17, 24, 19, 0.1);
+  --shadow-xl: 0 20px 60px rgba(17, 24, 19, 0.16);
+  --shadow-drawer: -12px 0 40px rgba(17, 24, 19, 0.12);
+  --focus-ring: 0 0 0 3px var(--primary-soft-border);
+  --app-bar-height: 48px;
+  --bottom-nav-height: 56px;
+  /* The strip at the top of the window the sync pill lives in. Named because
+     two things have to agree on it: the padding that keeps content out from
+     under it, and the offset a sticky header parks at. They were the same
+     number written twice, which is the kind of pair that quietly drifts. */
+  --status-band: 44px;
+  /* The page's side padding. A sticky header has to bleed back out through it
+     to reach the window edges, so it needs to be readable rather than a
+     literal repeated at every use site. */
+  --page-gutter: 16px;
+  --header-bg: #f6f8fc;
+
+  /* Typefaces. Inter is the app's voice and is inherited from <html>, so almost
+     nothing sets a family at all. These two are the deliberate departures:
+     --font-mono for anything that must line up character by character (a share
+     URL, a timecode, a cue number), and --font-display for the live viewer's
+     poster look. Both were written out by hand at each use site, in four
+     slightly different stacks. */
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+  --font-display: 'Helvetica Neue', 'Arial Black', Impact, sans-serif;
+
+  /* A segmented control is a recessed track with one raised chip in it, and
+     "raised" means a different direction in each theme: on a light ground the
+     chip goes white against grey, on a dark one it goes grey against black.
+     One pair of tokens rather than one rule per theme at each use site. */
+  --segment-track: #e3eaf4;
+  --segment-chip: #ffffff;
+
+  /* Smallest comfortable finger target. index.css scales the root font size up
+     on phones so text reads well, but control sizes are absolute px and don't
+     scale with it — so without an explicit floor the buttons stay
+     desktop-sized while the type around them grows. Every control that can be
+     tapped is clamped to this under `@media (pointer: coarse)`. */
+  --tap-min: 44px;
+
+  /* Radius scale.
+     This was 2/3/4/6 — "minimal, utilitarian", which in practice meant every
+     card, field and button had the near-square corner of a settings panel. On
+     a phone that is the single loudest tell that a thing is a web page rather
+     than an app: the platform's own lists, sheets and buttons sit between 8
+     and 16, and a 4px card among them looks like a mistake rather than a
+     choice.
+     The steps still mean the same things — xs for a focus ring on a word, sm
+     for something small and inline, md for a control, lg for a panel — they
+     are just drawn at the size the rest of the phone draws them. */
+  --radius-xs: 4px;
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  /* Above lg: a bottom sheet and the RunShow console's panels, which are big
+     enough that a 14px corner reads as square on them. They were 16/18/22px
+     literals; these are the two rungs those collapse onto. */
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
+  --radius-full: 999px;
+
+  /* Type scale.
+     Ten rungs, because the app genuinely needs ten — the previous seven covered
+     four of the fifty-one sizes actually in use, so every component picked its
+     own number and 0.78 / 0.8 / 0.82 / 0.85 / 0.86 / 0.88rem all ended up on
+     screen meaning the same thing: "small label". They are indistinguishable to
+     read and impossible to line up between two adjacent components.
+     The dense end (2xs-base) is where this app lives — call sheets, cue rows,
+     run-of-show meta — so the steps there are close together on purpose. The
+     display end is spaced wider, because headings are compared across screens
+     rather than across a row. Every size in the app is one of these; a
+     font-size in px is a deliberate exception and says why at its use site. */
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.875rem;
+  --text-base: 0.95rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.75rem;
+  --text-4xl: 2rem;
+
+  /* Spacing scale (4px base, with 2px half-steps at the dense end).
+     The scale used to be 4/8/12/16/20/24/32/40 and was used five times in
+     12,000 lines of CSS, against 982 hand-written numbers — because the app's
+     three most common gaps are 8, 10 and 12px and only two of those were on
+     it. A scale that cannot express 10px is a scale everybody routes around.
+     So the rungs below are the sizes the app actually uses: 2px granularity
+     where components are dense (a cue row, a badge, a meta line), 4px through
+     the middle, and wider jumps once the numbers are page-level. The names of
+     the original eight keep their original values, so nothing that already
+     used the scale moves. */
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-4-5: 18px;
+  --space-5: 20px;
+  --space-5-5: 22px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Transition timing.
+     Four rungs matched to what the app actually does: instant is the press
+     flash that has to land before the finger lifts; fast is a colour or border
+     changing under the cursor; normal is the app's default state change; slow
+     is something that moves or resizes far enough that you follow it.
+     These replace eighteen hand-written durations — 0.12 / 0.14 / 0.15 / 0.18 /
+     0.2 / 0.22 / 0.25s were all in use for the same hover, which is the kind of
+     difference nobody can see one at a time and everybody feels in aggregate.
+     Keyframe animations that loop (spinners, pulses) keep literal durations:
+     they are not state changes and do not belong on this scale. */
+  --duration-instant: 0.05s;
+  --duration-fast: 0.12s;
+  --duration-normal: 0.15s;
+  --duration-slow: 0.2s;
+  --duration-slower: 0.3s;
+  --ease-default: ease;
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Z-index layers — never use raw integers outside this list.
+     Ordered by what has to be in front of what. A modal is last because it is
+     raised *from* the surfaces below it and has to be reachable once it is:
+     sitting at 100, under the drawer, the confirmation for deleting a performer
+     opened behind the profile drawer that asked for it, and the drawer's own
+     fields swallowed every click at the Delete button. */
+  --z-base: 0;
+  --z-raised: 1;
+  /* One step above --z-raised, for the rare pair of siblings that both have to
+     leave the flow: a stretched card hit-area at --z-raised, and the real
+     buttons that must stay clickable on top of it. */
+  --z-raised-above: 2;
+  --z-sticky: 60;
+  /* A drawer's scrim. Below the drawer panel it dims, above everything else. */
+  --z-drawer-backdrop: 200;
+  --z-overlay: 80;
+  --z-runshow: 90;
+  --z-runshow-ui: 120;
+  --z-loading: 150;
+  --z-banner: 200;
+  --z-drawer: 201;
+  --z-lightbox: 1000;
+  --z-modal: 1100;
+}
+
+/* ── Color scheme ────────────────────────────────────────────────────
+   A minimal pair: Light is the base :root palette (no attribute); Dark is the
+   single override, selected via data-theme="dark" on <html>. */
+
+/* Dark is the venue default. Blue controls use ink labels for contrast. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111827;
+  --backdrop: #0b1120;
+  --surface: #1c2738;
+  --surface-strong: #29364b;
+  --text: #f3f6fc;
+  --text-muted: #c0cbdc;
+  --text-soft: #a3b1c6;
+  --border: #35445b;
+  --border-strong: #5b7190;
+  --primary: #4285f4;
+  --primary-pressed: #6a9cf2;
+  --primary-bright: #8ab4f8;
+  --primary-soft: #1c3354;
+  --primary-soft-border: #466590;
+  --primary-text: #8ab4f8;
+  --on-primary: #07162c;
+  --danger: #c2410c;
+  --danger-soft: #2a1605;
+  --danger-soft-border: #7c3a05;
+  --danger-text: #fdba74;
+  --success: #22c55e;
+  --success-strong: #15803d;
+  --success-text: #86efac;
+  --success-soft: #03210e;
+  --success-soft-border: #14532d;
+  --warning: #fbbf24;
+  --warning-soft: #291a05;
+  --warning-soft-border: #78430c;
+  --info-text: #93c5fd;
+  --info-soft: rgba(59, 130, 246, 0.16);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 3px 12px rgba(0, 0, 0, 0.18);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.35);
+  --shadow-drawer: -12px 0 40px rgba(0, 0, 0, 0.4);
+  --header-bg: #111827;
+  --segment-track: #111827;
+  --segment-chip: #35445b;
+}
+
+* {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  /* clip, not hidden. `overflow-x: hidden` forces the other axis to `auto`,
+     which silently makes this element a scroll container — and a sticky
+     descendant then resolves against *this* box instead of the viewport, so it
+     never sticks. `clip` does the same visual job (nothing spills sideways)
+     without creating the scrollport. */
+  overflow-x: clip;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* ── Show expand animation ───────────────────────────────────────── */
+
+.show-detail-expand {
+  width: 100%;
+  transform-origin: var(--expand-origin-x, 50%) var(--expand-origin-y, 30%);
+  /* Not "both": retaining the final transform: scale(1) would make this a
+     containing block for position: fixed children (e.g. the performer profile
+     drawer), breaking their positioning. The end state matches the base style,
+     so reverting after the animation is visually identical. */
+  animation: show-card-expand var(--duration-slower) var(--ease-out) backwards;
+}
+
+@keyframes show-card-expand {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+    border-radius: var(--radius-lg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    border-radius: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .show-detail-expand {
+    animation: none;
+  }
+}
+
+/* ── Native-style view transition (touch devices) ─────────────────────
+   Each screen slides up slightly as it enters, like a native tab switch. */
+@media (pointer: coarse) {
+  .app-main > * {
+    animation: view-enter 0.22s var(--ease-out) backwards;
+  }
+}
+
+@keyframes view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-main > * {
+    animation: none;
+  }
+}
+
+/* The top padding reserves the status band — the strip the sync pill lives in.
+   It's chrome, not spacing: content never slides under the one element that
+   tells you whether your work is safe. */
+/* Anything the browser scrolls into view — a focused input, an anchor — has
+   to clear the fixed bottom nav, and on Settings the save bar above it too.
+   Without this, tapping the last field on a page puts it directly underneath
+   the nav, which reads as the app scrolling to the wrong place. */
+html {
+  scroll-padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 88px);
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + var(--status-band)) var(--page-gutter)
+    calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 20px);
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  :root {
+    --status-band: 40px;
+    --page-gutter: 12px;
+  }
+
+  .app-main {
+    padding: calc(env(safe-area-inset-top) + var(--status-band)) var(--page-gutter)
+      calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 12px);
+  }
+}
+
+/* A suggestion, not an alarm. It used to wear the same red as real problems,
+   which taught people to read "everything is fine, keep a spare copy" as
+   "something is wrong". */
+/* Reassurance, not a page section. It sits between you and your shows, so it
+   stays on one line wherever it fits — the copy was two sentences that wrapped
+   to three lines on a phone and cost 136px above the first card. */
+/* One line, not two. Wrapping put this at 87px, and stacked under the install
+   prompt that made 180px of dismissible notices above the shows themselves. */
+.backup-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2-5);
+  flex-wrap: nowrap;
+  margin-bottom: var(--space-2-5);
+  padding: var(--space-1-5) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.backup-nudge__icon {
+  flex-shrink: 0;
+  color: var(--success-text);
+}
+
+/* No ellipsis. Clipping this to "Keep your own c…" saved a line by destroying
+   the sentence; the copy is short enough to fit instead. */
+.backup-nudge__text {
+  min-width: 0;
+}
+
+.backup-nudge__text {
+  font-size: var(--text-md);
+  line-height: 1.35;
+  color: var(--text);
+  flex: 1;
+  /* 200px forced a wrap on a 366px column even after the copy was shortened. */
+  min-width: 100px;
+}
+
+.backup-nudge__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.backup-nudge__close {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xl);
+  line-height: 1;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-1-5);
+}
+
+/* Names the grid now that the dashboard panels sit above it. Without it the
+   cards read as more dashboard rather than as the full set of shows. */
+.shows-list__heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-0-5) 0 var(--space-2);
+}
+
+.shows-list__heading-text {
+  margin: 0;
+  font-size: var(--text-xs);
+  /* Same reasoning as the dashboard panel titles: all-caps with wide tracking
+     is emphatic already, and bold on top made the label heavier than the show
+     names it introduces. */
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.shows-list__heading-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Shows Toolbar ───────────────────────────────────────────────────── */
+
+.shows-toolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.shows-toolbar__search {
+  flex: 1 1 auto;
+  /* Without this the search field wins the shrink fight against the sort
+     select, which then renders as "Soo". The search field is the one control
+     here that reads fine narrow, so it is the one that gives way. */
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2-5) var(--space-3-5);
+  color: var(--text);
+  font-size: var(--text-base);
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
+}
+
+.shows-toolbar__search::placeholder {
+  color: var(--text-soft);
+}
+
+.shows-toolbar__search:focus {
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.shows-toolbar__sort {
+  flex: 0 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2-5) var(--space-3);
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
+}
+
+.shows-toolbar__sort:focus {
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+/* List / calendar view toggle */
+.shows-toolbar__view {
+  display: flex;
+  flex-shrink: 0;
+  background: var(--segment-track);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-0-5);
+  gap: var(--space-0-5);
+}
+
+.shows-toolbar__view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+.shows-toolbar__view-btn:hover {
+  color: var(--text);
+}
+
+/* A raised neutral chip with a coloured glyph, not a coloured tile. This was
+   --primary-soft, which in dark mode is #2a0912 — a near-black maroon that
+   against a lifted panel reads as a smudge rather than as the selected half of
+   a control. A segmented control shows its selection by moving the chip
+   forward and leaving the colour on the mark. */
+.shows-toolbar__view-btn--active {
+  background: var(--segment-chip);
+  color: var(--primary-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.shows-toolbar__view-btn:active {
+  transform: scale(0.94);
+}
+
+@media (pointer: coarse) {
+  .shows-toolbar__view-btn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
+/* Every screen holds its content to one readable column, so the eye starts in
+   the same place whichever tab you're on. */
+.shows-list {
+  max-width: 700px;
+  margin: 0 auto;
+  /* Named so the at-a-glance row can lay itself out against the real content
+     width. A container query can't style its own container, so the row can't
+     answer this from a container declared on itself. */
+  container-type: inline-size;
+  container-name: shows-col;
+}
+
+/* Wide enough for two readable cards side by side. Three would need the app
+   shell to grow: --desktop-max caps everything at 1400px and the sidebar takes
+   240px of it, so the content column tops out around 1080px however wide the
+   monitor is. The grid asks for as many columns as fit, so raising that cap is
+   all it would take — but that widens every screen, not just this one. */
+@media (min-width: 1000px) {
+  .shows-list {
+    max-width: 1100px;
+  }
+}
+
+/* ── Shows list ──────────────────────────────────────────────────────────
+   Columns are decided by how much room a card needs, not by device
+   breakpoints: as many 400px-or-wider cards as fit, and one column when they
+   don't. Three or four across was tried before and squeezed the titles, so
+   400px is the floor — that is wider than a phone, which is the width these
+   cards were designed against. The `min(100%, …)` keeps a narrow screen from
+   demanding 400px it hasn't got and overflowing. */
+
+.shows-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
+  align-items: start;
+  gap: var(--space-2-5);
+}
+
+/* ─── Phone: one inset group, not a stack of cards ─────────────────────────
+   Every show was its own bordered, rounded, shadowed card. Ten shows meant ten
+   of each, and on a 390pt screen — where they can only ever be one per row —
+   that reads as ten objects to consider rather than one list to scan.
+
+   iOS solves this with the inset grouped list: a single rounded container,
+   hairlines between rows, and no border or shadow on the rows themselves. The
+   card treatment comes back at the width where cards sit two across and each
+   one really is a separate object. */
+@media (max-width: 619px) {
+  .shows-grid {
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+}
+
+/* "Showing 2 of 12 shows — Show all". Sits directly above the list it
+   describes, because that's where the question gets asked. Built to the same
+   measurements as .backup-nudge: they're the same kind of object, and they can
+   appear on the same screen. */
+.shows-narrowed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2-5);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2-5);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.shows-narrowed__text {
+  flex: 1;
+  min-width: 100px;
+  font-size: var(--text-md);
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.shows-narrowed__clear {
+  white-space: nowrap;
+}
+
+/* ── Rolodex Page ──────────────────────────────────────────────────── */
+
+.rolodex-page {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* ── Rolodex Shared ────────────────────────────────────────────────── */
+
+/* Two controls: a name and Add. The third column was held for the notes
+   field, which only exists once you have started typing a name — so with an
+   empty form Add fell into it and rendered as wide as the name field itself,
+   a 340px button for a four-letter word. Notes takes the line below when it
+   appears, which is what the phone was already doing. */
+.rolodex__form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2-5);
+  margin-bottom: var(--space-3);
+}
+
+/* Placed rather than flowed. Notes sits between the name and Add in the
+   markup — it has to, so that tabbing runs name, notes, Add — and left to
+   flow it pushed Add onto a third row of its own. */
+.rolodex__add {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.rolodex__input--notes {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.rolodex__input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: var(--space-2-5) var(--space-3);
+  font-size: var(--text-base);
+  background: var(--surface-strong);
+  color: var(--text);
+  outline: none;
+}
+
+.rolodex__input:focus {
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.rolodex__empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* A rolodex holds everyone you might book, which for a producer running shows
+   every night is hundreds of people. Separate floating cards with air between
+   them put three of them on a screen; joined rows put twelve, and twelve is
+   how many you compare when you are building a bill. */
+.rolodex__list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.rolodex__item {
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-strong);
+  padding: var(--space-2-5) var(--space-3-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  transition: border-color var(--duration-normal) ease, background var(--duration-normal) ease;
+}
+
+.rolodex__item + .rolodex__item {
+  box-shadow: inset 0 1px 0 var(--border);
+}
+
+.rolodex__item:hover {
+  background: var(--surface);
+}
+
+/* What you cannot do with this person yet, said as the thing to go and get.
+   Quiet by default — most of a rolodex has a gap somewhere, and a list of red
+   badges is a list you stop reading. */
+.rolodex__gaps {
+  /* Sits under the name now, inside the name block, so it is no longer a
+     flex item of the row and has no business claiming a column of it. */
+  display: inline-block;
+  margin-top: 3px;
+  padding: 2px var(--space-1-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.rolodex__photo {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.rolodex__photo-placeholder {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-md);
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.rolodex__item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.rolodex__name {
+  margin: 0;
+  font-weight: 700;
+  font-size: var(--text-base);
+}
+
+.rolodex__meta {
+  margin: var(--space-0-5) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rolodex__notes {
+  margin: var(--space-0-5) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Email List page ───────────────────────────────────────────────── */
+
+.email-list-page {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.email-list__form {
+  display: flex;
+  gap: var(--space-2-5);
+  margin-bottom: var(--space-4);
+}
+
+.email-list__form .rolodex__input {
+  flex: 1;
+}
+
+.email-list__count {
+  margin: 0 0 var(--space-2-5);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-soft);
+}
+
+.email-list__entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.email-list__entry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.email-list__address {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-list__remove {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.email-list__remove:hover {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+@media (pointer: coarse) {
+  .email-list__remove {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
+@media (max-width: 520px) {
+  /* One row, not two. Search flexes and the sort + view controls shrink to
+     what they need — they were each taking a full-width line, which cost ~48px
+     above the shows for no gain. */
+  .shows-toolbar {
+    flex-wrap: nowrap;
+    margin-bottom: var(--space-3);
+  }
+
+  .shows-toolbar__search {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Does not shrink. Form fields are held at a 16px floor on touch (see
+     index.css) so this select's text is 20px on a phone, and letting it give
+     way rendered the sort order as "Soo" — a control whose label is cut to
+     three letters is not a control. The search field beside it absorbs the
+     squeeze instead: its placeholder is one word and its value is what you
+     just typed, so it reads fine narrow. */
+  .shows-toolbar__sort {
+    flex: 0 0 auto;
+  }
+
+  /* Name and Add on one line, the way the lineup's add row does it. Filing
+     someone is a name and a tap; stacking Add under a full-width field made a
+     two-control form read as a three-step one. Notes, when it appears, takes
+     the line below rather than squeezing either of them. */
+  /* Stays a row. Stacked into a column, one rolodex entry ran to ~250px on a
+     phone — a 46px avatar on its own line, then the name, then the notes, then
+     an Edit button under them — so six people took two and a half screens of a
+     list whose whole job is to let you scan for a name.
+
+     Same treatment as a show row: the avatar leads, the name and the note sit
+     beside it on one line each, and the row itself opens the profile. */
+  .rolodex__item {
+    align-items: center;
+    gap: var(--space-2-5);
+  }
+
+  .rolodex__item-content {
+    min-width: 0;
+  }
+
+  .rolodex__name,
+  .rolodex__meta,
+  .rolodex__notes {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* One empty state for the whole app: what's missing, why it matters, and the
+   single button that fixes it. */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2-5);
+  text-align: center;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-10) var(--space-5);
+}
+
+.empty-state__title,
+.empty-state h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.empty-state__text,
+.empty-state p {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.empty-state .btn {
+  margin-top: var(--space-1-5);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-2-5) var(--space-4-5);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: var(--text-base);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-default),
+    background-color var(--duration-normal) var(--ease-default),
+    box-shadow var(--duration-normal) var(--ease-default),
+    border-color var(--duration-normal) var(--ease-default);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Crisp, tactile press — the button depresses instantly on touch. */
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btn--primary {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--primary-pressed);
+}
+
+.btn--primary:active:not(:disabled) {
+  background: var(--primary-pressed);
+}
+
+.btn--secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.btn--danger {
+  background: var(--danger-soft);
+  border-color: var(--danger-soft-border);
+  color: var(--danger-text);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-danger);
+}
+
+.btn--sm {
+  min-height: 36px;
+  padding: var(--space-1-5) var(--space-3-5);
+  font-size: var(--text-md);
+}
+
+/* A small button is a visual weight, not an invitation to aim harder — it
+   still gets a full-size target under a finger. */
+@media (pointer: coarse) {
+  .btn--sm {
+    min-height: var(--tap-min);
+  }
+}
+
+/* ── Bottom nav / Sidebar nav ────────────────────────────────────────── */
+
+/* Brand wordmark — only visible in desktop sidebar */
+.bottom-nav__brand {
+  display: none;
+}
+
+/* Core nav items container — mobile tab bar */
+.bottom-nav__items {
+  display: contents; /* on mobile, items go directly into the nav flex row */
+}
+
+/* Mobile nav: fixed tab bar at bottom */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 860px;
+  z-index: var(--z-sticky);
+  height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: var(--space-0-5);
+}
+
+/* Tab items (mobile). Four equal-width tabs, so each one always sits in the
+   same spot and builds up muscle memory. */
+.bottom-nav__item {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-0-5);
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  padding: var(--space-1-5) var(--space-0-5);
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-normal) ease, background-color var(--duration-normal) ease;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  letter-spacing: 0;
+}
+
+/* The one place a fixed px size is right: the labels share the width of the
+   screen, so this one must NOT grow with index.css's phone type scaling the
+   way body copy does — at 0.68rem "Expenses" and "Settings" collide on a
+   320px phone. The tab itself stays a 44px+ target; only the caption under
+   the icon is pinned, the way a native tab bar does it. */
+.bottom-nav__item span {
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* The bar carries five tabs, which is what a phone can label. It briefly held
+   seven, and the arithmetic did not work: at 375px — an iPhone SE — a tab was
+   50px and "Contracts" set 51px, so the captions had to be shrunk twice to
+   stop them colliding. Moving the between-shows pages behind More gave the
+   width back, and the caption goes back to one size everywhere. */
+
+.bottom-nav__item--active {
+  color: var(--primary-text);
+}
+
+.bottom-nav__item-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.bottom-nav__item:active {
+  opacity: 0.7;
+}
+
+@media (hover: hover) {
+  .btn--secondary:hover:not(:disabled),
+  .btn--ghost:hover:not(:disabled) {
+    background: var(--surface-strong);
+  }
+
+  .btn--primary:hover:not(:disabled) {
+    background: var(--primary-pressed);
+  }
+
+  /* Never let hover repaint the current tab — the active colour is how you
+     know where you are. */
+  .bottom-nav__item:hover:not(.bottom-nav__item--active) {
+    color: var(--text);
+    background: var(--surface-strong);
+  }
+}
+
+/* Additional mobile enhancements */
+@media (max-width: 640px) {
+  .app-main {
+    padding-inline: var(--space-3);
+    /* Clears the status band (see the base .app-main rule). */
+    padding-top: calc(env(safe-area-inset-top) + 40px);
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 12px);
+  }
+
+  .empty-state {
+    padding: var(--space-7) var(--space-4);
+    border-radius: var(--radius-md);
+  }
+
+  .empty-state__icon {
+    font-size: var(--text-4xl);
+  }
+
+  .empty-state h2 {
+    font-size: var(--text-lg);
+  }
+
+  .empty-state p {
+    font-size: var(--text-md);
+  }
+
+  .btn {
+    font-size: var(--text-base);
+    padding: var(--space-2-5) var(--space-4);
+  }
+
+  .btn--sm {
+    padding: var(--space-2) var(--space-3-5);
+    font-size: var(--text-md);
+  }
+
+}
+
+/* ─── Design system extras (cue list, AI import, live mode, sheets) ─── */
+
+.btn--block { width: 100%; }
+.btn--lg { min-height: 52px; padding: 14px 20px; font-size: var(--text-base); border-radius: var(--radius-md); }
+.btn--dark { background: var(--surface-strong); color: var(--text); }
+.btn--dark:active:not(:disabled) { background: var(--surface); }
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text);
+}
+.icon-btn--ghost { background: transparent; border-color: transparent; }
+.icon-btn--primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.pill--red { background: var(--primary-soft); border-color: var(--primary-soft-border); color: var(--primary-text); }
+.pill--black { background: var(--surface-strong); color: var(--text); border-color: var(--border-strong); }
+.pill--dot::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: var(--space-0-5) var(--space-1-5);
+  border-radius: var(--radius-xs);
+  background: var(--surface-strong);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.row { display: flex; align-items: center; gap: 8px; }
+.spread { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.stack { display: flex; flex-direction: column; gap: 8px; }
+.muted { color: var(--text-muted); }
+.divider { height: 1px; background: var(--border); margin: 12px 0; }
+
+/* Cue list (Schedule) */
+.cue-list { display: flex; flex-direction: column; gap: 8px; }
+.cue {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  position: relative;
+}
+.cue--editing { border-color: var(--primary); box-shadow: var(--focus-ring); }
+.cue__rail {
+  width: 3px;
+  background: transparent;
+  flex-shrink: 0;
+}
+.cue__handle {
+  flex-shrink: 0;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-soft);
+  background: var(--surface-strong);
+  border-right: 1px solid var(--border);
+  cursor: grab;
+  touch-action: none;
+}
+.cue__time {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-2-5);
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  min-width: 82px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-0-5);
+}
+/* The cue's running time. At 0.65rem it was the smallest text in the app, and
+   it's a number you check while the show is moving. */
+.cue__time-sub { font-size: var(--text-sm); font-weight: 600; color: var(--text-muted); }
+.cue__body {
+  flex: 1;
+  padding: var(--space-2-5) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.cue__title { font-size: var(--text-md); font-weight: 600; margin: 0; line-height: 1.3; word-break: break-word; }
+.cue__sub { font-size: var(--text-sm); color: var(--text-muted); margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cue__menu {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-0-5);
+  padding-right: var(--space-1-5);
+  color: var(--text-muted);
+}
+.cue--done { opacity: 0.55; }
+.cue--done .cue__title { text-decoration: line-through; }
+.cue--current { border-color: var(--primary); box-shadow: var(--shadow-md); }
+.cue--current .cue__rail { background: var(--primary); }
+.cue--current .cue__time { color: var(--primary-text); }
+.cue--upcoming .cue__rail { background: var(--text); }
+
+/* Mobile: stack the action buttons onto their own row so the cue isn't cramped */
+@media (max-width: 640px) {
+  .cue { flex-wrap: wrap; }
+  .cue__handle { display: none; }
+  .cue__time { min-width: 68px; padding: 10px 8px; }
+  .cue__body { flex: 1 1 60%; }
+  .cue__menu {
+    flex-basis: 100%;
+    width: 100%;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-1-5);
+    border-top: 1px solid var(--border);
+    background: var(--surface-strong);
+  }
+  .cue__edit-input--len { flex: 1 1 64px; }
+}
+
+.cue__edit-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: var(--space-1-5) var(--space-2);
+  font: inherit;
+  font-size: var(--text-md);
+  outline: none;
+}
+.cue__edit-input:focus { border-color: var(--primary); box-shadow: var(--focus-ring); }
+.cue__edit-input--time { font-size: var(--text-xs); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.cue__perf {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  /* Who is on stage for this cue — the single most-read word on a run sheet,
+     so it stays emphatic. But emphasis here comes from weight and contrast,
+     not from the brand colour: a run of show is a dozen cues and nearly every
+     one names somebody, so in red the page was a wall of alerts with nothing
+     to distinguish. Red on this screen belongs to the cue that is live. */
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  vertical-align: middle;
+}
+.cue__edit-fields { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.cue__edit-fields .cue__edit-input { flex: 2 1 160px; }
+.cue__edit-input--perf { flex: 1 1 110px; }
+.cue__edit-fields .cue__edit-input--perfsel { flex: 1 1 150px; min-width: 0; }
+.cue__edit-input--len { flex: 0 0 72px; }
+
+/* Per-cue comic + music panel */
+.cue-row { display: flex; flex-direction: column; gap: 6px; }
+.cue__music-tag { display: inline-flex; align-items: center; gap: 4px; color: var(--primary-text); font-weight: 600; }
+.cue-media {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3-5);
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.cue-media__field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 200px; min-width: 0; }
+.cue-media__field--duration { flex: 0 0 130px; }
+.cue-media__label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cue-media__music { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cue-media__music-name { display: inline-flex; align-items: center; gap: 5px; font-size: var(--text-sm); font-weight: 600; color: var(--text); }
+.cue-media__pick {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.cue-media__hint { font-size: var(--text-xs); color: var(--text-muted); }
+.cue-media__error {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-2-5);
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-soft-border);
+  color: var(--danger-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* Quick add bar */
+.quick-add {
+  display: flex;
+  gap: var(--space-1-5);
+  padding: var(--space-2) var(--space-2-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2-5);
+  align-items: center;
+}
+.quick-add input {
+  min-height: 40px;
+  border: 0;
+  padding: var(--space-1-5) var(--space-2);
+  font-size: var(--text-base);
+  background: transparent;
+  outline: none;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+.quick-add input.quick-add__time {
+  flex: 0 0 86px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  font-size: var(--text-md);
+}
+.quick-add__btn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--on-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.quick-add__btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Section header pattern */
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: var(--space-4-5) 0 var(--space-2-5);
+}
+.section-header__title {
+  margin: 0;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.section-header__action {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--primary-text);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* Schedule header card */
+.schedule-summary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-3-5);
+  margin-bottom: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2-5);
+  flex-wrap: wrap;
+}
+
+/* Two buttons where there was one, so they wrap together rather than the
+   second one squeezing the run-of-show line on a phone. */
+.schedule-summary__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  /* Must be allowed to narrow, or its own flex-wrap never engages: a
+     shrink-proof row sizes to its content and runs off the card instead of
+     wrapping. Two full-width labels on a phone is exactly that case. */
+  min-width: 0;
+}
+.schedule-summary__clear { color: var(--danger-text); flex-shrink: 0; }
+.schedule-summary__label {
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--text-muted);
+}
+.schedule-summary__title {
+  font-size: var(--text-base);
+  font-weight: 800;
+  margin: var(--space-0-5) 0 0;
+  letter-spacing: -0.01em;
+}
+.schedule-summary__meta {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-top: var(--space-0-5);
+}
+
+/* AI Import entry (in schedule) */
+.ai-import-entry {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-3) var(--space-3-5);
+  background: var(--surface);
+  /* A <button> does not inherit colour — without this it takes the browser's
+     `buttontext`, which is black, and "Import with AI" rendered at 1.14:1 on
+     the dark surface. Invisible, and only in dark mode. */
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2-5);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--duration-normal) ease, transform var(--duration-fast) ease;
+}
+.ai-import-entry:hover { border-color: var(--border-strong); }
+.ai-import-entry:active { transform: translateY(1px); }
+.ai-import-entry__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ai-import-entry__body { flex: 1; min-width: 0; }
+.ai-import-entry__title { font-size: var(--text-md); font-weight: 700; }
+.ai-import-entry__sub { font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
+.ai-import-entry__chevron { color: var(--text-soft); flex-shrink: 0; }
+
+/* The ways to fill in a running order, gathered under the running order
+   itself. Set apart by a rule so they read as tools rather than as more
+   cues — they sit directly below the last row of the list. */
+.schedule-tools {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3-5);
+  border-top: 1px solid var(--border);
+}
+.schedule-tools .ai-import-entry:last-child { margin-bottom: 0; }
+
+/* Dropzone */
+.dropzone {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-7) var(--space-4-5);
+  text-align: center;
+  background: var(--surface);
+}
+.dropzone__icon { display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); margin-bottom: 6px; }
+.dropzone__title { font-size: var(--text-base); font-weight: 700; margin: 6px 0 2px; }
+.dropzone__sub { font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 12px; }
+
+/* Import step list */
+.import-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-2-5) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+}
+.import-step__dot {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xs);
+  font-weight: 800;
+  color: var(--text-soft);
+}
+.import-step--active { border-color: var(--primary); }
+.import-step--active .import-step__dot { border-color: var(--primary); color: var(--primary-text); }
+.import-step--done { color: var(--text-muted); }
+.import-step--done .import-step__dot { background: var(--border-strong); border-color: var(--border-strong); color: var(--text); }
+.import-step__label { font-weight: 600; }
+.import-step__sub { font-size: var(--text-2xs); color: var(--text-muted); margin-left: auto; }
+
+.import-progress-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5) var(--space-3-5);
+  text-align: center;
+  margin-bottom: var(--space-3-5);
+}
+.import-progress-card__label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--primary-text);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.import-progress-card__pct {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  margin-top: var(--space-2);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.import-progress-bar {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--surface-strong);
+  overflow: hidden;
+  margin-top: var(--space-2-5);
+}
+.import-progress-bar__fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: var(--radius-full);
+  transition: width var(--duration-slower) ease;
+}
+
+/* Review rows */
+.review-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  padding: var(--space-2-5) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.review-row__check {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  margin-top: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+}
+.review-row--checked .review-row__check {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.review-row__time { font-weight: 700; font-variant-numeric: tabular-nums; font-size: var(--text-sm); min-width: 64px; padding-top: 2px; }
+.review-row__desc { font-size: var(--text-md); line-height: 1.35; }
+.review-row__body { flex: 1; min-width: 0; }
+.review-row__meta { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+
+/* Editable review row (time · segment · on-stage) */
+.review-edit {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.review-edit--off { opacity: 0.5; }
+.review-edit__check {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin-top: var(--space-1);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-strong);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.review-edit--off .review-edit__check { background: transparent; }
+.review-edit__fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+}
+.review-edit__time,
+.review-edit__desc,
+.review-edit__perf {
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-2-5);
+  font-family: inherit;
+  font-size: var(--text-md);
+  min-width: 0;
+}
+.review-edit__time { flex: 0 0 84px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.review-edit__desc { flex: 2 1 160px; }
+.review-edit__perf { flex: 1 1 110px; }
+/* The on-stage picker. Full width of the row: a name and the box for editing
+   it sharing one line came out as "Poser Con" twice, which is worse than
+   either field alone was. */
+.review-edit__perfsel { flex: 1 1 100%; min-width: 0; font-size: var(--text-md); }
+.review-edit__fields .review-edit__perf { flex: 1 1 100%; }
+.review-edit__time:focus,
+.review-edit__desc:focus,
+.review-edit__perf:focus {
+  outline: none;
+  border-color: var(--primary);
+  /* These three had a border-colour change and nothing else, which is a
+     colour-only focus indicator: on a 1px border it is close to invisible, and
+     for anyone who cannot separate the two colours it is not there at all.
+     Every other field in the app gets the ring; so do these. */
+  box-shadow: var(--focus-ring);
+}
+.review-edit__del {
+  flex-shrink: 0;
+  margin-top: var(--space-0-5);
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.review-edit__del:hover { color: var(--danger-text); background: var(--surface-strong); }
+
+/* Sheet (bottom modal) */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.sheet {
+  background: var(--surface);
+  width: 100%;
+  max-width: 640px;
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  padding: 14px 16px calc(24px + env(safe-area-inset-bottom));
+  max-height: 90dvh;
+  overflow-y: auto;
+  animation: sheetUp 0.25s ease;
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.sheet__handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+  margin: 0 auto var(--space-2-5);
+}
+.sheet__title { font-size: var(--text-lg); font-weight: 700; margin: 4px 0 12px; letter-spacing: -0.01em; }
+
+/* AI import header (sheet) */
+.import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2-5);
+  margin-bottom: var(--space-3);
+}
+.import-header__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.import-header__sub {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: var(--space-0-5);
+}
+
+.import-pick-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color var(--duration-normal) ease;
+}
+.import-pick-card:hover { border-color: var(--border-strong); }
+.import-pick-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.import-pick-card__body { flex: 1; min-width: 0; }
+.import-pick-card__title { font-size: var(--text-md); font-weight: 700; }
+.import-pick-card__sub { font-size: var(--text-xs); color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+
+.import-banner {
+  background: var(--surface-strong);
+  color: var(--text);
+  border-radius: var(--radius-md);
+  padding: var(--space-3-5);
+  margin-bottom: var(--space-3);
+}
+.import-banner__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.import-banner__body {
+  margin: var(--space-1-5) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.import-paste {
+  width: 100%;
+  min-height: 200px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+}
+.import-paste:focus { border-color: var(--primary); box-shadow: var(--focus-ring); }
+
+.import-error {
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-soft-border);
+  color: var(--danger-text);
+  border-radius: var(--radius-md);
+  padding: var(--space-2-5) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-2-5);
+}
+
+/* ── Run Show (full-screen live mode) ─────────────────────────────────
+   Three stacked panels: the clock, the soundboard, the lineup. The clock is
+   read from a few feet away in a dark room; the soundboard is pressed
+   one-handed while looking at the stage, not at the phone; the lineup is
+   glanced at. That ranking is what sets every size on this screen. */
+.run-show {
+  --rs-blue: #3b82f6;
+  --rs-green: #22c55e;
+  --rs-red: #ef4444;
+  --rs-amber: #f59e0b;
+  /* The same accents, tuned for when they are type rather than a fill. Blue
+     and red both dropped to ~4.1:1 as text on the panels — and red is what
+     you read when a segment is running over. Green already clears AA
+     everywhere here, so it has no separate value. */
+  --rs-blue-text: #60a5fa;
+  --rs-red-text: #f87171;
+  --rs-panel: rgba(255, 255, 255, 0.025);
+  --rs-panel-border: rgba(255, 255, 255, 0.07);
+  /* The soundboard alone is dressed as hardware — a slate face plate with the
+     knobs seated in it. The rest of the screen stays flat, so the one panel
+     you reach for while a show runs is the one that looks like a thing you
+     reach for. */
+  --rs-deck: #3d4257;
+  --rs-deck-edge: #2b2f3f;
+  /* Every label on this screen sits at 0.55 white, not 0.4. At 0.4 they
+     measured 3.8:1 against the stage background — below AA — and this is the
+     one screen read in a dark room, mid-show, at a glance. */
+  --rs-dim: rgba(255, 255, 255, 0.55);
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-runshow);
+  /* Darker than the app itself — this runs in a dark room — but neutral,
+     matching the rest of the palette instead of the old blue-black. */
+  background: #08080a;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.run-show__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2-5);
+  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+.run-show__name {
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.run-show__bar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+/* Fullscreen: the practical guard on a stage remote. A remote types into
+   whatever has focus, so removing the browser chrome and every other window
+   for the length of the show is what keeps the button working from the
+   stage. */
+.run-show__fullscreen {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-full);
+  padding: var(--space-1-5) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.run-show__fullscreen:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* On a phone the bar is already tight, and fullscreen is a desktop concern —
+   the remote is only ever driving a laptop. Icon only. */
+@media (max-width: 619px) {
+  .run-show__fullscreen span { display: none; }
+  .run-show__fullscreen { padding: 7px 9px; }
+}
+
+.run-show__restart {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-full);
+  padding: var(--space-1-5) var(--space-3-5);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.run-show__restart:hover { background: rgba(255, 255, 255, 0.12); }
+.run-show__finish {
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: var(--rs-green);
+  border-radius: var(--radius-full);
+  padding: var(--space-1-5) var(--space-3-5);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.run-show__finish:hover { background: rgba(34, 197, 94, 0.28); }
+.run-show__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  /* Without this the bar's flex row squeezes the button down to ~26px on a
+     narrow phone — and this is the way out of a running show. */
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+}
+.run-show__close:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* Live mode is operated one-handed, mid-show, in the dark. Its controls get
+   full-size targets before anything else does. */
+@media (pointer: coarse) {
+  .run-show__close {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+
+  .run-show__restart,
+  .run-show__finish,
+  .rs-btn,
+  .rs-chip {
+    min-height: var(--tap-min);
+  }
+}
+
+.run-show__scroll {
+  flex: 1;
+  /* The board and the lineup both grow with the show, so this scrolls now.
+     -webkit-overflow-scrolling keeps it from feeling stuck on iOS. */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding: 12px 14px calc(16px + env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.run-show__empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-6);
+  color: rgba(255, 255, 255, 0.6);
+}
+.run-show__empty-title { font-size: var(--text-lg); font-weight: 700; color: #fff; margin-bottom: 6px; }
+
+.rs-panel {
+  background: var(--rs-panel);
+  border: 1px solid var(--rs-panel-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-3-5) var(--space-4);
+  flex-shrink: 0;
+}
+
+/* ── Clock ─────────────────────────────────────────────────────────── */
+.rs-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-3) var(--space-4) var(--space-3-5);
+}
+.rs-clock__head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2-5);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rs-dim);
+}
+.rs-clock__showtime {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+.rs-clock__status--on-time { color: var(--rs-blue-text); }
+.rs-clock__status--behind { color: var(--rs-red-text); }
+.rs-clock__status--ahead { color: var(--rs-green); }
+.rs-clock__time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-size: clamp(3.25rem, min(15vw, 18vh), 6.5rem);
+  margin: var(--space-1-5) 0 var(--space-0-5);
+}
+.rs-clock__time--over { color: var(--rs-red-text); }
+.rs-clock__time--warning { color: var(--rs-amber); animation: rs-timer-flash 1s ease-in-out infinite; }
+@keyframes rs-timer-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.rs-clock__cue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1-5);
+}
+.rs-clock__cue-desc {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+.rs-clock__cue-who {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--rs-blue-text);
+}
+.rs-clock__range {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--rs-dim);
+}
+.rs-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: var(--space-3);
+}
+.rs-progress__bar {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-full);
+  transition: width var(--duration-slower) ease;
+}
+.rs-progress__bar--over { background: var(--rs-red); }
+
+.rs-transport {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.rs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-3-5);
+  font-size: var(--text-base);
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.rs-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.rs-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.rs-btn--transport { font-size: var(--text-base); }
+.rs-btn--start {
+  background: var(--rs-green);
+  border-color: var(--rs-green);
+  color: #052e16;
+}
+.rs-btn--start:hover:not(:disabled) { filter: brightness(1.08); background: var(--rs-green); }
+.rs-btn--pause {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: var(--rs-amber);
+  color: var(--rs-amber);
+}
+.rs-btn--pause:hover:not(:disabled) { background: rgba(245, 158, 11, 0.28); }
+
+.rs-nudge {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1-5);
+  margin-top: var(--space-2);
+}
+.rs-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-full);
+  padding: var(--space-1-5) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.rs-chip:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.rs-chip:disabled { opacity: 0.35; cursor: not-allowed; }
+.rs-chip--active {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: var(--rs-blue);
+  color: var(--rs-blue-text);
+}
+
+/* ── Soundboard ────────────────────────────────────────────────────── */
+.rs-board__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2-5);
+  flex-wrap: wrap;
+}
+.rs-board__title,
+.rs-lineup__title {
+  margin: 0;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rs-dim);
+}
+.rs-board__actions { display: flex; gap: 6px; }
+.rs-board__now {
+  margin-top: var(--space-2);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.7);
+  min-height: 20px;
+}
+/* One flex item, or the sentence breaks into columns when it wraps. */
+.rs-board__now-text { min-width: 0; }
+.rs-board__now-text--error { color: var(--rs-red-text); font-weight: 600; }
+
+/* Fade control — always on the board. A mix decision made between cues can't
+   live behind a disclosure. */
+.rs-fade {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2-5);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.12)),
+    var(--rs-deck);
+  border: 1px solid var(--rs-deck-edge);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+}
+.rs-fade__head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+/* On the face plate a translucent chip washes out. These read as panel
+   buttons: recessed, with their own edge. */
+.rs-fade .rs-chip {
+  background: rgba(0, 0, 0, 0.34);
+  border-color: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.92);
+}
+.rs-fade .rs-chip:hover:not(:disabled) { background: rgba(0, 0, 0, 0.2); }
+.rs-fade .rs-chip--active {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: var(--rs-blue);
+  color: #fff;
+}
+.rs-fade__title {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.rs-fade__presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.rs-fade__hear { margin-left: auto; }
+.rs-fade__summary {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.86);
+}
+/* Two sliders side by side where there's room, stacked on a phone. */
+.rs-fade__viewer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rs-fade__viewer-note {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.85);
+}
+/* ── Console: faders left, pads right ─────────────────────────────────
+   The desk this stands in for puts the levels down the left edge and the
+   pads across the rest, and that's the shape an operator's hands already
+   know. Turning the faders upright is what buys the room: a vertical fader
+   costs about 40px of width where a horizontal one cost 210px, so the pads
+   keep every column they had. */
+.rs-console {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+}
+
+.rs-console__levels {
+  flex: 0 0 auto;
+  display: flex;
+  /* Every pixel here comes straight out of the pads, so the column is as
+     narrow as two draggable caps allow and no narrower. */
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-1);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.12)),
+    var(--rs-deck);
+  border: 1px solid var(--rs-deck-edge);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.rs-console__levels-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.rs-console__banks {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The banks already carry their own plate; inside the console they stack
+   against the levels rather than starting a new block. */
+.rs-console__banks .rs-bank:first-child { margin-top: 0; }
+
+.rs-fader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1-5);
+  cursor: pointer;
+}
+
+.rs-fader__slot {
+  position: relative;
+  display: block;
+  /* The cap is 32px across once it's turned upright — the slot can't be
+     narrower than the thing riding in it. */
+  width: 34px;
+  height: 156px;
+}
+
+/* Rotation rather than writing-mode: it drags correctly in every engine this
+   ships to, including the iOS WebView, where the vertical-range properties
+   are still uneven. */
+.rs-fader__slot .rs-fade__slider {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 156px;
+  height: 34px;
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.rs-fader__label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* A console fader rather than a browser slider: a recessed slot with a
+   knurled metal cap riding in it, and a bright index line across the cap
+   marking where it sits — the same read as the hardware it's standing in for. */
+.rs-fade__slider {
+  flex: 1;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 34px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.rs-fade__slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: var(--radius-xs);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.22) 0 1px,
+      transparent 1px 12px
+    ),
+    linear-gradient(180deg, #0a0c12, #23283a);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.rs-fade__slider::-moz-range-track {
+  height: 8px;
+  border-radius: var(--radius-xs);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.22) 0 1px,
+      transparent 1px 12px
+    ),
+    linear-gradient(180deg, #0a0c12, #23283a);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+.rs-fade__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 32px;
+  margin-top: -var(--space-3);
+  border-radius: var(--radius-xs);
+  border: 1px solid #14171f;
+  background:
+    /* the index line, across the direction of travel */
+    linear-gradient(90deg, transparent 45%, #e0453c 45% 55%, transparent 55%),
+    /* knurling */
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22) 0 1px,
+      rgba(0, 0, 0, 0.34) 1px 4px
+    ),
+    linear-gradient(90deg, #6b7183, #cfd4e0 45%, #9aa0b2 55%, #5b6072);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+}
+.rs-fade__slider::-moz-range-thumb {
+  width: 20px;
+  height: 32px;
+  border-radius: var(--radius-xs);
+  border: 1px solid #14171f;
+  background:
+    linear-gradient(90deg, transparent 45%, #e0453c 45% 55%, transparent 55%),
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22) 0 1px,
+      rgba(0, 0, 0, 0.34) 1px 4px
+    ),
+    linear-gradient(90deg, #6b7183, #cfd4e0 45%, #9aa0b2 55%, #5b6072);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+}
+
+.rs-fade__slider:focus-visible { outline: 2px solid var(--rs-blue); outline-offset: 4px; }
+/* Tabular figures, or the row twitches as the readout changes width. */
+.rs-fader__value {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+}
+.rs-fade__value {
+  flex: 0 0 58px;
+  text-align: right;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.rs-board__now strong { color: #fff; }
+.rs-board__now-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--rs-green);
+  flex-shrink: 0;
+  animation: rs-pulse 1.6s ease-in-out infinite;
+}
+@keyframes rs-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+.rs-board__empty,
+.rs-board__note {
+  margin: var(--space-2-5) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--rs-dim);
+}
+
+.rs-bank { margin-top: 14px; }
+/* The DJ bank is a different instrument from the performer bank, and mid-show
+   the operator finds it by shape, not by reading the label. A rule and a tint
+   keep the two from ever being pressed for each other. */
+.rs-bank--dj {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3-5);
+  border-top: 1px dashed rgba(255, 255, 255, 0.14);
+}
+.rs-bank__label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--rs-dim);
+  margin-bottom: var(--space-2-5);
+}
+.rs-bank__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-4) var(--space-2-5);
+  padding: var(--space-4) var(--space-3) var(--space-3-5);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.12)),
+    var(--rs-deck);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--rs-deck-edge);
+}
+
+.rs-pad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-0-5) var(--space-1-5);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-lg);
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.rs-pad:focus-visible { outline: 2px solid var(--rs-blue); outline-offset: 2px; }
+/* The face fills its column instead of sitting at a fixed size in the middle
+   of one. The pad was already this wide — the circle just wasn't — so the
+   press target grows without costing a column or a character of the label.
+   This is a board operated one-handed, mid-show, in the dark; the thing you
+   aim at should be the whole tile. */
+.rs-pad__face {
+  position: relative;
+  width: 100%;
+  max-width: var(--rs-pad-face, 104px);
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* A machined knob, not a flat disc: a conic sweep gives the brushed-metal
+     grain, the radial pass over it lifts the centre and drops the rim, and the
+     ring shadows seat it into the panel. The colour comes from the bank, so a
+     glance reads which instrument you're on before it reads the label. */
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 58%),
+    conic-gradient(
+      from 210deg,
+      var(--rs-knob-hi, #8f96b4) 0deg,
+      var(--rs-knob-lo, #1d2030) 45deg,
+      var(--rs-knob-hi, #8f96b4) 90deg,
+      var(--rs-knob-lo, #1d2030) 135deg,
+      var(--rs-knob-hi, #8f96b4) 180deg,
+      var(--rs-knob-lo, #1d2030) 225deg,
+      var(--rs-knob-hi, #8f96b4) 270deg,
+      var(--rs-knob-lo, #1d2030) 315deg,
+      var(--rs-knob-hi, #8f96b4) 360deg
+    );
+  border: 0;
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.55),
+    inset 0 2px 5px rgba(255, 255, 255, 0.18),
+    inset 0 -3px 7px rgba(0, 0, 0, 0.5),
+    0 3px 6px rgba(0, 0, 0, 0.55);
+  transition: transform var(--duration-fast) ease, filter var(--duration-normal) ease;
+}
+
+/* The tick ring around the knob, and the pointer that says where it's set.
+   Both are drawn rather than imaged so they scale with the pad. */
+.rs-pad__face::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: inherit;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.5) 0deg 1.4deg,
+    transparent 1.4deg 15deg
+  );
+  /* closest-side, or the percentages resolve against the distance to the
+     corner and the ticks land on the knob's face instead of around it. */
+  -webkit-mask: radial-gradient(circle closest-side, transparent 0 calc(100% - 9px), #000 calc(100% - 9px) calc(100% - 3px), transparent calc(100% - 3px));
+  mask: radial-gradient(circle closest-side, transparent 0 calc(100% - 9px), #000 calc(100% - 9px) calc(100% - 3px), transparent calc(100% - 3px));
+  pointer-events: none;
+}
+
+.rs-pad__face::after {
+  content: '';
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  width: 3px;
+  height: 30%;
+  margin-left: -1.var(--space-1);
+  border-radius: 2px;
+  background: var(--rs-knob-pointer, #f5d76e);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+.rs-pad:hover .rs-pad__face { filter: brightness(1.12); }
+.rs-pad:active .rs-pad__face { transform: scale(0.96); filter: brightness(0.92); }
+/* Every pad is a circle. The DJ and show-track banks used to be squircles so a
+   glance could tell the banks apart — but a round face is what reads as "press
+   me to play this", and squaring off the music banks made an uploaded song look
+   like it hadn't landed on the board at all. The banks are still told apart at a
+   glance, by the ring colour and the badge below, which costs the tracks
+   nothing. */
+/* Each bank is a different colour of knob, the way a console groups a row by
+   what it does. Performers keep the steel default; the music banks take the
+   blue and gold of the reference so the operator finds a bank by colour and
+   never presses one for the other. */
+/* Bank identity, now that the knobs carry the track's colour instead of the
+   bank's. It moved to the label and the plate's edge — the two things that
+   frame a bank rather than fill it — so "which instrument am I on" and "which
+   track is this" are answered by different marks and neither drowns the other.
+   The hues are the ones the knobs used to wear, so nothing has to be relearnt.
+
+   --rs-pad-ring still tints the badge on each pad, which is per-bank by
+   nature: it says "song" or "cue", not which song. */
+.rs-bank--dj {
+  --rs-bank-accent: #7e94e2;
+  --rs-pad-ring: rgba(123, 147, 216, 0.6);
+}
+.rs-bank--cues {
+  --rs-bank-accent: #e8bd72;
+  --rs-pad-ring: rgba(216, 173, 106, 0.6);
+}
+.rs-bank__label { color: var(--rs-bank-accent, var(--rs-dim)); }
+/* A band down the left of the plate. Enough to catch the eye reaching for a
+   bank, not enough to compete with a lit pad inside it. The plate's three
+   bevel shadows are repeated here because box-shadow replaces rather than
+   adds — dropping them flattened the plate off the panel. */
+.rs-bank--dj .rs-bank__grid,
+.rs-bank--cues .rs-bank__grid {
+  box-shadow:
+    inset 3px 0 0 var(--rs-bank-accent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+}
+/* A note on the badge, so a track pad says "song" without reading the label. */
+.rs-pad__kind {
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: #101014;
+  border: 1px solid var(--rs-pad-ring, rgba(255, 255, 255, 0.16));
+  color: rgba(255, 255, 255, 0.75);
+  font-size: var(--text-2xs);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rs-pad--disc .rs-pad__initial { display: none; }
+.rs-pad__initial {
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: -0.02em;
+}
+.rs-pad__photo {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  display: block;
+}
+.rs-pad__state {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: #101014;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rs-pad__label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  max-width: 100%;
+  /* Two lines. A word too long for the pad ("Intermission") is hyphenated
+     rather than sliced — "Intermissio / n Bed" reads as a typo and costs the
+     operator the half-second of doubt that the label existed to save.
+     overflow-wrap stays as the backstop for what can't be hyphenated at all,
+     like a filename. */
+  min-height: 2.5em;
+  overflow: hidden;
+  hyphens: auto;
+  /* break-word, not anywhere: "anywhere" offers a break between every letter,
+     which is always an acceptable break, so the hyphenator is never asked. */
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.rs-pad__sub {
+  font-size: var(--text-2xs);
+  color: var(--rs-dim);
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A song the app chose, not the producer. Quieter than the track name and
+   said in the app's own words, so nobody reads it as part of the title. */
+.rs-pad__sub--auto {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+/* Playing: a lit ring, a level meter in place of the play badge, and the name
+   in green. Three signals, because one of them is always the one you catch. */
+/* Lit: the knob keeps its metal, and the ring around it comes on like an
+   indicator lamp. Repainting the face green lost which bank it belonged to at
+   the one moment the operator is looking straight at it. */
+.rs-pad--playing .rs-pad__face {
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.55),
+    inset 0 2px 5px rgba(255, 255, 255, 0.2),
+    inset 0 -3px 7px rgba(0, 0, 0, 0.5),
+    0 0 0 3px var(--rs-green),
+    0 0 18px rgba(34, 197, 94, 0.55);
+}
+.rs-pad--playing .rs-pad__face::after {
+  background: var(--rs-green);
+  box-shadow: 0 0 8px var(--rs-green);
+}
+.rs-pad--playing .rs-pad__initial { color: #fff; }
+.rs-pad--playing .rs-pad__label { color: var(--rs-green); }
+.rs-pad--playing .rs-pad__state {
+  background: var(--rs-green);
+  border-color: var(--rs-green);
+  color: #052e16;
+}
+
+/* A pressed pad whose track is still being fetched. Amber rather than the
+   green of a playing pad, because it is not playing — that difference is the
+   entire point of this state. A loading pad carries --playing too (it is the
+   pad the operator has chosen), so every green cue has to be overridden here
+   or the ring says "running" while the badge says "wait". Defined after
+   --playing, at equal specificity, so source order decides. */
+.rs-pad--loading .rs-pad__face {
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.55),
+    inset 0 2px 5px rgba(255, 255, 255, 0.2),
+    inset 0 -3px 7px rgba(0, 0, 0, 0.5),
+    0 0 0 3px var(--rs-amber),
+    0 0 18px rgba(245, 158, 11, 0.5);
+}
+.rs-pad--loading .rs-pad__face::after {
+  background: var(--rs-amber);
+  box-shadow: 0 0 8px var(--rs-amber);
+}
+.rs-pad--loading .rs-pad__label { color: var(--rs-amber); }
+.rs-pad--loading .rs-pad__state {
+  background: #101014;
+  border-color: var(--rs-amber);
+  color: var(--rs-amber);
+}
+.rs-pad__spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--rs-amber);
+  animation: rs-pad-spin 0.7s linear infinite;
+}
+@keyframes rs-pad-spin {
+  to { transform: rotate(360deg); }
+}
+/* Reduced motion still needs the two states told apart, so the ring stays and
+   only the spin goes. */
+@media (prefers-reduced-motion: reduce) {
+  .rs-pad__spinner { animation: none; }
+}
+.rs-pad__eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: var(--space-0-5);
+  height: 12px;
+}
+.rs-pad__eq i {
+  width: 3px;
+  height: 100%;
+  border-radius: 1px;
+  background: currentColor;
+  transform-origin: bottom;
+  animation: rs-eq 0.9s ease-in-out infinite;
+}
+.rs-pad__eq i:nth-child(2) { animation-delay: 0.15s; }
+.rs-pad__eq i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes rs-eq {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+
+/* ── Lineup ────────────────────────────────────────────────────────── */
+.rs-lineup__list {
+  list-style: none;
+  margin: var(--space-2-5) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  counter-reset: none;
+}
+.rs-lineup__row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-2-5) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: var(--text-base);
+  text-align: left;
+  cursor: pointer;
+}
+.rs-lineup__row:hover { background: rgba(255, 255, 255, 0.1); }
+.rs-lineup__row--current {
+  border-color: var(--rs-blue);
+  background: rgba(59, 130, 246, 0.14);
+}
+.rs-lineup__row--done { opacity: 0.5; }
+.rs-lineup__num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.1);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.rs-lineup__range {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  color: var(--rs-dim);
+  min-width: 96px;
+}
+.rs-lineup__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rs-lineup__desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.rs-lineup__who {
+  font-size: var(--text-xs);
+  color: var(--rs-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rs-lineup__len {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--rs-dim);
+}
+.rs-lineup__badge {
+  flex-shrink: 0;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rs-blue-text);
+}
+
+@media (max-width: 640px) {
+  /* Give the show name back the room the two pills were taking — at full size
+     they left it about eight characters. */
+  .run-show__restart,
+  .run-show__finish { padding: 7px 11px; font-size: var(--text-xs); }
+  .run-show__scroll { padding-left: 10px; padding-right: 10px; }
+  .rs-panel { padding: 12px; }
+  /* Three across on a phone rather than four. At four, a 78px pad cut
+     "Intermission Bed" to "Intermi ssion…" — the operator was left picking
+     tracks off a letter and a guess. The tighter gap and the smaller label buy
+     the extra few pixels that let a long one-word title land whole. */
+  /* Inside the console the grid has the levels column beside it, so the
+     minimum comes down just enough to keep two pads on a row rather than
+     one — at 100px it missed a two-column fit by four pixels. */
+  .rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 14px 8px; padding: 14px 8px 12px; }
+  .rs-pad { padding-left: 0; padding-right: 0; }
+  .rs-pad__label { font-size: var(--text-xs); }
+  /* Still three across and the label still has its full width — only the
+     circle changes, from 62px to the width of the column it always had. */
+  .rs-pad { --rs-pad-face: 96px; }
+  .rs-lineup__range { min-width: 0; font-size: var(--text-xs); }
+  .rs-lineup__len { display: none; }
+}
+
+/* This board is run from a desk, so on a desktop the console takes the room a
+   desk has: longer fader throw, which is what makes a fade settable rather
+   than nudgeable, and knobs big enough to hit without looking. */
+@media (min-width: 900px) {
+  .rs-console { gap: 14px; }
+  .rs-console__levels { gap: 10px; padding: 12px 10px; }
+  /* Each fader owns enough width that "Instant" and "0.35s" can't collide. */
+  .rs-fader { min-width: 56px; }
+  .rs-fader__slot { height: 216px; width: 38px; }
+  .rs-fader__slot .rs-fade__slider { width: 216px; }
+  .rs-fader__value { font-size: var(--text-xs); }
+  .rs-pad { --rs-pad-face: 124px; }
+  .rs-bank__grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 20px 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-clock__time--warning,
+  .rs-board__now-dot,
+  .rs-pad__eq i {
+    animation: none;
+  }
+  .rs-pad__eq i { transform: scaleY(0.7); }
+  .rs-progress__bar { transition: none; }
+}
+
+
+
+/* Save error banner */
+/* ── Status rail ──────────────────────────────────────────────────────
+   One fixed stack at the top of the app for anything that reports on the
+   state of the user's data: notices first, then the sync pill. Stacking them
+   in one flow container is what keeps a notice from ever covering the pill —
+   the two used to be independent fixed elements and could overlap. The rail
+   itself ignores pointer events so it never blocks the page underneath;
+   its children opt back in. */
+.status-rail {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-banner);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding-top: env(safe-area-inset-top);
+  pointer-events: none;
+}
+
+/* A soft band rather than a floating badge: content dissolves as it scrolls
+   under the pill instead of colliding with it. */
+.status-rail__pill-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-3) var(--space-2-5);
+  background: linear-gradient(to bottom, var(--bg) 60%, transparent);
+}
+
+/* Step out of the way of anything modal — the new-show form, live show mode.
+   Matching on aria-modal covers every dialog in the app, present and future,
+   without each one having to know the status rail exists. Notices are held in
+   state, so they reappear the moment the dialog closes. */
+body:has([aria-modal='true']) .status-rail {
+  display: none;
+}
+
+.system-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  padding: var(--space-3) var(--space-4);
+  pointer-events: auto;
+  background: var(--primary-soft);
+  border-bottom: 1px solid var(--primary-soft-border);
+  color: var(--primary-text);
+}
+
+.system-notice--warning {
+  background: var(--warning-soft);
+  border-bottom-color: var(--warning-soft-border);
+  color: var(--warning);
+}
+
+.system-notice__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.system-notice__body {
+  flex: 1;
+}
+
+.system-notice__text {
+  display: block;
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* The reassurance line under a problem. The point of every notice here is
+   that the work still exists — say so on the notice itself rather than
+   making the user go looking for it. */
+.system-notice__reassurance {
+  display: block;
+  margin-top: var(--space-0-5);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+.system-notice__close {
+  background: none;
+  border: 0;
+  color: currentColor;
+  font-size: var(--text-xl);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 var(--space-1);
+  flex-shrink: 0;
+}
+
+/* First-load overlay: skeleton screens shaped like the shows list, so the app
+   appears to be assembling rather than stalled. */
+.app-loading {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loading);
+  background: var(--bg);
+  padding: calc(var(--app-bar-height) + env(safe-area-inset-top) + 18px) 16px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.app-loading__skeletons {
+  width: 100%;
+  max-width: 828px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.skeleton {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+[data-theme="dark"] .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+
+.skeleton-tile-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+.skeleton--tile { height: 86px; }
+.skeleton--bar { height: 42px; }
+.skeleton--card { height: 96px; }
+
+@keyframes skeleton-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}
+
+/* ── Live Viewer (read-only public page) ──────────────────────────── */
+.live-viewer {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  text-align: center;
+  gap: var(--space-4-5);
+}
+/* The show's name is whatever the producer called it, and this is the page an
+   audience opens. Without wrapping, a long name squeezed the status pill off
+   the right edge — "SOLD OUT SATURDAY NIGHT COMEDY HOUR" left it reading
+   "RUNNIN", clipped by the viewport rather than merely scrolled out of it. */
+.live-viewer__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  flex-wrap: wrap;
+  font-size: var(--text-md);
+  color: var(--text-muted);
+}
+/* min-width: 0 so the name may wrap instead of holding the row open. */
+.live-viewer__show {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.live-viewer__status {
+  flex-shrink: 0;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-size: var(--text-2xs);
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface-strong);
+}
+/* Arming sound on the viewer. Deliberately a big target — it gets tapped once,
+   in a dark room, usually by someone who isn't the operator. */
+.live-viewer__sound {
+  display: block;
+  width: 100%;
+  padding: var(--space-3-5) var(--space-4-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.live-viewer__sound--on {
+  background: transparent;
+  border-color: rgba(127, 127, 127, 0.35);
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: default;
+  text-align: center;
+}
+.live-viewer__status--running { color: var(--success-text); background: rgba(22, 163, 74, 0.12); }
+.live-viewer__status--paused { color: var(--primary-text); background: rgba(37, 99, 235, 0.10); }
+.live-viewer__status--countdown { color: var(--text); background: var(--surface-strong); }
+.live-viewer__status--ended { color: var(--text-muted); }
+.live-viewer__timer {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-size: clamp(4rem, min(16vw, 22vh), 10rem);
+}
+.live-viewer__timer--over { color: var(--danger-text); }
+
+/* ── One minute left ──────────────────────────────────────────────────
+   This is the only signal the person on stage gets, and they are looking
+   at the audience, not at a screen. Reddening the digits and pulsing them
+   to 30% — what this used to do — asks someone to be reading the clock at
+   the moment it changes. Nobody mid-set is.
+
+   So the whole field flashes instead. A full-screen colour change is
+   caught by peripheral vision, which is the only part of their attention
+   actually available.
+
+   On the rate: a saturated red full-screen flash is the exact pattern
+   WCAG 2.3.1 names as a seizure risk, and its ceiling is three flashes a
+   second. This runs at one — a third of the limit — so it reads as an
+   alarm rather than a strobe. Do not shorten this duration.
+
+   The red is fixed rather than themed. The viewer follows whatever colour
+   scheme the producer picked, and a wrap-up warning that came out blue
+   because someone chose a blue scheme would not be a warning. */
+.live-viewer--alarm::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* Behind the content, which is lifted to z-index 1, and above the page
+     background — so the field goes red while the names stay put. */
+  z-index: var(--z-base);
+  pointer-events: none;
+  background: var(--live-alarm-red, #e10600);
+  animation: live-viewer-alarm 1s ease-in-out infinite;
+}
+
+/* The digits hold white through both halves of the cycle: 4.97:1 on the red
+   and better than that on the page background, so the number never has a
+   moment where it can't be read.
+
+   Written as a descendant selector on purpose. Once a cue runs over,
+   --over and the alarm are both on, and --over paints the digits
+   `--public-red-bright !important` — red on a red field, invisible exactly
+   when it matters most. Two classes outrank one whatever the source order,
+   which a rule on --warning alone would not. */
+.live-viewer--alarm .live-viewer__timer { color: #fff !important; }
+
+@keyframes live-viewer-alarm {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+/* Flashing is the hazard; the red is the message. Reduced motion keeps the
+   message and drops the flashing — a screen held solid red is every bit as
+   hard to miss as one that blinks. */
+@media (prefers-reduced-motion: reduce) {
+  .live-viewer--alarm::after { animation: none; opacity: 1; }
+}
+.live-viewer__starting {
+  font-size: var(--text-lg);
+  color: var(--text-muted);
+}
+.live-viewer__cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  width: min(820px, 100%);
+}
+.live-viewer__card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+}
+.live-viewer__label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2-5);
+}
+.live-viewer__person { display: flex; align-items: center; gap: 12px; }
+.live-viewer__photo {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.live-viewer__photo--placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-strong);
+  color: var(--text-muted);
+  font-size: var(--text-2xl);
+  font-weight: 800;
+}
+.live-viewer__info { min-width: 0; text-align: left; }
+.live-viewer__name {
+  font-size: var(--text-lg);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.live-viewer__credits {
+  font-size: var(--text-md);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+.live-viewer__show { font-weight: 700; }
+.live-viewer__message {
+  font-size: var(--text-base);
+  color: var(--text-muted);
+}
+@media (max-width: 640px) {
+  .live-viewer__cards { grid-template-columns: 1fr; }
+}
+
+/* Pre-show state */
+.live-viewer--pre { gap: 14px; }
+.live-viewer__pre-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.live-viewer__pre-when {
+  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.live-viewer__pre-until {
+  font-size: var(--text-base);
+  color: var(--text-muted);
+}
+.live-viewer__note {
+  max-width: min(640px, 100%);
+  margin-top: var(--space-3);
+  padding: var(--space-3-5) var(--space-4-5);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: var(--text-base);
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.live-viewer__lineup {
+  width: 100%;
+  max-width: min(560px, 100%);
+  margin-top: var(--space-7);
+}
+.live-viewer__lineup-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+  text-align: center;
+}
+.live-viewer__lineup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  counter-reset: lineup;
+}
+.live-viewer__lineup-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3-5);
+  padding: var(--space-2-5) var(--space-3-5);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  counter-increment: lineup;
+}
+.live-viewer__lineup-item::before {
+  content: counter(lineup);
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--primary-text);
+}
+.live-viewer__lineup-photo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.live-viewer__lineup-photo--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-strong);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.live-viewer__lineup-info {
+  min-width: 0;
+  text-align: left;
+}
+.live-viewer__lineup-name {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text);
+}
+.live-viewer__lineup-credits {
+  font-size: var(--text-md);
+  color: var(--text-muted);
+}
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║  PUBLIC PAGES THEME — LiveViewer (follows the active scheme)      ║
+   ║  Bold, high-contrast layout; colors map to the design tokens.     ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+/* The public live viewer follows the producer's chosen color scheme (light by
+   default) instead of a fixed palette, so design changes are reflected on the
+   public link. The bold layout is kept; only the colors track the active
+   theme. */
+.live-viewer {
+  --public-bg: var(--bg);
+  --public-surface: var(--surface);
+  --public-surface-2: var(--surface-strong);
+  --public-white: var(--text);
+  --public-red: var(--primary);
+  --public-red-bright: var(--primary-bright);
+  --public-muted: var(--text-muted);
+  --public-border: var(--border);
+}
+
+/* ─── Live viewer — bold theme ─── */
+.live-viewer {
+  background: var(--public-bg) !important;
+  color: var(--public-white) !important;
+  font-family: var(--font-display);
+}
+/* Diagonal red slashes in the background */
+.live-viewer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0,
+      transparent 24px,
+      rgba(225, 6, 0, 0.04) 24px,
+      rgba(225, 6, 0, 0.04) 26px
+    );
+  pointer-events: none;
+}
+.live-viewer > * { position: relative; z-index: var(--z-raised); }
+.live-viewer__top { color: var(--public-muted) !important; }
+.live-viewer__show {
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--public-white);
+}
+.live-viewer__status {
+  background: var(--public-white) !important;
+  color: var(--public-bg) !important;
+  border-radius: 0 !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.16em !important;
+}
+.live-viewer__status--running { background: var(--public-red) !important; color: var(--on-primary) !important; }
+.live-viewer__status--paused { background: var(--public-white) !important; color: var(--public-bg) !important; }
+.live-viewer__status--countdown { background: var(--public-red) !important; color: var(--on-primary) !important; }
+.live-viewer__status--ended { background: var(--public-muted) !important; color: var(--public-bg) !important; }
+.live-viewer__timer {
+  color: var(--public-white) !important;
+  font-family: var(--font-display) !important;
+  text-transform: uppercase;
+}
+.live-viewer__timer--over { color: var(--public-red-bright) !important; }
+/* --warning deliberately sets no colour here: the last minute is driven by the
+   alarm animation below, and an !important declaration would outrank it. */
+.live-viewer__starting {
+  color: var(--public-red-bright) !important;
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.live-viewer__card {
+  background: var(--public-bg) !important;
+  border: 2px solid var(--public-white) !important;
+  border-radius: 0 !important;
+  box-shadow: 6px 6px 0 var(--public-red);
+}
+.live-viewer__label {
+  color: var(--public-red-bright) !important;
+  font-weight: 900 !important;
+}
+.live-viewer__photo {
+  border: 2px solid var(--public-white) !important;
+  border-radius: 0 !important;
+}
+.live-viewer__photo--placeholder {
+  background: var(--public-surface) !important;
+  color: var(--public-white) !important;
+}
+.live-viewer__name {
+  color: var(--public-white);
+  text-transform: uppercase;
+  font-weight: 900 !important;
+  letter-spacing: -0.01em;
+}
+.live-viewer__credits { color: var(--public-muted) !important; }
+.live-viewer__message { color: var(--public-muted) !important; }
+
+/* Pre-show */
+.live-viewer__pre-label {
+  background: var(--public-red);
+  color: var(--on-primary) !important;
+  padding: var(--space-1) var(--space-3);
+  letter-spacing: 0.18em !important;
+  font-weight: 900 !important;
+  transform: skew(-8deg);
+  display: inline-block;
+}
+.live-viewer__pre-when {
+  color: var(--public-white) !important;
+  text-transform: uppercase;
+  font-weight: 900 !important;
+  letter-spacing: -0.02em !important;
+}
+.live-viewer__pre-until {
+  color: var(--public-red-bright) !important;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.live-viewer__note {
+  background: var(--public-surface) !important;
+  border: 2px solid var(--public-white) !important;
+  border-left: 6px solid var(--public-red) !important;
+  border-radius: 0 !important;
+  color: var(--public-white) !important;
+}
+
+/* ── Minimal: flatten the public viewer page ─────────────────────────────
+   Strips the bold flourishes (Impact font, hard offset shadows, square
+   corners, 2px borders, skew, diagonal slashes) so the public page matches the
+   app's clean, flat style. Colors already follow the active theme. */
+.live-viewer, .live-viewer * {
+  font-family: inherit !important;
+}
+.live-viewer::before {
+  display: none !important;
+}
+.live-viewer__pre-label {
+  transform: none !important;
+}
+.live-viewer__card,
+.live-viewer__note {
+  box-shadow: none !important;
+  border-radius: var(--radius-md) !important;
+  border-width: 1px !important;
+}
+.live-viewer__status,
+.live-viewer__pre-label {
+  border-radius: var(--radius-full) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DESKTOP LAYOUT — sidebar navigation + wider content grid
+   On screens ≥ 900 px the app expands from a phone column into a two-
+   column layout: a sticky sidebar nav on the left and a wider main area
+   on the right.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DESKTOP LAYOUT  ≥ 900px
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (min-width: 900px) {
+  :root {
+    /* A rail, not a column. Five short words did not need 224px, and the
+       dead space under Settings was most of the screen's height — width the
+       bill, the running order and the Rolodex all wanted instead. */
+    --sidebar-width: 172px;
+    --desktop-max: 1200px;
+  }
+
+  /* ── Page background ───────────────────────────────────────────────── */
+  body {
+    background: var(--backdrop);
+  }
+
+  /* ── App shell: sidebar + content grid ────────────────────────────── */
+  .app {
+    max-width: var(--desktop-max);
+    min-height: 100dvh;
+    max-height: 100dvh;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    grid-template-rows: 1fr;
+    align-items: stretch;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--border), var(--shadow-lg);
+    border-left: none;
+    border-right: none;
+  }
+
+  /* ── Main content area ─────────────────────────────────────────────── */
+  /* The status rail follows the app shell's column instead of the raw viewport,
+     so the sync pill sits inside the card rather than floating off its edge. */
+  /* Follow the app shell's content column instead of the raw viewport: the
+     band belongs to the main area, not over the sidebar. */
+  .status-rail {
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: var(--desktop-max);
+    padding-left: var(--sidebar-width);
+  }
+
+  .status-rail__pill-row {
+    padding: var(--space-4) var(--space-8) var(--space-3);
+  }
+
+  .app-main {
+    grid-column: 2;
+    grid-row: 1;
+    padding: var(--space-16) var(--space-8) var(--space-12);
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    /* At this width .app-main is the scroll container, not the document, so
+       the scroll-padding has to be set here instead. */
+    scroll-padding-bottom: 88px;
+  }
+
+  /* ── Sidebar ────────────────────────────────────────────────────────── */
+  .bottom-nav {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 0;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    max-width: none;
+    width: var(--sidebar-width);
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    /* Vertical layout */
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 0;
+    gap: 0;
+    /* Borders */
+    border-top: none;
+    border-bottom: none;
+    border-left: none;
+    border-right: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--surface);
+  }
+
+  /* Brand wordmark */
+  .bottom-nav__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3-5) var(--space-3) var(--space-2-5);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--space-1);
+    flex-shrink: 0;
+  }
+
+  .bottom-nav__brand-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: var(--focus-ring);
+    flex-shrink: 0;
+  }
+
+  .bottom-nav__brand-text {
+    font-size: var(--text-xs);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  /* Primary nav items — vertical list in sidebar */
+  .bottom-nav__items {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: var(--space-1-5) var(--space-1-5) var(--space-2);
+    /* Not flex: 1. Stretching the list to full height only spread five links
+       over a screen; they belong together at the top where the eye starts. */
+    flex: 0 0 auto;
+  }
+
+  .bottom-nav__item {
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-1-5) var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    min-height: 34px;
+    min-width: auto;
+    letter-spacing: 0;
+  }
+
+  /* In the sidebar each label owns a full row, so it goes back to scaling
+     with the rest of the type. */
+  .bottom-nav__item span {
+    font-size: inherit;
+  }
+
+  .bottom-nav__item-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .bottom-nav__item--active {
+    background: var(--primary-soft);
+    color: var(--primary-text);
+  }
+
+  .bottom-nav__item--active .bottom-nav__item-icon {
+    opacity: 1;
+  }
+
+  .bottom-nav__item:hover:not(.bottom-nav__item--active) {
+    background: var(--surface-strong);
+    color: var(--text);
+  }
+
+  /* ── Show toolbar ──────────────────────────────────────────────────── */
+  .shows-toolbar {
+    margin-bottom: var(--space-5);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   WIDE DESKTOP  ≥ 1280px
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (min-width: 1280px) {
+  :root {
+    --desktop-max: 1400px;
+    /* A wider window is more room for the work, not for the nav. The rail
+       gains a little breathing room and nothing else. */
+    --sidebar-width: 184px;
+  }
+
+  .app-main {
+    padding: var(--space-16) var(--space-10) var(--space-12);
+  }
+
+  .status-rail__pill-row {
+    padding: var(--space-4-5) var(--space-10) var(--space-3);
+  }
+}
+
+/* The action side of the backup nudge was 240px of a 340px phone column, which
+   left 64px for the sentence and forced the whole banner onto two rows for
+   112px of height. "Back up" beside a shield says the same thing in a third of
+   the width; the full wording lives on the button's accessible name. */
+.backup-nudge__btn {
+  white-space: nowrap;
+}
+
+/* Deleting a cue is destructive, so it wears the danger colour when you reach
+   for it — but a run of show is a dozen rows and a red ✕ on every one of them
+   made the list read as a page of errors. It is quiet until you are on it. */
+.cue__delete {
+  color: var(--text-soft);
+}
+
+.cue__delete:hover,
+.cue__delete:focus-visible {
+  color: var(--danger);
+}
+
+/* ── Asking someone for their own details ────────────────────────────────
+   The row grows a second line for the link, and a third for the answers
+   when they come back. The person is still one row; the ask and the reply
+   hang off it rather than becoming rows of their own. */
+.rolodex__item {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.rolodex__item-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  min-width: 0;
+}
+
+.rolodex__gaps--waiting {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+
+.rolodex__link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* Readonly and selectable: on a desktop the producer pastes it into a DM,
+   and the clipboard is not always allowed to do that for them. */
+.rolodex__link-url {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: var(--space-1) var(--space-1-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.rolodex__link-hint {
+  flex: 1 1 100%;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+.rolodex__import-photo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1-5) 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.rolodex__import-photo img {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+.rolodex__link-error {
+  margin: var(--space-1-5) 0 0;
+  font-size: var(--text-sm);
+  color: var(--danger-text);
+}
+
+.rolodex__import {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-2-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.rolodex__import-head {
+  display: block;
+  margin-bottom: var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.rolodex__import-list {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.rolodex__import-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.rolodex__import-label {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-soft);
+}
+
+/* What is on file now, struck through — the one thing that would be lost. */
+.rolodex__import-was {
+  color: var(--text-soft);
+  text-decoration: line-through;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rolodex__import-new {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rolodex__import-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+@media (max-width: 768px) {
+  .rolodex__import-list li {
+    flex-wrap: wrap;
+  }
+  .rolodex__import-new {
+    flex-basis: 100%;
+  }
+}
+
+/* ── The Rolodex row on a phone ───────────────────────────────────────── */
+
+/* The row is a flex line of photo, name, what is missing, "Ask for details"
+   and "Edit". The name block was the only item allowed to shrink, so on a
+   phone it shrank to nothing: three contacts rendered as "D", "P" and "M"
+   with no names at all, while "Ask for details" wrapped onto three lines and
+   ran into the Edit button beside it. A rolodex you cannot read the names in
+   is not a rolodex.
+
+   So the name takes the first line outright, and everything else takes the
+   line below, where there is room for it. */
+@media (max-width: 619px) {
+  .rolodex__item-main {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+
+  /* Wide enough that nothing can share the line with it: the photo is 34px
+     plus its gap, and this claims the rest. The buttons take the line below,
+     where they have room to be read and tapped. */
+  .rolodex__item-content {
+    min-width: calc(100% - 34px - var(--space-2-5) - 2px);
+  }
+
+  .rolodex__item-main > .btn {
+    white-space: nowrap;
+  }
+}
+
+/* Keep cue controls readable on the narrowest phones, including Resume. */
+@media (max-width: 360px) {
+  .rs-transport .rs-btn {
+    flex-direction: column;
+    padding-inline: var(--space-1);
+    gap: var(--space-1);
+    min-width: 0;
+  }
+}
+
+```
+
+### `src/index.css`
+
+```css
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  width: 100%;
+  /* clip, not hidden. `overflow-x: hidden` forces the other axis to `auto`,
+     which silently makes this element a scroll container — and a sticky
+     descendant then resolves against *this* box instead of the viewport, so it
+     never sticks. `clip` does the same visual job (nothing spills sideways)
+     without creating the scrollport. */
+  overflow-x: clip;
+}
+
+/* Scale every rem-based element up on phones. Nearly all font sizes across
+   the app are set in rem off this root value, so this single number is what
+   makes small meta/label text (0.7-0.85rem) actually readable on a phone
+   instead of reading like a shrunk-down desktop layout. Also keeps text
+   inputs >= 16px, which prevents iOS Safari's auto-zoom on focus. */
+@media (max-width: 768px) {
+  html {
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 430px) {
+  html {
+    font-size: 20px;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--backdrop);
+  color: var(--text);
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  /* clip, not hidden. `overflow-x: hidden` forces the other axis to `auto`,
+     which silently makes this element a scroll container — and a sticky
+     descendant then resolves against *this* box instead of the viewport, so it
+     never sticks. `clip` does the same visual job (nothing spills sideways)
+     without creating the scrollport. */
+  overflow-x: clip;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* ── Native-app feel on touch devices ─────────────────────────────────
+   The app should never need a pinch-zoom. These rules remove the common
+   triggers and rough edges so it behaves like a installed iOS app. */
+
+/* Media never forces horizontal overflow (a top reason to pinch out). */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* iOS Safari auto-zooms when a focused field's text is < 16px. Some dense
+   controls are intentionally smaller than 1rem, so guarantee a 16px floor on
+   every form field for touch (coarse) pointers — this is the single biggest
+   cause of unwanted zoom-on-tap. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    /* !important so this floor wins over the many per-component font sizes —
+       any field under 16px would otherwise trigger iOS zoom-on-focus. */
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* Smooth momentum scrolling. */
+body {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Kill the 300ms double-tap-to-zoom on controls and suppress the long-press
+   callout menu — scoped to interactive elements only. Applying touch-action or
+   overscroll-behavior to the root <html> breaks page scrolling in iOS Safari /
+   standalone PWAs, so we never touch the document scroller. */
+button,
+.btn,
+[role='button'] {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+/* Native apps never show a text-selection caret when you tap UI chrome.
+   Scoped to controls and nav — inputs, textareas, and content stay selectable. */
+button,
+.btn,
+[role='button'],
+nav,
+label {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Stop the page-level rubber-band / pull-to-refresh inside the installed app —
+   scoped to body only (the document scroller), which iOS handles correctly. */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Native press feedback on touch: controls dim and shrink slightly under the
+   finger instead of relying on hover states that don't exist on touch. */
+@media (pointer: coarse) {
+  button:active:not(:disabled),
+  .btn:active:not(:disabled),
+  [role='button']:active {
+    opacity: 0.75;
+    transform: scale(0.97);
+    transition: opacity var(--duration-instant) ease, transform var(--duration-instant) ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled),
+  .btn:active:not(:disabled),
+  [role='button']:active {
+    transform: none;
+  }
+}
+
+/* Available to assistive tech, invisible on screen. For the words that make a
+   terse visual label — a bare count, an icon-only control — into something a
+   screen reader can actually make sense of. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+```
+
+### `src/fonts.css`
+
+```css
+/* ── Inter, served by this app ────────────────────────────────────────────
+   The typeface used to come from fonts.googleapis.com on every cold load.
+   That is a render-blocking request to a third party for the one asset the
+   entire visual design rests on — and this app is an installable PWA whose
+   own landing copy promises it keeps working when the venue Wi-Fi drops. The
+   service worker precaches `js,css,html,ico,png,svg` from this origin, so a
+   cross-origin font was never in it: offline, or on a bad connection, every
+   weight and metric in the app fell back to whatever the phone chose.
+
+   One variable file per script subset, with Google's own unicode-ranges kept
+   intact — so a browser still downloads only the subsets it actually needs
+   (48K of latin for most people, not the 228K here), and now from a URL the
+   service worker can cache.
+
+   The weight axis is 350-800 rather than a set of static cuts: this codebase
+   asks for 650 in twenty places and the static build snapped every one of
+   them to 700, collapsing a deliberate half-step into no step at all. */
+
+
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 350 800;
+  font-display: swap;
+  src: url('/fonts/inter-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+
+/* cyrillic */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 350 800;
+  font-display: swap;
+  src: url('/fonts/inter-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+/* greek-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 350 800;
+  font-display: swap;
+  src: url('/fonts/inter-greek-ext.woff2') format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+
+/* greek */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 350 800;
+  font-display: swap;
+  src: url('/fonts/inter-greek.woff2') format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+
+/* vietnamese */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 350 800;
+  font-display: swap;
+  src: url('/fonts/inter-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+
+/* latin-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 350 800;
+  font-display: swap;
+  src: url('/fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 350 800;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+```
+
+### `src/design.css`
+
+```css
+/* Brand and composition. Functional component styles remain in their own files. */
+.brand-mark { display: block; width: 40px; height: 40px; flex: 0 0 auto; }
+.mobile-brand { display: none; }
+.page-header__title { letter-spacing: -0.045em; }
+.shows-list > .page-header .page-header__subtitle { max-width: none; }
+.dash-panel--next { border: 1px solid var(--primary-soft-border); background: var(--surface); padding: 24px; gap: 12px; box-shadow: none; }
+.dash-panel--next .dash-panel__title { color: var(--primary-text); letter-spacing: .12em; }
+.dash-next__name { font-size: var(--text-2xl); font-weight: 750; line-height: 1.15; letter-spacing: -.04em; }
+.dash-next__actions { margin-top: 8px; }
+.dash-next__actions .btn { min-height: 44px; padding-inline: 20px; }
+.dash-panel--attention { box-shadow: none; }
+.dash-todo__row { background: transparent; border-radius: 0; border-bottom: 1px solid var(--border); padding: 12px 0; gap: 16px; }
+.dash-todo li:last-child .dash-todo__row { border-bottom: 0; }
+.dash-todo__reason--lineup { color: var(--text-muted); }
+.shows-toolbar__search { background: var(--surface); }
+.show-card__date { border: 0; }
+.show-card__title { letter-spacing: -.025em; }
+
+/* The sign-in screen introduces the product without making returning users scroll. */
+.landing__center { max-width: 1000px; display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap: 80px; align-items: center; }
+.landing__wordmark { gap: 12px; margin-bottom: 44px; }
+.landing__wordmark-text { font-size: var(--text-lg); color: var(--text); }
+.landing__headline { font-size: clamp(2.5rem, 5.2vw, 4.5rem); font-weight: 750; line-height: 1.02; letter-spacing: -.065em; margin: 0 0 24px; }
+.landing__headline em { font-style: normal; color: var(--primary-text); }
+.landing__lede { max-width: 38ch; font-size: var(--text-lg); line-height: 1.65; }
+.landing__steps { list-style: none; margin: 32px 0 0; padding: 0; display: flex; flex-direction: column; gap: 16px; font-size: var(--text-md); }
+.landing__steps li { display: flex; align-items: center; gap: 16px; }
+.landing__steps span { font: 500 var(--text-xs) var(--font-mono); color: var(--text-soft); }
+.login__container { padding: 32px; box-shadow: none; }
+[data-theme="dark"] .login__container { box-shadow: none; }
+.login__title { font-size: var(--text-xl); letter-spacing: -.03em; }
+.login__header { margin-bottom: 24px; }
+.login__form { gap: 18px; }
+.login__input { min-height: 48px; }
+
+@media (min-width: 900px) {
+  :root { --sidebar-width: 216px; }
+  .app { border-radius: 0; box-shadow: none; }
+  .bottom-nav { background: var(--bg); }
+  .bottom-nav__brand { gap: 12px; padding: 24px 20px 32px; margin: 0; border: 0; }
+  .bottom-nav__brand-text { max-width: 100px; font-size: var(--text-md); line-height: 1.25; }
+  .bottom-nav__items { padding: 0 14px; gap: 6px; }
+  .bottom-nav__item { min-height: 44px; padding: 12px; gap: 12px; font-size: var(--text-md); }
+  .bottom-nav__item--active { background: var(--primary-soft); }
+  .bottom-nav__item-icon { width: 18px; height: 18px; }
+  .page-header__title { font-size: 2.5rem; font-weight: 750; }
+  .page-header { margin-bottom: 28px; gap: 8px; }
+  .dash { margin-bottom: 28px; gap: 24px; }
+  .dash-panel--attention { padding: 24px; border: 0; background: transparent; }
+  .dash-panel--attention .dash-panel__head { margin-bottom: 4px; }
+  .show-card { border-left-width: 1px; padding: 18px; }
+  .shows-grid { gap: 12px; }
+  .shows-list__heading { margin-bottom: 12px; }
+}
+@container shows-col (min-width: 620px) {
+  .dash { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: stretch; }
+}
+@media (max-width: 899px) {
+  .mobile-brand { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 650; color: var(--text-muted); margin-right: auto; }
+  .mobile-brand .brand-mark { width: 24px; height: 24px; }
+  .shows-list > .page-header .page-header__subtitle { display: none; }
+}
+@media (max-width: 700px) {
+  .landing { padding: 32px 20px; }
+  .landing__center { display: block; max-width: 440px; }
+  .landing__wordmark { margin-bottom: 24px; }
+  .landing__headline { font-size: 2.2rem; margin-bottom: 16px; }
+  .landing__lede { font-size: var(--text-md); line-height: 1.5; margin-bottom: 24px; }
+  .landing__steps { display: none; }
+  .login__container { padding: 24px; }
+}
+@container shows-col (max-width: 619px) {
+  .dash-panel--next { padding: 16px; gap: 8px; }
+  .dash-next__name { font-size: var(--text-xl); }
+  .dash-next__actions { margin-top: 4px; }
+  .dash-next__actions .btn { padding-inline: 16px; }
+  .dash-next__meta { white-space: normal; }
+}
+
+/* Live mode remains dark in both themes; amber and red retain timer meaning. */
+.run-show { background: #0b1120; --rs-deck: #29364b; --rs-deck-edge: #1c2738; }
+.rs-btn--start, .rs-btn--start:hover:not(:disabled) { background: #4285f4; border-color: #4285f4; color: #07162c; }
+@media (max-width: 380px) {
+  .shows-toolbar { flex-wrap: wrap; }
+  .shows-toolbar__search { flex-basis: 100%; }
+  .shows-toolbar__sort { flex: 1; }
+  .dash-next__actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .dash-next__actions .btn { padding-inline: 8px; }
+}
+
+
+.navigation-toggle { display: none; }
+@media (min-width: 900px) {
+  .app { display: block; }
+  .app-main { padding-top: 92px; }
+  .status-rail { padding-left: 0; }
+  .status-rail__pill-row { align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+  .navigation-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; flex: 0 0 auto;
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    background: var(--surface); color: var(--text); cursor: pointer; pointer-events: auto;
+  }
+  .navigation-toggle:hover { background: var(--surface-strong); }
+  .navigation-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+  .mobile-brand { display: inline-flex; align-items: center; gap: 10px; margin-right: auto; font-size: var(--text-md); font-weight: 650; }
+  .mobile-brand .brand-mark { width: 30px; height: 30px; }
+  .bottom-nav[popover]:not(:popover-open) { display: none; }
+  .bottom-nav:popover-open {
+    display: flex; position: fixed; inset: 68px auto auto max(32px, calc((100vw - var(--desktop-max)) / 2 + 32px));
+    transform: none; margin: 0; width: 264px; height: auto; max-height: calc(100dvh - 84px);
+    padding: 8px 0; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow-y: auto;
+  }
+  .bottom-nav__brand { padding: 12px 20px 20px; }
+  .bottom-nav__brand-text { max-width: none; }
+}
+
+```
+
+### `src/utils/theme.ts`
+
+```ts
+/**
+ * Color scheme handling. The app ships a minimal pair — Dark (the default, via
+ * a `data-theme="dark"` override) and Light (the base :root palette). The
+ * choice is stored in localStorage so it applies instantly on every visit,
+ * even before sign-in.
+ */
+export type ColorScheme = 'light' | 'dark';
+
+export const COLOR_SCHEMES: {
+  id: ColorScheme;
+  label: string;
+  description: string;
+  swatch: string; // accent color
+  bg: string; // background color, for the swatch preview
+}[] = [
+  { id: 'dark', label: 'Dark', description: 'Default', swatch: '#4285f4', bg: '#111827' },
+  { id: 'light', label: 'Light', description: 'For bright rooms', swatch: '#4285f4', bg: '#f6f8fc' },
+];
+
+/** The browser/PWA chrome color for each scheme (matches --bg). */
+const THEME_COLORS: Record<ColorScheme, string> = {
+  light: '#f6f8fc',
+  dark: '#111827',
+};
+
+const STORAGE_KEY = 'showrunner:theme';
+
+function isColorScheme(value: unknown): value is ColorScheme {
+  return value === 'light' || value === 'dark';
+}
+
+export function loadColorScheme(): ColorScheme {
+  try {
+    const value = localStorage.getItem(STORAGE_KEY);
+    if (isColorScheme(value)) return value;
+  } catch {
+    /* ignore */
+  }
+  // Dark is the app's own look, and it's what you want in a venue. Light is
+  // still a tap away in Settings for anyone working in a bright room.
+  return 'dark';
+}
+
+export function applyColorScheme(scheme: ColorScheme, persist = true): void {
+  const root = document.documentElement;
+  // Light is the base :root palette — no attribute needed.
+  if (scheme === 'dark') {
+    root.setAttribute('data-theme', 'dark');
+  } else {
+    root.removeAttribute('data-theme');
+  }
+  // Keep the browser/PWA chrome (status bar, address bar) in step with the theme.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', THEME_COLORS[scheme]);
+  if (!persist) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, scheme);
+  } catch {
+    /* ignore */
+  }
+}
+
+```

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "run-show": {
+      "targetKind": "existing-ui",
+      "projectId": "02ff3d92-bb8d-4118-9035-8426887e8321",
+      "baselineDraftId": "ab86b66e-029d-4022-b33c-e955a8f30f7d",
+      "activeDraftId": "ab86b66e-029d-4022-b33c-e955a8f30f7d",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        ".superdesign/init/theme.md:1:22",
+        "src/components/RunShow.tsx:104:181",
+        "src/components/RunShow.tsx:819:1190",
+        "src/App.css:1912:2987",
+        "src/design.css",
+        "src/index.css",
+        "src/components/Icon.tsx",
+        "src/utils/padColor.ts"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "ad389525ac87c1a448c3c9e5fbd9b01c45036c337f439256097b9c342dfc46b4",
+        ".superdesign/init/theme.md": "b3152a5dc53759a60cede7da3bae59e867279cadb91ac4adf5f054f9bfde34e5",
+        "src/App.css": "329882d6af2386732abe6fe469540bfd5a7d935b22143d842ddd0024d9b33d53",
+        "src/components/Icon.tsx": "24b389ab29de0035a811bad6e0ea923ba2e4ea2dc514cb58d0f508a7f4ae5eaf",
+        "src/components/RunShow.tsx": "3d9fb2eab2b4e444099d820db47b22b023fd3ead34083768ee60b4188e7e9a27",
+        "src/design.css": "fbd8d948f33fc4ef6880f9e6b191802b23758edf30a257904f8a08e2232967c7",
+        "src/index.css": "1c2f7a1ababa7534f22cdbdea78a59b81e7bfcdae1bf4116cea97963fde91e38",
+        "src/utils/padColor.ts": "fd31501f2b085a02ffed59032aaf8ce0bd85f34453e0adc32a3862f2560aa4d4"
+      },
+      "components": [],
+      "drafts": {
+        "ab86b66e-029d-4022-b33c-e955a8f30f7d": {
+          "title": "RunShow Console - Improved Layout",
+          "visualDirection": "Approved music-first layout implemented and deployed in PR268",
+          "currentVersion": 3
+        }
+      },
+      "updatedAt": "2026-09-12T08:29:11.545084+00:00"
+    }
+  }
+}
