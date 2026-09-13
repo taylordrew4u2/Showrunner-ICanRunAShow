@@ -1,12 +1,9 @@
 /**
  * Whether a performer's profile is complete enough to work with.
  *
- * Two jobs depend on the profile rather than the booking: sending a contract
- * needs somewhere to send it, and announcing the show needs a handle to tag.
- * Both fail quietly — a contract that was never sent looks the same as one that
- * was never signed, and a missing tag is only noticed by the person who was
- * missed. So the gaps are named up front, before doors, while there is still
- * time to ask.
+ * Email and social handles describe profile completeness. Contracts are shared
+ * by link, so recipients can supply their details when they open the form.
+ * Missing contact details never prevent sharing a contract link.
  *
  * Nothing here writes: it reports on what is already saved.
  */
@@ -18,7 +15,7 @@ import type { Performer } from '../types';
 export type ReadinessGap = 'email' | 'social';
 
 export interface PerformerReadiness {
-  /** A contract can be sent: there is an address to send it to. */
+  /** Contract links can be shared before the recipient supplies an email. */
   canSendContract: boolean;
   /** They can be tagged in the announcement. */
   canTag: boolean;
@@ -34,19 +31,16 @@ const GAP_LABELS: Record<ReadinessGap, string> = {
 };
 
 /**
- * Takes only the two fields it reads, rather than a whole Performer, so a
- * Rolodex entry can be measured by the same rule as someone on a bill. The
- * question — can I contract them, can I tag them — is the same question in
- * both places, and it should not have two answers.
+ * Uses the same profile-completeness rule for Rolodex entries and performers.
  */
 export function performerReadiness(
   performer: { email?: string; socialMedia?: string },
 ): PerformerReadiness {
-  const canSendContract = isEmail(performer.email);
+  const canSendContract = true;
   const canTag = toHandle(performer.socialMedia) !== null;
 
   const gaps: ReadinessGap[] = [];
-  if (!canSendContract) gaps.push('email');
+  if (!isEmail(performer.email)) gaps.push('email');
   if (!canTag) gaps.push('social');
 
   const filled = 2 - gaps.length;
@@ -61,9 +55,7 @@ export function describeGaps(gaps: ReadinessGap[]): string {
 /**
  * Everyone on a lineup who is missing something, worst first.
  *
- * Sorted so the people who cannot be contracted at all come before the people
- * who merely cannot be tagged — one of those costs you a performer, the other
- * costs you a mention.
+ * Profiles with more missing details come first, then names alphabetically.
  */
 export function lineupGaps(performers: Performer[]): {
   performer: Performer;
@@ -73,9 +65,8 @@ export function lineupGaps(performers: Performer[]): {
     .map((performer) => ({ performer, readiness: performerReadiness(performer) }))
     .filter((entry) => entry.readiness.gaps.length > 0)
     .sort((a, b) => {
-      if (a.readiness.canSendContract !== b.readiness.canSendContract) {
-        return a.readiness.canSendContract ? 1 : -1;
-      }
+      const gapDifference = b.readiness.gaps.length - a.readiness.gaps.length;
+      if (gapDifference) return gapDifference;
       return a.performer.name.localeCompare(b.performer.name);
     });
 }

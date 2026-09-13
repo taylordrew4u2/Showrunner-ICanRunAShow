@@ -7,7 +7,7 @@ function performer(overrides: Partial<Performer> = {}): Performer {
 }
 
 describe('performerReadiness', () => {
-  it('is complete when there is somewhere to send and something to tag', () => {
+  it('is complete when email and social handle are saved', () => {
     const readiness = performerReadiness(
       performer({ email: 'mona@example.com', socialMedia: '@monasable' }),
     );
@@ -20,18 +20,18 @@ describe('performerReadiness', () => {
     });
   });
 
-  it('blocks the contract when there is no address to send it to', () => {
+  it('allows a contract link without an email while reporting incomplete contact details', () => {
     const readiness = performerReadiness(performer({ socialMedia: '@monasable' }));
 
-    expect(readiness.canSendContract).toBe(false);
+    expect(readiness.canSendContract).toBe(true);
     expect(readiness.gaps).toEqual(['email']);
     expect(readiness.percent).toBe(50);
   });
 
-  it('does not accept something that is not an address', () => {
-    expect(performerReadiness(performer({ email: 'ask her' })).canSendContract).toBe(false);
-    expect(performerReadiness(performer({ email: 'mona@' })).canSendContract).toBe(false);
-    expect(performerReadiness(performer({ email: '  ' })).canSendContract).toBe(false);
+  it('allows contract links even when the saved email is blank or invalid', () => {
+    expect(performerReadiness(performer({ email: 'ask her' })).canSendContract).toBe(true);
+    expect(performerReadiness(performer({ email: 'mona@' })).canSendContract).toBe(true);
+    expect(performerReadiness(performer({ email: '  ' })).canSendContract).toBe(true);
   });
 
   it('counts a pasted profile link as taggable', () => {
@@ -69,10 +69,10 @@ describe('lineupGaps', () => {
     expect(lineupGaps(lineup).map((entry) => entry.performer.name)).not.toContain('Renata Cruz');
   });
 
-  it('puts the people who cannot be contracted first', () => {
+  it('puts profiles with the most missing details first', () => {
     expect(lineupGaps(lineup).map((entry) => entry.performer.name)).toEqual([
-      'Bex Halloran',
       'Dev Okonjo',
+      'Bex Halloran',
       'Mona Sable',
     ]);
   });
