@@ -126,7 +126,7 @@ test.describe('contracts', () => {
     // They have no account, so a login screen is the one thing that cannot be
     // shown to them; the signing page can at least say what went wrong.
     const truncated = await signerContext.newPage();
-    await truncated.goto(`${new URL(link).origin}/?sign=`);
+    await truncated.goto(`${new URL(link).origin}/sign`);
     await expect(truncated.locator('.signing__card')).toContainText('will not open');
     await expect(truncated.locator('.login__form')).toHaveCount(0);
     await truncated.close();

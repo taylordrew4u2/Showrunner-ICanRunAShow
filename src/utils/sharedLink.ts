@@ -15,21 +15,61 @@ export interface SharedLinkRoute {
   token: string;
 }
 
+const KINDS = ['view', 'profile', 'sign'] as const;
+
 /**
- * Read the route out of a link's query string.
+ * The path a sent link is addressed to.
  *
- * Keyed on the parameter being *present*, not on it having a usable value. A
- * link that arrived with its token cut off — trimmed by a messaging app,
- * broken across two lines in a text, retyped by hand — is still someone
- * holding a link, and the one thing they must never be shown is a login for
- * an account they will never have. The pages downstream say what went wrong.
- * `?sign=` alone used to fall through to the app and ask them to sign in.
+ * A path rather than `/?sign=TOKEN`, and the reason is host routing rather
+ * than taste. Vercel consults the filesystem *before* the rewrites in
+ * vercel.json, so `/` is answered by the static `index.html` and no rewrite on
+ * `/` can ever run — which is why the first attempt at this shipped a correct
+ * `link-sign.html` that nothing was ever routed to. `/sign` is not a file, so
+ * the rewrite is reached, exactly as the SPA catch-all is reached today.
  */
-export function sharedLinkRoute(search: string | URLSearchParams): SharedLinkRoute | null {
+const PATHS: Record<SharedLinkKind, string> = {
+  sign: '/sign',
+  profile: '/details',
+  view: '/live',
+};
+
+/** Where the token rides on a link addressed to a path. */
+const TOKEN_PARAM = 't';
+
+/** The address to send someone, for one kind of link. */
+export function sharedLinkPath(kind: SharedLinkKind, token: string): string {
+  return `${PATHS[kind]}?${TOKEN_PARAM}=${encodeURIComponent(token)}`;
+}
+
+/**
+ * Read the route out of a link's address.
+ *
+ * Keyed on the path or parameter being *present*, not on the token having a
+ * usable value. A link that arrived with its token cut off — trimmed by a
+ * messaging app, broken across two lines in a text, retyped by hand — is still
+ * someone holding a link, and the one thing they must never be shown is a
+ * login for an account they will never have. The pages downstream say what
+ * went wrong. `?sign=` alone used to fall through to the app and ask them to
+ * sign in.
+ *
+ * The `?sign=`/`?profile=`/`?view=` form is still read, and has to be: every
+ * link sent before this uses it, and those are contracts people may open
+ * months later. Only the address changed, never what it opens.
+ */
+export function sharedLinkRoute(
+  search: string | URLSearchParams,
+  pathname = '',
+): SharedLinkRoute | null {
   const params = typeof search === 'string' ? new URLSearchParams(search) : search;
+  // A trailing slash is the same address, and so is a differently-cased one —
+  // both happen when a link is retyped or passed through a link checker.
+  const path = pathname.replace(/\/+$/, '').toLowerCase() || '/';
+  for (const kind of KINDS) {
+    if (path === PATHS[kind]) return { kind, token: params.get(TOKEN_PARAM) ?? '' };
+  }
   // Order matters only in that one link cannot be two things; a URL carrying
   // more than one of these is malformed either way, so the first wins.
-  for (const kind of ['view', 'profile', 'sign'] as const) {
+  for (const kind of KINDS) {
     if (params.has(kind)) return { kind, token: params.get(kind) ?? '' };
   }
   return null;

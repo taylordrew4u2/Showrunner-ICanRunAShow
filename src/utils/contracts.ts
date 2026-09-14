@@ -5,6 +5,7 @@ import { api } from './api';
 import { decryptWithKey, encryptWithKey } from './encryption';
 import { resolveMediaUrl } from './mediaStore';
 import { rolodexKey } from './rolodex';
+import { sharedLinkPath } from './sharedLink';
 import { formatShowTime, parseShowDate } from './showDate';
 import type { SessionCredentials } from './session-vault';
 
@@ -169,7 +170,7 @@ export function splitIntoChunks(text: string, sliceChars = SLICE_CHARS): string[
  * reaching the server holding the ciphertext.
  */
 export function signingUrl(origin: string, token: string, key: string): string {
-  return `${origin}/?sign=${encodeURIComponent(token)}#k=${key}`;
+  return `${origin}${sharedLinkPath('sign', token)}#k=${key}`;
 }
 
 /** Read the key back out of a location fragment. */

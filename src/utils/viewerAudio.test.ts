@@ -77,14 +77,15 @@ describe('viewer audio keys', () => {
     const url = new URL(viewerUrl('https://example.com', 'tok-123', key));
     // The fragment is the whole point: browsers don't send it to the server,
     // so the backend holding the ciphertext never sees the key.
-    expect(url.search).toContain('view=tok-123');
+    expect(url.pathname).toBe('/live');
+    expect(url.search).toContain('t=tok-123');
     expect(url.search).not.toContain(key);
     expect(url.hash).toContain(key);
   });
 
   it('builds a plain link when the show has no published audio', () => {
     const url = viewerUrl('https://example.com', 'tok-123', null);
-    expect(url).toBe('https://example.com/?view=tok-123');
+    expect(url).toBe('https://example.com/live?t=tok-123');
     expect(readViewerKeyFromHash(new URL(url).hash)).toBeNull();
   });
 
