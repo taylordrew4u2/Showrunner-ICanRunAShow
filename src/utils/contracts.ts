@@ -349,7 +349,12 @@ export async function fetchSigningDocument(
   }
 }
 
-/** Submit the signature. The server accepts this once and refuses after. */
+/**
+ * Submit the signature. The server accepts this once and refuses after.
+ *
+ * `typedName` is the signature — typed by the signer, never prefilled.
+ * `signerName` is who they are, which the producer may already have had.
+ */
 export async function submitSignature(
   token: string,
   key: string,
@@ -357,10 +362,12 @@ export async function submitSignature(
   documentDataUrl: string,
   fields: { label: string; value: string }[] = [],
   headshot?: string,
+  signerName?: string,
 ): Promise<SignatureRecord> {
   const record: SignatureRecord = {
     signedAt: new Date().toISOString(),
     typedName: typedName.trim(),
+    signerName: signerName?.trim() || undefined,
     fields: fields.length ? fields : undefined,
     headshot: headshot || undefined,
     documentHash: documentHash(documentDataUrl),

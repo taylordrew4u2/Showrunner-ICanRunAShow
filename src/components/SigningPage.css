@@ -340,3 +340,9 @@
   font-size: var(--text-sm);
   color: var(--danger-text);
 }
+
+/* The signature reads as the act it is, not as one more detail in the list.
+   Its field is the only one on the page that arrives empty on purpose. */
+.signing__field--signature input {
+  font-size: var(--text-lg);
+}

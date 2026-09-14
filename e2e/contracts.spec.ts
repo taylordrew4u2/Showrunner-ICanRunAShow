@@ -131,11 +131,20 @@ test.describe('contracts', () => {
     await expect(broken.getByRole('button', { name: 'Agree and sign' })).toHaveCount(0);
     await broken.close();
 
-    await signer.locator('.signing__field--name input').fill('Nadia Okonjo');
+    // Sent from a name the producer already had, so the name arrives filled in
+    // — and the signature does not. A contract that opens already signed is
+    // not an agreement, whatever the person then ticks.
+    await expect(signer.locator('.signing__field--name input')).toHaveValue('Nadia Okonjo');
+    await expect(signer.locator('.signing__field--signature input')).toHaveValue('');
+
     // The contract asks for a few details as well as a signature; Email is the
     // one it insists on.
     await signer.getByLabel('Email').fill('nadia@example.com');
     await signer.locator('.signing__agree input').check();
+    // Everything else answered, and it still will not sign until they sign it.
+    await expect(signer.locator('.signing__cta')).toBeDisabled();
+
+    await signer.locator('.signing__field--signature input').fill('Nadia Okonjo');
     await signer.locator('.signing__cta').click();
     await expect(signer.locator('.signing__panel--done')).toContainText('Signed');
     await expect(signer.locator('.signing__page')).toHaveCount(2);

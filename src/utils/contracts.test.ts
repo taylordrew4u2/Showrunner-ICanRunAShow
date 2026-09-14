@@ -319,3 +319,39 @@ describe('a headshot sent with a signature', () => {
     expect(record.headshot).toBeUndefined();
   });
 });
+
+/**
+ * Who they are, and the fact that they signed, are two different things.
+ *
+ * The producer already knows the performer's name when they send the contract
+ * from a profile, so the signer should not have to retype it. But the name
+ * field and the signature were once the same field, which meant the contract
+ * arrived with the signature already typed in — a document that signed itself.
+ */
+describe('a name on file and a signature', () => {
+  it('keeps the signature the signer typed separately from the name they were sent as', async () => {
+    vi.spyOn(api, 'post').mockResolvedValue({} as never);
+
+    const record = await submitSignature(
+      'tok',
+      'key',
+      'A. Sable',
+      'data:application/pdf;base64,AAAA',
+      [],
+      undefined,
+      'Mona Sable',
+    );
+
+    expect(record.typedName).toBe('A. Sable');
+    expect(record.signerName).toBe('Mona Sable');
+  });
+
+  it('records no name of its own for a contract signed before the two were separate', async () => {
+    vi.spyOn(api, 'post').mockResolvedValue({} as never);
+
+    const record = await submitSignature('tok', 'key', 'Mona Sable', 'data:application/pdf;base64,AAAA');
+
+    expect(record.typedName).toBe('Mona Sable');
+    expect(record.signerName).toBeUndefined();
+  });
+});

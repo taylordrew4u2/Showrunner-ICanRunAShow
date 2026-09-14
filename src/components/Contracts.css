@@ -539,3 +539,25 @@
     grid-column: 3;
   }
 }
+
+/* The signing link, spelled out. Breaks anywhere: a token plus a key is
+   longer than any phone is wide, and a link that forces the row to scroll
+   sideways is one a producer will send half of. */
+.contracts__link {
+  margin: var(--space-1-5) 0 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.contracts__link-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.contracts__link-url {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+  user-select: all;
+  color: var(--text);
+}

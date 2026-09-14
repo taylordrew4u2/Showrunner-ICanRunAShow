@@ -1,7 +1,30 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { sharedLinkPage } from './src/utils/sharedLinkPage'
+
+/**
+ * Emit `link.html` beside `index.html`: the same app with head metadata that
+ * does not redirect a shared link to the homepage. See sharedLinkPage, and
+ * the rewrites in vercel.json that route /?sign=, /?profile= and /?view= here.
+ */
+function sharedLinkPagePlugin(): Plugin {
+  return {
+    name: 'emit-shared-link-page',
+    enforce: 'post',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const index = bundle['index.html']
+      if (!index || index.type !== 'asset') return
+      this.emitFile({
+        type: 'asset',
+        fileName: 'link.html',
+        source: sharedLinkPage(String(index.source)),
+      })
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -56,6 +79,7 @@ export default defineConfig({
         globIgnores: ['**/fonts/inter-{greek,greek-ext,cyrillic,cyrillic-ext,vietnamese}.woff2'],
       },
     }),
+    sharedLinkPagePlugin(),
   ],
   test: {
     environment: 'node',

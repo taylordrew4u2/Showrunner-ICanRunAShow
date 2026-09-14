@@ -47,6 +47,19 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [pageCount, setPageCount] = useState(0);
   const [docError, setDocError] = useState(false);
   const [signed, setSigned] = useState<SignatureRecord | null>(null);
+  /**
+   * Their name, as the producer already has it filed. Prefilled, because they
+   * should not have to retype what was known before the link was sent — and
+   * editable, because the producer's spelling of it is a guess.
+   */
+  const [signerName, setSignerName] = useState('');
+  /**
+   * The signature, and deliberately not prefilled.
+   *
+   * Typing your name here is the signature — so arriving with it already typed
+   * is a document that signed itself, which is exactly what an agreement
+   * cannot be. The name above is a detail; this is the act.
+   */
   const [typedName, setTypedName] = useState('');
   // Keyed by field id, so editing the contract's questions later cannot
   // scramble what a signer typed.
@@ -67,7 +80,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       if (cancelled) return;
       if (!view) { setPhase('missing'); return; }
       setPayload(view.payload);
-      setTypedName(view.payload.signerName);
+      setSignerName(view.payload.signerName);
       // What the show already answers — the date, the venue — arrives filled
       // in. It is an ordinary value in the field, so it can still be corrected.
       setValues(view.payload.prefill ?? {});
@@ -130,19 +143,21 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
 
   async function handleSign() {
     if (!signKey || !docUrl || !payload || !documentReady || phase !== 'ready') return;
-    const name = typedName.trim();
+    const signature = typedName.trim();
+    const name = signerName.trim();
     const missing = missingRequiredFields(payload.fields, values);
-    if (!name || !agreed || missing.length > 0) return;
+    if (!signature || !name || !agreed || missing.length > 0) return;
     setPhase('signing');
     setError(null);
     try {
       const record = await submitSignature(
         token,
         signKey,
-        name,
+        signature,
         docUrl,
         collectFieldAnswers(payload.fields, values),
         headshot ?? undefined,
+        name,
       );
       setSigned(record);
       setPhase('done');
@@ -160,7 +175,10 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
     if (!docUrl || !payload) return;
     const a = document.createElement('a');
     a.href = docUrl;
-    a.download = signedFileName(payload.contractName, signed?.typedName || payload.signerName);
+    a.download = signedFileName(
+      payload.contractName,
+      signed?.signerName || signed?.typedName || payload.signerName,
+    );
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -271,13 +289,13 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           {error && <p className="signing__error" role="alert">{error}</p>}
 
           <label className="signing__field signing__field--name">
-            <span>Your full name</span>
+            <span>Your name</span>
             <input
               type="text"
-              value={typedName}
+              value={signerName}
               autoComplete="name"
-              onChange={(e) => setTypedName(e.target.value)}
-              placeholder="Type your name"
+              onChange={(e) => setSignerName(e.target.value)}
+              placeholder="Your name"
             />
           </label>
 
@@ -349,6 +367,20 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             {photoError && <p className="signing__photo-error">{photoError}</p>}
           </div>
 
+          {/* Last, next to the agreement, and empty. Whatever was known about
+              this person before they opened the link, the signature is the one
+              thing only they can put here. */}
+          <label className="signing__field signing__field--signature">
+            <span>Signature</span>
+            <input
+              type="text"
+              value={typedName}
+              autoComplete="off"
+              onChange={(e) => setTypedName(e.target.value)}
+              placeholder="Type your full name to sign"
+            />
+          </label>
+
           <label className="signing__agree">
             <input
               type="checkbox"
@@ -365,6 +397,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             className="btn btn--primary signing__cta"
             disabled={
               !typedName.trim() ||
+              !signerName.trim() ||
               !agreed ||
               !documentReady ||
               phase === 'signing' ||

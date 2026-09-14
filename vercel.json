@@ -3,6 +3,21 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    {
+      "source": "/",
+      "has": [{ "type": "query", "key": "sign" }],
+      "destination": "/link.html"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "query", "key": "profile" }],
+      "destination": "/link.html"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "query", "key": "view" }],
+      "destination": "/link.html"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
