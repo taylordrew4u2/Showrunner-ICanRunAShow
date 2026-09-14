@@ -121,6 +121,16 @@ test.describe('contracts', () => {
     await assertStacked();
     await signer.screenshot({ path: testInfo.outputPath('stacked-contract.png'), fullPage: true });
 
+    // A link that lost its token on the way — trimmed by a messaging app, or
+    // broken across two lines in a text — is still someone holding a link.
+    // They have no account, so a login screen is the one thing that cannot be
+    // shown to them; the signing page can at least say what went wrong.
+    const truncated = await signerContext.newPage();
+    await truncated.goto(`${new URL(link).origin}/?sign=`);
+    await expect(truncated.locator('.signing__card')).toContainText('will not open');
+    await expect(truncated.locator('.login__form')).toHaveCount(0);
+    await truncated.close();
+
     // A PDF that cannot render must never reveal fields or a signing action.
     const broken = await signerContext.newPage();
     await broken.route('**/*pdf.worker*', (route) => route.abort());
@@ -131,11 +141,50 @@ test.describe('contracts', () => {
     await expect(broken.getByRole('button', { name: 'Agree and sign' })).toHaveCount(0);
     await broken.close();
 
-    await signer.locator('.signing__field--name input').fill('Nadia Okonjo');
+    // Sent from a name the producer already had, so the name arrives filled in
+    // — and the signature does not. A contract that opens already signed is
+    // not an agreement, whatever the person then ticks.
+    await expect(signer.locator('.signing__field--name input')).toHaveValue('Nadia Okonjo');
+    await expect(signer.locator('.signing__field--signature input')).toHaveValue('');
+
+    // Every field is in the page's own typeface. A <textarea> falls back to
+    // monospace unless told otherwise, and the credit-line box was rendering
+    // in it — a performer typing into a field that looks like a terminal.
+    for (const field of ['.signing__field textarea', '.signing__field input']) {
+      const font = await signer.locator(field).first()
+        .evaluate((el) => getComputedStyle(el).fontFamily);
+      expect(font, `${field} should not fall back to a default font`).toContain('Inter');
+    }
+
+    // A button that does nothing must not look like it does, and what is
+    // still missing has to be named — that is where someone gives up and
+    // texts the producer instead.
+    await expect(signer.locator('.signing__cta')).toBeDisabled();
+    await expect(signer.locator('.signing__hint')).toContainText('your signature');
+    // Read in one go and in a settled state — the button transitions its
+    // colour, so comparing a reading from before the change with one from
+    // after measures the animation rather than the design. The probe resolves
+    // the live colour in the same units the computed style reports.
+    const cta = await signer.locator('.signing__cta').evaluate((el) => {
+      const probe = document.createElement('div');
+      probe.style.backgroundColor = 'var(--primary)';
+      el.parentElement!.appendChild(probe);
+      const live = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return { dead: getComputedStyle(el).backgroundColor, live };
+    });
+    expect(cta.dead, 'a button that does nothing must not wear the live colour')
+      .not.toBe(cta.live);
+
     // The contract asks for a few details as well as a signature; Email is the
     // one it insists on.
     await signer.getByLabel('Email').fill('nadia@example.com');
     await signer.locator('.signing__agree input').check();
+    // Everything else answered, and it still will not sign until they sign it.
+    await expect(signer.locator('.signing__cta')).toBeDisabled();
+
+    await signer.locator('.signing__field--signature input').fill('Nadia Okonjo');
+    await expect(signer.locator('.signing__cta')).toBeEnabled();
     await signer.locator('.signing__cta').click();
     await expect(signer.locator('.signing__panel--done')).toContainText('Signed');
     await expect(signer.locator('.signing__page')).toHaveCount(2);

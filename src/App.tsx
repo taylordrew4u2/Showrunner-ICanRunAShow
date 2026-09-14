@@ -71,6 +71,7 @@ import { LiveViewer } from './components/LiveViewer';
 import { Contracts } from './components/Contracts';
 import { SigningPage } from './components/SigningPage';
 import { readSignKeyFromHash, signatureSummary } from './utils/contracts';
+import { sharedLinkRoute } from './utils/sharedLink';
 import { orphanedRefs, showMediaRefs, sweepUnusedMedia, type SweepReport } from './utils/mediaCleanup';
 import { deleteMedia } from './utils/mediaStore';
 import { mergePendingShows } from './utils/mergePending';
@@ -1723,26 +1724,24 @@ export default function App() {
   const rolodexTerm = getRolodexTerm(settings);
 
   // Public read-only routes — no auth required.
-  const search = new URLSearchParams(window.location.search);
-  const viewToken = search.get('view');
-  if (viewToken) {
-    return <LiveViewer token={viewToken} />;
-  }
-  // A contract someone was asked to sign. No account, and none offered — the
-  // token addresses the row and the key rides in the fragment.
-  // A performer answering a profile link. Checked before the signing link
-  // for the same reason that one is checked before the app: the person
-  // holding it has no account, and must never be shown a login.
-  const profileToken = search.get('profile');
-  if (profileToken) {
-    return (
-      <ProfilePage token={profileToken} profileKey={readSignKeyFromHash(window.location.hash)} />
-    );
-  }
-
-  const signToken = search.get('sign');
-  if (signToken) {
-    return <SigningPage token={signToken} signKey={readSignKeyFromHash(window.location.hash)} />;
+  //
+  // Decided on whether the parameter is there at all, never on whether its
+  // token looks usable: everyone who arrives holding a link goes to the page
+  // for that link, which can then tell them what is wrong with it. Anyone who
+  // ends up past here is shown a login, and a performer has no account to log
+  // in to. See sharedLinkRoute.
+  const route = sharedLinkRoute(window.location.search);
+  if (route) {
+    // The key rides in the fragment, which browsers never send to a server.
+    const linkKey = readSignKeyFromHash(window.location.hash);
+    switch (route.kind) {
+      case 'view':
+        return <LiveViewer token={route.token} />;
+      case 'profile':
+        return <ProfilePage token={route.token} profileKey={linkKey} />;
+      case 'sign':
+        return <SigningPage token={route.token} signKey={linkKey} />;
+    }
   }
 
   return (

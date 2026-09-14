@@ -130,6 +130,17 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
           </form>
 
           <div className="login__footer">
+            {/* Someone who was sent a contract has no account and should never
+                make one. They reach this screen only when the link they opened
+                lost its token on the way — a preview card that went to the
+                homepage instead, or a link broken across two lines in a text.
+                Saying so here is the difference between them asking for the
+                link again and them signing up for a producer's tool. */}
+            <p className="login__no-account">
+              Sent a link to sign or fill in? You do not need an account. Open the link
+              itself again — tap the address, not a preview card, and make sure you have
+              the whole thing, including everything after the <code>#</code>.
+            </p>
             <p className="login__legal">
               <a href="/guides/">Guides</a>
               <span aria-hidden="true"> · </span>
