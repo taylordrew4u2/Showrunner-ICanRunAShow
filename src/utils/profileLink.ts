@@ -1,6 +1,6 @@
 import { INTRODUCTION_CREDITS_LABEL, INTRODUCTION_CREDITS_PLACEHOLDER } from './introductionCredits';
 import type { ContractField, ProfileRequest, ProfileSubmission } from '../types';
-import { api, withNetworkRetry } from './api';
+import { api, SUBMIT_TIMEOUT_MS, withNetworkRetry } from './api';
 import { generateSignKey, generateSignToken, splitIntoChunks } from './contracts';
 import { decryptWithKey, encryptWithKey } from './encryption';
 import { sharedLinkPath } from './sharedLink';
@@ -214,7 +214,11 @@ export async function submitProfile(
     photoChunks: photoChunks || undefined,
   };
   const signature = encryptWithKey(record, key);
-  await withNetworkRetry(() => api.post('/api/sign', { token, signature }));
+  // Two minutes, not twenty seconds: this can carry a headshot, and the
+  // person sending it is on venue wifi with one bar.
+  await withNetworkRetry(() =>
+    api.post('/api/sign', { token, signature }, { timeoutMs: SUBMIT_TIMEOUT_MS }),
+  );
   return record;
 }
 

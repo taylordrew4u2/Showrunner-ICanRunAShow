@@ -20,6 +20,16 @@ interface Opts {
   authUserId?: string;
   /** Sent as the x-auth header (client-computed password hash). */
   authHash?: string;
+  /**
+   * How long to wait before giving up, in milliseconds.
+   *
+   * The default suits a small request on a bad connection. A signature
+   * carrying a headshot is a megabyte of ciphertext, and a megabyte uphill
+   * from a basement does not finish in twenty seconds — it was aborted every
+   * time, including on every retry, so that signer could never get through at
+   * all. Those calls ask for longer.
+   */
+  timeoutMs?: number;
 }
 
 async function request<T>(method: string, path: string, opts: Opts = {}): Promise<T> {
@@ -33,7 +43,7 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
+  const timeout = setTimeout(() => controller.abort(), opts.timeoutMs ?? 20_000);
   try {
     const res = await fetch(path, { method, headers, body, signal: controller.signal });
 
@@ -63,6 +73,15 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
     return (await res.json()) as T;
   } finally { clearTimeout(timeout); }
 }
+
+/**
+ * How long an anonymous submission gets to reach the server.
+ *
+ * Generous on purpose. A signature with a headshot is around a megabyte of
+ * ciphertext and the uplink in a basement is not fast; the alternative to
+ * waiting is a performer who cannot sign at all.
+ */
+export const SUBMIT_TIMEOUT_MS = 120_000;
 
 /**
  * Retry a write that failed before the server could answer.

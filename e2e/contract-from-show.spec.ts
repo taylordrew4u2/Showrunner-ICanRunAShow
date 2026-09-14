@@ -102,6 +102,29 @@ test.describe('a contract sent from inside a show', () => {
     await expect(signer.getByLabel('Venue')).toHaveValue(/Bell House/);
     await signerContext.close();
 
+    // ── What they typed survives the page going away ───────────────────────
+    //
+    // A phone reclaiming a backgrounded tab, a back gesture, a reload after
+    // losing signal. Retyping a long agreement's answers is where someone
+    // stops and texts the producer instead.
+    const reload = await browser.newContext({ viewport: page.viewportSize()! });
+    await installFakeApi(reload, state);
+    const typed = await reload.newPage();
+    await typed.goto(link);
+    await expect(typed.locator('.signing__title')).toBeVisible();
+    await typed.getByLabel('Email').fill('nadia@example.com');
+    await typed.locator('.signing__field--signature input').fill('Nadia Okonjo');
+    await typed.locator('.signing__agree input').check();
+
+    await typed.reload();
+    await expect(typed.locator('.signing__title')).toBeVisible();
+    await expect(typed.getByLabel('Email')).toHaveValue('nadia@example.com');
+    await expect(typed.locator('.signing__field--signature input')).toHaveValue('Nadia Okonjo');
+    await expect(typed.locator('.signing__agree input')).toBeChecked();
+    // And the show's own answers are still there underneath.
+    await expect(typed.getByLabel('Show date')).toHaveValue(/October 3, 2026/);
+    await reload.close();
+
     // ── A signature that lands and loses its answer ────────────────────────
     //
     // Venue wifi. The server records the signature and the reply never gets

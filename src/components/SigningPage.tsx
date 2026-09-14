@@ -14,6 +14,7 @@ import {
   type SigningPayload,
 } from '../utils/contracts';
 import { renderPdfPages, type RenderedPage } from '../utils/pdfPages';
+import { clearSignerDraft, loadSignerDraft, saveSignerDraft } from '../utils/signerDraft';
 import './SigningPage.css';
 
 interface SigningPageProps {
@@ -70,6 +71,8 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  /** Set when the contract was signed but the headshot would not fit. */
+  const [photoDropped, setPhotoDropped] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,6 +87,20 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       // What the show already answers — the date, the venue — arrives filled
       // in. It is an ordinary value in the field, so it can still be corrected.
       setValues(view.payload.prefill ?? {});
+      /*
+       * Then whatever they had already typed, which wins over both the
+       * prefill and the producer's spelling of their name — it is the most
+       * recent thing this person said, and they said it on this device.
+       */
+      const draft = loadSignerDraft(token);
+      if (draft) {
+        if (draft.signerName) setSignerName(draft.signerName);
+        if (draft.typedName) setTypedName(draft.typedName);
+        if (draft.values && Object.keys(draft.values).length) {
+          setValues((prev) => ({ ...prev, ...draft.values }));
+        }
+        if (draft.agreed) setAgreed(true);
+      }
       const doc = await fetchSigningDocument(token, signKey, view.payload.total);
       if (cancelled) return;
       setDocUrl(doc);
@@ -105,6 +122,9 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       }
       if (view.signed) {
         setSigned(view.signed);
+        // Already signed — from another device, or from a submission this
+        // phone never heard the answer to. Either way the draft is spent.
+        clearSignerDraft(token);
         setPhase('done');
       } else {
         setPhase('ready');
@@ -114,6 +134,16 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   }, [token, signKey]);
 
   const documentReady = !!docUrl && !docError && pageCount > 0 && pages.length === pageCount;
+
+  /*
+   * Written on every change rather than on a timer: the events this protects
+   * against — a tab killed in the background, a reload, a back gesture — do
+   * not announce themselves first.
+   */
+  useEffect(() => {
+    if (phase === 'loading' || phase === 'done' || phase === 'nokey' || phase === 'missing') return;
+    saveSignerDraft(token, { signerName, typedName, values, agreed });
+  }, [token, signerName, typedName, values, agreed, phase]);
 
   /**
    * What the signer still has to do, in the order the page asks for it, so the
@@ -174,6 +204,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
         name,
       );
       setSigned(record);
+      clearSignerDraft(token);
       setPhase('done');
     } catch (err) {
       /*
@@ -190,11 +221,42 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       const landed = await fetchSigningRequest(token, signKey).catch(() => null);
       if (landed?.signed) {
         setSigned(landed.signed);
+        clearSignerDraft(token);
         setPhase('done');
         return;
       }
-      setPhase('ready');
       const status = (err as ApiError).status;
+
+      /*
+       * Too large, and the only thing that can be large is the headshot. It is
+       * optional and says so, while the agreement is the entire point — so
+       * send the agreement without it rather than making a signature wait on a
+       * photo. They are told afterwards, and the producer can ask again.
+       */
+      if (status === 413 && headshot) {
+        try {
+          const record = await submitSignature(
+            token,
+            signKey,
+            signature,
+            docUrl,
+            collectFieldAnswers(payload.fields, values),
+            undefined,
+            name,
+          );
+          setSigned(record);
+          clearSignerDraft(token);
+          setHeadshot(null);
+          // Said on the receipt, not on the form — the form is gone by then.
+          setPhotoDropped(true);
+          setPhase('done');
+          return;
+        } catch {
+          // Fall through and report it properly below.
+        }
+      }
+
+      setPhase('ready');
       setError(
         status === 413
           ? 'This submission is too large. Remove the optional headshot or choose a smaller photo, then try again. Your answers are still here.'
@@ -315,6 +377,12 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           <button className="btn btn--primary signing__cta" onClick={download}>
             Save a copy
           </button>
+          {photoDropped && (
+            <p className="signing__note" role="status">
+              Your photo was too large to send, so it was left off. The contract is signed —
+              nothing else is outstanding. {payload.fromName} can ask for the photo separately.
+            </p>
+          )}
           <p className="signing__note">
             {payload.fromName} can see that you have signed. Keep a copy for yourself — this
             link is the only place it lives.
