@@ -181,6 +181,15 @@
   color: var(--text-muted);
 }
 
+/* A form field does not inherit the page's typeface on its own: an <input>
+   falls back to the system UI font and a <textarea> falls back to monospace,
+   which is what the credit-line box was rendering in. A performer filling this
+   in was typing into a field that did not look like part of the page. */
+.signing__field input,
+.signing__field textarea {
+  font-family: inherit;
+}
+
 .signing__field input {
   width: 100%;
   /* 17px keeps iOS from zooming the page when the field takes focus. */
@@ -210,6 +219,19 @@
   width: 100%;
   min-height: 52px;
   font-size: var(--text-lg);
+}
+
+/* Until the form is complete this button does nothing, so it must not look
+   like it does. The shared 50%-opacity disabled state is not enough on a
+   saturated blue against a dark page — it still reads as the live primary
+   action, and a performer who taps it and gets nothing concludes the page is
+   broken and texts the producer instead. The named list of what is still
+   needed sits directly underneath. */
+.signing__cta:disabled {
+  background: var(--surface-strong);
+  color: var(--text-soft);
+  border-color: var(--border);
+  opacity: 1;
 }
 
 .signing__note {

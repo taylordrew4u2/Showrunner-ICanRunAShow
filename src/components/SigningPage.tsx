@@ -116,6 +116,20 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const documentReady = !!docUrl && !docError && pageCount > 0 && pages.length === pageCount;
 
   /**
+   * What the signer still has to do, in the order the page asks for it, so the
+   * hint under the button reads down the form rather than in whatever order
+   * the checks happen to be written.
+   */
+  const stillNeeded = payload
+    ? [
+        ...(signerName.trim() ? [] : ['your name']),
+        ...missingRequiredFields(payload.fields, values),
+        ...(typedName.trim() ? [] : ['your signature']),
+        ...(agreed ? [] : ['the agreement ticked']),
+      ]
+    : [];
+
+  /**
    * Take a photo down to flyer size before it goes anywhere.
    *
    * Done on this device: a phone camera hands over four megabytes, and the
@@ -395,22 +409,20 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
 
           <button
             className="btn btn--primary signing__cta"
-            disabled={
-              !typedName.trim() ||
-              !signerName.trim() ||
-              !agreed ||
-              !documentReady ||
-              phase === 'signing' ||
-              missingRequiredFields(payload.fields, values).length > 0
-            }
+            disabled={stillNeeded.length > 0 || !documentReady || phase === 'signing'}
             onClick={handleSign}
           >
             {phase === 'signing' ? 'Signing…' : 'Agree and sign'}
           </button>
 
-          {missingRequiredFields(payload.fields, values).length > 0 && (
-            <p className="signing__hint">
-              Still needed: {missingRequiredFields(payload.fields, values).join(', ')}
+          {/* Everything the button is waiting on, named. A greyed-out button
+              with no explanation is where a signer gives up and texts the
+              producer instead, and the signature and the tick-box were not in
+              this list before — which made an empty signature field look like
+              the page being broken. */}
+          {stillNeeded.length > 0 && (
+            <p className="signing__hint" role="status">
+              Still needed: {stillNeeded.join(', ')}
             </p>
           )}
 

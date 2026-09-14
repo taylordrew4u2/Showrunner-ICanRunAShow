@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { sharedLinkPage, sharedLinkRoute } from './sharedLink';
+import { sharedLinkPage, sharedLinkPageName, sharedLinkRoute } from './sharedLink';
 
 // The real file, not a fixture. The bug was in what index.html says about
 // itself, so a fixture that had drifted from it would prove nothing.
 const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
-const page = sharedLinkPage(indexHtml);
+const page = sharedLinkPage(indexHtml, 'sign');
 
 describe('the page a sent link opens', () => {
   it('does not claim to be the homepage, so a preview card cannot send a signer to the login screen', () => {
@@ -27,12 +27,45 @@ describe('the page a sent link opens', () => {
     expect(page).not.toContain('content="index, follow"');
   });
 
-  it('previews as the thing the person was actually sent', () => {
-    expect(page).toContain('<title>Your link — I Can Run A Show</title>');
-    expect(page).toContain('Open your link');
-    expect(page).toContain('No account needed');
-    // None of the marketing copy aimed at producers.
+  it('says on the preview card that an agreement is what was sent', () => {
+    // The card is built by a crawler that never runs the app, so this has to
+    // be in the file. A comedian should see what it is before opening it.
+    expect(page).toContain('<title>An agreement to sign — I Can Run A Show</title>');
+    expect(page).toContain('content="An agreement to sign"');
+    expect(page).toContain('a contract to read and sign');
+    expect(page).toContain('No account, no app, no signing up');
+    // None of the marketing copy aimed at producers, and not the promo
+    // screenshot either — paperwork should not arrive looking like an advert.
     expect(page).not.toContain('Build your lineup');
+    expect(page).not.toContain('og-image.png');
+  });
+
+  it('drops the product listing, which was a third claim to be the homepage', () => {
+    // "url": "https://icanrunashow.com" inside a SoftwareApplication block,
+    // complete with a price and a feature list. Not a description of a
+    // contract, and one more thing pointing a card away from the link.
+    expect(indexHtml).toContain('application/ld+json');
+    expect(page).not.toContain('application/ld+json');
+    expect(page).not.toContain('SoftwareApplication');
+    expect(page).not.toContain('icanrunashow.com');
+  });
+
+  it('says what each other kind of link is, in its own words', () => {
+    const profile = sharedLinkPage(indexHtml, 'profile');
+    expect(profile).toContain('content="Your performer details"');
+    expect(profile).toContain('asked you for your details');
+    // Asking someone for their details is not sending them a contract.
+    expect(profile).not.toContain('An agreement to sign');
+
+    const view = sharedLinkPage(indexHtml, 'view');
+    expect(view).toContain("content=\"Tonight's running order\"");
+    expect(view).toContain('Follow the running order live');
+  });
+
+  it('serves each kind from the file the rewrites point at', () => {
+    expect(sharedLinkPageName('sign')).toBe('link-sign.html');
+    expect(sharedLinkPageName('profile')).toBe('link-profile.html');
+    expect(sharedLinkPageName('view')).toBe('link-view.html');
   });
 
   it('leaves the homepage itself alone', () => {

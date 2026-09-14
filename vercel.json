@@ -6,17 +6,17 @@
     {
       "source": "/",
       "has": [{ "type": "query", "key": "sign" }],
-      "destination": "/link.html"
+      "destination": "/link-sign.html"
     },
     {
       "source": "/",
       "has": [{ "type": "query", "key": "profile" }],
-      "destination": "/link.html"
+      "destination": "/link-profile.html"
     },
     {
       "source": "/",
       "has": [{ "type": "query", "key": "view" }],
-      "destination": "/link.html"
+      "destination": "/link-view.html"
     },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
