@@ -1,4 +1,41 @@
 /**
+ * A link someone was sent — to sign, to fill in, to watch.
+ *
+ * Two halves of one idea: which route such a link addresses when it arrives
+ * (sharedLinkRoute), and the head the page is served with so it survives
+ * being sent (sharedLinkPage).
+ */
+
+/** Which of the public, no-account routes a link addresses. */
+export type SharedLinkKind = 'view' | 'profile' | 'sign';
+
+export interface SharedLinkRoute {
+  kind: SharedLinkKind;
+  /** The token, which may be empty — see below. */
+  token: string;
+}
+
+/**
+ * Read the route out of a link's query string.
+ *
+ * Keyed on the parameter being *present*, not on it having a usable value. A
+ * link that arrived with its token cut off — trimmed by a messaging app,
+ * broken across two lines in a text, retyped by hand — is still someone
+ * holding a link, and the one thing they must never be shown is a login for
+ * an account they will never have. The pages downstream say what went wrong.
+ * `?sign=` alone used to fall through to the app and ask them to sign in.
+ */
+export function sharedLinkRoute(search: string | URLSearchParams): SharedLinkRoute | null {
+  const params = typeof search === 'string' ? new URLSearchParams(search) : search;
+  // Order matters only in that one link cannot be two things; a URL carrying
+  // more than one of these is malformed either way, so the first wins.
+  for (const kind of ['view', 'profile', 'sign'] as const) {
+    if (params.has(kind)) return { kind, token: params.get(kind) ?? '' };
+  }
+  return null;
+}
+
+/**
  * The page served for a link someone was sent — to sign, to fill in, to watch.
  *
  * Same app, same bundle, different head. The reason is a bug that made every

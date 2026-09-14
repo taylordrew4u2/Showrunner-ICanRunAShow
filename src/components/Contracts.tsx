@@ -616,6 +616,18 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
                         <span className="contracts__link-url">
                           {signingUrl(window.location.origin, r.token, r.key)}
                         </span>
+                        {/* Opening it only reads; a signature is still a name
+                            typed and a box ticked, so checking a link cannot
+                            spend it. Worth one tap before it goes to someone
+                            you would rather not send a broken link to. */}
+                        <a
+                          className="contracts__link-check"
+                          href={signingUrl(window.location.origin, r.token, r.key)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open it yourself to check it
+                        </a>
                       </p>
                     )}
                   </div>

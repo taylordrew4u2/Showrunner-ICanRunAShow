@@ -2,7 +2,7 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import { sharedLinkPage } from './src/utils/sharedLinkPage'
+import { sharedLinkPage } from './src/utils/sharedLink'
 
 /**
  * Emit `link.html` beside `index.html`: the same app with head metadata that

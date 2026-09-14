@@ -121,6 +121,16 @@ test.describe('contracts', () => {
     await assertStacked();
     await signer.screenshot({ path: testInfo.outputPath('stacked-contract.png'), fullPage: true });
 
+    // A link that lost its token on the way — trimmed by a messaging app, or
+    // broken across two lines in a text — is still someone holding a link.
+    // They have no account, so a login screen is the one thing that cannot be
+    // shown to them; the signing page can at least say what went wrong.
+    const truncated = await signerContext.newPage();
+    await truncated.goto(`${new URL(link).origin}/?sign=`);
+    await expect(truncated.locator('.signing__card')).toContainText('will not open');
+    await expect(truncated.locator('.login__form')).toHaveCount(0);
+    await truncated.close();
+
     // A PDF that cannot render must never reveal fields or a signing action.
     const broken = await signerContext.newPage();
     await broken.route('**/*pdf.worker*', (route) => route.abort());

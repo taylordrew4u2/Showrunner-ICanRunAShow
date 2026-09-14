@@ -561,3 +561,10 @@
   user-select: all;
   color: var(--text);
 }
+
+.contracts__link-check {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--primary-text);
+  justify-self: start;
+}
