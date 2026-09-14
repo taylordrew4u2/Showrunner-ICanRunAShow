@@ -60,7 +60,6 @@ export function profileFields(): ContractField[] {
       placeholder: INTRODUCTION_CREDITS_PLACEHOLDER,
       multiline: true,
     },
-    { id: 'walkon', label: 'Walk-on song', placeholder: 'Title — artist' },
   ];
 }
 

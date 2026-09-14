@@ -21,6 +21,7 @@ import {
   suggestedFields,
 } from './contracts';
 import { api } from './api';
+import { profileFromAnswers } from './signatureImport';
 import type { SignatureRequest } from '../types';
 
 afterEach(() => vi.restoreAllMocks());
@@ -353,5 +354,32 @@ describe('a name on file and a signature', () => {
 
     expect(record.typedName).toBe('Mona Sable');
     expect(record.signerName).toBeUndefined();
+  });
+});
+
+describe("a contract's starting questions", () => {
+  const labels = suggestedFields().map((f) => f.label);
+
+  it('asks where to tag them, which the profile has a box for', () => {
+    expect(labels).toContain('Instagram or main social');
+  });
+
+  it('asks them in words the profile import recognises', () => {
+    // Matched by label, so a reworded question silently stops filling its box.
+    const filled = profileFromAnswers(
+      suggestedFields().map((f) => ({
+        label: f.label,
+        value: f.label === 'Email' ? 'a@b.example' : `answer for ${f.label}`,
+      })),
+    );
+    expect(filled.socialMedia).toBeTruthy();
+    expect(filled.email).toBe('a@b.example');
+    expect(filled.phone).toBeTruthy();
+    expect(filled.credits).toBeTruthy();
+  });
+
+  it('still lets the show answer for itself', () => {
+    expect(labels).toContain('Show date');
+    expect(labels).toContain('Venue');
   });
 });

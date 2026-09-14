@@ -103,6 +103,9 @@ export function suggestedFields(): ContractField[] {
     { id: 'credit', label: INTRODUCTION_CREDITS_LABEL, placeholder: INTRODUCTION_CREDITS_PLACEHOLDER, multiline: true },
     { id: 'email', label: 'Email', required: true },
     { id: 'phone', label: 'Phone' },
+    // Where to tag them. The profile has a box for it and a contract never
+    // asked, so it was filled in by going and looking them up.
+    { id: 'social', label: 'Instagram or main social', placeholder: '@handle or a link' },
     // These two answer themselves when the contract is sent from a show.
     { id: 'show-date', label: 'Show date' },
     { id: 'venue', label: 'Venue' },
