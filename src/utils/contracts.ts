@@ -1,7 +1,7 @@
 import { INTRODUCTION_CREDITS_LABEL, INTRODUCTION_CREDITS_PLACEHOLDER } from './introductionCredits';
 import CryptoJS from 'crypto-js';
 import type { Contract, ContractField, SignatureRecord, SignatureRequest } from '../types';
-import { api } from './api';
+import { api, withNetworkRetry } from './api';
 import { decryptWithKey, encryptWithKey } from './encryption';
 import { resolveMediaUrl } from './mediaStore';
 import { rolodexKey } from './rolodex';
@@ -377,7 +377,8 @@ export async function submitSignature(
     documentHash: documentHash(documentDataUrl),
     userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent.slice(0, 200),
   };
-  await api.post('/api/sign', { token, signature: encryptWithKey(record, key) });
+  const signature = encryptWithKey(record, key);
+  await withNetworkRetry(() => api.post('/api/sign', { token, signature }));
   return record;
 }
 

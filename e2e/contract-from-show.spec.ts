@@ -102,6 +102,39 @@ test.describe('a contract sent from inside a show', () => {
     await expect(signer.getByLabel('Venue')).toHaveValue(/Bell House/);
     await signerContext.close();
 
+    // ── A signature that lands and loses its answer ────────────────────────
+    //
+    // Venue wifi. The server records the signature and the reply never gets
+    // back. That is not a failed signature, and the performer must not be
+    // told it is — they press again, are told again, and text the producer.
+    const flaky = await browser.newContext({ viewport: page.viewportSize()! });
+    await installFakeApi(flaky, state);
+    const late = await flaky.newPage();
+    // Added after the fake API, so this route wins: do the write the server
+    // would have done, then drop the connection before answering.
+    await late.route('**/api/sign', async (route, request) => {
+      if (request.method() !== 'POST') return route.fallback();
+      const body = request.postDataJSON() as { token: string; signature: string };
+      const row = state.sign[body.token];
+      if (row && !row.signedAt) {
+        row.signature = body.signature;
+        row.signedAt = new Date().toISOString();
+      }
+      await route.abort('connectionreset');
+    });
+
+    await late.goto(link);
+    await expect(late.locator('.signing__title')).toBeVisible();
+    await late.getByLabel('Email').fill('nadia@example.com');
+    await late.locator('.signing__field--signature input').fill('Nadia Okonjo');
+    await late.locator('.signing__agree input').check();
+    await late.locator('.signing__cta').click();
+
+    // Signed, because it was. Not an error telling them to try again.
+    await expect(late.locator('.signing__panel--done')).toContainText('Signed');
+    await expect(late.locator('.signing__error')).toHaveCount(0);
+    await flaky.close();
+
     // And again from the library, where nothing says which night it is for.
     // The producer picks a name; the app knows what that person is booked on.
     await page.goto('/');

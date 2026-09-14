@@ -176,11 +176,34 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       setSigned(record);
       setPhase('done');
     } catch (err) {
+      /*
+       * Before telling someone their signature failed, find out whether it
+       * did.
+       *
+       * A write that landed and lost its answer looks identical to one that
+       * never arrived — the connection drops, or the request times out after
+       * the server has already recorded it. Only the server knows, and it will
+       * now say the request is signed. Getting this wrong told a performer who
+       * had signed that they had not, so they pressed again, got "already
+       * signed" reported as a connection problem, and texted the producer.
+       */
+      const landed = await fetchSigningRequest(token, signKey).catch(() => null);
+      if (landed?.signed) {
+        setSigned(landed.signed);
+        setPhase('done');
+        return;
+      }
       setPhase('ready');
+      const status = (err as ApiError).status;
       setError(
-        (err as ApiError).status === 413
+        status === 413
           ? 'This submission is too large. Remove the optional headshot or choose a smaller photo, then try again. Your answers are still here.'
-          : 'That did not go through. Check your connection and try again. Your answers are still here.',
+          : status === 409
+            // Not signed, and the server will not take it: the link was
+            // withdrawn or replaced with a newer one. Trying again cannot fix
+            // that, so do not ask them to.
+            ? 'This link is no longer live — it was withdrawn, or replaced with a newer one. Ask whoever sent it for a fresh link. Your answers are still here.'
+            : 'That did not go through. Check your connection and try again. Your answers are still here.',
       );
     }
   }

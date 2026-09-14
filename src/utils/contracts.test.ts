@@ -383,3 +383,72 @@ describe("a contract's starting questions", () => {
     expect(labels).toContain('Venue');
   });
 });
+
+/**
+ * A signature that reaches the server has gone through, whatever the phone
+ * managed to hear back.
+ *
+ * On venue wifi a write can land and lose its answer. That is not a failed
+ * signature, and the signer must never be told it is — they press again, get
+ * told it failed again, and text the producer instead.
+ */
+describe('submitting a signature on a bad connection', () => {
+  const netFail = () => Object.assign(new Error('network'), { status: undefined });
+
+  it('asks again when the request died before the server answered', async () => {
+    let calls = 0;
+    vi.spyOn(api, 'post').mockImplementation(async () => {
+      calls++;
+      if (calls < 3) throw netFail();
+      return {} as never;
+    });
+
+    const record = await submitSignature('tok', 'key', 'Mona Sable', 'data:application/pdf;base64,AAAA');
+
+    expect(calls).toBe(3);
+    expect(record.typedName).toBe('Mona Sable');
+  });
+
+  it('sends the very same signature each time, never a second different one', async () => {
+    const bodies: unknown[] = [];
+    let calls = 0;
+    vi.spyOn(api, 'post').mockImplementation(async (_path, body) => {
+      bodies.push(body);
+      if (++calls < 2) throw netFail();
+      return {} as never;
+    });
+
+    await submitSignature('tok', 'key', 'Mona Sable', 'data:application/pdf;base64,AAAA');
+
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toEqual(bodies[1]);
+  });
+
+  it('does not keep asking when the server has answered', async () => {
+    // A 409 is the server saying it will not take this — already signed, or
+    // withdrawn. Repeating it cannot change that.
+    let calls = 0;
+    vi.spyOn(api, 'post').mockImplementation(async () => {
+      calls++;
+      throw Object.assign(new Error('not_signable'), { status: 409 });
+    });
+
+    await expect(
+      submitSignature('tok', 'key', 'Mona Sable', 'data:application/pdf;base64,AAAA'),
+    ).rejects.toThrow();
+    expect(calls).toBe(1);
+  });
+
+  it('gives up rather than asking forever', async () => {
+    let calls = 0;
+    vi.spyOn(api, 'post').mockImplementation(async () => {
+      calls++;
+      throw netFail();
+    });
+
+    await expect(
+      submitSignature('tok', 'key', 'Mona Sable', 'data:application/pdf;base64,AAAA'),
+    ).rejects.toThrow();
+    expect(calls).toBe(3);
+  });
+});
