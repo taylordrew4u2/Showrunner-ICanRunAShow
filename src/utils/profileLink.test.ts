@@ -57,7 +57,7 @@ describe('the questions a profile link asks', () => {
 describe('the link itself', () => {
   it('carries the key in the fragment, where a browser never sends it', () => {
     const url = profileUrl('https://show.example', 'tok', 'secret');
-    expect(url).toBe('https://show.example/?profile=tok#k=secret');
+    expect(url).toBe('https://show.example/details?t=tok#k=secret');
     expect(new URL(url).search).not.toContain('secret');
   });
 });

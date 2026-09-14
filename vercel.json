@@ -3,21 +3,9 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    {
-      "source": "/",
-      "has": [{ "type": "query", "key": "sign" }],
-      "destination": "/link-sign.html"
-    },
-    {
-      "source": "/",
-      "has": [{ "type": "query", "key": "profile" }],
-      "destination": "/link-profile.html"
-    },
-    {
-      "source": "/",
-      "has": [{ "type": "query", "key": "view" }],
-      "destination": "/link-view.html"
-    },
+    { "source": "/sign", "destination": "/link-sign.html" },
+    { "source": "/details", "destination": "/link-profile.html" },
+    { "source": "/live", "destination": "/link-view.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

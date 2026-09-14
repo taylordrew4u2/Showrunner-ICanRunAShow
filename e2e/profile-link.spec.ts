@@ -28,7 +28,7 @@ test.describe('a self-serve profile link', () => {
     // a link you cannot see is a link you cannot paste.
     await row.locator('button').filter({ hasText: /^Ask for details$/ }).click();
     const url = await row.locator('.rolodex__link-url').inputValue();
-    expect(url).toMatch(/\?profile=.+#k=.+/);
+    expect(url).toMatch(/\/details\?t=.+#k=.+/);
     await expect(row).toContainText('Asked for details').catch(() => {
       // The "asked" pill is hidden while the fresh link is shown; either is fine.
     });

@@ -48,7 +48,7 @@ describe('generateSignToken', () => {
 describe('signingUrl', () => {
   it('puts the key in the fragment, never the query', () => {
     const url = signingUrl('https://example.com', 'TOK', 'KEY');
-    expect(url).toBe('https://example.com/?sign=TOK#k=KEY');
+    expect(url).toBe('https://example.com/sign?t=TOK#k=KEY');
     expect(url.split('#')[0]).not.toContain('KEY');
   });
 
@@ -59,7 +59,7 @@ describe('signingUrl', () => {
   });
 
   it('escapes a token so it cannot break out of the query', () => {
-    expect(signingUrl('https://e.com', 'a&b=c', 'K')).toContain('sign=a%26b%3Dc');
+    expect(signingUrl('https://e.com', 'a&b=c', 'K')).toContain('/sign?t=a%26b%3Dc');
   });
 });
 

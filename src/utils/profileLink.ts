@@ -3,6 +3,7 @@ import type { ContractField, ProfileRequest, ProfileSubmission } from '../types'
 import { api } from './api';
 import { generateSignKey, generateSignToken, splitIntoChunks } from './contracts';
 import { decryptWithKey, encryptWithKey } from './encryption';
+import { sharedLinkPath } from './sharedLink';
 import type { SessionCredentials } from './session-vault';
 
 /**
@@ -65,7 +66,7 @@ export function profileFields(): ContractField[] {
 
 /** The link, with the key in the fragment so it never reaches a server. */
 export function profileUrl(origin: string, token: string, key: string): string {
-  return `${origin}/?profile=${encodeURIComponent(token)}#k=${key}`;
+  return `${origin}${sharedLinkPath('profile', token)}#k=${key}`;
 }
 
 // ── Producer side ────────────────────────────────────────────────────────────
