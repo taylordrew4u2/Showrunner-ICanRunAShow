@@ -2207,6 +2207,7 @@ export default function App() {
               <Contracts
                 settings={settings}
                 session={session}
+                shows={shows}
                 onBack={() => setView('more')}
                 backLabel="More"
                 onUpdateSettings={(updated) => {
