@@ -21,6 +21,7 @@ import {
   suggestedFields,
 } from './contracts';
 import { api } from './api';
+import { profileFromAnswers } from './signatureImport';
 import type { SignatureRequest } from '../types';
 
 afterEach(() => vi.restoreAllMocks());
@@ -353,5 +354,101 @@ describe('a name on file and a signature', () => {
 
     expect(record.typedName).toBe('Mona Sable');
     expect(record.signerName).toBeUndefined();
+  });
+});
+
+describe("a contract's starting questions", () => {
+  const labels = suggestedFields().map((f) => f.label);
+
+  it('asks where to tag them, which the profile has a box for', () => {
+    expect(labels).toContain('Instagram or main social');
+  });
+
+  it('asks them in words the profile import recognises', () => {
+    // Matched by label, so a reworded question silently stops filling its box.
+    const filled = profileFromAnswers(
+      suggestedFields().map((f) => ({
+        label: f.label,
+        value: f.label === 'Email' ? 'a@b.example' : `answer for ${f.label}`,
+      })),
+    );
+    expect(filled.socialMedia).toBeTruthy();
+    expect(filled.email).toBe('a@b.example');
+    expect(filled.phone).toBeTruthy();
+    expect(filled.credits).toBeTruthy();
+  });
+
+  it('still lets the show answer for itself', () => {
+    expect(labels).toContain('Show date');
+    expect(labels).toContain('Venue');
+  });
+});
+
+/**
+ * A signature that reaches the server has gone through, whatever the phone
+ * managed to hear back.
+ *
+ * On venue wifi a write can land and lose its answer. That is not a failed
+ * signature, and the signer must never be told it is — they press again, get
+ * told it failed again, and text the producer instead.
+ */
+describe('submitting a signature on a bad connection', () => {
+  const netFail = () => Object.assign(new Error('network'), { status: undefined });
+
+  it('asks again when the request died before the server answered', async () => {
+    let calls = 0;
+    vi.spyOn(api, 'post').mockImplementation(async () => {
+      calls++;
+      if (calls < 3) throw netFail();
+      return {} as never;
+    });
+
+    const record = await submitSignature('tok', 'key', 'Mona Sable', 'data:application/pdf;base64,AAAA');
+
+    expect(calls).toBe(3);
+    expect(record.typedName).toBe('Mona Sable');
+  });
+
+  it('sends the very same signature each time, never a second different one', async () => {
+    const bodies: unknown[] = [];
+    let calls = 0;
+    vi.spyOn(api, 'post').mockImplementation(async (_path, body) => {
+      bodies.push(body);
+      if (++calls < 2) throw netFail();
+      return {} as never;
+    });
+
+    await submitSignature('tok', 'key', 'Mona Sable', 'data:application/pdf;base64,AAAA');
+
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toEqual(bodies[1]);
+  });
+
+  it('does not keep asking when the server has answered', async () => {
+    // A 409 is the server saying it will not take this — already signed, or
+    // withdrawn. Repeating it cannot change that.
+    let calls = 0;
+    vi.spyOn(api, 'post').mockImplementation(async () => {
+      calls++;
+      throw Object.assign(new Error('not_signable'), { status: 409 });
+    });
+
+    await expect(
+      submitSignature('tok', 'key', 'Mona Sable', 'data:application/pdf;base64,AAAA'),
+    ).rejects.toThrow();
+    expect(calls).toBe(1);
+  });
+
+  it('gives up rather than asking forever', async () => {
+    let calls = 0;
+    vi.spyOn(api, 'post').mockImplementation(async () => {
+      calls++;
+      throw netFail();
+    });
+
+    await expect(
+      submitSignature('tok', 'key', 'Mona Sable', 'data:application/pdf;base64,AAAA'),
+    ).rejects.toThrow();
+    expect(calls).toBe(3);
   });
 });

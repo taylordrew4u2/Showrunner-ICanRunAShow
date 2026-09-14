@@ -1,7 +1,7 @@
 import { INTRODUCTION_CREDITS_LABEL, INTRODUCTION_CREDITS_PLACEHOLDER } from './introductionCredits';
 import CryptoJS from 'crypto-js';
 import type { Contract, ContractField, SignatureRecord, SignatureRequest } from '../types';
-import { api } from './api';
+import { api, withNetworkRetry } from './api';
 import { decryptWithKey, encryptWithKey } from './encryption';
 import { resolveMediaUrl } from './mediaStore';
 import { rolodexKey } from './rolodex';
@@ -103,6 +103,9 @@ export function suggestedFields(): ContractField[] {
     { id: 'credit', label: INTRODUCTION_CREDITS_LABEL, placeholder: INTRODUCTION_CREDITS_PLACEHOLDER, multiline: true },
     { id: 'email', label: 'Email', required: true },
     { id: 'phone', label: 'Phone' },
+    // Where to tag them. The profile has a box for it and a contract never
+    // asked, so it was filled in by going and looking them up.
+    { id: 'social', label: 'Instagram or main social', placeholder: '@handle or a link' },
     // These two answer themselves when the contract is sent from a show.
     { id: 'show-date', label: 'Show date' },
     { id: 'venue', label: 'Venue' },
@@ -374,7 +377,8 @@ export async function submitSignature(
     documentHash: documentHash(documentDataUrl),
     userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent.slice(0, 200),
   };
-  await api.post('/api/sign', { token, signature: encryptWithKey(record, key) });
+  const signature = encryptWithKey(record, key);
+  await withNetworkRetry(() => api.post('/api/sign', { token, signature }));
   return record;
 }
 
