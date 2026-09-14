@@ -115,8 +115,17 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
       setSubmitted(record);
       setPhase('done');
     } catch {
+      // Same as the signing page: a write that lost its answer is not a write
+      // that failed. "Nothing has been sent yet" was a claim this code was in
+      // no position to make.
+      const landed = await fetchProfileRequest(token, profileKey!).catch(() => null);
+      if (landed?.submitted) {
+        setSubmitted(landed.submitted);
+        setPhase('done');
+        return;
+      }
       setPhase('ready');
-      setError('That did not go through. Check your connection and try again — nothing has been sent yet.');
+      setError('That did not go through. Check your connection and try again — your answers are still here.');
     }
   }
 

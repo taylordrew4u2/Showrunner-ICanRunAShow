@@ -4,6 +4,7 @@ import type {
   Contract,
   ContractField,
   PotentialComic,
+  Show,
   SignatureRequest,
 } from '../types';
 import {
@@ -23,6 +24,7 @@ import { generateId } from '../utils/id';
 import { dataUrlToFile } from '../utils/media';
 import { uploadMedia, deleteMedia } from '../utils/mediaStore';
 import { rolodexKey } from '../utils/rolodex';
+import { showContextForSigner } from '../utils/contractShow';
 import {
   applyProfileChanges,
   describeChanges,
@@ -39,6 +41,11 @@ import './Contracts.css';
 interface ContractsProps {
   settings: AppSettings;
   session: SessionCredentials;
+  /**
+   * The producer's shows, so a contract sent from here still knows which night
+   * it is for. See showContextForSigner.
+   */
+  shows?: Show[];
   onBack: () => void;
   /** What the back control returns to. */
   backLabel?: string;
@@ -65,7 +72,7 @@ function fmtSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUpdateSettings }: ContractsProps) {
+export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows', onUpdateSettings }: ContractsProps) {
   const { confirm, confirmDialog } = useConfirm();
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -180,6 +187,7 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
         { name: trimmed, email, contactId },
         settings.brandName,
         session,
+        showContextForSigner(shows, trimmed),
       );
       onUpdateSettings({ ...settings, signatureRequests: [request, ...requests] });
       setManualName('');

@@ -45,7 +45,9 @@ describe('the questions a profile link asks', () => {
     expect(profile.phone).toBe('answer for phone');
     expect(profile.socialMedia).toBe('@monasable');
     expect(profile.credits).toBe('answer for credits');
-    expect(profile.walkOnMusicName).toBe('answer for walkon');
+    // Nothing about the walk-on: the link asks for how to reach someone and
+    // how to introduce them, not for their music.
+    expect(profile.walkOnMusicName).toBeUndefined();
   });
 
   it('collects the required email from the recipient when they fill in the form', () => {

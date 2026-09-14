@@ -66,6 +66,26 @@ export async function gotoTab(page: Page, label: string) {
   await page.locator('.app-main').waitFor();
   const item = page.locator('.bottom-nav__item', { hasText: label });
   const menu = page.getByRole('button', { name: 'Open navigation menu' });
-  if (await menu.isVisible() && !(await item.isVisible())) await menu.click();
+  /*
+   * Wait for one of the two navs to actually be usable before choosing
+   * between them.
+   *
+   * The bottom bar and the menu button swap on width, and the swap is a
+   * re-render — so a test that changes the viewport and immediately navigates
+   * could read both as invisible: the old bar still in the DOM but hidden, the
+   * menu not yet painted. It then clicked the hidden bar and waited out the
+   * timeout. Rare enough to pass locally and fail on CI, which is the worst
+   * kind.
+   */
+  // A poll rather than a locator assertion: both navs are in the DOM at the
+  // same time, one of them merely hidden, so matching either in one locator
+  // is a strict-mode violation.
+  await expect
+    .poll(async () => (await item.isVisible()) || (await menu.isVisible()))
+    .toBe(true);
+  if (!(await item.isVisible())) {
+    await menu.click();
+    await expect(item).toBeVisible();
+  }
   return item.click();
 }
