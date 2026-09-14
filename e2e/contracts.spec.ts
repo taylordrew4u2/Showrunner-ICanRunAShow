@@ -80,6 +80,19 @@ test.describe('contracts', () => {
     const key = link.split('#k=')[1];
     expect(key, 'the link must carry a key').toBeTruthy();
 
+    // Chasing is a pass through a list of people, so the list exists and can
+    // be copied in one go — a producer should never have to open each
+    // agreement in turn to work out who has not come back.
+    await gotoTab(page, 'More');
+    await page.locator('.more-item').filter({ hasText: 'Contracts' }).click();
+    await expect(page.locator('.contracts__chase')).toContainText('Waiting on 1');
+    await expect(page.locator('.contracts__chase')).toContainText('Nadia Okonjo');
+    await page.locator('.contracts__chase-head .btn').click();
+    const all = await page.evaluate(() => navigator.clipboard.readText());
+    expect(all).toContain('Nadia Okonjo — ');
+    expect(all).toContain('/sign?t=');
+    expect(all).toContain('#k=');
+
     // The security claim, asserted rather than described: the key that
     // decrypts the document is in the fragment, which browsers never send.
     expect(link.split('#')[0]).not.toContain(key);

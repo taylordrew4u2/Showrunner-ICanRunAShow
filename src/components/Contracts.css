@@ -568,3 +568,24 @@
   color: var(--primary-text);
   justify-self: start;
 }
+
+/* Who still owes a signature, across every contract — the chasing list. */
+.contracts__chase {
+  margin-bottom: var(--space-5-5);
+}
+
+.contracts__chase-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.contracts__chase .contracts__section-label {
+  margin-bottom: var(--space-2);
+}
+
+.contracts__chase .contracts__rows {
+  margin-top: var(--space-1);
+}
