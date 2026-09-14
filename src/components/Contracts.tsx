@@ -79,6 +79,8 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
   const [copied, setCopied] = useState<string | null>(null);
   /** Whose signing link is spelled out on the row, for pasting by hand. */
   const [shownLink, setShownLink] = useState<string | null>(null);
+  /** The whole outstanding list, spelled out, after a copy-all. */
+  const [allLinks, setAllLinks] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [manualName, setManualName] = useState('');
   const [editingFields, setEditingFields] = useState(false);
@@ -89,6 +91,17 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
 
   const open = contracts.find((c) => c.id === openId) ?? null;
   const summary = signatureSummary(requests);
+  /**
+   * Everyone who still owes a signature, newest first, across every contract.
+   *
+   * Across every contract on purpose: "who have I not heard back from" is one
+   * question a producer asks about a night, and answering it used to mean
+   * opening each agreement in turn and reading down its list.
+   */
+  const outstanding = requests
+    .filter((r) => !r.signed)
+    .slice()
+    .sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? ''));
 
   /**
    * Look for signatures that landed while we were away.
@@ -202,6 +215,31 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
     } catch {
       // A cancelled share sheet is not a failure, and a blocked clipboard is
       // recoverable — the link is on the row either way.
+    }
+  }
+
+  /**
+   * Every outstanding link at once, as `Name — address` lines.
+   *
+   * Chasing signatures is a pass through a list of people, not one person, and
+   * the producer was left holding that list in their head. It also covers the
+   * case where a link went out and did not arrive as a link: the address is
+   * rebuilt from the token here and now, so copying always gives the current
+   * one, and re-sending is a paste rather than a hunt.
+   */
+  async function copyAllLinks(list: SignatureRequest[]) {
+    const text = list
+      .map((r) => `${r.signerName} — ${signingUrl(window.location.origin, r.token, r.key)}`)
+      .join('\n');
+    // Shown as well as copied: a clipboard that silently failed is how a
+    // producer ends up sending nothing and believing they sent everything.
+    setAllLinks(text);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied('all');
+      setTimeout(() => setCopied((c) => (c === 'all' ? null : c)), 2000);
+    } catch {
+      /* the list is on screen either way */
     }
   }
 
@@ -684,6 +722,47 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
       />
 
       {error && <p className="contracts__error" role="alert">{error}</p>}
+
+      {outstanding.length > 0 && (
+        <section className="contracts__chase">
+          <div className="contracts__chase-head">
+            <h2 className="contracts__section-label">
+              Waiting on {outstanding.length}
+            </h2>
+            <button
+              className="btn btn--secondary btn--sm"
+              onClick={() => copyAllLinks(outstanding)}
+            >
+              {copied === 'all' ? 'Copied' : `Copy all ${outstanding.length} links`}
+            </button>
+          </div>
+          <div className="contracts__rows">
+            {outstanding.map((r) => (
+              <div key={r.token} className="contracts__row">
+                <span className="contracts__mark" aria-hidden="true" />
+                <div className="contracts__row-who">
+                  <span className="contracts__row-name">{r.signerName}</span>
+                  <span className="contracts__row-meta">
+                    {r.contractName} · sent {fmtDate(r.sentAt)}
+                  </span>
+                </div>
+                <button className="btn btn--ghost btn--sm" onClick={() => copyLink(r)}>
+                  {copied === r.token ? 'Copied' : CAN_SHARE ? 'Send again' : 'Copy link'}
+                </button>
+              </div>
+            ))}
+          </div>
+          {allLinks && (
+            <p className="contracts__link">
+              <span className="contracts__link-note">
+                Copied. Paste these straight into your messages — send the whole address,
+                including everything after the <code>#</code>.
+              </span>
+              <span className="contracts__link-url">{allLinks}</span>
+            </p>
+          )}
+        </section>
+      )}
 
       {contracts.length === 0 ? (
         <p className="contracts__empty">
