@@ -1,7 +1,34 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { sharedLinkPage, sharedLinkPageName, type SharedLinkKind } from './src/utils/sharedLink'
+
+/**
+ * Emit one page per kind of sent link beside `index.html`: the same app, with
+ * head metadata that neither redirects the link to the homepage nor leaves the
+ * preview card silent about what was sent. See sharedLinkPage, and the
+ * rewrites in vercel.json that route /?sign=, /?profile= and /?view= here.
+ */
+function sharedLinkPagePlugin(): Plugin {
+  const KINDS: SharedLinkKind[] = ['sign', 'profile', 'view']
+  return {
+    name: 'emit-shared-link-pages',
+    enforce: 'post',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const index = bundle['index.html']
+      if (!index || index.type !== 'asset') return
+      for (const kind of KINDS) {
+        this.emitFile({
+          type: 'asset',
+          fileName: sharedLinkPageName(kind),
+          source: sharedLinkPage(String(index.source), kind),
+        })
+      }
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -56,6 +83,7 @@ export default defineConfig({
         globIgnores: ['**/fonts/inter-{greek,greek-ext,cyrillic,cyrillic-ext,vietnamese}.woff2'],
       },
     }),
+    sharedLinkPagePlugin(),
   ],
   test: {
     environment: 'node',

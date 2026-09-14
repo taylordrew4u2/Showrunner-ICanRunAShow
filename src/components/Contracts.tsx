@@ -77,6 +77,8 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  /** Whose signing link is spelled out on the row, for pasting by hand. */
+  const [shownLink, setShownLink] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [manualName, setManualName] = useState('');
   const [editingFields, setEditingFields] = useState(false);
@@ -180,9 +182,18 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
 
   async function copyLink(request: SignatureRequest) {
     const url = signingUrl(window.location.origin, request.token, request.key);
+    // Shown on the row from here on, whatever the share sheet or the clipboard
+    // then does. A link the producer cannot see is a link they cannot check,
+    // and the whole failure this guards against was invisible from in here:
+    // the link left correctly and the performer still landed somewhere else.
+    setShownLink(request.token);
     try {
       if (CAN_SHARE) {
-        await navigator.share({ title: request.contractName, text: `${request.contractName} to sign`, url });
+        // Title and URL only. A `text` alongside them is not an addition —
+        // share targets pick between the members they support, and the ones
+        // that take only text send that sentence and drop the link, which
+        // reads as a contract that was sent and never arrived.
+        await navigator.share({ title: request.contractName, url });
         return;
       }
       await navigator.clipboard.writeText(url);
@@ -190,8 +201,7 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
       setTimeout(() => setCopied((c) => (c === request.token ? null : c)), 2000);
     } catch {
       // A cancelled share sheet is not a failure, and a blocked clipboard is
-      // recoverable — show the link so it can be copied by hand.
-      setError(url);
+      // recoverable — the link is on the row either way.
     }
   }
 
@@ -597,6 +607,29 @@ export function Contracts({ settings, session, onBack, backLabel = 'Shows', onUp
                       </dl>
                     ) : null}
                     {r.signed ? <ImportOffer request={r} /> : null}
+                    {!r.signed && shownLink === r.token && (
+                      <p className="contracts__link">
+                        <span className="contracts__link-note">
+                          Send this exact link. Some apps turn a link into a preview card that
+                          opens the site instead — if that happens, paste it as plain text.
+                        </span>
+                        <span className="contracts__link-url">
+                          {signingUrl(window.location.origin, r.token, r.key)}
+                        </span>
+                        {/* Opening it only reads; a signature is still a name
+                            typed and a box ticked, so checking a link cannot
+                            spend it. Worth one tap before it goes to someone
+                            you would rather not send a broken link to. */}
+                        <a
+                          className="contracts__link-check"
+                          href={signingUrl(window.location.origin, r.token, r.key)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open it yourself to check it
+                        </a>
+                      </p>
+                    )}
                   </div>
                   {!r.signed && (
                     <button className="btn btn--ghost btn--sm" onClick={() => copyLink(r)}>

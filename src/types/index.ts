@@ -322,7 +322,14 @@ export interface Contract {
 /** What a signer typed and agreed to, once they have signed. */
 export interface SignatureRecord {
   signedAt: string;
+  /** The signature: what they typed to sign, which only they can type. */
   typedName: string;
+  /**
+   * Their name as they left it — prefilled from what the producer had filed,
+   * corrected by them if it was wrong. Absent on contracts signed before the
+   * name and the signature were separate fields, where `typedName` was both.
+   */
+  signerName?: string;
   /**
    * What the signer filled in, kept with the label they were shown rather than
    * a field id, so the record still reads correctly after the contract's

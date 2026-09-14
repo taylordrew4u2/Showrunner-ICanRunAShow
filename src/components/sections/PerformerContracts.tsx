@@ -76,7 +76,10 @@ export function PerformerContracts({
     const url = signingUrl(window.location.origin, request.token, request.key);
     try {
       if (CAN_SHARE) {
-        await navigator.share({ title: request.contractName, text: `${request.contractName} to sign`, url });
+        // No `text` beside the URL: share targets choose between the members
+        // they support, and one that takes only text sends the sentence and
+        // drops the link — a contract that was sent and never arrived.
+        await navigator.share({ title: request.contractName, url });
         return;
       }
       await navigator.clipboard.writeText(url);
