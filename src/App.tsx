@@ -1730,7 +1730,7 @@ export default function App() {
   // for that link, which can then tell them what is wrong with it. Anyone who
   // ends up past here is shown a login, and a performer has no account to log
   // in to. See sharedLinkRoute.
-  const route = sharedLinkRoute(window.location.search);
+  const route = sharedLinkRoute(window.location.search, window.location.pathname);
   if (route) {
     // The key rides in the fragment, which browsers never send to a server.
     const linkKey = readSignKeyFromHash(window.location.hash);

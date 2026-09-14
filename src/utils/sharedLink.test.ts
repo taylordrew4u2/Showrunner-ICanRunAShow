@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { sharedLinkPage, sharedLinkPageName, sharedLinkRoute } from './sharedLink';
+import {
+  sharedLinkPage,
+  sharedLinkPageName,
+  sharedLinkPath,
+  sharedLinkRoute,
+} from './sharedLink';
 
 // The real file, not a fixture. The bug was in what index.html says about
 // itself, so a fixture that had drifted from it would prove nothing.
@@ -75,35 +80,69 @@ describe('the page a sent link opens', () => {
 });
 
 describe('where a sent link goes', () => {
-  it('opens the page the link addresses', () => {
+  it('opens the page the link is addressed to', () => {
+    expect(sharedLinkRoute('?t=tok123', '/sign')).toEqual({ kind: 'sign', token: 'tok123' });
+    expect(sharedLinkRoute('?t=tok123', '/details')).toEqual({ kind: 'profile', token: 'tok123' });
+    expect(sharedLinkRoute('?t=tok123', '/live')).toEqual({ kind: 'view', token: 'tok123' });
+  });
+
+  it('is addressed to a path, because a rewrite on / can never run', () => {
+    // Vercel answers `/` from the filesystem before it consults the rewrites,
+    // so the first version of this shipped a correct link-sign.html that
+    // nothing was ever routed to. `/sign` is not a file, so the rewrite is
+    // reached — the same reason the SPA catch-all works.
+    expect(sharedLinkPath('sign', 'tok123')).toBe('/sign?t=tok123');
+    expect(sharedLinkPath('profile', 'tok123')).toBe('/details?t=tok123');
+    expect(sharedLinkPath('view', 'tok123')).toBe('/live?t=tok123');
+    expect(sharedLinkPath('sign', 'a b&c')).toBe('/sign?t=a%20b%26c');
+  });
+
+  it('still opens links sent before the address changed', () => {
+    // Contracts get opened months later. The old shape has to keep working
+    // for as long as any of them are outstanding, which is indefinitely.
+    expect(sharedLinkRoute('?sign=tok123', '/')).toEqual({ kind: 'sign', token: 'tok123' });
+    expect(sharedLinkRoute('?profile=tok123', '/')).toEqual({ kind: 'profile', token: 'tok123' });
+    expect(sharedLinkRoute('?view=tok123', '/')).toEqual({ kind: 'view', token: 'tok123' });
+    // And with no pathname given at all, as the old callers passed it.
     expect(sharedLinkRoute('?sign=tok123')).toEqual({ kind: 'sign', token: 'tok123' });
-    expect(sharedLinkRoute('?profile=tok123')).toEqual({ kind: 'profile', token: 'tok123' });
-    expect(sharedLinkRoute('?view=tok123')).toEqual({ kind: 'view', token: 'tok123' });
   });
 
   it('still opens that page when the token was trimmed off on the way', () => {
     // Falling through to the app here is how a performer ended up at a login
     // for an account they will never have. The signing page can say the link
     // is broken; the login screen can only ask them to sign up.
+    expect(sharedLinkRoute('', '/sign')).toEqual({ kind: 'sign', token: '' });
+    expect(sharedLinkRoute('?t=', '/sign')).toEqual({ kind: 'sign', token: '' });
     expect(sharedLinkRoute('?sign=')).toEqual({ kind: 'sign', token: '' });
     expect(sharedLinkRoute('?sign')).toEqual({ kind: 'sign', token: '' });
-    expect(sharedLinkRoute('?profile=')).toEqual({ kind: 'profile', token: '' });
+  });
+
+  it('opens a link that picked up a slash or a capital on the way', () => {
+    expect(sharedLinkRoute('?t=tok123', '/sign/')).toEqual({ kind: 'sign', token: 'tok123' });
+    expect(sharedLinkRoute('?t=tok123', '/Sign')).toEqual({ kind: 'sign', token: 'tok123' });
   });
 
   it('is not confused by whatever a messaging app added to the link', () => {
-    expect(sharedLinkRoute('?sign=tok123&fbclid=abc&utm_source=x')).toEqual({
+    expect(sharedLinkRoute('?t=tok123&fbclid=abc&utm_source=x', '/sign')).toEqual({
       kind: 'sign',
       token: 'tok123',
     });
-    expect(sharedLinkRoute('?utm_source=x&sign=tok123')).toEqual({ kind: 'sign', token: 'tok123' });
+    expect(sharedLinkRoute('?utm_source=x&t=tok123', '/sign')).toEqual({
+      kind: 'sign',
+      token: 'tok123',
+    });
   });
 
   it('sends the producer to their own app, not to a link page', () => {
-    expect(sharedLinkRoute('')).toBeNull();
-    expect(sharedLinkRoute('?tab=shows')).toBeNull();
-    // Not a substring match: a parameter that merely contains one of the names
-    // is somebody else's parameter.
-    expect(sharedLinkRoute('?signup=1')).toBeNull();
-    expect(sharedLinkRoute('?preview=1')).toBeNull();
+    expect(sharedLinkRoute('', '/')).toBeNull();
+    expect(sharedLinkRoute('?tab=shows', '/')).toBeNull();
+    // Not a substring match: a path or parameter that merely contains one of
+    // the names belongs to somebody else.
+    expect(sharedLinkRoute('?signup=1', '/')).toBeNull();
+    expect(sharedLinkRoute('?preview=1', '/')).toBeNull();
+    expect(sharedLinkRoute('', '/signup')).toBeNull();
+    expect(sharedLinkRoute('', '/guides/signing')).toBeNull();
+    // A token alone is not a link — it has to say which kind.
+    expect(sharedLinkRoute('?t=tok123', '/')).toBeNull();
   });
 });

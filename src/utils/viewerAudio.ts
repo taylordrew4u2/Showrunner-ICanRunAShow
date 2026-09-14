@@ -23,6 +23,7 @@
  * revealed only the running order.
  */
 
+import { sharedLinkPath } from './sharedLink';
 import { api } from './api';
 import { decryptWithKey, encryptWithKey } from './encryption';
 import { resolveMediaUrl } from './mediaStore';
@@ -107,7 +108,7 @@ export function splitIntoChunks(text: string, sliceChars = SLICE_CHARS): string[
  * ever touching the backend that stores the ciphertext.
  */
 export function viewerUrl(origin: string, token: string, key?: string | null): string {
-  const base = `${origin}/?view=${encodeURIComponent(token)}`;
+  const base = `${origin}${sharedLinkPath('view', token)}`;
   return key ? `${base}#k=${key}` : base;
 }
 
