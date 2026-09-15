@@ -58,8 +58,18 @@ export function showMediaRefs(show: Show): string[] {
 export function settingsMediaRefs(settings: AppSettings): string[] {
   const refs = new Set<string>();
   for (const track of settings.musicLibrary ?? []) push(refs, track.music);
-  for (const comic of settings.potentialComics ?? []) push(refs, comic.walkOnMusic);
+  for (const comic of settings.potentialComics ?? []) {
+    // The photo as well as the walk-on. A headshot filed from a signed
+    // contract lives only here until that person is booked, so counting the
+    // audio and not the face made the sweep delete faces nothing else held.
+    push(refs, comic.photo);
+    push(refs, comic.walkOnMusic);
+  }
   for (const contract of settings.contracts ?? []) push(refs, contract.fileRef);
+  // The headshot a signer sent, once it has been filed. The agreement keeps
+  // its own copy of what the person actually sent, so replacing their profile
+  // picture years later does not rewrite what they signed.
+  for (const request of settings.signatureRequests ?? []) push(refs, request.signed?.headshot);
   for (const item of settings.trash ?? []) {
     if (item.data) for (const ref of showMediaRefs(item.data)) refs.add(ref);
   }

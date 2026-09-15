@@ -22,12 +22,14 @@ import {
 } from '../utils/contracts';
 import { generateId } from '../utils/id';
 import { dataUrlToFile } from '../utils/media';
-import { uploadMedia, deleteMedia } from '../utils/mediaStore';
+import { uploadMedia, deleteMedia, isMediaRef } from '../utils/mediaStore';
 import { rolodexKey } from '../utils/rolodex';
 import { showContextForSigner } from '../utils/contractShow';
 import {
+  applyFiledHeadshot,
   applyProfileChanges,
   describeChanges,
+  headshotsToFile,
   profileChanges,
   profileFromAnswers,
   type ProfileChange,
@@ -122,15 +124,61 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     let cancelled = false;
     (async () => {
       const updated = await refreshSignatures(requests);
-      if (!cancelled && updated) {
-        onUpdateSettings({ ...settings, signatureRequests: updated });
-      }
+      if (cancelled) return;
+      const next = updated ?? requests;
+      const filed = await fileHeadshots(next);
+      if (cancelled) return;
+      if (filed) onUpdateSettings({ ...settings, ...filed });
+      else if (updated) onUpdateSettings({ ...settings, signatureRequests: updated });
     })();
     return () => { cancelled = true; };
     // Deliberately on mount only: re-running on every settings write would
     // loop, since finding a signature writes settings.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * Move every headshot that came back signed into the store and onto the
+   * person, without being asked.
+   *
+   * Returns the settings fields to write, or null when there was nothing to
+   * do — so the ordinary "found a new signature" save is not turned into a
+   * second render for accounts where nobody sent a photo.
+   *
+   * A photo that will not upload is left exactly where it is: the data URL
+   * stays on the record and the next visit tries again. Losing the only copy
+   * of someone's face to a dropped connection is not a trade worth making.
+   */
+  async function fileHeadshots(
+    current: SignatureRequest[],
+  ): Promise<Partial<AppSettings> | null> {
+    const pending = headshotsToFile(current, settings.potentialComics ?? [], rolodexKey);
+    if (pending.length === 0) return null;
+
+    let comics = settings.potentialComics ?? [];
+    const refs = new Map<string, string>();
+    for (const shot of pending) {
+      try {
+        const file = dataUrlToFile(shot.dataUrl, `${shot.name || 'headshot'}.jpg`);
+        if (!file) continue;
+        const ref = await uploadMedia(file);
+        refs.set(shot.token, ref);
+        comics = applyFiledHeadshot(comics, shot, ref, generateId);
+      } catch {
+        // Left on the record to retry. Nothing is lost by failing here.
+      }
+    }
+    if (refs.size === 0) return null;
+
+    return {
+      potentialComics: comics,
+      signatureRequests: current.map((r) =>
+        refs.has(r.token) && r.signed
+          ? { ...r, signed: { ...r.signed, headshot: refs.get(r.token) } }
+          : r,
+      ),
+    };
+  }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -347,7 +395,11 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     // producer's, where every other photo in the app lives.
     let photoRef: string | undefined;
     let photoFailed = false;
-    if (headshot) {
+    if (isMediaRef(headshot)) {
+      // Already filed — this is the copy in the store, so reuse it rather than
+      // uploading the same face a second time.
+      photoRef = headshot;
+    } else if (headshot) {
       try {
         const file = dataUrlToFile(headshot, `${request.signerName.trim() || 'headshot'}.jpg`);
         // A photo that will not decode is a failure too, not a no-op: saying
@@ -422,7 +474,9 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
             shown rather than described. */}
         {headshot && (
           <div className="contracts__import-photo">
-            <img src={headshot} alt={`Headshot sent by ${request.signerName}`} />
+            {!isMediaRef(headshot) && (
+              <img src={headshot} alt={`Headshot sent by ${request.signerName}`} />
+            )}
             <span>They sent a headshot for the flyer</span>
             <button
               className="btn btn--ghost btn--sm contracts__import-skip"
