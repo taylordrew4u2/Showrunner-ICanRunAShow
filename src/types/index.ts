@@ -12,10 +12,14 @@ export interface Scene {
 
 export interface Performer {
   id: string;
+  /** Stable Rolodex identity; id still identifies this show's lineup slot. */
+  comicId?: string;
   name: string;
   photo?: string; // headshot (media store reference) — the face on the Run Show button
   socialMedia?: string;
   email?: string; // contact email — used for booking confirmations / mass messages
+  phone?: string;
+  notes?: string; // private producer notes shared with the Rolodex profile
   walkOnMusic?: string; // file URI
   walkOnMusicName?: string;
   walkOnMusicArtist?: string;
@@ -28,15 +32,9 @@ export interface Performer {
   videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
 }
 
-export interface Artist {
-  id: string;
-  name: string;
+/** Artists booked from the Rolodex share its profile while keeping their role. */
+export interface Artist extends Performer {
   artistType?: string;
-  socialMedia?: string;
-  credits?: string;
-  walkOnMusic?: string;
-  walkOnMusicName?: string;
-  videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
 }
 
 export interface ScheduleItem {
@@ -190,6 +188,9 @@ export interface PotentialComic {
   walkOnMusicArtist?: string;
   walkOnMusicTimestamp?: string;
   walkOnMusicLink?: string;
+  walkOnStartSec?: number;
+  walkOnEndSec?: number;
+  videoLink?: string;
 }
 
 export interface EmailListEntry {
@@ -369,6 +370,8 @@ export interface SignatureRequest {
   signerEmail?: string;
   sentAt: string;
   signed?: SignatureRecord;
+  /** Signed answers have already filled the canonical profile once. */
+  profileFiled?: boolean;
 }
 
 /**

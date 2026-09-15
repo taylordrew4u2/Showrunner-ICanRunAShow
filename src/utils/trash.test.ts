@@ -69,6 +69,16 @@ describe('stripShowMediaForTrash', () => {
     expect(show.performers[0].walkOnMusic).toBe(dataUrl);
   });
 
+  it('retains shared headshots while dropping embedded legacy photos from trash', () => {
+    const show = makeShow();
+    show.performers[0].photo = 'data:image/jpeg;base64,AA';
+    show.artists[0].photo = 'media:artist-photo#1';
+    const stripped = stripShowMediaForTrash(show);
+    expect(stripped.performers[0].photo).toBeUndefined();
+    expect(stripped.artists[0].photo).toBe('media:artist-photo#1');
+    expect(show.performers[0].photo).toBe('data:image/jpeg;base64,AA');
+  });
+
   it('exports a sane trash cap', () => {
     expect(MAX_TRASH_ITEMS).toBeGreaterThan(0);
     expect(MAX_TRASH_ITEMS).toBeLessThanOrEqual(50);

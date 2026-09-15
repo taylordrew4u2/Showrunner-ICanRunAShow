@@ -34,7 +34,10 @@ export function stripLegacyShowMedia(show: Show): Show {
     scrub(p, ['photos', 'video']);
     scrubEmbeddedPhoto(p);
   }
-  for (const a of show.artists || []) scrub(a, ['photo', 'video', 'file', 'fileName']);
+  for (const a of show.artists || []) {
+    scrub(a, ['video', 'file', 'fileName']);
+    scrubEmbeddedPhoto(a);
+  }
   for (const h of show.hosts || []) scrub(h, ['photo']);
   for (const v of show.vendors || []) scrub(v, ['photo']);
   for (const e of show.expenses || []) scrub(e, ['receiptPhoto']);

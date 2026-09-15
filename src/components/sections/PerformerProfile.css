@@ -52,6 +52,17 @@
   margin: 0 0 var(--space-5);
 }
 
+.perf-profile__artist-type {
+  margin-bottom: var(--space-5);
+}
+
+.perf-profile__sync-hint {
+  margin: calc(-1 * var(--space-3)) 0 var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
 /* ── Card ──────────────────────────────────────────────────────────── */
 
 .perf-profile__card {

@@ -1,3 +1,4 @@
+import type { PotentialComic } from '../types';
 import { describe, expect, it } from 'vitest';
 import {
   applyFiledHeadshot,
@@ -269,5 +270,58 @@ describe('what a signed contract fills in by itself', () => {
       [signed([{ label: 'Email', value: 'ada@example.com' }])], [], key, () => 'new',
     );
     expect(filled).toEqual([{ id: 'new', name: 'Ada Cole', email: 'ada@example.com' }]);
+  });
+});
+
+
+describe('signed details stay attached to their Rolodex identity', () => {
+  const key = (name: string) => name.trim().toLowerCase();
+  const request = {
+    token: 'signed-token', contactId: 'ada', signerName: 'Ada Original',
+    signed: { fields: [{ label: 'Email', value: 'ada@example.com' }], headshot: 'data:image/jpeg;base64,face' },
+  };
+
+  it('fills a renamed comic by id and creates no duplicate entry under their former name', () => {
+    const comics = [{ id: 'ada', name: 'Ada Current' }];
+    expect(signedProfilePatch([request], comics[0], key)).toEqual({ email: 'ada@example.com' });
+    const result = fillRolodexFromSignatures([request], comics, key, () => 'new-id');
+    expect(result).toEqual([{ id: 'ada', name: 'Ada Current', email: 'ada@example.com' }]);
+    const [headshot] = headshotsToFile([request], comics, key);
+    expect(headshot.entryId).toBe('ada');
+    expect(applyFiledHeadshot(comics, headshot, 'media:face', () => 'new-id')).toEqual([
+      { id: 'ada', name: 'Ada Current', photo: 'media:face' },
+    ]);
+    expect(request.signerName).toBe('Ada Original');
+  });
+
+  it('never fills or files a namesake from a request addressed to a deleted identity', () => {
+    const comics = [{ id: 'other-ada', name: 'Ada Original' }];
+    expect(signedProfilePatch([request], comics[0], key)).toBeNull();
+    expect(fillRolodexFromSignatures([request], comics, key, () => 'new-id')).toBeNull();
+    const [headshot] = headshotsToFile([request], comics, key);
+    expect(headshot).toMatchObject({ entryId: undefined, wantsPhoto: false });
+    expect(applyFiledHeadshot(comics, headshot, 'media:face', () => 'new-id')).toBe(comics);
+  });
+
+  it('does not assign legacy name-only details or photos to ambiguous duplicate names', () => {
+    const comics = [{ id: 'one', name: 'Ada Original' }, { id: 'two', name: 'Ada Original' }];
+    const legacy = { ...request, contactId: undefined };
+    expect(fillRolodexFromSignatures([legacy], comics, key, () => 'new-id')).toBeNull();
+    expect(headshotsToFile([legacy], comics, key)[0].wantsPhoto).toBe(false);
+  });
+
+  it('does not refill an intentionally cleared field once signed answers have been filed', () => {
+    const comics = [{ id: 'ada', name: 'Ada Current', email: '' }];
+    expect(fillRolodexFromSignatures([{ ...request, profileFiled: true }], comics, key, () => 'new-id')).toBeNull();
+    // Explicit imports can still offer the original answers when requested.
+    expect(signedProfilePatch([request], comics[0], key)).toEqual({ email: 'ada@example.com' });
+  });
+
+  it('does not overwrite a newer headshot or recreate a removed entry after an upload finishes', () => {
+    const [headshot] = headshotsToFile([request], [{ id: 'ada', name: 'Ada Current' }], key);
+    const newer = [{ id: 'ada', name: 'Ada Current', photo: 'media:newer' }];
+    expect(applyFiledHeadshot(newer, headshot, 'media:old-upload', () => 'new-id')).toBe(newer);
+    const removed: PotentialComic[] = [];
+    expect(applyFiledHeadshot(removed, headshot, 'media:old-upload', () => 'new-id')).toBe(removed);
   });
 });

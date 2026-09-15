@@ -23,7 +23,7 @@ import {
 import { generateId } from '../utils/id';
 import { dataUrlToFile } from '../utils/media';
 import { uploadMedia, deleteMedia, isMediaRef } from '../utils/mediaStore';
-import { rolodexKey } from '../utils/rolodex';
+import { rolodexKey, resolvePerformerComic } from '../utils/rolodex';
 import { showContextForSigner } from '../utils/contractShow';
 import {
   applyFiledHeadshot,
@@ -233,7 +233,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     if (!open) return;
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (alreadyPending(requests, open.id, trimmed)) {
+    if (alreadyPending(requests, open.id, trimmed, contactId)) {
       const go = await confirm({
         message: `${trimmed} already has an unsigned link for this contract. Sending again makes a second link, and whichever one they open first is the one that counts.`,
         confirmLabel: 'Send anyway',
@@ -381,10 +381,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
   } {
     if (!request.signed) return { entry: null, changes: [] };
     const comics = settings.potentialComics ?? [];
-    const entry =
-      comics.find((c) => c.id === request.contactId) ??
-      comics.find((c) => rolodexKey(c.name) === rolodexKey(request.signerName)) ??
-      null;
+    const entry = resolvePerformerComic({ id: '', comicId: request.contactId, name: request.signerName }, comics) ?? null;
     const all = profileChanges(entry ?? undefined, profileFromAnswers(request.signed.fields));
     // A photo they sent replaces nothing: it is only offered where the entry
     // has no picture, so a headshot the producer chose is never displaced.

@@ -36,6 +36,7 @@ export function showMediaRefs(show: Show): string[] {
     push(refs, p.walkOnMusic);
   }
   for (const a of show.artists ?? []) {
+    push(refs, a.photo);
     push(refs, a.walkOnMusic);
   }
   for (const cue of show.schedule ?? []) {
