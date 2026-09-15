@@ -9,6 +9,8 @@
  * version is ever stored.
  */
 
+import { dataUrlToFile, readFileAsDataURL } from './media';
+
 /** Longest edge kept, in pixels. 2× the largest place a photo is displayed. */
 export const AVATAR_MAX_DIM = 640;
 
@@ -21,6 +23,16 @@ export const AVATAR_MAX_DIM = 640;
  * the person uploading it is on a phone.
  */
 export const FLYER_MAX_DIM = 1400;
+
+/**
+ * Smaller and smaller, for a photo the server will not take.
+ *
+ * Tried in order when a submission comes back too large. The server is the
+ * judge of what fits — the payload is encrypted before it is sent, so its
+ * final size is not something the page can work out in advance — which is why
+ * this is a ladder to walk down rather than one calculation.
+ */
+export const HEADSHOT_FALLBACK_DIMS = [900, 600, 400] as const;
 const JPEG_QUALITY = 0.82;
 
 /**
@@ -94,5 +106,24 @@ export async function downscaleImage(file: File, maxDim = AVATAR_MAX_DIM): Promi
     return new File([blob], `${name}.jpg`, { type: 'image/jpeg' });
   } finally {
     release();
+  }
+}
+
+/**
+ * Re-encode a data URL at a smaller size, as a data URL.
+ *
+ * A signer's headshot only ever exists as a data URL — it was read from their
+ * camera roll, downscaled once, and is held in memory as text — so shrinking
+ * it again means going back out to a File and in again. Null if it cannot be
+ * read, which the caller treats as "send without the photo".
+ */
+export async function shrinkDataUrl(dataUrl: string, maxDim: number): Promise<string | null> {
+  try {
+    const file = dataUrlToFile(dataUrl, 'headshot');
+    if (!file) return null;
+    const smaller = await downscaleImage(file, maxDim);
+    return await readFileAsDataURL(smaller);
+  } catch {
+    return null;
   }
 }

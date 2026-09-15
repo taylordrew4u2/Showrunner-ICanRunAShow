@@ -102,6 +102,29 @@ test.describe('a contract sent from inside a show', () => {
     await expect(signer.getByLabel('Venue')).toHaveValue(/Bell House/);
     await signerContext.close();
 
+    // ── What they typed survives the page going away ───────────────────────
+    //
+    // A phone reclaiming a backgrounded tab, a back gesture, a reload after
+    // losing signal. Retyping a long agreement's answers is where someone
+    // stops and texts the producer instead.
+    const reload = await browser.newContext({ viewport: page.viewportSize()! });
+    await installFakeApi(reload, state);
+    const typed = await reload.newPage();
+    await typed.goto(link);
+    await expect(typed.locator('.signing__title')).toBeVisible();
+    await typed.getByLabel('Email').fill('nadia@example.com');
+    await typed.locator('.signing__field--signature input').fill('Nadia Okonjo');
+    await typed.locator('.signing__agree input').check();
+
+    await typed.reload();
+    await expect(typed.locator('.signing__title')).toBeVisible();
+    await expect(typed.getByLabel('Email')).toHaveValue('nadia@example.com');
+    await expect(typed.locator('.signing__field--signature input')).toHaveValue('Nadia Okonjo');
+    await expect(typed.locator('.signing__agree input')).toBeChecked();
+    // And the show's own answers are still there underneath.
+    await expect(typed.getByLabel('Show date')).toHaveValue(/October 3, 2026/);
+    await reload.close();
+
     // ── A signature that lands and loses its answer ────────────────────────
     //
     // Venue wifi. The server records the signature and the reply never gets
@@ -156,5 +179,118 @@ test.describe('a contract sent from inside a show', () => {
     await expect(other.getByLabel('Show date')).toHaveValue(/October 3, 2026/);
     await expect(other.getByLabel('Venue')).toHaveValue(/Bell House/);
     await second.close();
+
+    // ── Signing with no connection at all ──────────────────────────────────
+    //
+    // The case that used to end in "that did not go through". A signature
+    // given in a basement is still a signature: it is held, the signer is
+    // told it is signed and sending, and it goes out when the signal does.
+    // Nobody is ever told they cannot sign.
+    const offline = await browser.newContext({ viewport: page.viewportSize()! });
+    await installFakeApi(offline, state);
+    const basement = await offline.newPage();
+    await basement.goto(fromLibrary);
+    await expect(basement.locator('.signing__title')).toBeVisible();
+    await basement.getByLabel('Email').fill('dev@example.com');
+    await basement.locator('.signing__field--signature input').fill('Dev Marchetti');
+    await basement.locator('.signing__agree input').check();
+
+    // Now the connection dies — every attempt, for as long as it is down.
+    let attempts = 0;
+    await basement.route('**/api/sign', async (route, request) => {
+      if (request.method() !== 'POST') return route.fallback();
+      attempts++;
+      await route.abort('internetdisconnected');
+    });
+    await basement.locator('.signing__cta').click();
+
+    // Signed, and honest about where it has got to. Not an error, and not a
+    // suggestion that they try again themselves.
+    await expect(basement.locator('.signing__panel--done')).toContainText('Signed');
+    await expect(basement.locator('.signing__sending')).toContainText('sending as soon as');
+    await expect(basement.locator('.signing__error')).toHaveCount(0);
+    expect(attempts, 'it should have tried and been cut off').toBeGreaterThan(0);
+
+    // It is still trying on its own, and lands the moment the line is back.
+    await basement.unroute('**/api/sign');
+    await expect(basement.locator('.signing__sending')).toHaveCount(0, { timeout: 30_000 });
+    expect(state.sign[new URL(fromLibrary).searchParams.get('t')!].signedAt).toBeTruthy();
+    await offline.close();
+
+    // A third link, because each of these signs the one it is given.
+    await page.goto('/');
+    await gotoTab(page, 'More');
+    await page.locator('.more-item').filter({ hasText: 'Contracts' }).click();
+    await page.locator('.contracts__item').first().click();
+    await page.locator('.contracts__send-btn').click();
+    await page.locator('.contracts__manual input').fill('Priya Raghunathan');
+    await page.locator('.contracts__manual button').click();
+    await expect(page.locator('.contracts__rows')).toContainText('Priya Raghunathan');
+    const thirdLink = await page.evaluate(() => navigator.clipboard.readText());
+    expect(thirdLink).toContain('/sign?t=');
+
+    // ── A photo too big for the server ─────────────────────────────────────
+    //
+    // It gets made smaller and sent, not dropped and not refused. The server
+    // is the judge of what fits, so this stands in for one with a tighter
+    // cap: refuse anything over the limit, and let the page work its way
+    // down until it fits.
+    const CAP = 120_000;
+    const big = await browser.newContext({ viewport: page.viewportSize()! });
+    await installFakeApi(big, state);
+    const withPhoto = await big.newPage();
+    const refused: number[] = [];
+    await withPhoto.route('**/api/sign', async (route, request) => {
+      if (request.method() !== 'POST') return route.fallback();
+      const body = request.postDataJSON() as { signature: string };
+      if (body.signature.length > CAP) {
+        refused.push(body.signature.length);
+        return route.fulfill({
+          status: 413,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'too_large' }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await withPhoto.goto(thirdLink);
+    await expect(withPhoto.locator('.signing__title')).toBeVisible();
+    // A photo far too large at full size: 2000px of noise, which survives
+    // JPEG compression rather than collapsing to nothing.
+    const photo = await withPhoto.evaluate(async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2000;
+      canvas.height = 2000;
+      const ctx = canvas.getContext('2d')!;
+      const image = ctx.createImageData(2000, 2000);
+      for (let i = 0; i < image.data.length; i += 4) {
+        image.data[i] = Math.random() * 255;
+        image.data[i + 1] = Math.random() * 255;
+        image.data[i + 2] = Math.random() * 255;
+        image.data[i + 3] = 255;
+      }
+      ctx.putImageData(image, 0, 0);
+      return canvas.toDataURL('image/jpeg', 0.95);
+    });
+    await withPhoto.setInputFiles('.signing__photo-pick input[type=file]', {
+      name: 'headshot.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from(photo.split(',')[1], 'base64'),
+    });
+    await expect(withPhoto.locator('.signing__photo-preview')).toBeVisible();
+
+    await withPhoto.getByLabel('Email').fill('priya@example.com');
+    await withPhoto.locator('.signing__field--signature input').fill('Priya Raghunathan');
+    await withPhoto.locator('.signing__agree input').check();
+    await withPhoto.locator('.signing__cta').click();
+
+    // Signed, with a photo that was made to fit — not refused, not dropped.
+    await expect(withPhoto.locator('.signing__panel--done')).toContainText('Signed', {
+      timeout: 30_000,
+    });
+    await expect(withPhoto.locator('.signing__panel--done')).toContainText('made smaller');
+    expect(refused.length, 'the first attempt should have been refused').toBeGreaterThan(0);
+    await big.close();
   });
 });

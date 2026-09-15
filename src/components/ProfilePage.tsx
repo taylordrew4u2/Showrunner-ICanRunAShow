@@ -4,6 +4,7 @@ import type { ProfileSubmission } from '../types';
 import { collectFieldAnswers, missingRequiredFields } from '../utils/contracts';
 import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
 import { readFileAsDataURL } from '../utils/media';
+import { submitFailureMessage } from '../utils/submitFailure';
 import {
   fetchProfileRequest,
   submitProfile,
@@ -114,7 +115,7 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
       );
       setSubmitted(record);
       setPhase('done');
-    } catch {
+    } catch (err) {
       // Same as the signing page: a write that lost its answer is not a write
       // that failed. "Nothing has been sent yet" was a claim this code was in
       // no position to make.
@@ -125,7 +126,9 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
         return;
       }
       setPhase('ready');
-      setError('That did not go through. Check your connection and try again — your answers are still here.');
+      // Say which thing went wrong, not "check your connection" for all of
+      // them — half the reasons have nothing to do with the connection.
+      setError(submitFailureMessage(err));
     }
   }
 
