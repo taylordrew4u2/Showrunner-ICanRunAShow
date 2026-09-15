@@ -275,6 +275,7 @@ export interface Show {
    * lineup has no "full", and nothing about it is shown.
    */
   performerTarget?: number;
+  productionNotes?: string; // private planning notes for this show
   host?: string; // host name (free text, or set from a performer)
   todos?: TodoItem[];
   viewToken?: string; // public read-only viewer link token
