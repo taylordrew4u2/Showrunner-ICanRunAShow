@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { rolodexKey, performerToComic, addPerformersToRolodex } from './rolodex';
+import {
+  addPerformersToRolodex,
+  comicToPerformer,
+  performerToComic,
+  rolodexKey,
+} from './rolodex';
 import type { Performer, PotentialComic } from '../types';
 
 const performer = (over: Partial<Performer>): Performer => ({
@@ -110,5 +115,82 @@ describe('addPerformersToRolodex', () => {
     const existing = [comic({ id: 'c1', name: 'Jo Park' })];
     addPerformersToRolodex(existing, [performer({ name: 'Ada Cole' })]);
     expect(existing).toHaveLength(1);
+  });
+});
+
+/**
+ * Booking someone off the Rolodex brings what is filed against them.
+ *
+ * This was written out by hand in two places and both had drifted: the
+ * headshot was dropped by both, so a producer who had filed a face booked
+ * them and got a blank circle on the Run Show board and nothing for the
+ * flyer — with no sign anything had been lost.
+ */
+describe('booking a Rolodex entry onto a bill', () => {
+  const filed = (): PotentialComic => ({
+    id: 'c1',
+    name: '  Nadia Okonjo  ',
+    notes: 'Cannot do Thursdays',
+    photo: 'media:headshot-abc',
+    socialMedia: '@nadiaokonjo',
+    email: 'nadia@example.com',
+    credits: 'Two festivals and a late-night set',
+    walkOnMusic: 'media:walkon-xyz',
+    walkOnMusicName: 'Get Ur Freak On',
+    walkOnMusicArtist: 'Missy Elliott',
+    walkOnMusicTimestamp: '0:42',
+    walkOnMusicLink: 'https://open.spotify.com/track/abc',
+  });
+
+  it('brings the headshot, which is the face on the board and the flyer', () => {
+    expect(comicToPerformer(filed()).photo).toBe('media:headshot-abc');
+  });
+
+  it('brings every field the two types share', () => {
+    // Structural rather than a list of names: a field added to both types in
+    // future is covered by this the day it is added, which is exactly how the
+    // headshot came to be missing.
+    const comic = filed();
+    const performer = comicToPerformer(comic);
+    // `id` is new by design, `notes` stays behind, and `name` is trimmed on
+    // the way — each asserted on its own below.
+    const skip = new Set(['id', 'notes', 'name']);
+    const carried = Object.keys(comic).filter((key) => !skip.has(key) && key in performer);
+    expect(carried.length).toBeGreaterThan(7);
+    for (const key of carried) {
+      expect(
+        performer[key as keyof typeof performer],
+        `${key} should come with them`,
+      ).toBe(comic[key as keyof PotentialComic]);
+    }
+  });
+
+  it('gives them their own id, because a booking is a copy and not a reference', () => {
+    const comic = filed();
+    const one = comicToPerformer(comic);
+    const two = comicToPerformer(comic);
+    expect(one.id).not.toBe(comic.id);
+    expect(one.id).not.toBe(two.id);
+  });
+
+  it('tidies the name, and leaves the producer’s private note behind', () => {
+    const performer = comicToPerformer(filed());
+    expect(performer.name).toBe('Nadia Okonjo');
+    // "Pays late" belongs to the Rolodex entry, not to one night's lineup.
+    expect(JSON.stringify(performer)).not.toContain('Thursdays');
+  });
+
+  it('carries nothing that was never filed, rather than inventing blanks', () => {
+    const performer = comicToPerformer({ id: 'c2', name: 'Dev Marchetti' });
+    expect(performer.name).toBe('Dev Marchetti');
+    expect(performer.photo).toBeUndefined();
+    expect(performer.email).toBeUndefined();
+  });
+
+  it('round-trips: filed, booked, and filed again keeps what it started with', () => {
+    const back = performerToComic(comicToPerformer(filed()));
+    expect(back.photo).toBe('media:headshot-abc');
+    expect(back.email).toBe('nadia@example.com');
+    expect(back.walkOnMusicArtist).toBe('Missy Elliott');
   });
 });

@@ -43,6 +43,37 @@ export function performerToComic(performer: Performer): PotentialComic {
 }
 
 /**
+ * A Rolodex entry as a performer on a bill, carrying everything the two types
+ * hold in common.
+ *
+ * One function because there were two hand-written copies of this — the
+ * lineup's picker and the show's own booking — and both dropped the headshot.
+ * A producer who had filed a face against a name booked them and got a blank
+ * circle on the Run Show board and nothing for the flyer, with no sign that
+ * anything had been lost. One of the two carried a comment promising that
+ * "everything the Rolodex holds comes with them".
+ *
+ * `notes` is deliberately not carried: it is the producer's private note on a
+ * person ("cannot do Thursdays", "pays late"), it belongs to the Rolodex entry
+ * rather than to one night, and a Performer has nowhere to put it.
+ */
+export function comicToPerformer(comic: PotentialComic): Performer {
+  return {
+    id: generateId(),
+    name: comic.name.trim(),
+    photo: comic.photo,
+    socialMedia: comic.socialMedia,
+    email: comic.email,
+    credits: comic.credits,
+    walkOnMusic: comic.walkOnMusic,
+    walkOnMusicName: comic.walkOnMusicName,
+    walkOnMusicArtist: comic.walkOnMusicArtist,
+    walkOnMusicTimestamp: comic.walkOnMusicTimestamp,
+    walkOnMusicLink: comic.walkOnMusicLink,
+  };
+}
+
+/**
  * The Rolodex with `performers` folded in, or `null` when they were all already
  * there.
  *
