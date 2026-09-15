@@ -75,6 +75,17 @@ describe('settingsMediaRefs', () => {
     expect(settingsMediaRefs(s)).toEqual(['media:face#1']);
   });
 
+  it('counts the headshot kept on a signed agreement', () => {
+    const s = settings({
+      signatureRequests: [{
+        id: 'r', token: 't'.repeat(20), key: 'k', contractId: 'k1', contractName: 'Deal',
+        signerName: 'Ada', sentAt: '',
+        signed: { signedAt: '', typedName: 'Ada', documentHash: 'h', headshot: 'media:face#1' },
+      }],
+    });
+    expect(settingsMediaRefs(s)).toEqual(['media:face#1']);
+  });
+
   it('counts shows sitting in the trash, because they can be restored', () => {
     const s = settings({
       trash: [{

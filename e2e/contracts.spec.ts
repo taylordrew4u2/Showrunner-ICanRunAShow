@@ -189,6 +189,24 @@ test.describe('contracts', () => {
     expect(cta.dead, 'a button that does nothing must not wear the live colour')
       .not.toBe(cta.live);
 
+    // A headshot, which is the one thing on this form the producer cannot get
+    // any other way.
+    const photo = await signer.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 400;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#c0392b';
+      ctx.fillRect(0, 0, 400, 400);
+      return canvas.toDataURL('image/jpeg', 0.9);
+    });
+    await signer.setInputFiles('.signing__photo-pick input[type=file]', {
+      name: 'headshot.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from(photo.split(',')[1], 'base64'),
+    });
+    await expect(signer.locator('.signing__photo-preview')).toBeVisible();
+
     // The contract asks for a few details as well as a signature; Email is the
     // one it insists on.
     await signer.getByLabel('Email').fill('nadia@example.com');
@@ -210,10 +228,23 @@ test.describe('contracts', () => {
     await expect(replay.locator('.signing__cta')).not.toHaveText(/Agree and sign/);
 
     // And the producer sees it, without being told.
+    const storedBefore = Object.keys(state.media).length;
     await page.reload();
     await gotoTab(page, 'More');
     await page.locator('.more-item').filter({ hasText: 'Contracts' }).click();
     await expect(page.locator('.contracts__item-meta')).toContainText('1 of 1 signed');
+
+    // And the headshot is on their profile, with nothing pressed. A face that
+    // needs a button is a face the producer does not have when they are
+    // making the flyer at midnight.
+    await gotoTab(page, 'Rolodex');
+    const filed = page.locator('.rolodex__item').filter({ hasText: 'Nadia Okonjo' });
+    await expect(filed.locator('.rolodex__photo')).toBeVisible();
+
+    // Filed as a stored file rather than left as a picture inside the settings
+    // blob — that blob is rewritten on every save and copied into every
+    // snapshot, so a data URL kept in it is paid for again and again.
+    expect(Object.keys(state.media).length).toBe(storedBefore + 1);
 
     await signerContext.close();
   });
