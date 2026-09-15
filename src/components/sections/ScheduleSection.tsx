@@ -9,8 +9,9 @@ import { ShowTimeline } from '../ShowTimeline';
 import { withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
 import { useConfirm } from '../useConfirm';
 import { fillCueDurations, isUntimed } from '../../utils/showTiming';
-import { cueAudioPatch, totalRuntimeLabel } from '../../utils/scheduleEditing';
+import { cueAudioPatch, runtimeLabel } from '../../utils/scheduleEditing';
 import { canDeriveTimes, timesFromLengths } from '../../utils/scheduleTemplates';
+import { scheduleSpan } from '../../utils/sectionSummary';
 import { ScheduleTemplates } from '../ScheduleTemplates';
 import { ScheduleGenerator } from '../ScheduleGenerator';
 import { OnStagePicker } from '../OnStagePicker';
@@ -408,7 +409,10 @@ export function ScheduleSection({
   useEffect(() => { scheduleRef.current = schedule; }, [schedule]);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  const totalLabel = useMemo(() => totalRuntimeLabel(schedule), [schedule]);
+  const totalLabel = useMemo(() => runtimeLabel(schedule), [schedule]);
+  // "Doors 7:30 PM → Encore 9:15 PM" — the same line the collapsed section
+  // header shows, so the summary reads the same whether the section is open.
+  const spanLabel = useMemo(() => scheduleSpan(schedule), [schedule]);
   // Cues whose length is implied rather than written down — the ones the
   // readiness count on the show page treats as untimed.
   const untimedCount = useMemo(() => schedule.filter(isUntimed).length, [schedule]);
@@ -574,11 +578,15 @@ export function ScheduleSection({
         <>
           <div className="schedule-summary">
             <div>
-              <div className="schedule-summary__label">Run-of-show</div>
+              <div className="schedule-summary__label">Run of show</div>
+              {/* The size of the night, then its shape. The show's own name
+                  used to lead this line, which is the one thing you already
+                  know — it is written at the top of the page you are on. */}
               <div className="schedule-summary__title">
-                {showName ? `${showName} · ` : ''}{schedule.length} cue{schedule.length === 1 ? '' : 's'}
+                {schedule.length} cue{schedule.length === 1 ? '' : 's'}
+                {totalLabel ? ` · ${totalLabel}` : ''}
               </div>
-              {totalLabel && <div className="schedule-summary__meta">{totalLabel}</div>}
+              {spanLabel && <div className="schedule-summary__meta">{spanLabel}</div>}
             </div>
             <div className="schedule-summary__actions">
               {performers.length > 0 && (
@@ -587,7 +595,7 @@ export function ScheduleSection({
                   onClick={() => setGeneratorOpen(true)}
                   title="Rebuild the running order from the people booked on this show"
                 >
-                  Generate
+                  Generate times
                 </button>
               )}
               {untimedCount > 0 && (
@@ -614,7 +622,7 @@ export function ScheduleSection({
                   onClick={clearAll}
                   title="Delete every cue and start over"
                 >
-                  Clear all
+                  Clear
                 </button>
               )}
             </div>
@@ -682,17 +690,19 @@ export function ScheduleSection({
               read, and it used to start four tool blocks down. */}
           <div className="schedule-tools">
             <button className="ai-import-entry" onClick={() => setImportOpen(true)}>
-              <span className="ai-import-entry__icon"><Icon name="sparkle" size={14} /></span>
+              <span className="ai-import-entry__icon"><Icon name="sparkle" size={18} /></span>
               <div className="ai-import-entry__body">
-                <div className="ai-import-entry__title">Import with AI</div>
-                <div className="ai-import-entry__sub">Paste, photo, or upload — AI extracts cues</div>
+                <div className="ai-import-entry__title">Import a schedule</div>
+                <div className="ai-import-entry__sub">
+                  Photo, PDF, or pasted text — times and names are read for you
+                </div>
               </div>
               <span className="ai-import-entry__chevron"><Icon name="chevron-right" size={16} /></span>
             </button>
 
             {templatesEnabled && (
               <button className="ai-import-entry" onClick={() => setTemplatesOpen(true)}>
-                <span className="ai-import-entry__icon"><Icon name="file" size={14} /></span>
+                <span className="ai-import-entry__icon"><Icon name="file" size={18} /></span>
                 <div className="ai-import-entry__body">
                   <div className="ai-import-entry__title">Templates</div>
                   <div className="ai-import-entry__sub">

@@ -34,15 +34,36 @@ export function formatRuntime(totalSeconds: number): string | null {
 }
 
 /**
- * "8:00 PM · 1 hr 10 min" — when the night starts and how long it runs.
- * Runtime comes from the same duration logic Run Show uses, so the estimate
- * here and the countdown on the night agree.
+ * "Doors 7:30 PM → Encore 9:15 PM" — the shape of the night in one line.
+ *
+ * The first and last cue by name, because "7:30 PM" alone says when to be
+ * there and nothing about what happens; the two ends of a running order are
+ * what a producer checks when they open a show they built last week.
+ */
+export function scheduleSpan(schedule: ScheduleItem[]): string | null {
+  if (schedule.length === 0) return null;
+  const end = (cue: ScheduleItem | undefined): string | null => {
+    if (!cue) return null;
+    const time = formatShowTime(cue.time);
+    const name = cue.description?.trim();
+    if (!time) return name || null;
+    return name ? `${name} ${time}` : time;
+  };
+  const first = end(schedule[0]);
+  const last = schedule.length > 1 ? end(schedule[schedule.length - 1]) : null;
+  if (!first) return null;
+  return last && last !== first ? `${first} → ${last}` : first;
+}
+
+/**
+ * "Doors 7:30 PM → Encore 9:15 PM · 1 hr 45 min" — where the night starts and
+ * ends, and how long it runs. Runtime comes from the same duration logic Run
+ * Show uses, so the estimate here and the countdown on the night agree.
  */
 export function scheduleSummary(schedule: ScheduleItem[]): string | null {
   if (schedule.length === 0) return null;
   const runtime = formatRuntime(baseDurations(schedule).reduce((sum, s) => sum + s, 0));
-  const start = formatShowTime(schedule[0]?.time);
-  const parts = [start, runtime].filter((p): p is string => !!p);
+  const parts = [scheduleSpan(schedule), runtime].filter((p): p is string => !!p);
   if (parts.length === 0) return joinNames(schedule.map((s) => s.description), 2);
   return parts.join(' · ');
 }

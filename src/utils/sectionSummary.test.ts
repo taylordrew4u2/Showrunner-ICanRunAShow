@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   joinNames,
   formatRuntime,
+  scheduleSpan,
   scheduleSummary,
   staffSummary,
   vendorsSummary,
@@ -55,14 +56,39 @@ describe('formatRuntime', () => {
   });
 });
 
+describe('scheduleSpan', () => {
+  it('names both ends of the night, not just when doors are', () => {
+    const schedule = [
+      cue({ time: '19:30', description: 'Doors open' }),
+      cue({ time: '20:00', description: 'Host opens the room' }),
+      cue({ time: '21:15', description: 'Encore' }),
+    ];
+    expect(scheduleSpan(schedule)).toBe('Doors open 7:30 PM → Encore 9:15 PM');
+  });
+
+  it('says what it can when a cue has no clock time on it yet', () => {
+    expect(scheduleSpan([cue({ description: 'Doors' }), cue({ time: '21:15', description: 'Encore' })]))
+      .toBe('Doors → Encore 9:15 PM');
+  });
+
+  it('has nothing to say about an empty running order', () => {
+    expect(scheduleSpan([])).toBeNull();
+  });
+});
+
 describe('scheduleSummary', () => {
-  it('gives the start time and the total runtime', () => {
+  it('gives both ends of the night and the total runtime', () => {
     const schedule = [
       cue({ time: '20:00', description: 'Doors', durationMin: 15 }),
       cue({ time: '20:15', description: 'Host', durationMin: 5 }),
       cue({ time: '20:20', description: 'Headliner', durationMin: 50 }),
     ];
-    expect(scheduleSummary(schedule)).toBe('8:00 PM · 1 hr 10 min');
+    expect(scheduleSummary(schedule)).toBe('Doors 8:00 PM → Headliner 8:20 PM · 1 hr 10 min');
+  });
+
+  it('does not repeat itself when the show is one cue long', () => {
+    expect(scheduleSummary([cue({ time: '20:00', description: 'Doors', durationMin: 15 })]))
+      .toBe('Doors 8:00 PM · 15 min');
   });
 
   it('still says something useful when cues have no clock times', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ScheduleItem } from '../types';
 import { buildSoundboard } from './soundboard';
-import { cueAudioPatch, totalRuntimeLabel } from './scheduleEditing';
+import { cueAudioPatch, runtimeLabel } from './scheduleEditing';
 
 const cue = (patch: Partial<ScheduleItem> = {}): ScheduleItem => ({
   id: 'cue', time: '', description: 'Intro', ...patch,
@@ -9,20 +9,20 @@ const cue = (patch: Partial<ScheduleItem> = {}): ScheduleItem => ({
 
 describe('schedule runtime summary', () => {
   it('includes the final segment and respects explicit lengths over clock gaps', () => {
-    expect(totalRuntimeLabel([
+    expect(runtimeLabel([
       cue({ time: '8:00 PM', durationMin: 10 }),
       cue({ id: 'last', time: '8:10 PM', durationMin: 10 }),
-    ])).toBe('20m total');
-    expect(totalRuntimeLabel([
+    ])).toBe('20m');
+    expect(runtimeLabel([
       cue({ time: '8:00 PM', durationMin: 20 }),
       cue({ id: 'last', time: '8:10 PM', durationMin: 45 }),
-    ])).toBe('1h 5m total');
+    ])).toBe('1h 5m');
   });
 
   it('shows a single cue and preserves sub-minute allocations', () => {
-    expect(totalRuntimeLabel([cue({ description: 'Intro 30 sec' })])).toBe('30s total');
-    expect(totalRuntimeLabel([cue()])).toBe('5m total');
-    expect(totalRuntimeLabel([])).toBeNull();
+    expect(runtimeLabel([cue({ description: 'Intro 30 sec' })])).toBe('30s');
+    expect(runtimeLabel([cue()])).toBe('5m');
+    expect(runtimeLabel([])).toBeNull();
   });
 });
 
