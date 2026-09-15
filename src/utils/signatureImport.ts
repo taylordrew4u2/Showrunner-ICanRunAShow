@@ -236,3 +236,86 @@ export function applyFiledHeadshot(
   if (!filed.name) return comics;
   return [...comics, { id: newId(), name: filed.name, photo: ref }];
 }
+
+/**
+ * What a person's signed contracts know that their profile does not.
+ *
+ * The details import has always been an offer, on the grounds that a profile
+ * curated for a year outranks whatever someone typed at 1am. That holds for a
+ * *disagreement* — two different phone numbers is a question only the producer
+ * can settle — but not for a gap. An empty email beside an email the person
+ * typed themselves is not a decision; it is a button that did not get pressed,
+ * and a Rolodex full of blanks six months later.
+ *
+ * So gaps fill themselves and conflicts stay an offer. Nothing here can
+ * overwrite a value that is already on file.
+ */
+export function signedProfilePatch(
+  requests: SignatureAnswersLike[],
+  person: { name: string } & Partial<ImportedProfile>,
+  key: (name: string) => string,
+): ImportedProfile | null {
+  const theirs = requests.filter(
+    (r) => r.signed?.fields?.length && key(r.signerName ?? '') === key(person.name),
+  );
+  if (theirs.length === 0) return null;
+
+  // Newest first, so the most recent thing they told you fills a gap.
+  const ordered = [...theirs].sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? ''));
+  const patch: ImportedProfile = {};
+  for (const request of ordered) {
+    const answered = profileFromAnswers(request.signed?.fields);
+    for (const change of profileChanges(person, answered)) {
+      // `from` set means the profile already holds something different: a
+      // conflict, which stays with the producer.
+      if (change.from) continue;
+      if (patch[change.key]) continue;
+      patch[change.key] = change.to;
+    }
+  }
+  return Object.keys(patch).length > 0 ? patch : null;
+}
+
+/** The part of a signature request the answer-filling needs. */
+export interface SignatureAnswersLike {
+  signerName: string;
+  contactId?: string;
+  sentAt?: string;
+  signed?: { fields?: { label: string; value: string }[] };
+}
+
+/**
+ * Fill every Rolodex entry's gaps from what its person has signed, and file
+ * anyone who signed and was never added at all.
+ *
+ * Returns null when there is nothing to write, so an ordinary visit to the
+ * contracts screen does not save the same settings back unchanged.
+ */
+export function fillRolodexFromSignatures(
+  requests: (SignatureAnswersLike & { signerName: string })[],
+  comics: PotentialComic[],
+  key: (name: string) => string,
+  newId: () => string,
+): PotentialComic[] | null {
+  let changed = false;
+  let next = comics.map((comic) => {
+    const patch = signedProfilePatch(requests, comic, key);
+    if (!patch) return comic;
+    changed = true;
+    return { ...comic, ...patch };
+  });
+
+  // Someone who signed an agreement is a contact whether or not anyone filed
+  // them as one, and their answers have nowhere else to live.
+  const filed = new Set(next.map((c) => key(c.name)));
+  for (const request of requests) {
+    const name = (request.signerName ?? '').trim();
+    if (!name || !request.signed?.fields?.length || filed.has(key(name))) continue;
+    const patch = signedProfilePatch(requests, { name }, key);
+    filed.add(key(name));
+    changed = true;
+    next = [...next, { id: newId(), name, ...(patch ?? {}) }];
+  }
+
+  return changed ? next : null;
+}
