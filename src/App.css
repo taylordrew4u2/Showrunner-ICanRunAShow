@@ -4008,3 +4008,30 @@ body:has([aria-modal='true']) .status-rail {
     min-width: 0;
   }
 }
+
+/* The comic's face and details are one keyboard-accessible profile target. */
+.rolodex__open-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rolodex__open-profile:hover { background: var(--surface); }
+.rolodex__open-profile:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.rolodex__open-profile .rolodex__item-content { min-width: 0; }
+.rolodex__open-profile .rolodex__name,
+.rolodex__open-profile .rolodex__meta,
+.rolodex__open-profile .rolodex__notes { display: block; }
+@media (max-width: 619px) {
+  .rolodex__open-profile { flex-basis: 100%; }
+}

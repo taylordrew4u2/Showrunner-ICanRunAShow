@@ -54,13 +54,15 @@ export function RolodexRow({
   return (
     <article className="rolodex__item">
       <div className="rolodex__item-main">
+        <button className="rolodex__open-profile" type="button" onClick={onEdit}
+          aria-label={`Open ${comic.name}'s full profile`}>
         {photoUrl ? (
           <img className="rolodex__photo" src={photoUrl} alt="" />
         ) : (
-          <div className="rolodex__photo-placeholder">{comic.name.charAt(0).toUpperCase()}</div>
+          <span className="rolodex__photo-placeholder">{comic.name.charAt(0).toUpperCase()}</span>
         )}
-        <div className="rolodex__item-content">
-          <p className="rolodex__name">{comic.name}</p>
+        <span className="rolodex__item-content">
+          <span className="rolodex__name">{comic.name}</span>
           {/* Stated as what is missing rather than a percentage: "Needs an
               email" is something you can act on, and 50% is not.
 
@@ -77,10 +79,11 @@ export function RolodexRow({
           {linkStatus === 'waiting' && !linkUrl && (
             <span className="rolodex__gaps rolodex__gaps--waiting">Asked for details</span>
           )}
-          {comic.socialMedia && <p className="rolodex__meta">{comic.socialMedia}</p>}
-          {walkOn && <p className="rolodex__meta">{walkOn}</p>}
-          {comic.notes && <p className="rolodex__notes">{comic.notes}</p>}
-        </div>
+          {comic.socialMedia && <span className="rolodex__meta">{comic.socialMedia}</span>}
+          {walkOn && <span className="rolodex__meta">{walkOn}</span>}
+          {comic.notes && <span className="rolodex__notes">{comic.notes}</span>}
+        </span>
+        </button>
         {/* Offered where there is a gap to close and nothing already out
             asking. A link for someone whose profile is complete is a chore
             for them and a chase for you, and there is nothing at the end of
