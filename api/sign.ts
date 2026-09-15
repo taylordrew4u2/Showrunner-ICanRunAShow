@@ -18,7 +18,7 @@
 //
 //   GET    ?token=…              → { payload, signedAt, signature } (public)
 //   PUT    { token, payload }    → create or replace a request (producer, authed)
-//   POST   { token, signature }  → sign, once and only once (public)
+//   POST   { token, signature }  → sign once; acknowledge exact retries (public)
 //   DELETE ?token=…              → revoke (producer, authed)
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
@@ -74,8 +74,16 @@ export default async function handler(req: Request): Promise<Response> {
         args: [signature, token],
       });
       if (result.rowsAffected === 0) {
-        // Either the request was revoked, or it is already signed. Both are
-        // "you cannot sign this", and the signer's page reloads to show which.
+        // A phone can lose the response after its signature has landed. An
+        // exact retry acknowledges that same agreement without replacing it
+        // or changing its timestamp. A different signature is still refused.
+        const existing = await db.execute({
+          sql: `SELECT signature, signed_at FROM sign_request WHERE token = ?`,
+          args: [token],
+        });
+        if (existing.rows.length === 0) return json({ error: 'not_found' }, 404);
+        const row = existing.rows[0];
+        if (row[1] !== null && row[0] === signature) return json({ ok: true });
         return json({ error: 'not_signable' }, 409);
       }
       return json({ ok: true });

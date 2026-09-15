@@ -64,6 +64,32 @@ describe('submitting an existing signing link', () => {
     expect((await post(encryptWithKey({ typedName: 'Test performer' }, key))).status).toBe(200);
   });
 
+  it('acknowledges an exact retry after a lost response without changing the agreement', async () => {
+    const signature = encryptWithKey({ typedName: 'Test performer' }, key);
+    expect((await post(signature)).status).toBe(200);
+    // Make any accidental timestamp reset visible without waiting a second.
+    await connection.db!.execute("UPDATE sign_request SET signed_at = '2026-09-14 12:00:00'");
+    expect((await post(signature)).status).toBe(200);
+    const row = await connection.db!.execute('SELECT signature, signed_at FROM sign_request');
+    expect(Array.from(row.rows[0])).toEqual([signature, '2026-09-14 12:00:00']);
+  });
+
+  it('keeps one agreement when the same pending submission is retried concurrently', async () => {
+    const signature = encryptWithKey({ typedName: 'Test performer' }, key);
+    const responses = await Promise.all([post(signature), post(signature), post(signature)]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200, 200]);
+    const row = await connection.db!.execute('SELECT signature FROM sign_request');
+    expect(row.rows[0][0]).toBe(signature);
+  });
+
+  it('distinguishes a revoked link from an agreement already received', async () => {
+    await connection.db!.execute('DELETE FROM sign_request');
+    const response = await post(encryptWithKey({ typedName: 'Test performer' }, key));
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: 'not_found' });
+    expect((await connection.db!.execute('SELECT * FROM sign_request')).rows).toHaveLength(0);
+  });
+
   it('rejects oversized submissions without consuming the existing link', async () => {
     const response = await post('A'.repeat(3 * 1024 * 1024));
     expect(response.status).toBe(413);

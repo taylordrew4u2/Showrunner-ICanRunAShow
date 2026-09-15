@@ -1,5 +1,7 @@
 import { clarifyIntroductionCredits } from '../utils/introductionCredits';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Modal } from './Modal';
+import { decryptWithKey, encryptWithKey } from '../utils/encryption';
 import type { ApiError } from '../utils/api';
 import {
   downscaleImage,
@@ -20,12 +22,11 @@ import {
   collectFieldAnswers,
   fetchSigningDocument,
   fetchSigningRequest,
-  missingRequiredFields,
   shortHash,
   signedFileName,
   prepareSignature,
   sendSignature,
-  submitSignature,
+  isRetryableSignatureError,
   type SigningPayload,
 } from '../utils/contracts';
 import { renderPdfPages, type RenderedPage } from '../utils/pdfPages';
@@ -37,7 +38,7 @@ interface SigningPageProps {
   signKey: string | null;
 }
 
-type Phase = 'loading' | 'ready' | 'signing' | 'done' | 'missing' | 'nokey';
+type Phase = 'loading' | 'load-error' | 'ready' | 'done' | 'missing' | 'nokey';
 
 /**
  * The page a performer opens from a signing link.
@@ -86,15 +87,6 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  /**
-   * Whether they have already been asked once about a missing headshot.
-   *
-   * The producer needs this photo — it is the face on the flyer and on the
-   * Run Show button, and chasing it afterwards costs a week of texts. But a
-   * missing photo must never be the reason an agreement goes unsigned, so it
-   * is asked once, loudly, and then never again. The second press signs.
-   */
-  const [photoAsked, setPhotoAsked] = useState(false);
   /** Set when the contract was signed but the headshot would not fit at all. */
   const [photoDropped, setPhotoDropped] = useState(false);
   /** Set when the headshot had to be made smaller to fit. */
@@ -108,128 +100,163 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
    */
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<'missing' | 'submit' | 'photo' | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [pendingSaved, setPendingSaved] = useState(false);
+  const retryDeliveryRef = useRef<(() => void) | null>(null);
+  const busyRef = useRef(false);
 
   useEffect(() => {
     if (!signKey) return;
     let cancelled = false;
+    setPhase('loading');
+    setDocError(false);
+    setPages([]);
+    setPageCount(0);
     (async () => {
-      const view = await fetchSigningRequest(token, signKey);
-      if (cancelled) return;
-      if (!view) { setPhase('missing'); return; }
-      setPayload(view.payload);
-      setSignerName(view.payload.signerName);
-      // What the show already answers — the date, the venue — arrives filled
-      // in. It is an ordinary value in the field, so it can still be corrected.
-      setValues(view.payload.prefill ?? {});
-      /*
-       * Then whatever they had already typed, which wins over both the
-       * prefill and the producer's spelling of their name — it is the most
-       * recent thing this person said, and they said it on this device.
-       */
-      /*
-       * A signature given on a previous visit that never reached the server.
-       * Picked up before anything else: they are already signed, they just do
-       * not know it landed, and this page is the only thing that can finish
-       * the job.
-       */
-      const held = loadPendingSignature(token);
-      if (held) setPending(held.signature);
-
-      const draft = loadSignerDraft(token);
-      if (draft) {
-        if (draft.signerName) setSignerName(draft.signerName);
-        if (draft.typedName) setTypedName(draft.typedName);
-        if (draft.values && Object.keys(draft.values).length) {
-          setValues((prev) => ({ ...prev, ...draft.values }));
+      try {
+        const view = await fetchSigningRequest(token, signKey);
+        if (cancelled) return;
+        if (!view) { setPhase('missing'); return; }
+        setPayload(view.payload);
+        const draft = loadSignerDraft(token);
+        setSignerName(draft?.signerName ?? view.payload.signerName);
+        setTypedName(draft?.typedName ?? '');
+        setAgreed(draft?.agreed ?? false);
+        setValues({ ...view.payload.prefill, ...draft?.values });
+        const held = loadPendingSignature(token);
+        let resumed = false;
+        if (view.signed) {
+          setSigned(view.signed);
+          setPending(null);
+          clearPendingSignature(token);
+          clearSignerDraft(token);
+          setPhase('done');
+        } else if (held) {
+          try {
+            const record = decryptWithKey<SignatureRecord>(held.signature, signKey);
+            if (!record?.typedName || !record.documentHash) throw new Error('Invalid saved signature');
+            setSigned(record);
+            setPendingSaved(true);
+            setPending(held.signature);
+            resumed = true;
+            setPhase('done');
+          } catch {
+            clearPendingSignature(token);
+          }
         }
-        if (draft.agreed) setAgreed(true);
-      }
-      const doc = await fetchSigningDocument(token, signKey, view.payload.total);
-      if (cancelled) return;
-      setDocUrl(doc);
-      if (doc) {
-        // Pages appear as they finish rather than all at the end — a long
-        // agreement should be readable from page one while the rest draws.
+        const doc = await fetchSigningDocument(token, signKey, view.payload.total);
+        if (cancelled) return;
+        setDocUrl(doc);
+        if (!doc) {
+          if (!view.signed && !resumed) setPhase('load-error');
+          return;
+        }
         try {
           await renderPdfPages(doc, (page, total) => {
             if (cancelled) return;
             setPageCount(total);
-            setPages((prev) => [...prev, page]);
+            setPages(prev => [...prev, page]);
           });
         } catch (err) {
-          // Logged, not swallowed: when a signer says the document did not
-          // show, this is the only place that can say why.
           console.error('Could not render the contract:', err);
           if (!cancelled) setDocError(true);
         }
-      }
-      if (view.signed) {
-        setSigned(view.signed);
-        // Already signed — from another device, or from a submission this
-        // phone never heard the answer to. Either way the draft is spent.
-        clearSignerDraft(token);
-        setPhase('done');
-      } else {
-        setPhase('ready');
+        if (!cancelled && !view.signed && !resumed) setPhase('ready');
+      } catch {
+        if (!cancelled) setPhase(current => current === 'done' ? current : 'load-error');
       }
     })();
     return () => { cancelled = true; };
-  }, [token, signKey]);
+  }, [token, signKey, loadAttempt]);
 
   const documentReady = !!docUrl && !docError && pageCount > 0 && pages.length === pageCount;
 
-  /**
-   * Keep trying to deliver a signature that has already been given.
-   *
-   * Runs while anything is pending: immediately, again the moment the browser
-   * says it is back online, and on a timer that starts quick and slows down.
-   * There is no attempt limit, because the thing being removed is the moment
-   * someone is told they cannot sign — a signature that is waiting is not a
-   * signature that failed.
-   */
+  // Only a confirmed server response earns the "Signed" receipt. Keep the
+  // exact ciphertext for retries so a lost response cannot create a new act.
   useEffect(() => {
-    if (!pending) return;
+    if (!pending || !signKey) return;
     let stopped = false;
+    let inFlight = false;
     let attempt = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
-
+    const delivered = (record?: SignatureRecord) => {
+      clearPendingSignature(token);
+      clearSignerDraft(token);
+      if (record) setSigned(record);
+      setPending(null);
+      setError(null);
+      setPhase('done');
+    };
     const deliver = async () => {
-      if (stopped) return;
+      if (stopped || inFlight) return;
+      inFlight = true;
       try {
-        await sendSignature(token, pending);
-        if (stopped) return;
-        clearPendingSignature(token);
-        clearSignerDraft(token);
-        setPending(null);
+        await sendSignature(token, pending, { attempts: 1 });
+        if (!stopped) delivered();
       } catch (err) {
         if (stopped) return;
-        const status = (err as ApiError).status;
-        if (status === 409) {
-          // The server already has one. That is delivered, not failed.
-          clearPendingSignature(token);
-          clearSignerDraft(token);
-          setPending(null);
-          return;
+        const status = (err as ApiError)?.status;
+        // The response may have been lost after the server saved it.
+        let verificationFailed = false;
+        try {
+          const landed = await fetchSigningRequest(token, signKey);
+          if (stopped) return;
+          if (landed?.signed) { delivered(landed.signed); return; }
+        } catch {
+          // Neither success nor rejection is established while status is offline.
+          verificationFailed = true;
         }
-        // 413 cannot happen here (the size ladder ran before anything was
-        // held), and everything else is worth asking about again later.
-        timer = setTimeout(() => void deliver(), retryDelayMs(attempt++));
+        if (stopped) return;
+        if (status === 413) {
+          const record = decryptWithKey<SignatureRecord>(pending, signKey);
+          if (record.headshot) {
+            // Preserve the signature and answers while reducing only its
+            // optional photo. The second 413 drops it and sends the agreement.
+            const smaller = !photoShrunk
+              ? await shrinkDataUrl(record.headshot, HEADSHOT_FALLBACK_DIMS.at(-1)!).catch(() => null)
+              : null;
+            if (stopped) return;
+            record.headshot = smaller || undefined;
+            setPhotoShrunk(!!smaller);
+            setPhotoDropped(!smaller);
+            setHeadshot(smaller);
+            const replacement = encryptWithKey(record, signKey);
+            setPendingSaved(savePendingSignature(token, replacement));
+            setSigned(record);
+            setPending(replacement);
+            return;
+          }
+        }
+        if (isRetryableSignatureError(err) || (status === 409 && verificationFailed)) {
+          timer = setTimeout(() => void deliver(), retryDelayMs(attempt++));
+        } else {
+          // Do not silently discard a rejection or show a success receipt.
+          clearPendingSignature(token);
+          setPending(null);
+          setPhase('ready');
+          setError(submitFailureMessage(err, { hasPhoto: false }));
+          setNotice('submit');
+        }
+      } finally {
+        inFlight = false;
       }
     };
-
     void deliver();
     const onOnline = () => {
       attempt = 0;
       clearTimeout(timer);
       void deliver();
     };
+    retryDeliveryRef.current = onOnline;
     window.addEventListener('online', onOnline);
     return () => {
       stopped = true;
+      retryDeliveryRef.current = null;
       clearTimeout(timer);
       window.removeEventListener('online', onOnline);
     };
-  }, [pending, token]);
+  }, [pending, token, signKey, photoShrunk]);
 
   /*
    * Written on every change rather than on a timer: the events this protects
@@ -237,23 +264,29 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
    * not announce themselves first.
    */
   useEffect(() => {
-    if (phase === 'loading' || phase === 'done' || phase === 'nokey' || phase === 'missing') return;
+    if (phase !== 'ready') return;
     saveSignerDraft(token, { signerName, typedName, values, agreed });
   }, [token, signerName, typedName, values, agreed, phase]);
 
-  /**
-   * What the signer still has to do, in the order the page asks for it, so the
-   * hint under the button reads down the form rather than in whatever order
-   * the checks happen to be written.
-   */
-  const stillNeeded = payload
-    ? [
-        ...(signerName.trim() ? [] : ['your name']),
-        ...missingRequiredFields(payload.fields, values),
-        ...(typedName.trim() ? [] : ['your signature']),
-        ...(agreed ? [] : ['the agreement ticked']),
-      ]
-    : [];
+  const missingDetails = payload ? [
+    ...(signerName.trim() ? [] : [{ label: 'Your name', id: 'signer-name' }]),
+    ...(payload.fields ?? []).filter(f => f.required && !(values[f.id] ?? '').trim())
+      .map(clarifyIntroductionCredits).map(f => ({ label: f.label, id: `signer-field-${f.id}` })),
+    ...(typedName.trim() ? [] : [{ label: 'Your signature', id: 'signer-signature' }]),
+    ...(agreed ? [] : [{ label: 'Tick the agreement checkbox', id: 'signer-agreed' }]),
+  ] : [];
+  const stillNeeded = missingDetails.map(field => field.label);
+
+  function focusMissing() {
+    const id = missingDetails[0]?.id;
+    setNotice(null);
+    // Run after the modal restores focus, then take the signer to the field.
+    setTimeout(() => {
+      const field = id ? document.getElementById(id) : null;
+      field?.focus();
+      field?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 0);
+  }
 
   /**
    * Take a photo down to flyer size before it goes anywhere.
@@ -290,140 +323,33 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
     }
   }
 
-  async function handleSign() {
-    if (!signKey || !docUrl || !payload || !documentReady || phase !== 'ready') return;
-    const signature_ = typedName.trim();
-    const name = signerName.trim();
-    const missing = missingRequiredFields(payload.fields, values);
-    if (!signature_ || !name || !agreed || missing.length > 0) return;
-    // Asked here rather than by disabling the button: everything else on this
-    // form is required, and this one is wanted. Pressing again goes through
-    // whatever they choose.
-    if (!headshot && !photoAsked) {
-      setPhotoAsked(true);
-      document.querySelector('.signing__photo')?.scrollIntoView({ block: 'center' });
+  function handleSign(withoutPhoto = false) {
+    if (busyRef.current || pending) return;
+    if (missingDetails.length) { setNotice('missing'); return; }
+    if (photoBusy && !withoutPhoto) { setNotice('photo'); return; }
+    if (!signKey || !docUrl || !payload || !documentReady || phase !== 'ready') {
+      setError('The contract is still opening. Use Try again above if it does not finish. Your answers are kept.');
+      setNotice('submit');
       return;
     }
-    setPhase('signing');
-    setError(null);
+    busyRef.current = true;
     try {
-      const record = await submitSignature(
-        token,
-        signKey,
-        signature_,
-        docUrl,
-        collectFieldAnswers(payload.fields, values),
-        headshot ?? undefined,
-        name,
+      const { record, signature } = prepareSignature(
+        signKey, typedName.trim(), docUrl,
+        collectFieldAnswers(payload.fields, values), withoutPhoto ? undefined : headshot ?? undefined, signerName.trim(),
       );
+      // Save before the first network attempt, including if the tab closes
+      // while the server is receiving the upload.
+      setPendingSaved(savePendingSignature(token, signature));
       setSigned(record);
-      clearSignerDraft(token);
+      setError(null);
+      setNotice(null);
+      setPending(signature);
       setPhase('done');
     } catch (err) {
-      /*
-       * Before telling someone their signature failed, find out whether it
-       * did.
-       *
-       * A write that landed and lost its answer looks identical to one that
-       * never arrived — the connection drops, or the request times out after
-       * the server has already recorded it. Only the server knows, and it will
-       * now say the request is signed. Getting this wrong told a performer who
-       * had signed that they had not, so they pressed again, got "already
-       * signed" reported as a connection problem, and texted the producer.
-       */
-      const landed = await fetchSigningRequest(token, signKey).catch(() => null);
-      if (landed?.signed) {
-        setSigned(landed.signed);
-        clearSignerDraft(token);
-        setPhase('done');
-        return;
-      }
-      const status = (err as ApiError).status;
-
-      /*
-       * Too large, and the only thing that can be large is the headshot. So
-       * make it smaller and send it again, down a ladder, rather than losing
-       * it or asking the performer to go and edit a photo on their phone.
-       *
-       * The server is the judge of what fits: the payload is encrypted before
-       * it goes, so its final size is not something this page can work out in
-       * advance. Hence trying rather than calculating.
-       */
-      if (status === 413 && headshot) {
-        let smaller: string | null = headshot;
-        for (const dim of HEADSHOT_FALLBACK_DIMS) {
-          setError(`That photo was too large, so it is being made smaller — still sending…`);
-          smaller = await shrinkDataUrl(headshot, dim);
-          if (!smaller) break;
-          try {
-            const record = await submitSignature(
-              token, signKey, signature_, docUrl,
-              collectFieldAnswers(payload.fields, values), smaller, name,
-            );
-            setSigned(record);
-            clearSignerDraft(token);
-            setHeadshot(smaller);
-            setPhotoShrunk(true);
-            setError(null);
-            setPhase('done');
-            return;
-          } catch (again) {
-            // Still too big? Down another rung. Anything else is a real
-            // failure and is reported as itself.
-            if ((again as ApiError).status !== 413) {
-              setPhase('ready');
-              setError(submitFailureMessage(again, { hasPhoto: true }));
-              return;
-            }
-          }
-        }
-
-        // Even the smallest would not fit. The agreement is the point and the
-        // photo is optional, so sign without it and say so plainly.
-        try {
-          const record = await submitSignature(
-            token, signKey, signature_, docUrl,
-            collectFieldAnswers(payload.fields, values), undefined, name,
-          );
-          setSigned(record);
-          clearSignerDraft(token);
-          setHeadshot(null);
-          // Said on the receipt, not on the form — the form is gone by then.
-          setPhotoDropped(true);
-          setError(null);
-          setPhase('done');
-          return;
-        } catch (last) {
-          setPhase('ready');
-          setError(submitFailureMessage(last, { hasPhoto: false }));
-          return;
-        }
-      }
-
-      /*
-       * The server never answered — offline, or a connection that keeps
-       * dying. This is the case that used to end in "you cannot submit", and
-       * it is the one case where that was never true: the signature exists,
-       * it is theirs, and the only thing missing is a working connection.
-       *
-       * So hold it and keep trying. It survives the page closing and goes out
-       * when the signal does come back, whether or not they are watching.
-       */
-      if ((err as ApiError).status === undefined) {
-        const { record, signature } = prepareSignature(
-          signKey, signature_, docUrl,
-          collectFieldAnswers(payload.fields, values), headshot ?? undefined, name,
-        );
-        savePendingSignature(token, signature);
-        setPending(signature);
-        setSigned(record);
-        setPhase('done');
-        return;
-      }
-
-      setPhase('ready');
       setError(submitFailureMessage(err, { hasPhoto: !!headshot }));
-    }
+      setNotice('submit');
+    } finally { busyRef.current = false; }
   }
 
   function download() {
@@ -454,6 +380,14 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
     );
   }
 
+  if (phase === 'load-error') {
+    return <div className="signing signing--message"><div className="signing__card">
+      <h1>Let’s try opening that again</h1>
+      <p role="alert">The contract could not finish loading. Your answers are kept. Check your connection and try again.</p>
+      <button className="btn btn--primary" onClick={() => setLoadAttempt(value => value + 1)}>Try again</button>
+    </div></div>;
+  }
+
   if (phase === 'loading' || !payload) {
     return (
       <div className="signing signing--message">
@@ -482,8 +416,9 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           /* Drawing the pages failed — an encrypted or malformed PDF. The file
              itself is still here, so offer it rather than leaving them stuck. */
           <div className="signing__doc-fallback">
-            <p role="alert">The full contract could not be displayed. Signing is unavailable until every page can be shown. Reload the page or ask the sender for a readable PDF.</p>
+            <p role="alert">The full contract could not be displayed. Try loading it again, or open the PDF to check the file. Your answers are kept.</p>
             <button className="btn btn--secondary" onClick={download}>Open the PDF</button>
+            <button className="btn btn--primary" onClick={() => setLoadAttempt(value => value + 1)}>Try again</button>
           </div>
         ) : pages.length === 0 ? (
           <p className="signing__doc-loading">Opening the document…</p>
@@ -515,17 +450,17 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
 
       {phase === 'done' && signed ? (
         <section className="signing__panel signing__panel--done">
-          <h2>Signed</h2>
-          {/* Honest about where it has got to. Signed is true the moment they
-              sign it; delivered is a separate fact and is not claimed until
-              the server has it. Neither of them is "you cannot submit". */}
+          <h2>{pending ? 'Sending your signature' : 'Signed'}</h2>
+
           {pending && (
             <p className="signing__sending" role="status">
               <span className="signing__sending-dot" aria-hidden="true" />
-              Saved on this device and sending as soon as there is signal. You can close
-              this page — it will finish on its own next time you open the link.
+              {pendingSaved
+                ? 'Your signature is saved on this device and is being sent. Keep this page open until it says Signed. If you close it, reopen this same link to resume.'
+                : 'Keep this page open until it says Signed. This browser could not save a backup, so closing it before delivery could lose your submission.'}
             </p>
           )}
+          {pending && <button className="btn btn--secondary" onClick={() => retryDeliveryRef.current?.()}>Retry now</button>}
           <p className="signing__done-line">
             {signed.typedName} · {new Date(signed.signedAt).toLocaleString()}
           </p>
@@ -540,36 +475,37 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             </dl>
           )}
           <p className="signing__ref">Document reference {shortHash(signed.documentHash)}</p>
-          <button className="btn btn--primary signing__cta" onClick={download}>
+          {docUrl && <button className="btn btn--primary signing__cta" onClick={download}>
             Save a copy
-          </button>
+          </button>}
           {photoShrunk && (
             <p className="signing__note" role="status">
-              Your photo was made smaller so it would send. The contract is signed and
-              nothing is outstanding.
+              Your photo was made smaller so it would send.
+              {pending ? 'It is still sending.' : 'Nothing is outstanding.'}
             </p>
           )}
           {photoDropped && (
             <p className="signing__note" role="status">
-              Your photo was too large to send, so it was left off. The contract is signed —
-              nothing else is outstanding. {payload.fromName} can ask for the photo separately.
+              Your photo was too large to send, so it was left off. {pending ? 'Your agreement is still sending.' : 'Your agreement is signed.'}
             </p>
           )}
           <p className="signing__note">
             {pending
               ? `${payload.fromName} will see this as soon as it sends.`
               : `${payload.fromName} can see that you have signed.`}{' '}
-            Keep a copy for yourself — this link is the only place it lives.
+            Keep a copy for yourself.
           </p>
         </section>
       ) : documentReady ? (
         <section className="signing__panel" aria-labelledby="signing-form-title">
           <h2 id="signing-form-title">Your details and signature</h2>
-          {error && <p className="signing__error" role="alert">{error}</p>}
+          {error && notice !== 'submit' && <p className="signing__error" role="alert">{error}</p>}
 
           <label className="signing__field signing__field--name">
             <span>Your name</span>
             <input
+              id="signer-name"
+              aria-invalid={notice === 'missing' && !signerName.trim()}
               type="text"
               value={signerName}
               autoComplete="name"
@@ -586,6 +522,8 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
               </span>
               {f.multiline ? (
                 <textarea
+                  id={`signer-field-${f.id}`}
+                  aria-invalid={notice === 'missing' && f.required && !(values[f.id] ?? '').trim()}
                   rows={3}
                   value={values[f.id] ?? ''}
                   placeholder={f.placeholder}
@@ -593,6 +531,8 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
                 />
               ) : (
                 <input
+                  id={`signer-field-${f.id}`}
+                  aria-invalid={notice === 'missing' && f.required && !(values[f.id] ?? '').trim()}
                   type="text"
                   value={values[f.id] ?? ''}
                   placeholder={f.placeholder}
@@ -605,11 +545,11 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           {/* The flyer needs a face, and this is the one moment the performer
               is already filling something in for you. Optional, because a
               missing photo must never be why a contract goes unsigned. */}
-          <div className={`signing__field signing__photo ${photoAsked && !headshot ? 'signing__photo--asked' : ''}`}>
+          <div className="signing__field signing__photo">
             <span>
               Headshot{' '}
               <em className="signing__optional">
-                {headshot ? 'used on the flyer' : 'the flyer needs this'}
+                {headshot ? 'used on the flyer' : 'optional, used on the flyer'}
               </em>
             </span>
             <div className="signing__photo-row">
@@ -647,15 +587,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
               </div>
             </div>
             {photoError && <p className="signing__photo-error" role="alert">{photoError}</p>}
-            {/* The one nudge. Said here, beside the button that would fix it,
-                rather than under the sign button where it reads as a refusal. */}
-            {photoAsked && !headshot && !photoError && (
-              <p className="signing__photo-ask" role="status">
-                No photo yet — this is the picture used on the flyer and the poster.
-                Add one above if you have it on this phone. Pressing Agree and sign
-                again will send your agreement without it.
-              </p>
-            )}
+
           </div>
 
           {/* Last, next to the agreement, and empty. Whatever was known about
@@ -664,6 +596,8 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           <label className="signing__field signing__field--signature">
             <span>Signature</span>
             <input
+              id="signer-signature"
+              aria-invalid={notice === 'missing' && !typedName.trim()}
               type="text"
               value={typedName}
               autoComplete="off"
@@ -674,6 +608,8 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
 
           <label className="signing__agree">
             <input
+              id="signer-agreed"
+              aria-invalid={notice === 'missing' && !agreed}
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
@@ -686,17 +622,12 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
 
           <button
             className="btn btn--primary signing__cta"
-            disabled={stillNeeded.length > 0 || !documentReady || phase === 'signing'}
-            onClick={handleSign}
+            disabled={!!pending}
+            onClick={() => handleSign()}
           >
-            {phase === 'signing' ? 'Signing…' : 'Agree and sign'}
+            Agree and sign
           </button>
 
-          {/* Everything the button is waiting on, named. A greyed-out button
-              with no explanation is where a signer gives up and texts the
-              producer instead, and the signature and the tick-box were not in
-              this list before — which made an empty signature field look like
-              the page being broken. */}
           {stillNeeded.length > 0 && (
             <p className="signing__hint" role="status">
               Still needed: {stillNeeded.join(', ')}
@@ -710,6 +641,23 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           </p>
         </section>
       ) : null}
+      {notice && <Modal onClose={() => setNotice(null)} labelledBy="signing-notice-title">
+        <div className="signing__notice">
+          <h2 id="signing-notice-title">{notice === 'missing' ? 'Finish these details' : notice === 'photo' ? 'Your photo is still preparing' : 'Your signature has not been submitted yet'}</h2>
+          {notice === 'missing' ? <>
+            <p>Complete these items, then press Agree and sign. Your answers are still here.</p>
+            <ul>{missingDetails.map(field => <li key={field.id}>{field.label}</li>)}</ul>
+            <button className="btn btn--primary" onClick={focusMissing}>Go to first missing field</button>
+          </> : notice === 'photo' ? <>
+            <p>Your photo is still being added. Wait for its preview, or send your agreement without the optional photo.</p>
+            <button className="btn btn--primary" onClick={() => setNotice(null)}>Wait for photo</button>
+            <button className="btn btn--secondary" onClick={() => handleSign(true)}>Sign without photo</button>
+          </> : <>
+            <p role="alert">{error}</p>
+            <button className="btn btn--primary" onClick={() => setNotice(null)}>Back to form</button>
+          </>}
+        </div>
+      </Modal>}
     </div>
   );
 }

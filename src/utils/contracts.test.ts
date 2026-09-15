@@ -4,9 +4,12 @@ import {
   collectFieldAnswers,
   contractNameFromFile,
   documentHash,
+  fetchSigningDocument,
+  fetchSigningRequest,
   generateSignKey,
   generateSignToken,
   missingRequiredFields,
+  isRetryableSignatureError,
   newContractField,
   prefillFromShow,
   readSignKeyFromHash,
@@ -17,11 +20,13 @@ import {
   lineupSigned,
   signedFileName,
   signingUrl,
+  sendSignature,
   splitIntoChunks,
   submitSignature,
   suggestedFields,
 } from './contracts';
-import { api } from './api';
+import { api, SUBMIT_TIMEOUT_MS } from './api';
+import { encryptWithKey } from './encryption';
 import { profileFromAnswers } from './signatureImport';
 import type { SignatureRequest } from '../types';
 
@@ -459,6 +464,30 @@ describe('submitting a signature on a bad connection', () => {
     expect(calls).toBe(1);
   });
 
+  it.each([408, 429, 500, 502, 503])('retries a temporary %s response with the same encrypted submission', async (status) => {
+    const post = vi.spyOn(api, 'post')
+      .mockRejectedValueOnce(Object.assign(new Error('temporary'), { status }))
+      .mockResolvedValue({ ok: true });
+    await sendSignature('tok', 'encrypted-record');
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post.mock.calls[0]).toEqual(post.mock.calls[1]);
+  });
+
+  it('lets the signing page own retries without waiting through three upload timeouts', async () => {
+    const failure = Object.assign(new Error('temporary'), { status: 503 });
+    const post = vi.spyOn(api, 'post').mockRejectedValue(failure);
+    await expect(sendSignature('tok', 'encrypted-record', { attempts: 1 })).rejects.toBe(failure);
+    expect(post).toHaveBeenCalledExactlyOnceWith('/api/sign',
+      { token: 'tok', signature: 'encrypted-record' }, { timeoutMs: SUBMIT_TIMEOUT_MS });
+  });
+
+  it('never classifies permanent refusals as a pending delivery', () => {
+    for (const status of [400, 401, 403, 404, 409, 413]) {
+      expect(isRetryableSignatureError({ status })).toBe(false);
+    }
+    expect(isRetryableSignatureError(new TypeError('Failed to fetch'))).toBe(true);
+  });
+
   it('gives up rather than asking forever', async () => {
     let calls = 0;
     vi.spyOn(api, 'post').mockImplementation(async () => {
@@ -470,5 +499,78 @@ describe('submitting a signature on a bad connection', () => {
       submitSignature('tok', 'key', 'Mona Sable', 'data:application/pdf;base64,AAAA'),
     ).rejects.toThrow();
     expect(calls).toBe(3);
+  });
+});
+
+describe('opening a signing link', () => {
+  const key = 'test-signing-key';
+  const payload = { contractName: 'Agreement', signerName: 'Ada', total: 1 };
+
+  it.each([undefined, 429, 500, 503])('preserves a temporary read failure (%s) so the page can retry', async (status) => {
+    const failure = Object.assign(new Error('temporary'), { status });
+    vi.spyOn(api, 'get').mockRejectedValue(failure);
+    await expect(fetchSigningRequest('tok', key)).rejects.toBe(failure);
+  });
+
+  it('returns missing only when the link does not exist or cannot be decrypted', async () => {
+    const get = vi.spyOn(api, 'get').mockRejectedValueOnce(Object.assign(new Error('missing'), { status: 404 }));
+    await expect(fetchSigningRequest('tok', key)).resolves.toBeNull();
+    get.mockResolvedValueOnce({ payload: encryptWithKey(payload, 'wrong-key'), signature: null });
+    await expect(fetchSigningRequest('tok', key)).resolves.toBeNull();
+  });
+
+  it('shows the stored signature after the original submission response was lost', async () => {
+    const record = { typedName: 'Ada', signedAt: '2026-09-15', documentHash: 'hash' };
+    vi.spyOn(api, 'get').mockResolvedValue({
+      payload: encryptWithKey(payload, key), signature: encryptWithKey(record, key),
+    });
+    await expect(fetchSigningRequest('tok', key)).resolves.toEqual({ payload, signed: record });
+  });
+
+  it('does not offer to sign again when an existing receipt cannot be read', async () => {
+    vi.spyOn(api, 'get').mockResolvedValue({
+      payload: encryptWithKey(payload, key), signature: encryptWithKey({ typedName: null }, key),
+    });
+    await expect(fetchSigningRequest('tok', key)).resolves.toBeNull();
+  });
+});
+
+describe('loading the agreement document', () => {
+  const key = 'test-document-key';
+
+  it('reassembles every decrypted chunk in order', async () => {
+    vi.spyOn(api, 'get')
+      .mockResolvedValueOnce({ data: encryptWithKey('data:application/pdf;base64,', key), total: 2 })
+      .mockResolvedValueOnce({ data: encryptWithKey('AAAA', key), total: 2 });
+    await expect(fetchSigningDocument('tok', key, 2)).resolves.toBe('data:application/pdf;base64,AAAA');
+  });
+
+  it('preserves a temporary chunk failure for the page to retry', async () => {
+    const failure = Object.assign(new Error('temporary'), { status: 503 });
+    vi.spyOn(api, 'get').mockRejectedValue(failure);
+    await expect(fetchSigningDocument('tok', key, 1)).rejects.toBe(failure);
+  });
+
+  it('reports a removed document as unavailable', async () => {
+    vi.spyOn(api, 'get').mockRejectedValue(Object.assign(new Error('missing'), { status: 404 }));
+    await expect(fetchSigningDocument('tok', key, 1)).resolves.toBeNull();
+  });
+
+  it.each([null, {}, '', 123])('rejects a malformed chunk (%j) instead of joining a truncated document', async (part) => {
+    vi.spyOn(api, 'get')
+      .mockResolvedValueOnce({ data: encryptWithKey('data:application/pdf;base64,AAAA', key), total: 2 })
+      .mockResolvedValueOnce({ data: encryptWithKey(part, key), total: 2 });
+    await expect(fetchSigningDocument('tok', key, 2)).resolves.toBeNull();
+  });
+
+  it('rejects mismatched chunk counts instead of presenting an incomplete agreement', async () => {
+    vi.spyOn(api, 'get').mockResolvedValue({ data: encryptWithKey('data:application/pdf;base64,AAAA', key), total: 2 });
+    await expect(fetchSigningDocument('tok', key, 1)).resolves.toBeNull();
+  });
+
+  it.each([0, -1, 1.5, 65, NaN])('rejects invalid chunk count %s before starting a request', async (total) => {
+    const get = vi.spyOn(api, 'get');
+    await expect(fetchSigningDocument('tok', key, total)).resolves.toBeNull();
+    expect(get).not.toHaveBeenCalled();
   });
 });

@@ -225,7 +225,9 @@ export async function installFakeApi(ctx, state) {
         const row = state.sign[body.token];
         // The rule the real route enforces in SQL. A replayed or racing POST
         // must never overwrite an agreement that is already on file.
-        if (!row || row.signedAt) {
+        if (!row) return err(404, 'not_found');
+        if (row.signedAt && row.signature === body.signature) return ok({ ok: true });
+        if (row.signedAt) {
           state.rejectedSecondSign = true;
           return err(409, 'not_signable');
         }

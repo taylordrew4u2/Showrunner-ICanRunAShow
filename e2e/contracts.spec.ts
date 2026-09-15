@@ -74,6 +74,11 @@ test.describe('contracts', () => {
     const actionBox = (await page.locator('.contracts__row .btn').first().boundingBox())!;
     expect(actionBox.y).toBeGreaterThanOrEqual(recipientBox.y + recipientBox.height);
     await page.setViewportSize(originalViewport);
+    if (originalViewport.width >= 900) {
+      // Let the desktop drawer replace the phone bar before navigating.
+      await expect(page.locator('.bottom-nav')).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Open navigation menu' })).toBeVisible();
+    }
 
 
     const link = await page.evaluate(() => navigator.clipboard.readText());
@@ -169,25 +174,11 @@ test.describe('contracts', () => {
       expect(font, `${field} should not fall back to a default font`).toContain('Inter');
     }
 
-    // A button that does nothing must not look like it does, and what is
-    // still missing has to be named — that is where someone gives up and
-    // texts the producer instead.
-    await expect(signer.locator('.signing__cta')).toBeDisabled();
-    await expect(signer.locator('.signing__hint')).toContainText('your signature');
-    // Read in one go and in a settled state — the button transitions its
-    // colour, so comparing a reading from before the change with one from
-    // after measures the animation rather than the design. The probe resolves
-    // the live colour in the same units the computed style reports.
-    const cta = await signer.locator('.signing__cta').evaluate((el) => {
-      const probe = document.createElement('div');
-      probe.style.backgroundColor = 'var(--primary)';
-      el.parentElement!.appendChild(probe);
-      const live = getComputedStyle(probe).backgroundColor;
-      probe.remove();
-      return { dead: getComputedStyle(el).backgroundColor, live };
-    });
-    expect(cta.dead, 'a button that does nothing must not wear the live colour')
-      .not.toBe(cta.live);
+    // An incomplete form responds to the sign action with specific guidance.
+    await expect(signer.locator('.signing__cta')).toBeEnabled();
+    await signer.locator('.signing__cta').click();
+    await expect(signer.getByRole('dialog')).toContainText('Your signature');
+    await signer.getByRole('button', {name: 'Go to first missing field'}).click();
 
     // A headshot, which is the one thing on this form the producer cannot get
     // any other way.
@@ -212,19 +203,19 @@ test.describe('contracts', () => {
     await signer.getByLabel('Email').fill('nadia@example.com');
     await signer.locator('.signing__agree input').check();
     // Everything else answered, and it still will not sign until they sign it.
-    await expect(signer.locator('.signing__cta')).toBeDisabled();
+    await expect(signer.locator('.signing__cta')).toBeEnabled();
 
     await signer.locator('.signing__field--signature input').fill('Nadia Okonjo');
     await expect(signer.locator('.signing__cta')).toBeEnabled();
     await signer.locator('.signing__cta').click();
-    await expect(signer.locator('.signing__panel--done')).toContainText('Signed');
+    await expect(signer.getByRole('heading', {name:'Signed',exact:true})).toBeVisible();
     await expect(signer.locator('.signing__page')).toHaveCount(2);
     await assertStacked();
 
     // Reopening cannot re-sign: the row is spent.
     const replay = await signerContext.newPage();
     await replay.goto(link);
-    await expect(replay.locator('.signing__panel--done')).toContainText('Signed');
+    await expect(replay.getByRole('heading', {name:'Signed',exact:true})).toBeVisible();
     await expect(replay.locator('.signing__cta')).not.toHaveText(/Agree and sign/);
 
     // And the producer sees it, without being told.

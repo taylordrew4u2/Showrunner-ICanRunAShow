@@ -27,17 +27,19 @@ export interface PendingSignature {
   savedAt: string;
 }
 
-export function savePendingSignature(token: string, signature: string): void {
-  if (!token || !signature) return;
+export function savePendingSignature(token: string, signature: string): boolean {
+  if (!token || !signature) return false;
   try {
     const entry: PendingSignature = { signature, savedAt: new Date().toISOString() };
     localStorage.setItem(PREFIX + token, JSON.stringify(entry));
+    return true;
   } catch {
     /*
      * Out of room, or a private window. Nothing else changes: the page keeps
      * retrying for as long as it is open, it just cannot also survive being
      * closed. Never a reason to fail the submission.
      */
+    return false;
   }
 }
 

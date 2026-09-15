@@ -166,16 +166,11 @@ test.describe('a contract sent from inside a show', () => {
     await late.getByLabel('Email').fill('nadia@example.com');
     await late.locator('.signing__field--signature input').fill('Nadia Okonjo');
     await late.locator('.signing__agree input').check();
-    // Asked once for a headshot, because the flyer needs one — and then never
-    // stopped. The nudge names what the photo is for and says what pressing
-    // again will do; it is not a refusal and not a disabled button.
-    await late.locator('.signing__cta').click();
-    await expect(late.locator('.signing__photo-ask')).toContainText('flyer');
-    await expect(late.locator('.signing__cta')).toBeEnabled();
+    // Optional headshots never add a second submission step.
     await late.locator('.signing__cta').click();
 
     // Signed, because it was. Not an error telling them to try again.
-    await expect(late.locator('.signing__panel--done')).toContainText('Signed');
+    await expect(late.getByRole('heading', {name:'Signed',exact:true})).toBeVisible();
     await expect(late.locator('.signing__error')).toHaveCount(0);
     await flaky.close();
 
@@ -225,9 +220,8 @@ test.describe('a contract sent from inside a show', () => {
     // ── Signing with no connection at all ──────────────────────────────────
     //
     // The case that used to end in "that did not go through". A signature
-    // given in a basement is still a signature: it is held, the signer is
-    // told it is signed and sending, and it goes out when the signal does.
-    // Nobody is ever told they cannot sign.
+    // given in a basement is held and sent when the signal returns. The page
+    // distinguishes that pending submission from a confirmed signature.
     const offline = await browser.newContext({ viewport: page.viewportSize()! });
     await installFakeApi(offline, state);
     const basement = await offline.newPage();
@@ -245,18 +239,17 @@ test.describe('a contract sent from inside a show', () => {
       await route.abort('internetdisconnected');
     });
     await basement.locator('.signing__cta').click();
-    await basement.locator('.signing__cta').click();
 
-    // Signed, and honest about where it has got to. Not an error, and not a
-    // suggestion that they try again themselves.
-    await expect(basement.locator('.signing__panel--done')).toContainText('Signed');
-    await expect(basement.locator('.signing__sending')).toContainText('sending as soon as');
+    await expect(basement.getByRole('heading', { name: 'Sending your signature', exact: true })).toBeVisible();
+    await expect(basement.getByRole('heading', { name: 'Signed', exact: true })).toHaveCount(0);
+    await expect(basement.locator('.signing__sending')).toContainText('saved on this device');
     await expect(basement.locator('.signing__error')).toHaveCount(0);
     expect(attempts, 'it should have tried and been cut off').toBeGreaterThan(0);
 
     // It is still trying on its own, and lands the moment the line is back.
     await basement.unroute('**/api/sign');
     await expect(basement.locator('.signing__sending')).toHaveCount(0, { timeout: 30_000 });
+    await expect(basement.getByRole('heading', { name: 'Signed', exact: true })).toBeVisible();
     expect(state.sign[new URL(fromLibrary).searchParams.get('t')!].signedAt).toBeTruthy();
     await offline.close();
 
