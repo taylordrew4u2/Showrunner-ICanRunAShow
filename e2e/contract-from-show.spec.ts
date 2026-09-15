@@ -180,6 +180,55 @@ test.describe('a contract sent from inside a show', () => {
     await expect(other.getByLabel('Venue')).toHaveValue(/Bell House/);
     await second.close();
 
+    // ── Signing with no connection at all ──────────────────────────────────
+    //
+    // The case that used to end in "that did not go through". A signature
+    // given in a basement is still a signature: it is held, the signer is
+    // told it is signed and sending, and it goes out when the signal does.
+    // Nobody is ever told they cannot sign.
+    const offline = await browser.newContext({ viewport: page.viewportSize()! });
+    await installFakeApi(offline, state);
+    const basement = await offline.newPage();
+    await basement.goto(fromLibrary);
+    await expect(basement.locator('.signing__title')).toBeVisible();
+    await basement.getByLabel('Email').fill('dev@example.com');
+    await basement.locator('.signing__field--signature input').fill('Dev Marchetti');
+    await basement.locator('.signing__agree input').check();
+
+    // Now the connection dies — every attempt, for as long as it is down.
+    let attempts = 0;
+    await basement.route('**/api/sign', async (route, request) => {
+      if (request.method() !== 'POST') return route.fallback();
+      attempts++;
+      await route.abort('internetdisconnected');
+    });
+    await basement.locator('.signing__cta').click();
+
+    // Signed, and honest about where it has got to. Not an error, and not a
+    // suggestion that they try again themselves.
+    await expect(basement.locator('.signing__panel--done')).toContainText('Signed');
+    await expect(basement.locator('.signing__sending')).toContainText('sending as soon as');
+    await expect(basement.locator('.signing__error')).toHaveCount(0);
+    expect(attempts, 'it should have tried and been cut off').toBeGreaterThan(0);
+
+    // It is still trying on its own, and lands the moment the line is back.
+    await basement.unroute('**/api/sign');
+    await expect(basement.locator('.signing__sending')).toHaveCount(0, { timeout: 30_000 });
+    expect(state.sign[new URL(fromLibrary).searchParams.get('t')!].signedAt).toBeTruthy();
+    await offline.close();
+
+    // A third link, because each of these signs the one it is given.
+    await page.goto('/');
+    await gotoTab(page, 'More');
+    await page.locator('.more-item').filter({ hasText: 'Contracts' }).click();
+    await page.locator('.contracts__item').first().click();
+    await page.locator('.contracts__send-btn').click();
+    await page.locator('.contracts__manual input').fill('Priya Raghunathan');
+    await page.locator('.contracts__manual button').click();
+    await expect(page.locator('.contracts__rows')).toContainText('Priya Raghunathan');
+    const thirdLink = await page.evaluate(() => navigator.clipboard.readText());
+    expect(thirdLink).toContain('/sign?t=');
+
     // ── A photo too big for the server ─────────────────────────────────────
     //
     // It gets made smaller and sent, not dropped and not refused. The server
@@ -205,7 +254,7 @@ test.describe('a contract sent from inside a show', () => {
       return route.fallback();
     });
 
-    await withPhoto.goto(fromLibrary);
+    await withPhoto.goto(thirdLink);
     await expect(withPhoto.locator('.signing__title')).toBeVisible();
     // A photo far too large at full size: 2000px of noise, which survives
     // JPEG compression rather than collapsing to nothing.
@@ -231,8 +280,8 @@ test.describe('a contract sent from inside a show', () => {
     });
     await expect(withPhoto.locator('.signing__photo-preview')).toBeVisible();
 
-    await withPhoto.getByLabel('Email').fill('dev@example.com');
-    await withPhoto.locator('.signing__field--signature input').fill('Dev Marchetti');
+    await withPhoto.getByLabel('Email').fill('priya@example.com');
+    await withPhoto.locator('.signing__field--signature input').fill('Priya Raghunathan');
     await withPhoto.locator('.signing__agree input').check();
     await withPhoto.locator('.signing__cta').click();
 

@@ -378,12 +378,50 @@ export async function submitSignature(
     userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent.slice(0, 200),
   };
   const signature = encryptWithKey(record, key);
-  // Two minutes, not twenty seconds: this can carry a headshot, and the
-  // person sending it is on venue wifi with one bar.
-  await withNetworkRetry(() =>
+  await sendSignature(token, signature);
+  return record;
+}
+
+/**
+ * Build the signature without sending it.
+ *
+ * Split out so the page can hold on to the exact bytes it failed to deliver
+ * and keep trying later — including after a reload, when the key is back in
+ * the URL but nothing else survives. What comes back is ciphertext and can be
+ * stored as such; the record beside it is for showing the signer their own
+ * receipt, and never leaves the device in that form.
+ */
+export function prepareSignature(
+  key: string,
+  typedName: string,
+  documentDataUrl: string,
+  fields: { label: string; value: string }[] = [],
+  headshot?: string,
+  signerName?: string,
+): { record: SignatureRecord; signature: string } {
+  const record: SignatureRecord = {
+    signedAt: new Date().toISOString(),
+    typedName: typedName.trim(),
+    signerName: signerName?.trim() || undefined,
+    fields: fields.length ? fields : undefined,
+    headshot: headshot || undefined,
+    documentHash: documentHash(documentDataUrl),
+    userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent.slice(0, 200),
+  };
+  return { record, signature: encryptWithKey(record, key) };
+}
+
+/**
+ * Deliver a prepared signature.
+ *
+ * Two minutes rather than twenty seconds: this can carry a headshot, and the
+ * person sending it is on venue wifi with one bar. Repeating it is safe — the
+ * server takes one signature per request and refuses the rest.
+ */
+export function sendSignature(token: string, signature: string): Promise<unknown> {
+  return withNetworkRetry(() =>
     api.post('/api/sign', { token, signature }, { timeoutMs: SUBMIT_TIMEOUT_MS }),
   );
-  return record;
 }
 
 // ── Status, for the producer's list ──────────────────────────────────────────

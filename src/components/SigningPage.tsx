@@ -8,6 +8,12 @@ import {
   shrinkDataUrl,
 } from '../utils/imageResize';
 import { submitFailureMessage } from '../utils/submitFailure';
+import {
+  clearPendingSignature,
+  loadPendingSignature,
+  retryDelayMs,
+  savePendingSignature,
+} from '../utils/pendingSignature';
 import type { SignatureRecord } from '../types';
 import {
   collectFieldAnswers,
@@ -16,6 +22,8 @@ import {
   missingRequiredFields,
   shortHash,
   signedFileName,
+  prepareSignature,
+  sendSignature,
   submitSignature,
   type SigningPayload,
 } from '../utils/contracts';
@@ -81,6 +89,14 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [photoDropped, setPhotoDropped] = useState(false);
   /** Set when the headshot had to be made smaller to fit. */
   const [photoShrunk, setPhotoShrunk] = useState(false);
+  /**
+   * A signature that has been given but has not reached the server yet.
+   *
+   * Its presence is what turns "this did not go through" into "signed, and
+   * sending" — the page keeps trying in the background and this is what it
+   * keeps trying to send.
+   */
+  const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -100,6 +116,15 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
        * prefill and the producer's spelling of their name — it is the most
        * recent thing this person said, and they said it on this device.
        */
+      /*
+       * A signature given on a previous visit that never reached the server.
+       * Picked up before anything else: they are already signed, they just do
+       * not know it landed, and this page is the only thing that can finish
+       * the job.
+       */
+      const held = loadPendingSignature(token);
+      if (held) setPending(held.signature);
+
       const draft = loadSignerDraft(token);
       if (draft) {
         if (draft.signerName) setSignerName(draft.signerName);
@@ -142,6 +167,59 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   }, [token, signKey]);
 
   const documentReady = !!docUrl && !docError && pageCount > 0 && pages.length === pageCount;
+
+  /**
+   * Keep trying to deliver a signature that has already been given.
+   *
+   * Runs while anything is pending: immediately, again the moment the browser
+   * says it is back online, and on a timer that starts quick and slows down.
+   * There is no attempt limit, because the thing being removed is the moment
+   * someone is told they cannot sign — a signature that is waiting is not a
+   * signature that failed.
+   */
+  useEffect(() => {
+    if (!pending) return;
+    let stopped = false;
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const deliver = async () => {
+      if (stopped) return;
+      try {
+        await sendSignature(token, pending);
+        if (stopped) return;
+        clearPendingSignature(token);
+        clearSignerDraft(token);
+        setPending(null);
+      } catch (err) {
+        if (stopped) return;
+        const status = (err as ApiError).status;
+        if (status === 409) {
+          // The server already has one. That is delivered, not failed.
+          clearPendingSignature(token);
+          clearSignerDraft(token);
+          setPending(null);
+          return;
+        }
+        // 413 cannot happen here (the size ladder ran before anything was
+        // held), and everything else is worth asking about again later.
+        timer = setTimeout(() => void deliver(), retryDelayMs(attempt++));
+      }
+    };
+
+    void deliver();
+    const onOnline = () => {
+      attempt = 0;
+      clearTimeout(timer);
+      void deliver();
+    };
+    window.addEventListener('online', onOnline);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [pending, token]);
 
   /*
    * Written on every change rather than on a timer: the events this protects
@@ -195,17 +273,17 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
 
   async function handleSign() {
     if (!signKey || !docUrl || !payload || !documentReady || phase !== 'ready') return;
-    const signature = typedName.trim();
+    const signature_ = typedName.trim();
     const name = signerName.trim();
     const missing = missingRequiredFields(payload.fields, values);
-    if (!signature || !name || !agreed || missing.length > 0) return;
+    if (!signature_ || !name || !agreed || missing.length > 0) return;
     setPhase('signing');
     setError(null);
     try {
       const record = await submitSignature(
         token,
         signKey,
-        signature,
+        signature_,
         docUrl,
         collectFieldAnswers(payload.fields, values),
         headshot ?? undefined,
@@ -252,7 +330,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           if (!smaller) break;
           try {
             const record = await submitSignature(
-              token, signKey, signature, docUrl,
+              token, signKey, signature_, docUrl,
               collectFieldAnswers(payload.fields, values), smaller, name,
             );
             setSigned(record);
@@ -277,7 +355,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
         // photo is optional, so sign without it and say so plainly.
         try {
           const record = await submitSignature(
-            token, signKey, signature, docUrl,
+            token, signKey, signature_, docUrl,
             collectFieldAnswers(payload.fields, values), undefined, name,
           );
           setSigned(record);
@@ -293,6 +371,27 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           setError(submitFailureMessage(last, { hasPhoto: false }));
           return;
         }
+      }
+
+      /*
+       * The server never answered — offline, or a connection that keeps
+       * dying. This is the case that used to end in "you cannot submit", and
+       * it is the one case where that was never true: the signature exists,
+       * it is theirs, and the only thing missing is a working connection.
+       *
+       * So hold it and keep trying. It survives the page closing and goes out
+       * when the signal does come back, whether or not they are watching.
+       */
+      if ((err as ApiError).status === undefined) {
+        const { record, signature } = prepareSignature(
+          signKey, signature_, docUrl,
+          collectFieldAnswers(payload.fields, values), headshot ?? undefined, name,
+        );
+        savePendingSignature(token, signature);
+        setPending(signature);
+        setSigned(record);
+        setPhase('done');
+        return;
       }
 
       setPhase('ready');
@@ -390,6 +489,16 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       {phase === 'done' && signed ? (
         <section className="signing__panel signing__panel--done">
           <h2>Signed</h2>
+          {/* Honest about where it has got to. Signed is true the moment they
+              sign it; delivered is a separate fact and is not claimed until
+              the server has it. Neither of them is "you cannot submit". */}
+          {pending && (
+            <p className="signing__sending" role="status">
+              <span className="signing__sending-dot" aria-hidden="true" />
+              Saved on this device and sending as soon as there is signal. You can close
+              this page — it will finish on its own next time you open the link.
+            </p>
+          )}
           <p className="signing__done-line">
             {signed.typedName} · {new Date(signed.signedAt).toLocaleString()}
           </p>
@@ -420,8 +529,10 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             </p>
           )}
           <p className="signing__note">
-            {payload.fromName} can see that you have signed. Keep a copy for yourself — this
-            link is the only place it lives.
+            {pending
+              ? `${payload.fromName} will see this as soon as it sends.`
+              : `${payload.fromName} can see that you have signed.`}{' '}
+            Keep a copy for yourself — this link is the only place it lives.
           </p>
         </section>
       ) : documentReady ? (
