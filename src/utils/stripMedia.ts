@@ -43,7 +43,10 @@ export function stripLegacyShowMedia(show: Show): Show {
 
 /** Remove legacy embedded media from settings (Rolodex photos, receipts, trash). */
 export function stripLegacySettingsMedia(settings: AppSettings): AppSettings {
-  for (const c of settings.potentialComics || []) scrub(c, ['photo', 'photos']);
+  for (const c of settings.potentialComics || []) {
+    scrub(c, ['photos']);
+    scrubEmbeddedPhoto(c);
+  }
   for (const e of settings.expenses || []) scrub(e, ['receiptPhoto']);
   for (const t of settings.trash || []) {
     if (t.data) stripLegacyShowMedia(t.data);

@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
-import { downscaleImage } from '../../utils/imageResize';
-import { audioUploadSizeError, imageUploadSizeError, pickFile as openFilePicker } from '../../utils/media';
-import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
+import { HeadshotPanel } from '../HeadshotPanel';
+import { audioUploadSizeError } from '../../utils/media';
+import { uploadMedia } from '../../utils/mediaStore';
 import { Icon } from '../Icon';
 import { TrimControls } from '../TrimControls';
 import { useMediaUrl } from '../../utils/useMediaUrl';
@@ -50,9 +50,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   const [dirty, setDirty] = useState(false);
   const [savedToRolodex, setSavedToRolodex] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
-  const [photoError, setPhotoError] = useState<string | null>(null);
   const [audioDrag, setAudioDrag] = useState(false);
-  const [photoDrag, setPhotoDrag] = useState(false);
   /**
    * The record as it is now, for uploads that finish after the fact.
    *
@@ -86,46 +84,6 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
     });
     setSongName(file.name);
   }
-  const photoUrl = useMediaUrl(performer.photo);
-
-  /**
-   * Attach a headshot. It's resized in the browser first — the photo is only
-   * ever shown at thumbnail size, and the full-resolution original would be
-   * encrypted, chunked, uploaded, and fetched again on show day for nothing.
-   */
-  async function pickPhoto() {
-    const file = await openFilePicker('image/*');
-    if (file) await attachPhoto(file);
-  }
-
-  /** One upload path, whether the file was chosen or dropped on the panel. */
-  async function attachPhoto(file: File) {
-    const sizeError = imageUploadSizeError(file);
-    if (sizeError) {
-      setPhotoError(sizeError);
-      return;
-    }
-    setPhotoError('Uploading photo…');
-    try {
-      const resized = await downscaleImage(file);
-      const ref = await uploadMedia(resized);
-      const previous = performerRef.current.photo;
-      onChange({ ...performerRef.current, photo: ref });
-      if (previous) deleteMedia(previous);
-      setPhotoError(null);
-    } catch {
-      setPhotoError("Couldn't use that image. Try a JPEG or PNG.");
-    }
-  }
-
-  async function removePhoto() {
-    if (!performer.photo) return;
-    if (!(await confirm({ message: `Remove ${performer.name}'s photo?`, confirmLabel: 'Remove photo' }))) return;
-    deleteMedia(performer.photo);
-    onChange({ ...performerRef.current, photo: undefined });
-    setPhotoError(null);
-  }
-
   function mark() { setDirty(true); }
 
   function handleSave() {
@@ -339,53 +297,8 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
           </div>
         </div>
 
-        {/* Avatar — this is the face on the Run Show button. */}
-        <div className="perf-profile__photo-panel">
-          <div className="perf-profile__avatar-wrap">
-            {photoUrl ? (
-              <img className="perf-profile__avatar" src={photoUrl} alt={performer.name} />
-            ) : (
-              <div className="perf-profile__avatar-placeholder">
-                {performer.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-          </div>
-          <p className="perf-profile__photo-name">{performer.name}</p>
-          {photoError && <p className="perf-profile__media-error">{photoError}</p>}
-          {/* A headshot usually arrives as a file somebody sent you, so the
-              whole panel takes a drop — the button was the only way in. */}
-          <div
-            className={`perf-profile__photo-drop${photoDrag ? ' perf-profile__photo-drop--active' : ''}`}
-            role="button"
-            tabIndex={0}
-            aria-label={performer.photo ? 'Replace headshot' : 'Add a headshot'}
-            onDragOver={e => e.preventDefault()}
-            onDragEnter={() => setPhotoDrag(true)}
-            onDragLeave={() => setPhotoDrag(false)}
-            onDrop={e => {
-              e.preventDefault();
-              setPhotoDrag(false);
-              const file = e.dataTransfer.files?.[0];
-              if (file?.type.startsWith('image/')) void attachPhoto(file);
-            }}
-            onClick={() => void pickPhoto()}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void pickPhoto(); }
-            }}
-          >
-            <span className="perf-profile__photo-drop-icon"><Icon name="camera" size={20} /></span>
-            <p className="perf-profile__photo-hint">
-              {photoDrag
-                ? 'Drop the headshot'
-                : 'Drop a headshot, or click to choose. It becomes their face on the Run Show button.'}
-            </p>
-          </div>
-          {performer.photo && (
-            <button className="perf-profile__photo-remove" onClick={removePhoto}>
-              Remove photo
-            </button>
-          )}
-        </div>
+        <HeadshotPanel name={performer.name} photo={performer.photo}
+          onChange={photo => onChange({ ...performerRef.current, photo })} />
       </div>
 
       {/* Media card */}

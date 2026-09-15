@@ -81,6 +81,14 @@ describe('stripLegacyShowMedia', () => {
 });
 
 describe('stripLegacySettingsMedia', () => {
+  it('preserves stored comic headshots when account settings reload', () => {
+    const settings: AppSettings = {
+      ...DEFAULT_SETTINGS,
+      potentialComics: [{ id: 'c1', name: 'Alice', photo: 'media:photo123#1' }],
+    };
+    expect(stripLegacySettingsMedia(settings).potentialComics[0].photo).toBe('media:photo123#1');
+  });
+
   it('scrubs rolodex photos, receipts, and trashed shows', () => {
     const settings = {
       ...DEFAULT_SETTINGS,
