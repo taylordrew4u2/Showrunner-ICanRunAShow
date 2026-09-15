@@ -1,7 +1,19 @@
 import { clarifyIntroductionCredits } from '../utils/introductionCredits';
 import { useEffect, useState } from 'react';
 import type { ApiError } from '../utils/api';
-import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
+import {
+  downscaleImage,
+  FLYER_MAX_DIM,
+  HEADSHOT_FALLBACK_DIMS,
+  shrinkDataUrl,
+} from '../utils/imageResize';
+import { submitFailureMessage } from '../utils/submitFailure';
+import {
+  clearPendingSignature,
+  loadPendingSignature,
+  retryDelayMs,
+  savePendingSignature,
+} from '../utils/pendingSignature';
 import type { SignatureRecord } from '../types';
 import {
   collectFieldAnswers,
@@ -10,10 +22,13 @@ import {
   missingRequiredFields,
   shortHash,
   signedFileName,
+  prepareSignature,
+  sendSignature,
   submitSignature,
   type SigningPayload,
 } from '../utils/contracts';
 import { renderPdfPages, type RenderedPage } from '../utils/pdfPages';
+import { clearSignerDraft, loadSignerDraft, saveSignerDraft } from '../utils/signerDraft';
 import './SigningPage.css';
 
 interface SigningPageProps {
@@ -70,6 +85,18 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  /** Set when the contract was signed but the headshot would not fit at all. */
+  const [photoDropped, setPhotoDropped] = useState(false);
+  /** Set when the headshot had to be made smaller to fit. */
+  const [photoShrunk, setPhotoShrunk] = useState(false);
+  /**
+   * A signature that has been given but has not reached the server yet.
+   *
+   * Its presence is what turns "this did not go through" into "signed, and
+   * sending" — the page keeps trying in the background and this is what it
+   * keeps trying to send.
+   */
+  const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,6 +111,29 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       // What the show already answers — the date, the venue — arrives filled
       // in. It is an ordinary value in the field, so it can still be corrected.
       setValues(view.payload.prefill ?? {});
+      /*
+       * Then whatever they had already typed, which wins over both the
+       * prefill and the producer's spelling of their name — it is the most
+       * recent thing this person said, and they said it on this device.
+       */
+      /*
+       * A signature given on a previous visit that never reached the server.
+       * Picked up before anything else: they are already signed, they just do
+       * not know it landed, and this page is the only thing that can finish
+       * the job.
+       */
+      const held = loadPendingSignature(token);
+      if (held) setPending(held.signature);
+
+      const draft = loadSignerDraft(token);
+      if (draft) {
+        if (draft.signerName) setSignerName(draft.signerName);
+        if (draft.typedName) setTypedName(draft.typedName);
+        if (draft.values && Object.keys(draft.values).length) {
+          setValues((prev) => ({ ...prev, ...draft.values }));
+        }
+        if (draft.agreed) setAgreed(true);
+      }
       const doc = await fetchSigningDocument(token, signKey, view.payload.total);
       if (cancelled) return;
       setDocUrl(doc);
@@ -105,6 +155,9 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       }
       if (view.signed) {
         setSigned(view.signed);
+        // Already signed — from another device, or from a submission this
+        // phone never heard the answer to. Either way the draft is spent.
+        clearSignerDraft(token);
         setPhase('done');
       } else {
         setPhase('ready');
@@ -114,6 +167,69 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   }, [token, signKey]);
 
   const documentReady = !!docUrl && !docError && pageCount > 0 && pages.length === pageCount;
+
+  /**
+   * Keep trying to deliver a signature that has already been given.
+   *
+   * Runs while anything is pending: immediately, again the moment the browser
+   * says it is back online, and on a timer that starts quick and slows down.
+   * There is no attempt limit, because the thing being removed is the moment
+   * someone is told they cannot sign — a signature that is waiting is not a
+   * signature that failed.
+   */
+  useEffect(() => {
+    if (!pending) return;
+    let stopped = false;
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const deliver = async () => {
+      if (stopped) return;
+      try {
+        await sendSignature(token, pending);
+        if (stopped) return;
+        clearPendingSignature(token);
+        clearSignerDraft(token);
+        setPending(null);
+      } catch (err) {
+        if (stopped) return;
+        const status = (err as ApiError).status;
+        if (status === 409) {
+          // The server already has one. That is delivered, not failed.
+          clearPendingSignature(token);
+          clearSignerDraft(token);
+          setPending(null);
+          return;
+        }
+        // 413 cannot happen here (the size ladder ran before anything was
+        // held), and everything else is worth asking about again later.
+        timer = setTimeout(() => void deliver(), retryDelayMs(attempt++));
+      }
+    };
+
+    void deliver();
+    const onOnline = () => {
+      attempt = 0;
+      clearTimeout(timer);
+      void deliver();
+    };
+    window.addEventListener('online', onOnline);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [pending, token]);
+
+  /*
+   * Written on every change rather than on a timer: the events this protects
+   * against — a tab killed in the background, a reload, a back gesture — do
+   * not announce themselves first.
+   */
+  useEffect(() => {
+    if (phase === 'loading' || phase === 'done' || phase === 'nokey' || phase === 'missing') return;
+    saveSignerDraft(token, { signerName, typedName, values, agreed });
+  }, [token, signerName, typedName, values, agreed, phase]);
 
   /**
    * What the signer still has to do, in the order the page asks for it, so the
@@ -157,23 +273,24 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
 
   async function handleSign() {
     if (!signKey || !docUrl || !payload || !documentReady || phase !== 'ready') return;
-    const signature = typedName.trim();
+    const signature_ = typedName.trim();
     const name = signerName.trim();
     const missing = missingRequiredFields(payload.fields, values);
-    if (!signature || !name || !agreed || missing.length > 0) return;
+    if (!signature_ || !name || !agreed || missing.length > 0) return;
     setPhase('signing');
     setError(null);
     try {
       const record = await submitSignature(
         token,
         signKey,
-        signature,
+        signature_,
         docUrl,
         collectFieldAnswers(payload.fields, values),
         headshot ?? undefined,
         name,
       );
       setSigned(record);
+      clearSignerDraft(token);
       setPhase('done');
     } catch (err) {
       /*
@@ -190,21 +307,95 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       const landed = await fetchSigningRequest(token, signKey).catch(() => null);
       if (landed?.signed) {
         setSigned(landed.signed);
+        clearSignerDraft(token);
         setPhase('done');
         return;
       }
-      setPhase('ready');
       const status = (err as ApiError).status;
-      setError(
-        status === 413
-          ? 'This submission is too large. Remove the optional headshot or choose a smaller photo, then try again. Your answers are still here.'
-          : status === 409
-            // Not signed, and the server will not take it: the link was
-            // withdrawn or replaced with a newer one. Trying again cannot fix
-            // that, so do not ask them to.
-            ? 'This link is no longer live — it was withdrawn, or replaced with a newer one. Ask whoever sent it for a fresh link. Your answers are still here.'
-            : 'That did not go through. Check your connection and try again. Your answers are still here.',
-      );
+
+      /*
+       * Too large, and the only thing that can be large is the headshot. So
+       * make it smaller and send it again, down a ladder, rather than losing
+       * it or asking the performer to go and edit a photo on their phone.
+       *
+       * The server is the judge of what fits: the payload is encrypted before
+       * it goes, so its final size is not something this page can work out in
+       * advance. Hence trying rather than calculating.
+       */
+      if (status === 413 && headshot) {
+        let smaller: string | null = headshot;
+        for (const dim of HEADSHOT_FALLBACK_DIMS) {
+          setError(`That photo was too large, so it is being made smaller — still sending…`);
+          smaller = await shrinkDataUrl(headshot, dim);
+          if (!smaller) break;
+          try {
+            const record = await submitSignature(
+              token, signKey, signature_, docUrl,
+              collectFieldAnswers(payload.fields, values), smaller, name,
+            );
+            setSigned(record);
+            clearSignerDraft(token);
+            setHeadshot(smaller);
+            setPhotoShrunk(true);
+            setError(null);
+            setPhase('done');
+            return;
+          } catch (again) {
+            // Still too big? Down another rung. Anything else is a real
+            // failure and is reported as itself.
+            if ((again as ApiError).status !== 413) {
+              setPhase('ready');
+              setError(submitFailureMessage(again, { hasPhoto: true }));
+              return;
+            }
+          }
+        }
+
+        // Even the smallest would not fit. The agreement is the point and the
+        // photo is optional, so sign without it and say so plainly.
+        try {
+          const record = await submitSignature(
+            token, signKey, signature_, docUrl,
+            collectFieldAnswers(payload.fields, values), undefined, name,
+          );
+          setSigned(record);
+          clearSignerDraft(token);
+          setHeadshot(null);
+          // Said on the receipt, not on the form — the form is gone by then.
+          setPhotoDropped(true);
+          setError(null);
+          setPhase('done');
+          return;
+        } catch (last) {
+          setPhase('ready');
+          setError(submitFailureMessage(last, { hasPhoto: false }));
+          return;
+        }
+      }
+
+      /*
+       * The server never answered — offline, or a connection that keeps
+       * dying. This is the case that used to end in "you cannot submit", and
+       * it is the one case where that was never true: the signature exists,
+       * it is theirs, and the only thing missing is a working connection.
+       *
+       * So hold it and keep trying. It survives the page closing and goes out
+       * when the signal does come back, whether or not they are watching.
+       */
+      if ((err as ApiError).status === undefined) {
+        const { record, signature } = prepareSignature(
+          signKey, signature_, docUrl,
+          collectFieldAnswers(payload.fields, values), headshot ?? undefined, name,
+        );
+        savePendingSignature(token, signature);
+        setPending(signature);
+        setSigned(record);
+        setPhase('done');
+        return;
+      }
+
+      setPhase('ready');
+      setError(submitFailureMessage(err, { hasPhoto: !!headshot }));
     }
   }
 
@@ -298,6 +489,16 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       {phase === 'done' && signed ? (
         <section className="signing__panel signing__panel--done">
           <h2>Signed</h2>
+          {/* Honest about where it has got to. Signed is true the moment they
+              sign it; delivered is a separate fact and is not claimed until
+              the server has it. Neither of them is "you cannot submit". */}
+          {pending && (
+            <p className="signing__sending" role="status">
+              <span className="signing__sending-dot" aria-hidden="true" />
+              Saved on this device and sending as soon as there is signal. You can close
+              this page — it will finish on its own next time you open the link.
+            </p>
+          )}
           <p className="signing__done-line">
             {signed.typedName} · {new Date(signed.signedAt).toLocaleString()}
           </p>
@@ -315,9 +516,23 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           <button className="btn btn--primary signing__cta" onClick={download}>
             Save a copy
           </button>
+          {photoShrunk && (
+            <p className="signing__note" role="status">
+              Your photo was made smaller so it would send. The contract is signed and
+              nothing is outstanding.
+            </p>
+          )}
+          {photoDropped && (
+            <p className="signing__note" role="status">
+              Your photo was too large to send, so it was left off. The contract is signed —
+              nothing else is outstanding. {payload.fromName} can ask for the photo separately.
+            </p>
+          )}
           <p className="signing__note">
-            {payload.fromName} can see that you have signed. Keep a copy for yourself — this
-            link is the only place it lives.
+            {pending
+              ? `${payload.fromName} will see this as soon as it sends.`
+              : `${payload.fromName} can see that you have signed.`}{' '}
+            Keep a copy for yourself — this link is the only place it lives.
           </p>
         </section>
       ) : documentReady ? (
