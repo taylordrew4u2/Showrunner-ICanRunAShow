@@ -1,7 +1,13 @@
 import { clarifyIntroductionCredits } from '../utils/introductionCredits';
 import { useEffect, useState } from 'react';
 import type { ApiError } from '../utils/api';
-import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
+import {
+  downscaleImage,
+  FLYER_MAX_DIM,
+  HEADSHOT_FALLBACK_DIMS,
+  shrinkDataUrl,
+} from '../utils/imageResize';
+import { submitFailureMessage } from '../utils/submitFailure';
 import type { SignatureRecord } from '../types';
 import {
   collectFieldAnswers,
@@ -71,8 +77,10 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  /** Set when the contract was signed but the headshot would not fit. */
+  /** Set when the contract was signed but the headshot would not fit at all. */
   const [photoDropped, setPhotoDropped] = useState(false);
+  /** Set when the headshot had to be made smaller to fit. */
+  const [photoShrunk, setPhotoShrunk] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -228,45 +236,67 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       const status = (err as ApiError).status;
 
       /*
-       * Too large, and the only thing that can be large is the headshot. It is
-       * optional and says so, while the agreement is the entire point — so
-       * send the agreement without it rather than making a signature wait on a
-       * photo. They are told afterwards, and the producer can ask again.
+       * Too large, and the only thing that can be large is the headshot. So
+       * make it smaller and send it again, down a ladder, rather than losing
+       * it or asking the performer to go and edit a photo on their phone.
+       *
+       * The server is the judge of what fits: the payload is encrypted before
+       * it goes, so its final size is not something this page can work out in
+       * advance. Hence trying rather than calculating.
        */
       if (status === 413 && headshot) {
+        let smaller: string | null = headshot;
+        for (const dim of HEADSHOT_FALLBACK_DIMS) {
+          setError(`That photo was too large, so it is being made smaller — still sending…`);
+          smaller = await shrinkDataUrl(headshot, dim);
+          if (!smaller) break;
+          try {
+            const record = await submitSignature(
+              token, signKey, signature, docUrl,
+              collectFieldAnswers(payload.fields, values), smaller, name,
+            );
+            setSigned(record);
+            clearSignerDraft(token);
+            setHeadshot(smaller);
+            setPhotoShrunk(true);
+            setError(null);
+            setPhase('done');
+            return;
+          } catch (again) {
+            // Still too big? Down another rung. Anything else is a real
+            // failure and is reported as itself.
+            if ((again as ApiError).status !== 413) {
+              setPhase('ready');
+              setError(submitFailureMessage(again, { hasPhoto: true }));
+              return;
+            }
+          }
+        }
+
+        // Even the smallest would not fit. The agreement is the point and the
+        // photo is optional, so sign without it and say so plainly.
         try {
           const record = await submitSignature(
-            token,
-            signKey,
-            signature,
-            docUrl,
-            collectFieldAnswers(payload.fields, values),
-            undefined,
-            name,
+            token, signKey, signature, docUrl,
+            collectFieldAnswers(payload.fields, values), undefined, name,
           );
           setSigned(record);
           clearSignerDraft(token);
           setHeadshot(null);
           // Said on the receipt, not on the form — the form is gone by then.
           setPhotoDropped(true);
+          setError(null);
           setPhase('done');
           return;
-        } catch {
-          // Fall through and report it properly below.
+        } catch (last) {
+          setPhase('ready');
+          setError(submitFailureMessage(last, { hasPhoto: false }));
+          return;
         }
       }
 
       setPhase('ready');
-      setError(
-        status === 413
-          ? 'This submission is too large. Remove the optional headshot or choose a smaller photo, then try again. Your answers are still here.'
-          : status === 409
-            // Not signed, and the server will not take it: the link was
-            // withdrawn or replaced with a newer one. Trying again cannot fix
-            // that, so do not ask them to.
-            ? 'This link is no longer live — it was withdrawn, or replaced with a newer one. Ask whoever sent it for a fresh link. Your answers are still here.'
-            : 'That did not go through. Check your connection and try again. Your answers are still here.',
-      );
+      setError(submitFailureMessage(err, { hasPhoto: !!headshot }));
     }
   }
 
@@ -377,6 +407,12 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           <button className="btn btn--primary signing__cta" onClick={download}>
             Save a copy
           </button>
+          {photoShrunk && (
+            <p className="signing__note" role="status">
+              Your photo was made smaller so it would send. The contract is signed and
+              nothing is outstanding.
+            </p>
+          )}
           {photoDropped && (
             <p className="signing__note" role="status">
               Your photo was too large to send, so it was left off. The contract is signed —

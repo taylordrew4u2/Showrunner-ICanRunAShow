@@ -179,5 +179,69 @@ test.describe('a contract sent from inside a show', () => {
     await expect(other.getByLabel('Show date')).toHaveValue(/October 3, 2026/);
     await expect(other.getByLabel('Venue')).toHaveValue(/Bell House/);
     await second.close();
+
+    // ── A photo too big for the server ─────────────────────────────────────
+    //
+    // It gets made smaller and sent, not dropped and not refused. The server
+    // is the judge of what fits, so this stands in for one with a tighter
+    // cap: refuse anything over the limit, and let the page work its way
+    // down until it fits.
+    const CAP = 120_000;
+    const big = await browser.newContext({ viewport: page.viewportSize()! });
+    await installFakeApi(big, state);
+    const withPhoto = await big.newPage();
+    const refused: number[] = [];
+    await withPhoto.route('**/api/sign', async (route, request) => {
+      if (request.method() !== 'POST') return route.fallback();
+      const body = request.postDataJSON() as { signature: string };
+      if (body.signature.length > CAP) {
+        refused.push(body.signature.length);
+        return route.fulfill({
+          status: 413,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'too_large' }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await withPhoto.goto(fromLibrary);
+    await expect(withPhoto.locator('.signing__title')).toBeVisible();
+    // A photo far too large at full size: 2000px of noise, which survives
+    // JPEG compression rather than collapsing to nothing.
+    const photo = await withPhoto.evaluate(async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2000;
+      canvas.height = 2000;
+      const ctx = canvas.getContext('2d')!;
+      const image = ctx.createImageData(2000, 2000);
+      for (let i = 0; i < image.data.length; i += 4) {
+        image.data[i] = Math.random() * 255;
+        image.data[i + 1] = Math.random() * 255;
+        image.data[i + 2] = Math.random() * 255;
+        image.data[i + 3] = 255;
+      }
+      ctx.putImageData(image, 0, 0);
+      return canvas.toDataURL('image/jpeg', 0.95);
+    });
+    await withPhoto.setInputFiles('.signing__photo-pick input[type=file]', {
+      name: 'headshot.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from(photo.split(',')[1], 'base64'),
+    });
+    await expect(withPhoto.locator('.signing__photo-preview')).toBeVisible();
+
+    await withPhoto.getByLabel('Email').fill('dev@example.com');
+    await withPhoto.locator('.signing__field--signature input').fill('Dev Marchetti');
+    await withPhoto.locator('.signing__agree input').check();
+    await withPhoto.locator('.signing__cta').click();
+
+    // Signed, with a photo that was made to fit — not refused, not dropped.
+    await expect(withPhoto.locator('.signing__panel--done')).toContainText('Signed', {
+      timeout: 30_000,
+    });
+    await expect(withPhoto.locator('.signing__panel--done')).toContainText('made smaller');
+    expect(refused.length, 'the first attempt should have been refused').toBeGreaterThan(0);
+    await big.close();
   });
 });
