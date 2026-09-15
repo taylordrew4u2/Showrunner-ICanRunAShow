@@ -12,6 +12,7 @@ import { AnnouncePost } from './AnnouncePost';
 import { LineupActions } from './LineupActions';
 import { ArtistsSection } from './sections/ArtistsSection';
 import { ScheduleSection } from './sections/ScheduleSection';
+import { ShowTimeline } from './ShowTimeline';
 import { DJMusicSection } from './sections/DJMusicSection';
 import { StaffSection } from './sections/StaffSection';
 import { VendorsSection } from './sections/VendorsSection';
@@ -763,6 +764,7 @@ export function ShowDetail({
   // tile only offers to jump somewhere that exists — a section the producer
   // hid stays hidden rather than reappearing because its tile was tapped.
   const visibleSections = sections.filter((section) => !isSectionHidden(section.sectionKey));
+  const scheduleSection = visibleSections.find(section => section.key === 'schedule');
   // Date and time are written the same way here as on the show cards, so the
   // same show doesn't read as "9/18/2026 20:00" in one place and
   // "Sep 18 · 8:00 PM" in another.
@@ -818,6 +820,99 @@ export function ShowDetail({
         if (ok) { onDelete(show.id); onBack(); }
       },
     });
+  }
+
+  function renderSection(section: typeof sections[number]) {
+    const isExpanded = expandedSections.has(section.key);
+    const panelId = `show-section-panel-${section.key}`;
+    const buttonId = `show-section-header-${section.key}`;
+    const filled = typeof section.count === 'number' && section.count > 0;
+
+    return (
+      <section
+        key={section.key}
+        ref={(el) => {
+          sectionRefs.current[section.key] = el;
+        }}
+        className={`accordion-section show-workspace__card show-workspace__card--${section.key}${isExpanded ? ' show-workspace__card--open' : ''}`}
+      >
+        {/* The whole header is one button, wrapped in the heading. It used
+            to be a div with a click handler and a separate arrow button,
+            so the only thing a keyboard could reach was the arrow — the
+            large obvious target was mouse-only. */}
+        <h2 className="accordion-section__heading">
+          <button
+            type="button"
+            id={buttonId}
+            className="accordion-section__header"
+            onClick={() => toggleSection(section.key)}
+            aria-expanded={isExpanded}
+            aria-controls={panelId}
+          >
+            <span className={`accordion-section__icon accent--${section.accent}`}>
+              <Icon name={SECTION_ICONS[section.key] ?? 'file'} size={18} />
+            </span>
+            <span className="accordion-section__header-left">
+              <span className="accordion-section__title-row">
+                <span className="accordion-section__title">{section.title}</span>
+                {filled && (
+                  <span className="accordion-section__count">
+                    {section.count}
+                    <span className="visually-hidden"> added</span>
+                  </span>
+                )}
+              </span>
+              {/* One line under the title, doing the most useful job it
+                  can: what's actually in there once the section has
+                  content, and what belongs there while it's empty.
+                  Hidden when open, where the content itself answers it. */}
+              {!isExpanded &&
+                (filled ? (
+                  section.preview && (
+                    <span className="accordion-section__preview">{section.preview}</span>
+                  )
+                ) : (
+                  <span className="accordion-section__subtitle">{section.subtitle}</span>
+                ))}
+            </span>
+            <svg
+              className="accordion-section__chevron"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="5 8 10 13 15 8" />
+            </svg>
+          </button>
+        </h2>
+
+        {!isExpanded && section.key === 'performers' && <div className="show-workspace__lineup-preview">
+          <LineupActions performers={show.performers} showName={show.name} onAnnounce={() => setAnnounceOpen(true)} />
+          {show.performers.length ? <div className="show-workspace__people">{show.performers.map(performer => <LineupPreview key={performer.id} performer={performer} onOpen={() => jumpToSection('performers', performer.id)} />)}</div> : <p>Build the lineup for this show.</p>}
+          <button className="btn btn--secondary btn--sm" onClick={() => jumpToSection('performers')}>{show.performers.length ? 'Edit lineup / add performer' : 'Add performers'}</button>
+        </div>}
+        {!isExpanded && section.key === 'basic'  && <div className="show-workspace__detail-preview">
+          <strong>{show.venueName || 'Add a venue'}</strong>
+          <span>{show.location || 'Add a location'}</span>
+          <span>{detailDate?.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) || 'Set a date'} · {formatShowTime(show.time) || 'Set a time'}</span>
+          <button className="btn btn--secondary btn--sm" onClick={() => jumpToSection('basic')}>Edit show details</button>
+        </div>}
+        {isExpanded && (
+          <div
+            id={panelId}
+            role="region"
+            aria-labelledby={buttonId}
+            className="accordion-section__content"
+          >
+            {section.content}
+          </div>
+        )}
+      </section>
+    );
   }
 
   return (
@@ -955,7 +1050,29 @@ export function ShowDetail({
         </div>
       </div>
 
-      <div className="show-workspace__columns">
+      <div className={`show-workspace__columns${scheduleSection ? '' : ' show-workspace__columns--without-schedule'}`}>
+      {scheduleSection && <aside className="show-workspace__running" aria-label="Running order">
+        <div className="show-workspace__running-head">
+          <h2>{detailDate?.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) || 'Show day'}</h2>
+          <p>Running order</p>
+        </div>
+        {renderSection(scheduleSection)}
+        {!expandedSections.has('schedule') && <>
+        {show.schedule.length > 0 && <ShowTimeline schedule={show.schedule} showTime={show.time} />}
+        {show.schedule.length ? <ol>
+          {show.schedule.map((cue, index) => <li key={cue.id}>
+            <span className="show-workspace__cue-number">{String(index + 1).padStart(2, '0')}</span>
+            <button onClick={() => jumpToSection('schedule')}>
+              <time>{cue.time || `Cue ${index + 1}`}</time>
+              <strong>{cue.description || 'Untitled cue'}</strong>
+              {cue.performer && <span>{cue.performer}</span>}
+              {cue.durationMin != null && <small>{cue.durationMin} min</small>}
+            </button>
+          </li>)}
+        </ol> : <div className="show-workspace__running-empty"><Icon name="schedule" size={28} /><h3>Plan the night</h3><p>Add cues or build a running order from your lineup.</p></div>}
+        <button className="btn btn--primary" onClick={() => jumpToSection('schedule')}>{show.schedule.length ? 'Edit schedule' : 'Build schedule'}</button>
+        </>}
+      </aside>}
       <div className="show-detail__sections-accordion">
       {/* Host — one row, not two.
           The name field and a "Pick someone…" select used to sit side by side,
@@ -1035,118 +1152,10 @@ export function ShowDetail({
           <span>Saved with this show</span>
         </section>
 
-        {visibleSections.map((section) => {
-          const isExpanded = expandedSections.has(section.key);
-          const panelId = `show-section-panel-${section.key}`;
-          const buttonId = `show-section-header-${section.key}`;
-          const filled = typeof section.count === 'number' && section.count > 0;
-
-          return (
-            <section
-              key={section.key}
-              ref={(el) => {
-                sectionRefs.current[section.key] = el;
-              }}
-              className={`accordion-section show-workspace__card show-workspace__card--${section.key}${isExpanded ? ' show-workspace__card--open' : ''}`}
-            >
-              {/* The whole header is one button, wrapped in the heading. It used
-                  to be a div with a click handler and a separate arrow button,
-                  so the only thing a keyboard could reach was the arrow — the
-                  large obvious target was mouse-only. */}
-              <h2 className="accordion-section__heading">
-                <button
-                  type="button"
-                  id={buttonId}
-                  className="accordion-section__header"
-                  onClick={() => toggleSection(section.key)}
-                  aria-expanded={isExpanded}
-                  aria-controls={panelId}
-                >
-                  <span className={`accordion-section__icon accent--${section.accent}`}>
-                    <Icon name={SECTION_ICONS[section.key] ?? 'file'} size={18} />
-                  </span>
-                  <span className="accordion-section__header-left">
-                    <span className="accordion-section__title-row">
-                      <span className="accordion-section__title">{section.title}</span>
-                      {filled && (
-                        <span className="accordion-section__count">
-                          {section.count}
-                          <span className="visually-hidden"> added</span>
-                        </span>
-                      )}
-                    </span>
-                    {/* One line under the title, doing the most useful job it
-                        can: what's actually in there once the section has
-                        content, and what belongs there while it's empty.
-                        Hidden when open, where the content itself answers it. */}
-                    {!isExpanded &&
-                      (filled ? (
-                        section.preview && (
-                          <span className="accordion-section__preview">{section.preview}</span>
-                        )
-                      ) : (
-                        <span className="accordion-section__subtitle">{section.subtitle}</span>
-                      ))}
-                  </span>
-                  <svg
-                    className="accordion-section__chevron"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polyline points="5 8 10 13 15 8" />
-                  </svg>
-                </button>
-              </h2>
-
-              {!isExpanded && section.key === 'performers' && <div className="show-workspace__lineup-preview">
-                <LineupActions performers={show.performers} showName={show.name} onAnnounce={() => setAnnounceOpen(true)} />
-                {show.performers.length ? <div className="show-workspace__people">{show.performers.map(performer => <LineupPreview key={performer.id} performer={performer} onOpen={() => jumpToSection('performers', performer.id)} />)}</div> : <p>Build the lineup for this show.</p>}
-                <button className="btn btn--secondary btn--sm" onClick={() => jumpToSection('performers')}>{show.performers.length ? 'Edit lineup / add performer' : 'Add performers'}</button>
-              </div>}
-              {!isExpanded && section.key === 'basic'  && <div className="show-workspace__detail-preview">
-                <strong>{show.venueName || 'Add a venue'}</strong>
-                <span>{show.location || 'Add a location'}</span>
-                <span>{detailDate?.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) || 'Set a date'} · {formatShowTime(show.time) || 'Set a time'}</span>
-                <button className="btn btn--secondary btn--sm" onClick={() => jumpToSection('basic')}>Edit show details</button>
-              </div>}
-              {isExpanded && (
-                <div
-                  id={panelId}
-                  role="region"
-                  aria-labelledby={buttonId}
-                  className="accordion-section__content"
-                >
-                  {section.content}
-                </div>
-              )}
-            </section>
-          );
-        })}
+        {visibleSections.filter(section => section.key !== 'schedule').map(renderSection)}
       </div>
 
-      {visibleSections.some(section => section.key === 'schedule') && <aside className="show-workspace__running" aria-label="Running order">
-        <div className="show-workspace__running-head">
-          <h2>{detailDate?.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) || 'Show day'}</h2>
-          <p>Running order</p>
-        </div>
-        {show.schedule.length ? <ol>
-          {show.schedule.map((cue, index) => <li key={cue.id}>
-            <span className="show-workspace__cue-number">{String(index + 1).padStart(2, '0')}</span>
-            <button onClick={() => jumpToSection('schedule')}>
-              <time>{cue.time || `Cue ${index + 1}`}</time>
-              <strong>{cue.description || 'Untitled cue'}</strong>
-              {cue.performer && <span>{cue.performer}</span>}
-              {cue.durationMin != null && <small>{cue.durationMin} min</small>}
-            </button>
-          </li>)}
-        </ol> : <div className="show-workspace__running-empty"><Icon name="schedule" size={28} /><h3>Plan the night</h3><p>Add cues or build a running order from your lineup.</p></div>}
-        <button className="btn btn--primary" onClick={() => jumpToSection('schedule')}>{show.schedule.length ? 'Edit schedule' : 'Build schedule'}</button>
-      </aside>}
+
       </div>
       <button className="btn btn--secondary show-workspace__mobile-manage" onClick={() => setManageSectionsOpen(true)}>Add or remove sections</button>
       </div>

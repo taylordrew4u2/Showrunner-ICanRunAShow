@@ -45,6 +45,7 @@ import {
 import { Icon } from './Icon';
 import { useConfirm } from './useConfirm';
 import { describeKey, isRemotePress } from '../utils/stageRemote';
+import './RunShowAppearance.css';
 
 interface RunShowProps {
   showName: string;
