@@ -1,7 +1,7 @@
 import { INTRODUCTION_CREDITS_LABEL, INTRODUCTION_CREDITS_PLACEHOLDER } from './introductionCredits';
 import CryptoJS from 'crypto-js';
 import type { Contract, ContractField, SignatureRecord, SignatureRequest } from '../types';
-import { api, SUBMIT_TIMEOUT_MS, withNetworkRetry } from './api';
+import { api, SUBMIT_TIMEOUT_MS, type ApiError } from './api';
 import { decryptWithKey, encryptWithKey } from './encryption';
 import { resolveMediaUrl } from './mediaStore';
 import { rolodexKey } from './rolodex';
@@ -316,17 +316,29 @@ export interface SigningView {
   signed: SignatureRecord | null;
 }
 
-/** Load a signing request by token, decrypting with the key from the link. */
+/**
+ * Load a signing request by token, decrypting with the key from the link.
+ * A missing/unreadable link returns null. Connection and server errors are
+ * allowed through so the page can offer a retry instead of declaring it gone.
+ */
 export async function fetchSigningRequest(token: string, key: string): Promise<SigningView | null> {
+  let res: { payload: string; signature: string | null };
   try {
-    const res = await api.get<{ payload: string; signature: string | null }>(
+    res = await api.get<typeof res>(
       `/api/sign?token=${encodeURIComponent(token)}`,
     );
+  } catch (err) {
+    if ((err as ApiError).status === 404) return null;
+    throw err;
+  }
+  try {
     const payload = decryptWithKey<SigningPayload>(res.payload, key);
-    // A wrong key decrypts to nothing rather than throwing, so check the shape.
     if (!payload || typeof payload.contractName !== 'string') return null;
     const signed = res.signature ? decryptWithKey<SignatureRecord>(res.signature, key) : null;
-    return { payload, signed: signed && signed.typedName ? signed : null };
+    // Never offer another signature when the server has a record that this
+    // client cannot read. It must not turn an existing agreement into "ready".
+    if (res.signature && (!signed || typeof signed.typedName !== 'string' || !signed.typedName.trim())) return null;
+    return { payload, signed };
   } catch {
     return null;
   }
@@ -338,19 +350,31 @@ export async function fetchSigningDocument(
   key: string,
   total: number,
 ): Promise<string | null> {
-  try {
-    const parts: string[] = new Array(total);
-    for (let seq = 0; seq < total; seq++) {
-      const res = await api.get<{ data: string }>(
+  if (!Number.isInteger(total) || total < 1 || total > 64) return null;
+  const parts: string[] = [];
+  for (let seq = 0; seq < total; seq++) {
+    let res: { data: string; total?: number };
+    try {
+      res = await api.get<typeof res>(
         `/api/sign-doc?token=${encodeURIComponent(token)}&seq=${seq}`,
       );
-      parts[seq] = decryptWithKey<string>(res.data, key);
+    } catch (err) {
+      if ((err as ApiError).status === 404) return null;
+      throw err;
     }
-    const joined = parts.join('');
-    return joined.startsWith('data:') ? joined : null;
-  } catch {
-    return null;
+    try {
+      if (res.total !== undefined && res.total !== total) return null;
+      const part = decryptWithKey<unknown>(res.data, key);
+      // Array.join silently drops null chunks and stringifies objects. Do not
+      // let a malformed chunk turn into a different document to sign.
+      if (typeof part !== 'string' || !part) return null;
+      parts.push(part);
+    } catch {
+      return null;
+    }
   }
+  const joined = parts.join('');
+  return joined.startsWith('data:') ? joined : null;
 }
 
 /**
@@ -415,13 +439,28 @@ export function prepareSignature(
  * Deliver a prepared signature.
  *
  * Two minutes rather than twenty seconds: this can carry a headshot, and the
- * person sending it is on venue wifi with one bar. Repeating it is safe — the
- * server takes one signature per request and refuses the rest.
+ * person sending it is on venue wifi with one bar. Repeating the exact bytes
+ * is safe: the server acknowledges the existing signature without changing it.
  */
-export function sendSignature(token: string, signature: string): Promise<unknown> {
-  return withNetworkRetry(() =>
-    api.post('/api/sign', { token, signature }, { timeoutMs: SUBMIT_TIMEOUT_MS }),
-  );
+export async function sendSignature(
+  token: string,
+  signature: string,
+  { attempts = 3 }: { attempts?: number } = {},
+): Promise<unknown> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await api.post('/api/sign', { token, signature }, { timeoutMs: SUBMIT_TIMEOUT_MS });
+    } catch (err) {
+      if (attempt >= attempts - 1 || !isRetryableSignatureError(err)) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** attempt));
+    }
+  }
+}
+
+/** A temporary delivery failure worth preserving and trying again later. */
+export function isRetryableSignatureError(err: unknown): boolean {
+  const status = (err as ApiError | null)?.status;
+  return status === undefined || status === 408 || status === 429 || status >= 500;
 }
 
 // ── Status, for the producer's list ──────────────────────────────────────────

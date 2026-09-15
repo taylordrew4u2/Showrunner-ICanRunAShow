@@ -221,12 +221,7 @@
   font-size: var(--text-lg);
 }
 
-/* Until the form is complete this button does nothing, so it must not look
-   like it does. The shared 50%-opacity disabled state is not enough on a
-   saturated blue against a dark page — it still reads as the live primary
-   action, and a performer who taps it and gets nothing concludes the page is
-   broken and texts the producer instead. The named list of what is still
-   needed sits directly underneath. */
+/* The action remains available so an incomplete form can explain itself. */
 .signing__cta:disabled {
   background: var(--surface-strong);
   color: var(--text-soft);
@@ -366,20 +361,6 @@
   line-height: 1.45;
 }
 
-/* The single nudge for a missing headshot. Deliberately not danger red: the
-   signer has done nothing wrong and is not being stopped. */
-.signing__photo-ask {
-  margin: var(--space-1) 0 0;
-  font-size: var(--text-sm);
-  line-height: 1.45;
-  color: var(--warning);
-}
-
-.signing__photo--asked {
-  border-radius: var(--radius-sm);
-  box-shadow: 0 0 0 2px var(--warning-soft-border);
-}
-
 /* The signature reads as the act it is, not as one more detail in the list.
    Its field is the only one on the page that arrives empty on purpose. */
 .signing__field--signature input {
@@ -417,3 +398,9 @@
 @media (prefers-reduced-motion: reduce) {
   .signing__sending-dot { animation: none; }
 }
+
+.signing__notice { display: grid; gap: var(--space-4); }
+.signing__notice h2, .signing__notice p { margin: 0; }
+.signing__notice ul { margin: 0; padding-left: 1.25rem; line-height: 1.7; }
+.signing__field [aria-invalid="true"] { border-color: var(--danger-text); }
+.signing__card .btn { margin-top: var(--space-4); }

@@ -25,7 +25,7 @@ afterEach(() => vi.unstubAllGlobals());
  */
 describe('a signature waiting to be delivered', () => {
   it('survives the page being closed, ready to post unchanged', () => {
-    savePendingSignature('tok', 'U2FsdGVkX1+ciphertext');
+    expect(savePendingSignature('tok', 'U2FsdGVkX1+ciphertext')).toBe(true);
     expect(loadPendingSignature('tok')?.signature).toBe('U2FsdGVkX1+ciphertext');
   });
 
@@ -58,7 +58,7 @@ describe('a signature waiting to be delivered', () => {
       setItem: () => { throw new Error('denied'); },
       removeItem: () => { throw new Error('denied'); },
     });
-    expect(() => savePendingSignature('tok', 'cipher')).not.toThrow();
+    expect(savePendingSignature('tok', 'cipher')).toBe(false);
     expect(loadPendingSignature('tok')).toBeNull();
     expect(() => clearPendingSignature('tok')).not.toThrow();
   });
