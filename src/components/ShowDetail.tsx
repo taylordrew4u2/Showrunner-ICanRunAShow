@@ -22,7 +22,8 @@ import { parseShowDate, formatShowTime } from '../utils/showDate';
 import { joinNames, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
-import { buildShowStats, progressPercent, isComplete, formatRunTime } from '../utils/showStats';
+import { useMediaUrl } from '../utils/useMediaUrl';
+import { BrandMark } from './BrandMark';
 import { showDJSongs } from '../utils/musicLibrary';
 import { getRolodexTerm } from '../utils/terminology';
 import { hostChoices } from '../utils/hostChoices';
@@ -107,29 +108,13 @@ const STATUS_LABELS: Record<ShowStatus, string> = {
   cancelled: 'Cancelled',
 };
 
-/** Which sections a producer had open, remembered per show. */
-function openSectionsKey(showId: string): string {
-  return `showrunner:openSections:${showId}`;
-}
-
-function loadOpenSections(showId: string): Set<string> {
-  try {
-    const raw = localStorage.getItem(openSectionsKey(showId));
-    if (raw) return new Set(JSON.parse(raw) as string[]);
-  } catch {
-    /* ignore */
-  }
-  // First visit: the lineup opens, not Basic Info.
-  //
-  // Basic Info held this slot, and it was the wrong one twice over. Its five
-  // fields are set at the moment the show is created and rarely touched again,
-  // and the header above already prints the date, time, venue and location —
-  // so an open Basic Info was ~500px of duplicate, pushing Performers past the
-  // bottom of a phone screen. The lineup is what a show is for.
-  //
-  // Only new shows get this. A producer's own open/closed state is stored per
-  // show and still wins.
-  return new Set(['performers']);
+function LineupPreview({ performer, onOpen }: { performer: Performer; onOpen: () => void }) {
+  const photo = useMediaUrl(performer.photo);
+  return <button className="show-workspace__person" onClick={onOpen} aria-label={`Open ${performer.name}'s profile`}>
+    {photo ? <img src={photo} alt="" /> : <span className="show-workspace__initial">{performer.name.charAt(0).toUpperCase()}</span>}
+    <span><strong>{performer.name}</strong><small>{performer.walkOnMusicName || performer.socialMedia || 'Edit profile & headshot'}</small></span>
+    <Icon name="edit" size={15} />
+  </button>;
 }
 
 export function ShowDetail({
@@ -226,14 +211,8 @@ export function ShowDetail({
     showRef.current = show;
   }, [show]);
 
-  // The overview tiles read straight off the show, so they can't drift from the
-  // sections below them.
-  const stats = useMemo(
-    () => buildShowStats(show, settings.musicLibrary ?? []),
-    [show, settings.musicLibrary],
-  );
-
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => loadOpenSections(show.id));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set());
+  const [previewPerformerId, setPreviewPerformerId] = useState<string | undefined>();
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(startInRunShow);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -293,7 +272,8 @@ export function ShowDetail({
   // Lets the overview tiles act as a table of contents: tap "12 Performers"
   // and land inside the Performers section instead of scrolling to find it.
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
-  function jumpToSection(sectionKey: string) {
+  function jumpToSection(sectionKey: string, performerId?: string) {
+    setPreviewPerformerId(performerId);
     setExpandedSections((prev) => (prev.has(sectionKey) ? prev : new Set(prev).add(sectionKey)));
     // Two frames: one for React to commit the newly-expanded section, one for
     // the browser to lay it out, so the scroll targets the section's real
@@ -304,15 +284,6 @@ export function ShowDetail({
       });
     });
   }
-
-  // Come back to a show and it looks the way you left it.
-  useEffect(() => {
-    try {
-      localStorage.setItem(openSectionsKey(show.id), JSON.stringify([...expandedSections]));
-    } catch {
-      /* ignore */
-    }
-  }, [show.id, expandedSections]);
 
   // Keep the public viewer's pre-show lineup current: whenever an upcoming show's
   // lineup or details change, re-publish the scheduled payload (debounced). Skipped
@@ -527,6 +498,7 @@ export function ShowDetail({
   }
 
   function toggleSection(sectionKey: string) {
+    setPreviewPerformerId(undefined);
     const newExpanded = new Set(expandedSections);
     if (newExpanded.has(sectionKey)) {
       newExpanded.delete(sectionKey);
@@ -652,6 +624,8 @@ export function ShowDetail({
       count: show.performers.length,
       preview: joinNames(show.performers.map((p) => p.name)),
       content: <PerformersSection
+        key={previewPerformerId ?? "lineup"}
+        initialPerformerId={previewPerformerId}
         performers={show.performers}
         potentialComics={settings.potentialComics}
         showName={show.name}
@@ -811,11 +785,6 @@ export function ShowDetail({
   // tile only offers to jump somewhere that exists — a section the producer
   // hid stays hidden rather than reappearing because its tile was tapped.
   const visibleSections = sections.filter((section) => !isSectionHidden(section.sectionKey));
-  const jumpableSectionKeys = new Set(visibleSections.map((section) => section.key));
-  // Read off the sections rather than restated on the tiles, so a tile and the
-  // section it jumps to can never end up wearing different colours.
-  const accentBySection = new Map(sections.map((section) => [section.sectionKey, section.accent]));
-
   // Date and time are written the same way here as on the show cards, so the
   // same show doesn't read as "9/18/2026 20:00" in one place and
   // "Sep 18 · 8:00 PM" in another.
@@ -873,55 +842,20 @@ export function ShowDetail({
     });
   }
 
-  // Two groups of four, so the counts read as two related clusters rather than
-  // one undifferentiated row of eight: who and what is on stage, then what it
-  // takes to put them there.
-  //
-  // A tile only appears once the show actually has some of that thing. A row of
-  // zeroes is not a summary — it's a list of everything this show isn't, and it
-  // pushed the parts that do exist off the top of the screen.
-  const hiddenKeys = new Set(show.hiddenSections ?? []);
-  // Each tile carries both forms of its noun. A tile only shows once its count
-  // is at least one, so the count of one is a case that reaches the screen
-  // constantly — and it was reading "1 DJ songs" and "1 Vendors".
-  const allTileGroups: Array<Array<{
-    icon: IconName; value: number; label: string; labelOne?: string; sectionKey?: SectionKey;
-  }>> = [
-    [
-      { icon: 'users', value: stats.counts.performers, label: 'Performers', labelOne: 'Performer', sectionKey: 'performers' },
-      { icon: 'sparkle', value: stats.counts.artists, label: 'Artists', labelOne: 'Artist', sectionKey: 'artists' },
-      { icon: 'schedule', value: stats.counts.cues, label: 'Cues', labelOne: 'Cue', sectionKey: 'schedule' },
-      { icon: 'music', value: stats.counts.songs, label: 'DJ songs', labelOne: 'DJ song', sectionKey: 'dj' },
-    ],
-    [
-      // "Staff" is already a plural; one of them is a staff member.
-      { icon: 'wrench', value: stats.counts.staff, label: 'Staff', labelOne: 'Staff member', sectionKey: 'staff' },
-      { icon: 'bolt', value: stats.counts.vendors, label: 'Vendors', labelOne: 'Vendor', sectionKey: 'vendors' },
-      { icon: 'file', value: stats.counts.expenses, label: 'Expenses', labelOne: 'Expense', sectionKey: 'expenses' },
-      { icon: 'check', value: stats.counts.todos, label: 'To-dos', labelOne: 'To-do' },
-    ],
-  ];
-  /**
-   * One flat row of tiles, not two boxed groups of four.
-   *
-   * The grouping was worth its wrapper when eight tiles showed at once. They
-   * don't: a tile only appears once the show has some of that thing, so in
-   * practice this is one to four. Two bordered boxes each holding a single
-   * count, stacked above a second bordered box holding a single bar, was most
-   * of a phone screen of chrome describing very little — and it sat between
-   * the header and the lineup.
-   */
-  const tiles = allTileGroups
-    .flat()
-    .filter((tile) => tile.value > 0 && !(tile.sectionKey && hiddenKeys.has(tile.sectionKey)));
-
-  // Same rule for the readiness bars: "Vendors booked 0/0 — 0%" measures
-  // nothing. A bar earns its place once there is something to be ready about.
-  const progressStats = stats.progress.filter((stat) => stat.total > 0);
-  const hasRunTime = stats.runMinutes > 0;
-
   return (
-    <div className="show-detail">
+    <div className="show-detail show-workspace">
+      <aside className="show-workspace__sidebar" aria-label="Show navigation">
+        <div className="show-workspace__brand"><BrandMark /><span>I Can Run A Show</span></div>
+        <button className="show-workspace__nav-back" onClick={onBack}>← All shows</button>
+        <nav aria-label="Show sections">
+          <button onClick={() => { setExpandedSections(new Set()); setPreviewPerformerId(undefined); heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><Icon name="file" size={17} />Overview</button>
+          {visibleSections.map(section => <button key={section.key} aria-expanded={expandedSections.has(section.key)} aria-controls={`show-section-panel-${section.key}`} onClick={() => jumpToSection(section.key)}>
+            <Icon name={SECTION_ICONS[section.key] ?? 'file'} size={17} />{section.title}
+          </button>)}
+        </nav>
+        <button className="show-workspace__configure" onClick={() => setManageSectionsOpen(true)}>Add or remove sections</button>
+      </aside>
+      <div className="show-workspace__body">
       {/* Outside the hero, not inside it. A sticky element can only stick
           within its own containing block, and the hero is 185px tall — so
           nested in there the bar unstuck itself almost immediately and rode
@@ -1043,6 +977,8 @@ export function ShowDetail({
         </div>
       </div>
 
+      <div className="show-workspace__columns">
+      <div className="show-detail__sections-accordion">
       {/* Host — one row, not two.
           The name field and a "Pick someone…" select used to sit side by side,
           and on a phone the select dropped to a full-width line of its own
@@ -1113,104 +1049,14 @@ export function ShowDetail({
         )}
       </div>
 
-      {/* At a glance — one strip, not three stacked boxes.
-          Counts, run time and readiness are all answers to "how is this show
-          doing", so they share one grid of uniform cards instead of each
-          getting its own bordered block. Each still earns its place: a tile
-          appears once the show has some of that thing, a bar once there is
-          something to be ready about, and run time once the cues have
-          lengths — otherwise it was a green panel containing an em-dash on
-          every show the day it was created. */}
-      {(tiles.length > 0 || hasRunTime || progressStats.length > 0) && (
-        <section className="show-summary" aria-label="Show at a glance">
-          {tiles.map((tile) => {
-            // A tile only jumps if there's a section on this page to land in.
-            // Expenses and To-dos don't get their own section — they surface
-            // inside Recap, and only once the show is in the past.
-            const jumpsTo = tile.sectionKey && jumpableSectionKeys.has(tile.sectionKey) ? tile.sectionKey : undefined;
-            // Those two keep the neutral chip, which also reads as "this one
-            // isn't a link".
-            const accent = (tile.sectionKey && accentBySection.get(tile.sectionKey)) || 'slate';
-            const body = (
-              <>
-                <span className={`show-tile__icon accent--${accent}`}>
-                  <Icon name={tile.icon} size={18} />
-                </span>
-                <span className="show-tile__body">
-                  <span className="show-tile__value">{tile.value}</span>
-                  <span className="show-tile__label">
-                    {tile.value === 1 ? tile.labelOne ?? tile.label : tile.label}
-                  </span>
-                </span>
-              </>
-            );
-            return jumpsTo ? (
-              <button
-                type="button"
-                className="show-tile show-tile--jump"
-                key={tile.label}
-                onClick={() => jumpToSection(jumpsTo)}
-              >
-                {body}
-              </button>
-            ) : (
-              <div className="show-tile" key={tile.label}>
-                {body}
-              </div>
-            );
-          })}
-
-          {hasRunTime && (
-            <div className="show-tile show-tile--runtime">
-              <span className="show-tile__icon accent--slate">
-                <Icon name="clock" size={18} />
-              </span>
-              <span className="show-tile__body">
-                <span className="show-tile__value">{formatRunTime(stats.runMinutes)}</span>
-                <span className="show-tile__label">Run time</span>
-              </span>
-            </div>
-          )}
-
-          {progressStats.map((stat) => {
-            const percent = progressPercent(stat);
-            const full = isComplete(stat);
-            return (
-              <div
-                className={`show-progress__card${full ? ' show-progress__card--full' : ''}`}
-                key={stat.key}
-              >
-                <span className="show-progress__label">{stat.label}</span>
-                <span className="show-progress__figure">
-                  <strong className="show-progress__value">
-                    {stat.done}<span className="show-progress__of">/{stat.total}</span>
-                  </strong>
-                  {/* "100%" tells you the ratio; "Full" tells you to stop
-                      booking. On the lineup that is the whole question. */}
-                  <span className={`show-progress__pct${full ? ' show-progress__pct--full' : ''}`}>
-                    {full ? 'Full' : `${percent}%`}
-                  </span>
-                </span>
-                <span
-                  className="show-progress__track"
-                  role="progressbar"
-                  aria-valuenow={percent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={stat.label}
-                >
-                  <span
-                    className={`show-progress__bar show-progress__bar--${stat.key}`}
-                    style={{ width: `${percent}%` }}
-                  />
-                </span>
-              </div>
-            );
-          })}
+        <section className="show-workspace__notes">
+          <h2>Production notes</h2>
+          <label className="visually-hidden" htmlFor="show-production-notes">Production notes</label>
+          <textarea id="show-production-notes" placeholder="Reminders for this show, soundcheck, setup…"
+            value={show.productionNotes ?? ''} onChange={e => handleUpdate({ productionNotes: e.target.value })} />
+          <span>Saved with this show</span>
         </section>
-      )}
 
-      <div className="show-detail__sections-accordion">
         {visibleSections.map((section) => {
           const isExpanded = expandedSections.has(section.key);
           const panelId = `show-section-panel-${section.key}`;
@@ -1223,7 +1069,7 @@ export function ShowDetail({
               ref={(el) => {
                 sectionRefs.current[section.key] = el;
               }}
-              className="accordion-section"
+              className={`accordion-section show-workspace__card show-workspace__card--${section.key}${isExpanded ? ' show-workspace__card--open' : ''}`}
             >
               {/* The whole header is one button, wrapped in the heading. It used
                   to be a div with a click handler and a separate arrow button,
@@ -1279,6 +1125,16 @@ export function ShowDetail({
                 </button>
               </h2>
 
+              {!isExpanded && section.key === 'performers' && <div className="show-workspace__lineup-preview">
+                {show.performers.length ? <div className="show-workspace__people">{show.performers.map(performer => <LineupPreview key={performer.id} performer={performer} onOpen={() => jumpToSection('performers', performer.id)} />)}</div> : <p>Build the lineup for this show.</p>}
+                <button className="btn btn--secondary btn--sm" onClick={() => jumpToSection('performers')}>{show.performers.length ? 'Edit lineup / add performer' : 'Add performers'}</button>
+              </div>}
+              {!isExpanded && section.key === 'basic'  && <div className="show-workspace__detail-preview">
+                <strong>{show.venueName || 'Add a venue'}</strong>
+                <span>{show.location || 'Add a location'}</span>
+                <span>{detailDate?.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) || 'Set a date'} · {formatShowTime(show.time) || 'Set a time'}</span>
+                <button className="btn btn--secondary btn--sm" onClick={() => jumpToSection('basic')}>Edit show details</button>
+              </div>}
               {isExpanded && (
                 <div
                   id={panelId}
@@ -1294,14 +1150,26 @@ export function ShowDetail({
         })}
       </div>
 
-      <div className="show-detail__manage-row">
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm"
-          onClick={() => setManageSectionsOpen(true)}
-        >
-          Add or remove sections
-        </button>
+      {visibleSections.some(section => section.key === 'schedule') && <aside className="show-workspace__running" aria-label="Running order">
+        <div className="show-workspace__running-head">
+          <h2>{detailDate?.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) || 'Show day'}</h2>
+          <p>Running order</p>
+        </div>
+        {show.schedule.length ? <ol>
+          {show.schedule.map((cue, index) => <li key={cue.id}>
+            <span className="show-workspace__cue-number">{String(index + 1).padStart(2, '0')}</span>
+            <button onClick={() => jumpToSection('schedule')}>
+              <time>{cue.time || `Cue ${index + 1}`}</time>
+              <strong>{cue.description || 'Untitled cue'}</strong>
+              {cue.performer && <span>{cue.performer}</span>}
+              {cue.durationMin != null && <small>{cue.durationMin} min</small>}
+            </button>
+          </li>)}
+        </ol> : <div className="show-workspace__running-empty"><Icon name="schedule" size={28} /><h3>Plan the night</h3><p>Add cues or build a running order from your lineup.</p></div>}
+        <button className="btn btn--primary" onClick={() => jumpToSection('schedule')}>{show.schedule.length ? 'Edit schedule' : 'Build schedule'}</button>
+      </aside>}
+      </div>
+      <button className="btn btn--secondary show-workspace__mobile-manage" onClick={() => setManageSectionsOpen(true)}>Add or remove sections</button>
       </div>
 
       {runShowOpen && (

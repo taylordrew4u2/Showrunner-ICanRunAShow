@@ -37,6 +37,48 @@
         }
       },
       "updatedAt": "2026-09-12T08:29:11.545084+00:00"
+    },
+    "show-detail": {
+      "targetKind": "existing-ui",
+      "projectId": "02ff3d92-bb8d-4118-9035-8426887e8321",
+      "baselineDraftId": "c3538752-6095-498b-a5bb-9c3a834e700d",
+      "activeDraftId": "c3538752-6095-498b-a5bb-9c3a834e700d",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        ".superdesign/init/theme.md:1:22",
+        "src/components/ShowDetail.tsx",
+        "src/components/ShowDetail.css",
+        "src/design.css"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "ad389525ac87c1a448c3c9e5fbd9b01c45036c337f439256097b9c342dfc46b4",
+        ".superdesign/init/theme.md": "b3152a5dc53759a60cede7da3bae59e867279cadb91ac4adf5f054f9bfde34e5",
+        "src/components/ShowDetail.tsx": "d42a34d34eab85ba9921ce54f6069fbb72c7c8f7b69ba4a00fe91cdd6ddface8",
+        "src/components/ShowDetail.css": "8cf25e5e58378f3f81ce6e94a724f5c8a1289531fc6050bc246ce21d8471a61e",
+        "src/design.css": "5ec547a38b319ec0e68c265b5213e8690539e3ff43de9149dd089d4900ecc27b"
+      },
+      "referenceIds": [
+        "33212201-4427-4811-836e-c15668f61bb5",
+        "944093f8-2464-4234-a3cf-14554ca7769a",
+        "public-brand-mark.svg"
+      ],
+      "brandAssets": {
+        "logo": {
+          "assetKey": "public-brand-mark.svg",
+          "url": "https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/02ff3d92-bb8d-4118-9035-8426887e8321/brand-assets/public-brand-mark.svg/mark.svg",
+          "sourcePath": "public/brand/mark.svg"
+        }
+      },
+      "components": [],
+      "drafts": {
+        "c3538752-6095-498b-a5bb-9c3a834e700d": {
+          "title": "Showrunner Dashboard Redesign",
+          "visualDirection": "Approved for all shows. Implemented responsive sidebar, compact performer cards with profile access, expandable editors, per-show production notes and running-order rail. User approval: all shows.",
+          "currentVersion": 3
+        }
+      },
+      "updatedAt": "2026-09-15T10:02:48.050856+00:00"
     }
   }
 }

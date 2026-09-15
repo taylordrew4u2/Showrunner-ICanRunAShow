@@ -34,6 +34,9 @@ for (const action of ['duplicate', 'repeat'] as const) {
       const isOriginal = day?.trim() === '7';
       await card.click();
       await expect(page.locator('.show-detail')).toBeVisible();
+      // Shows now reopen on their compact overview; inspect the actual editor
+      // to verify the original lineup and each new empty lineup.
+      await page.locator('#show-section-header-performers').click();
       const performer = page.locator('.section-list-item__name').filter({ hasText: 'Ada Cole' });
       if (isOriginal) await expect(performer).toBeVisible();
       else {

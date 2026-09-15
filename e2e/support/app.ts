@@ -55,6 +55,9 @@ export async function createShow(page: Page, name: string, date = '2026-09-20'):
   await page.locator('input[type=date]').fill(date);
   await page.locator('button').filter({ hasText: /^Save$/ }).last().click();
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
+  // Most fixture callers immediately populate the lineup. The new overview
+  // starts with compact cards, so open its editor explicitly for those callers.
+  await page.locator('#show-section-header-performers').click();
 }
 
 /** Open one of the collapsible sections on a show page by its title. */

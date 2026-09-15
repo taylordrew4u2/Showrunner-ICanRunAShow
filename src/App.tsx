@@ -480,22 +480,12 @@ export default function App() {
           }
         }
 
-        // Auto-correct: a show still marked 'upcoming' whose date has passed
-        // should be 'completed'. Only touch 'upcoming' — leave 'in-progress'
-        // and 'cancelled' alone since those are intentional manual states.
-        const today = new Date().toISOString().split('T')[0];
-        const autoStatusShows = migratedShows.map((show) =>
-          show.status === 'upcoming' && show.date && show.date < today
-            ? { ...show, status: 'completed' as const }
-            : show
-        );
-
         // If a previous session had unsaved edits (save failed, tab closed),
         // recover edits against their original baseline. Conflicting versions
         // get separate show IDs so both survive.
         const showDrafts = pendingStore.readAll<Show[]>(PENDING_SHOWS_KEY, currentSession.username);
         const rawPendingShows = showDrafts.length ? showDrafts.reduce((current, draft) =>
-          recoverShowDraft(draft.data, current, draft.metadata?.showHashes), autoStatusShows) : null;
+          recoverShowDraft(draft.data, current, draft.metadata?.showHashes), migratedShows) : null;
         // Same healing as the server rows: a local backup written by an older
         // build can be missing list fields the list renders without checking.
         const pendingShows = rawPendingShows
@@ -528,10 +518,10 @@ export default function App() {
         // account: merged with what the server holds rather than replacing it,
         // so a show added elsewhere since the failed save is not deleted by
         // this launch. See mergePendingShows.
-        const initialShows = pendingShows
+        const recoveredShows = pendingShows
           ? mergePendingShows(
               pendingShows,
-              autoStatusShows,
+              migratedShows,
               (pendingSettings ?? migratedSettings).trash ?? [],
               // The record of what was deleted on purpose has to come from
               // whichever settings this launch is actually going to use, and
@@ -542,7 +532,20 @@ export default function App() {
                 ...(pendingSettings?.deletedShowIds ?? []),
               ],
             )
-          : autoStatusShows;
+          : migratedShows;
+        // Recover against the actual saved version first. Automatically marking
+        // a past show completed before comparing hashes looks like a concurrent
+        // server edit and can create a false recovered copy during a reload.
+        // Auto-correct: a show still marked 'upcoming' whose date has passed
+        // should be 'completed'. Only touch 'upcoming' — leave 'in-progress'
+        // and 'cancelled' alone since those are intentional manual states.
+        const today = new Date().toISOString().split('T')[0];
+        const initialShows = recoveredShows.map((show) =>
+          show.status === 'upcoming' && show.date && show.date < today
+            ? { ...show, status: 'completed' as const }
+            : show
+        );
+
         // A pending copy is by definition *not* what the server has; anything
         // else came straight off it and needs no local copy until it's edited.
         savedShowsRef.current = pendingShows ? null : initialShows;
