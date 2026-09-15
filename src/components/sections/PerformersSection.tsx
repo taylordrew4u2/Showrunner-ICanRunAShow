@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
 import { comicToPerformer, rolodexKey } from '../../utils/rolodex';
@@ -154,6 +154,14 @@ export function PerformersSection({
         total: performers.length,
       }
     : null;
+
+  // Who is already filed, by the same name rule the rest of the app matches
+  // people with — so "already in your Rolodex" means the same thing here as it
+  // does when a contract comes back or someone is booked off the list.
+  const filedInRolodex = useMemo(
+    () => new Set((potentialComics ?? []).map((c) => rolodexKey(c.name))),
+    [potentialComics],
+  );
 
   const showAddForm = addingOpen || performers.length === 0;
 
@@ -508,6 +516,7 @@ export function PerformersSection({
               onChange={updatePerformer}
               onDelete={deletePerformer}
               onSaveToRolodex={onSaveToRolodex}
+              inRolodex={filedInRolodex.has(rolodexKey(selectedPerformer.name))}
               contracts={renderContracts?.(selectedPerformer)}
             />
           </div>

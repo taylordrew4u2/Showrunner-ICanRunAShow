@@ -29,6 +29,7 @@ import {
   applyFiledHeadshot,
   applyProfileChanges,
   describeChanges,
+  fillRolodexFromSignatures,
   headshotsToFile,
   profileChanges,
   profileFromAnswers,
@@ -128,7 +129,20 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
       const next = updated ?? requests;
       const filed = await fileHeadshots(next);
       if (cancelled) return;
-      if (filed) onUpdateSettings({ ...settings, ...filed });
+
+      // Then the answers. Gaps only — a field the producer has already filled
+      // in is never overwritten by a form, so a conflict is still theirs to
+      // settle in the offer below.
+      const patch: Partial<AppSettings> = { ...(filed ?? {}) };
+      const filledComics = fillRolodexFromSignatures(
+        patch.signatureRequests ?? next,
+        patch.potentialComics ?? settings.potentialComics ?? [],
+        rolodexKey,
+        generateId,
+      );
+      if (filledComics) patch.potentialComics = filledComics;
+
+      if (Object.keys(patch).length > 0) onUpdateSettings({ ...settings, ...patch });
       else if (updated) onUpdateSettings({ ...settings, signatureRequests: updated });
     })();
     return () => { cancelled = true; };

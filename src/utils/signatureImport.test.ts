@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   applyFiledHeadshot,
   applyProfileChanges,
+  fillRolodexFromSignatures,
   headshotsToFile,
+  signedProfilePatch,
   describeChanges,
   profileChanges,
   profileFromAnswers,
@@ -197,5 +199,75 @@ describe('a headshot that came back with a signature', () => {
 
   it('is not looked for on a contract nobody has signed yet', () => {
     expect(headshotsToFile([request({ signed: undefined })], [], key)).toEqual([]);
+  });
+});
+
+describe('what a signed contract fills in by itself', () => {
+  const key = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ');
+  const signed = (fields: { label: string; value: string }[], sentAt = '2026-03-01') => ({
+    signerName: 'Ada Cole', sentAt, signed: { fields },
+  });
+
+  it('fills a blank on the profile without being asked', () => {
+    const patch = signedProfilePatch(
+      [signed([{ label: 'Email', value: 'ada@example.com' }])],
+      { name: 'Ada Cole' },
+      key,
+    );
+    expect(patch).toEqual({ email: 'ada@example.com' });
+  });
+
+  it('never replaces something the producer already put there', () => {
+    // The whole reason the import was an offer: two different numbers is a
+    // question only they can settle.
+    const patch = signedProfilePatch(
+      [signed([{ label: 'Phone', value: '555 9999' }])],
+      { name: 'Ada Cole', phone: '555 0142' },
+      key,
+    );
+    expect(patch).toBeNull();
+  });
+
+  it('fills the blanks and leaves the conflict alone in the same contract', () => {
+    const patch = signedProfilePatch(
+      [signed([
+        { label: 'Email', value: 'ada@example.com' },
+        { label: 'Phone', value: '555 9999' },
+      ])],
+      { name: 'Ada Cole', phone: '555 0142' },
+      key,
+    );
+    expect(patch).toEqual({ email: 'ada@example.com' });
+  });
+
+  it('takes the most recent answer when they have signed more than once', () => {
+    const patch = signedProfilePatch(
+      [
+        signed([{ label: 'Email', value: 'old@example.com' }], '2026-01-01'),
+        signed([{ label: 'Email', value: 'new@example.com' }], '2026-06-01'),
+      ],
+      { name: 'Ada Cole' },
+      key,
+    );
+    expect(patch).toEqual({ email: 'new@example.com' });
+  });
+
+  it('does not put one person\'s answers on another', () => {
+    expect(signedProfilePatch([signed([{ label: 'Email', value: 'a@b.c' }])], { name: 'Ben Stone' }, key))
+      .toBeNull();
+  });
+
+  it('says nothing to write when every profile is already complete', () => {
+    const comics = [{ id: 'c', name: 'Ada Cole', email: 'ada@example.com' }];
+    expect(fillRolodexFromSignatures(
+      [signed([{ label: 'Email', value: 'ada@example.com' }])], comics, key, () => 'new',
+    )).toBeNull();
+  });
+
+  it('files someone who signed and was never added to the rolodex', () => {
+    const filled = fillRolodexFromSignatures(
+      [signed([{ label: 'Email', value: 'ada@example.com' }])], [], key, () => 'new',
+    );
+    expect(filled).toEqual([{ id: 'new', name: 'Ada Cole', email: 'ada@example.com' }]);
   });
 });

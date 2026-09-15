@@ -18,13 +18,22 @@ interface PerformerProfileProps {
   onDelete: (id: string) => void;
   onSaveToRolodex?: (comic: PotentialComic) => void;
   /**
+   * Whether this person is already filed in the Rolodex.
+   *
+   * Passed in rather than worked out here, because the profile knows nothing
+   * about settings. When they are, the save control is gone entirely: a button
+   * offering to do something already done is a button that makes a producer
+   * wonder whether the first press worked.
+   */
+  inRolodex?: boolean;
+  /**
    * Contracts for this person, rendered by the caller — the profile itself has
    * no idea about settings or the session, and does not need one.
    */
   contracts?: React.ReactNode;
 }
 
-export function PerformerProfile({ performer, onBack, onChange, onDelete, onSaveToRolodex, contracts }: PerformerProfileProps) {
+export function PerformerProfile({ performer, onBack, onChange, onDelete, onSaveToRolodex, inRolodex, contracts }: PerformerProfileProps) {
   // Labels have to point at the field they name: written as a plain <label>
   // beside an input they are decoration — not announced as the field's name,
   // and not tappable to focus it.
@@ -295,7 +304,11 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
             <button className="btn btn--primary" onClick={handleSave} disabled={!dirty}>
               Save Changes
             </button>
-            {onSaveToRolodex && (
+            {/* Gone once they are filed, on every screen that shows a profile:
+                this is driven by the Rolodex itself rather than by a flag from
+                the last press, so it stays gone after a reload and wherever
+                else the same person is opened. */}
+            {onSaveToRolodex && !inRolodex && (
               <button
                 className="btn btn--secondary btn--sm"
                 onClick={() => {
