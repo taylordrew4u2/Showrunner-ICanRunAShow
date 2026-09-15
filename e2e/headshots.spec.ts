@@ -10,7 +10,10 @@ test('comic headshots upload, preview, download, persist, and replace by drop', 
   await page.locator('.rolodex__input').first().fill('Mona Sable');
   await page.locator('.rolodex__form button[type="submit"]').click();
   const row = page.locator('.rolodex__item').filter({ hasText: 'Mona Sable' });
-  await row.getByRole('button', { name: 'Edit', exact: true }).click();
+  await row.getByRole('button', { name: "Open Mona Sable's full profile", exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Mona Sable', exact: true })).toBeVisible();
+  await page.getByLabel('Email', { exact: true }).fill('mona@example.com');
+  await page.getByRole('button', { name: 'Save Changes', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Headshot', exact: true });
   const png = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 1800; canvas.height = 1200;
@@ -36,6 +39,7 @@ test('comic headshots upload, preview, download, persist, and replace by drop', 
   await gotoTab(page, 'Rolodex');
   await expect(row.locator('img')).toBeVisible();
   await row.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(page.getByLabel('Email', { exact: true })).toHaveValue('mona@example.com');
   await expect(panel.locator('.headshot__image')).toBeVisible();
   await panel.scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath('headshot-profile.png'), fullPage: true });

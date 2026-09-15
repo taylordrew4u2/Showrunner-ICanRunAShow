@@ -101,7 +101,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
         <button className="btn btn--ghost btn--sm" onClick={onBack}>← Back</button>
       </div>
 
-      <h2 className="perf-profile__heading">Rolodex Entry</h2>
+      <h2 className="perf-profile__heading">{comic.name}</h2>
 
       <div className="perf-profile__card">
         <div className="perf-profile__form">
