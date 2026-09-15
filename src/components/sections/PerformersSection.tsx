@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
 import { comicToPerformer, rolodexKey } from '../../utils/rolodex';
-import { socialLink, bulkMailto, isEmail } from '../../utils/social';
+import { socialLink } from '../../utils/social';
+import { LineupActions } from '../LineupActions';
 import { lineupProgress } from '../../utils/lineupTarget';
 import { describeGaps, lineupGaps } from '../../utils/performerReadiness';
 import { PerformerProfile } from './PerformerProfile';
@@ -79,16 +80,6 @@ export function PerformersSection({
     const timer = setTimeout(() => setFiled(null), 5000);
     return () => clearTimeout(timer);
   }, [filed]);
-
-  // Booked performers with a usable email, for the "Email all" action.
-  const emailablePerformers = performers.filter(p => isEmail(p.email));
-  const mailAllHref = bulkMailto(
-    emailablePerformers.map(p => p.email),
-    {
-      subject: showName ? `${showName} — confirmation` : 'Show confirmation',
-      body: `Hi everyone,\n\nConfirming your spot${showName ? ` for ${showName}` : ''}. Details below — please reply to confirm you're good to go.\n\nThanks!`,
-    },
-  );
 
   function addPerformer() {
     if (!name.trim()) return;
@@ -329,25 +320,7 @@ export function PerformersSection({
         </div>
       )}
 
-      {(mailAllHref || onAnnounce) && (
-        <div className="section-mass-message">
-          {mailAllHref && (
-            <a className="btn btn--secondary btn--sm" href={mailAllHref}>
-              ✉ Email all performers ({emailablePerformers.length})
-            </a>
-          )}
-          {onAnnounce && performers.length > 0 && (
-            <button className="btn btn--secondary btn--sm" onClick={onAnnounce}>
-              Post copy
-            </button>
-          )}
-          <span className="section-mass-message__hint">
-            {mailAllHref
-              ? "Opens your mail app with everyone BCC'd."
-              : 'The bill and every handle, ready to paste.'}
-          </span>
-        </div>
-      )}
+      <LineupActions performers={performers} showName={showName} onAnnounce={onAnnounce} />
 
       {performers.length > 0 && (
         <div className="lineup-add">

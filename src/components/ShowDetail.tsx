@@ -9,6 +9,7 @@ import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
 import { PerformerContracts } from './sections/PerformerContracts';
 import { AnnouncePost } from './AnnouncePost';
+import { LineupActions } from './LineupActions';
 import { ArtistsSection } from './sections/ArtistsSection';
 import { ScheduleSection } from './sections/ScheduleSection';
 import { DJMusicSection } from './sections/DJMusicSection';
@@ -112,7 +113,7 @@ function LineupPreview({ performer, onOpen }: { performer: Performer; onOpen: ()
   const photo = useMediaUrl(performer.photo);
   return <button className="show-workspace__person" onClick={onOpen} aria-label={`Open ${performer.name}'s profile`}>
     {photo ? <img src={photo} alt="" /> : <span className="show-workspace__initial">{performer.name.charAt(0).toUpperCase()}</span>}
-    <span><strong>{performer.name}</strong><small>{performer.walkOnMusicName || performer.socialMedia || 'Edit profile & headshot'}</small></span>
+    <span><strong>{performer.name}</strong>{performer.socialMedia && <small>{performer.socialMedia}</small>}{performer.walkOnMusicName && <small>{performer.walkOnMusicName}</small>}{!performer.socialMedia && !performer.walkOnMusicName && <small>Edit profile & headshot</small>}</span>
     <Icon name="edit" size={15} />
   </button>;
 }
@@ -1126,6 +1127,7 @@ export function ShowDetail({
               </h2>
 
               {!isExpanded && section.key === 'performers' && <div className="show-workspace__lineup-preview">
+                <LineupActions performers={show.performers} showName={show.name} onAnnounce={() => setAnnounceOpen(true)} />
                 {show.performers.length ? <div className="show-workspace__people">{show.performers.map(performer => <LineupPreview key={performer.id} performer={performer} onOpen={() => jumpToSection('performers', performer.id)} />)}</div> : <p>Build the lineup for this show.</p>}
                 <button className="btn btn--secondary btn--sm" onClick={() => jumpToSection('performers')}>{show.performers.length ? 'Edit lineup / add performer' : 'Add performers'}</button>
               </div>}
