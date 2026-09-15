@@ -10,6 +10,7 @@ import { Icon } from '../Icon';
 import type { SignerStatus } from '../../utils/contracts';
 
 interface PerformersSectionProps {
+  initialPerformerId?: string;
   performers: Performer[];
   potentialComics?: PotentialComic[];
   showName?: string;
@@ -30,6 +31,7 @@ interface PerformersSectionProps {
 }
 
 export function PerformersSection({
+  initialPerformerId,
   performers,
   potentialComics = [],
   showName,
@@ -44,7 +46,7 @@ export function PerformersSection({
   const [name, setName] = useState('');
   const [instagram, setInstagram] = useState('');
   const [email, setEmail] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialPerformerId ?? null);
   const [showRolodex, setShowRolodex] = useState(false);
   /**
    * Whether the add-a-performer form is showing.
