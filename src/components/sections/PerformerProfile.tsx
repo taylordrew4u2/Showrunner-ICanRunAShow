@@ -3,6 +3,7 @@ import type { Performer, PotentialComic } from '../../types';
 import { downscaleImage } from '../../utils/imageResize';
 import { audioUploadSizeError, imageUploadSizeError, pickFile as openFilePicker } from '../../utils/media';
 import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
+import { Icon } from '../Icon';
 import { TrimControls } from '../TrimControls';
 import { useMediaUrl } from '../../utils/useMediaUrl';
 import { socialLink } from '../../utils/social';
@@ -42,6 +43,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [audioDrag, setAudioDrag] = useState(false);
+  const [photoDrag, setPhotoDrag] = useState(false);
   /**
    * The record as it is now, for uploads that finish after the fact.
    *
@@ -84,7 +86,11 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
    */
   async function pickPhoto() {
     const file = await openFilePicker('image/*');
-    if (!file) return;
+    if (file) await attachPhoto(file);
+  }
+
+  /** One upload path, whether the file was chosen or dropped on the panel. */
+  async function attachPhoto(file: File) {
     const sizeError = imageUploadSizeError(file);
     if (sizeError) {
       setPhotoError(sizeError);
@@ -171,10 +177,21 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
   return (
     <div className="perf-profile">
       <div className="perf-profile__topbar">
-        <button className="btn btn--ghost btn--sm" onClick={onBack}>← Back</button>
+        <button className="perf-profile__back" onClick={onBack}>
+          <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
+            <path
+              fillRule="evenodd"
+              d="M12.707 4.293a1 1 0 010 1.414L8.414 10l4.293 4.293a1 1 0 01-1.414 1.414l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 0z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <span>Performers</span>
+        </button>
       </div>
 
-      <h3 className="perf-profile__heading">Performer Profile</h3>
+      {/* The person, not the word "profile" — you got here by pressing their
+          name, and the page you land on should say whose it is. */}
+      <h3 className="perf-profile__heading">{performer.name.trim() || 'Performer Profile'}</h3>
 
       {/* Main card: fields + photo */}
       <div className="perf-profile__card">
@@ -293,15 +310,18 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               </button>
             )}
             <button
-              className="btn btn--danger btn--sm"
+              className="btn btn--danger btn--sm perf-profile__remove"
               onClick={async () => {
-                if (await confirm(`Delete "${performer.name}"? This cannot be undone.`)) {
+                if (await confirm({
+                  message: `Remove ${performer.name} from this show? They stay in your Rolodex.`,
+                  confirmLabel: 'Remove from show',
+                })) {
                   onDelete(performer.id);
                   onBack();
                 }
               }}
             >
-              Delete
+              Remove from show
             </button>
           </div>
         </div>
@@ -319,19 +339,39 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
           </div>
           <p className="perf-profile__photo-name">{performer.name}</p>
           {photoError && <p className="perf-profile__media-error">{photoError}</p>}
-          <div className="perf-profile__photo-actions">
-            <button className="btn btn--secondary btn--sm" onClick={pickPhoto}>
-              {performer.photo ? 'Replace photo' : 'Add photo'}
-            </button>
-            {performer.photo && (
-              <button className="perf-profile__photo-remove" onClick={removePhoto}>
-                Remove
-              </button>
-            )}
+          {/* A headshot usually arrives as a file somebody sent you, so the
+              whole panel takes a drop — the button was the only way in. */}
+          <div
+            className={`perf-profile__photo-drop${photoDrag ? ' perf-profile__photo-drop--active' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-label={performer.photo ? 'Replace headshot' : 'Add a headshot'}
+            onDragOver={e => e.preventDefault()}
+            onDragEnter={() => setPhotoDrag(true)}
+            onDragLeave={() => setPhotoDrag(false)}
+            onDrop={e => {
+              e.preventDefault();
+              setPhotoDrag(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file?.type.startsWith('image/')) void attachPhoto(file);
+            }}
+            onClick={() => void pickPhoto()}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void pickPhoto(); }
+            }}
+          >
+            <span className="perf-profile__photo-drop-icon"><Icon name="camera" size={20} /></span>
+            <p className="perf-profile__photo-hint">
+              {photoDrag
+                ? 'Drop the headshot'
+                : 'Drop a headshot, or click to choose. It becomes their face on the Run Show button.'}
+            </p>
           </div>
-          <p className="perf-profile__photo-hint">
-            Shown on this performer's Run Show button.
-          </p>
+          {performer.photo && (
+            <button className="perf-profile__photo-remove" onClick={removePhoto}>
+              Remove photo
+            </button>
+          )}
         </div>
       </div>
 
@@ -341,9 +381,9 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
         {mediaError && <p className="perf-profile__media-error">{mediaError}</p>}
         <div className="perf-profile__media-grid">
 
-          {/* Walk-On Music */}
+          {/* Walk-on audio */}
           <div className="perf-profile__media-tile">
-            <p className="perf-profile__media-label">Walk-On Music</p>
+            <p className="perf-profile__media-label">Walk-on audio</p>
             {(performer.walkOnMusicName || performer.walkOnMusicArtist) && (
               <p className="perf-profile__song-info">
                 {[performer.walkOnMusicName, performer.walkOnMusicArtist].filter(Boolean).join(' — ')}
@@ -362,6 +402,21 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
             )}
             {performer.walkOnMusic ? (
               <>
+                {/* The file itself, on one line: what is attached and the one
+                    control you reach for. The player and the cut sit under it,
+                    where they belong to the track rather than compete with it. */}
+                <div className="perf-profile__audio-file">
+                  <span className="perf-profile__audio-file-icon"><Icon name="music" size={16} /></span>
+                  <span className="perf-profile__audio-file-name">
+                    {performer.walkOnMusicName || 'Walk-on audio'}
+                  </span>
+                  <button
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => pickFile('audio/*', attachWalkOn)}
+                  >
+                    Replace
+                  </button>
+                </div>
                 {walkOnUrl ? (
                   <audio controls preload="none" className="perf-profile__audio">
                     <source src={walkOnUrl} />
@@ -370,12 +425,6 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                   <p className="perf-profile__media-empty">Loading audio…</p>
                 )}
                 <div className="perf-profile__media-actions">
-                  <button
-                    className="btn btn--secondary btn--sm"
-                    onClick={() => pickFile('audio/*', attachWalkOn)}
-                  >
-                    Replace
-                  </button>
                   <button
                     className="btn btn--ghost btn--sm"
                     onClick={() => onChange({
@@ -426,11 +475,14 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 <span className="perf-profile__dropzone-sub">MP3, WAV, AAC, M4A</span>
               </div>
             )}
+            <span className="perf-profile__media-hint">
+              Fades in when you press their face in Run Show.
+            </span>
           </div>
 
-          {/* Video */}
+          {/* Video link */}
           <div className="perf-profile__media-tile">
-            <p className="perf-profile__media-label">Video</p>
+            <p className="perf-profile__media-label">Video link</p>
             <input
               className="perf-profile__input perf-profile__video-link"
               value={performer.videoLink || ''}
