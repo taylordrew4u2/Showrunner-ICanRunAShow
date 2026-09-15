@@ -4,6 +4,18 @@ import { healShow } from './showHealing';
 
 const hash = (show: Show) => CryptoJS.SHA256(JSON.stringify(show)).toString();
 
+/** The later of two versions of one show, by the clock they carry.
+ *
+ * The same rule mergePendingShows uses, so "who wins" does not depend on which
+ * of the two recovery paths a launch happens to take. A missing or unparseable
+ * stamp loses to a real one; with neither, the held copy wins, because that is
+ * the work the user can still see on screen. */
+function newer(local: Show, remote: Show): Show {
+  const a = Date.parse(local.updatedAt ?? '');
+  const b = Date.parse(remote.updatedAt ?? '');
+  return Number.isFinite(b) && b > (Number.isFinite(a) ? a : 0) ? remote : local;
+}
+
 /** Recover local edits without treating a stale whole-list backup as truth.
  * If both sides changed, keep the server show and a distinct recovered copy. */
 export function recoverShowDraft(draft: Show[], server: Show[], baseline: Record<string, string> = {}): Show[] {
@@ -17,6 +29,14 @@ export function recoverShowDraft(draft: Show[], server: Show[], baseline: Record
     if (localHash === baseline[local.id] || (remote && hash(remote) === localHash)) continue;
     if ((!remote && !baseline[local.id]) || (remote && hash(remote) === baseline[local.id])) {
       result.set(local.id, local);
+    } else if (!baseline[local.id]) {
+      // No baseline for this show, so nothing here is evidence that the server
+      // moved under us — and a fork needs that evidence. This is the ordinary
+      // case of a show made on this device: the held copy is written before
+      // the save lands, so it carries no hash for a row the server then has.
+      // Read as a conflict, it forked every show on the account into a
+      // "(recovered edits)" twin of itself. The later edit wins instead.
+      result.set(local.id, remote ? newer(local, remote) : local);
     } else {
       const id = `${local.id}-recovered-${localHash.slice(0, 16)}`;
       if (!result.has(id)) result.set(id, { ...local, id, name: `${local.name} (recovered edits)` });
