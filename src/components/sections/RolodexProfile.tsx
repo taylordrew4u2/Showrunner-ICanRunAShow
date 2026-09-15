@@ -1,4 +1,5 @@
-import { useId, useState } from 'react';
+import { HeadshotPanel } from '../HeadshotPanel';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { PotentialComic } from '../../types';
 import { audioUploadSizeError } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
@@ -18,6 +19,8 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
   // Labels have to point at the field they name: written as a plain <label>
   // beside an input they are decoration — not announced as the field's name,
   // and not tappable to focus it.
+  const comicRef = useRef(comic);
+  useEffect(() => { comicRef.current = comic; }, [comic]);
   const fieldId = useId();
   const { confirm, confirmDialog } = useConfirm();
   const [name, setName] = useState(comic.name);
@@ -221,15 +224,8 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
           </div>
         </div>
 
-        {/* Avatar */}
-        <div className="perf-profile__photo-panel">
-          <div className="perf-profile__avatar-wrap">
-            <div className="perf-profile__avatar-placeholder">
-              {comic.name.charAt(0).toUpperCase()}
-            </div>
-          </div>
-          <p className="perf-profile__photo-name">{comic.name}</p>
-        </div>
+        <HeadshotPanel name={comic.name} photo={comic.photo}
+          onChange={photo => onChange({ ...comicRef.current, photo })} />
       </div>
 
       {/* Walk-on music */}
