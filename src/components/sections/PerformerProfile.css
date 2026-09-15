@@ -723,3 +723,25 @@
     padding: var(--space-5) var(--space-4) var(--space-12);
   }
 }
+
+.headshot__preview-button {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-strong);
+  cursor: zoom-in;
+  overflow: hidden;
+  max-width: 100%;
+}
+.headshot__image { display: block; width: 180px; height: 210px; object-fit: contain; }
+.headshot__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
+.headshot__dialog { max-width: min(900px, 94vw); max-height: 92dvh; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); }
+.headshot__dialog::backdrop { background: rgb(0 0 0 / 75%); }
+.headshot__dialog img { display: block; max-width: 100%; max-height: 70dvh; object-fit: contain; margin: var(--space-3) auto; }
+
+button.perf-profile__photo-drop { background: var(--surface-strong); color: var(--text); font: inherit; }
+button.perf-profile__photo-drop:hover,
+button.perf-profile__photo-drop--active { background: var(--primary-soft); }
+section.perf-profile__photo-panel { flex-direction: column; align-items: center; text-align: center; }
+.perf-drawer section.perf-profile__photo-panel { flex-direction: column; align-items: center; text-align: center; }
+.perf-drawer section.perf-profile__photo-panel .perf-profile__photo-drop { flex: auto; width: 100%; }

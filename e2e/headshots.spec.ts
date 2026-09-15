@@ -1,0 +1,55 @@
+import { expect, test } from '@playwright/test';
+import { emptyState, installFakeApi } from './support/fake-api.mjs';
+import { gotoTab, signUpAndOnboard } from './support/app';
+
+test('comic headshots upload, preview, download, persist, and replace by drop', async ({ page, context }, testInfo) => {
+  const state = emptyState();
+  await installFakeApi(context, state);
+  await signUpAndOnboard(page);
+  await gotoTab(page, 'Rolodex');
+  await page.locator('.rolodex__input').first().fill('Mona Sable');
+  await page.locator('.rolodex__form button[type="submit"]').click();
+  const row = page.locator('.rolodex__item').filter({ hasText: 'Mona Sable' });
+  await row.getByRole('button', { name: 'Edit', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Headshot', exact: true });
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 1800; canvas.height = 1200;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#bd7188'; ctx.fillRect(0, 0, 1800, 1200);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await panel.getByRole('button', { name: 'Upload headshot' }).click();
+  await (await chooser).setFiles({ name: 'portrait.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  await expect(panel.getByRole('button', { name: 'View headshot', exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'View headshot', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: "Mona Sable's headshot" });
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => dialog.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1400);
+  const downloaded = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Download headshot' }).click();
+  const download = await downloaded;
+  expect(download.suggestedFilename()).toBe('Mona Sable-headshot.jpg');
+  expect(await download.failure()).toBeNull();
+  await dialog.getByRole('button', { name: 'Close preview' }).click();
+  await expect(page.getByText('Everything is saved', { exact: false })).toBeVisible();
+  await page.reload();
+  await gotoTab(page, 'Rolodex');
+  await expect(row.locator('img')).toBeVisible();
+  await row.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(panel.locator('.headshot__image')).toBeVisible();
+  await panel.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('headshot-profile.png'), fullPage: true });
+  const oldIds = Object.keys(state.media);
+  const drop = await page.evaluateHandle((base64) => {
+    const dt = new DataTransfer();
+    dt.items.add(new File([Uint8Array.from(atob(base64), c => c.charCodeAt(0))], 'replacement.png', { type: 'image/png' }));
+    return dt;
+  }, png);
+  await panel.getByRole('button', { name: 'Replace headshot' }).dispatchEvent('drop', { dataTransfer: drop });
+  await expect.poll(() => Object.keys(state.media).length).toBeGreaterThan(oldIds.length);
+  await expect(panel.getByRole('button', { name: 'Replace headshot' })).toBeEnabled();
+  expect(state.mediaDeletes).toEqual([]);
+  await panel.locator('input[type=file]').setInputFiles({ name: 'bad.txt', mimeType: 'text/plain', buffer: Buffer.from('not an image') });
+  await expect(panel.getByRole('alert')).toContainText('image');
+  await expect(panel.locator('.headshot__image')).toBeVisible();
+});
