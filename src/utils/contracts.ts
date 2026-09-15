@@ -495,9 +495,18 @@ export function signatureSummary(requests: SignatureRequest[]): SignatureSummary
  */
 export type SignerStatus = 'signed' | 'waiting' | 'none';
 
-export function signerStatus(requests: SignatureRequest[], signerName: string): SignerStatus {
-  const key = rolodexKey(signerName);
-  const theirs = requests.filter((r) => rolodexKey(r.signerName) === key);
+/** Contracts keep their original signer name; the contact id survives renames. */
+export function requestMatchesSigner(
+  request: Pick<SignatureRequest, 'signerName' | 'contactId'>,
+  signerName: string,
+  comicId?: string,
+): boolean {
+  if (request.contactId) return request.contactId === comicId;
+  return rolodexKey(request.signerName) === rolodexKey(signerName);
+}
+
+export function signerStatus(requests: SignatureRequest[], signerName: string, comicId?: string): SignerStatus {
+  const theirs = requests.filter((r) => requestMatchesSigner(r, signerName, comicId));
   if (theirs.length === 0) return 'none';
   return theirs.some((r) => r.signed) ? 'signed' : 'waiting';
 }
@@ -505,10 +514,12 @@ export function signerStatus(requests: SignatureRequest[], signerName: string): 
 /** How much of a bill is actually booked — signed, not merely listed. */
 export function lineupSigned(
   requests: SignatureRequest[],
-  names: string[],
+  names: (string | { name: string; comicId?: string })[],
 ): { signed: number; total: number } {
   return {
-    signed: names.filter((name) => signerStatus(requests, name) === 'signed').length,
+    signed: names.filter((person) => typeof person === 'string'
+      ? signerStatus(requests, person) === 'signed'
+      : signerStatus(requests, person.name, person.comicId) === 'signed').length,
     total: names.length,
   };
 }
@@ -532,12 +543,10 @@ export function alreadyPending(
   requests: SignatureRequest[],
   contractId: string,
   signerName: string,
+  comicId?: string,
 ): boolean {
-  // Normalised the same way the Rolodex matches people, so "Ada Cole" and
-  // "Ada  cole" are one person here too.
-  const key = rolodexKey(signerName);
   return requests.some(
-    (r) => r.contractId === contractId && !r.signed && rolodexKey(r.signerName) === key,
+    (r) => r.contractId === contractId && !r.signed && requestMatchesSigner(r, signerName, comicId),
   );
 }
 

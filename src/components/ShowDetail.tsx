@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem, Performer, PotentialComic } from '../types';
 import { generateId } from '../utils/id';
-import { comicToPerformer, rolodexKey } from '../utils/rolodex';
+import { comicToPerformer } from '../utils/rolodex';
 import { SceneList } from './SceneList';
 import { Icon, type IconName } from './Icon';
 import { MoreMenu, type MoreMenuItem } from './MoreMenu';
@@ -29,7 +29,6 @@ import { showDJSongs } from '../utils/musicLibrary';
 import { getRolodexTerm } from '../utils/terminology';
 import { hostChoices } from '../utils/hostChoices';
 import { refreshSignatures, signerStatus } from '../utils/contracts';
-import { signedProfilePatch } from '../utils/signatureImport';
 import {
   describeRecurrence,
   MAX_OCCURRENCES,
@@ -184,29 +183,6 @@ export function ShowDetail({
     // On open, not on every settings write: finding a signature writes settings.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show.id]);
-
-  /**
-   * Carry what people told you in a contract onto the bill they are on.
-   *
-   * The Rolodex entry gets these answers already, but the profile a producer
-   * actually opens on show week is the performer on this show — a copy made
-   * when they were booked, which knew nothing then and stays blank for good
-   * unless something fills it. Gaps only: an email or a handle the producer
-   * typed here is never replaced by a form answer.
-   */
-  useEffect(() => {
-    const requests = settings.signatureRequests ?? [];
-    if (requests.length === 0 || show.performers.length === 0) return;
-    let changed = false;
-    const performers = show.performers.map((p) => {
-      const patch = signedProfilePatch(requests, p, rolodexKey);
-      if (!patch) return p;
-      changed = true;
-      return { ...p, ...patch };
-    });
-    if (changed) handleUpdate({ performers });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [show.id, settings.signatureRequests]);
 
   useEffect(() => {
     showRef.current = show;
@@ -637,7 +613,7 @@ export function ShowDetail({
         onAnnounce={() => setAnnounceOpen(true)}
         contractStatus={
           settings.contracts?.length
-            ? (performer) => signerStatus(settings.signatureRequests ?? [], performer.name)
+            ? (performer) => signerStatus(settings.signatureRequests ?? [], performer.name, performer.comicId)
             : undefined
         }
         renderContracts={
@@ -645,6 +621,7 @@ export function ShowDetail({
             ? (performer) => (
                 <PerformerContracts
                   performerName={performer.name}
+                  performerComicId={performer.comicId}
                   performerEmail={performer.email}
                   settings={settings}
                   session={session}
