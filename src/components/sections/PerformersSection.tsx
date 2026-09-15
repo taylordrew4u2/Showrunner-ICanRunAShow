@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
-import { rolodexKey } from '../../utils/rolodex';
+import { comicToPerformer, rolodexKey } from '../../utils/rolodex';
 import { socialLink, bulkMailto, isEmail } from '../../utils/social';
 import { lineupProgress } from '../../utils/lineupTarget';
 import { describeGaps, lineupGaps } from '../../utils/performerReadiness';
@@ -111,19 +111,7 @@ export function PerformersSection({
   }
 
   function addFromRolodex(comic: PotentialComic) {
-    const p: Performer = {
-      id: generateId(),
-      name: comic.name,
-      socialMedia: comic.socialMedia,
-      email: comic.email,
-      credits: comic.credits,
-      walkOnMusic: comic.walkOnMusic,
-      walkOnMusicName: comic.walkOnMusicName,
-      walkOnMusicArtist: comic.walkOnMusicArtist,
-      walkOnMusicTimestamp: comic.walkOnMusicTimestamp,
-      walkOnMusicLink: comic.walkOnMusicLink,
-    };
-    onChange([...performers, p]);
+    onChange([...performers, comicToPerformer(comic)]);
     setShowRolodex(false);
     setAddingOpen(true); // same reason as addPerformer: the flow isn't over
     setFiled(null); // they came from the Rolodex; nothing was filed

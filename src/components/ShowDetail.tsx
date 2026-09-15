@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem, Performer, PotentialComic } from '../types';
 import { generateId } from '../utils/id';
+import { comicToPerformer } from '../utils/rolodex';
 import { SceneList } from './SceneList';
 import { Icon, type IconName } from './Icon';
 import { MoreMenu, type MoreMenuItem } from './MoreMenu';
@@ -323,18 +324,7 @@ export function ShowDetail({
    * just naming one in text.
    */
   function bookFromRolodex(comic: PotentialComic): Performer {
-    const performer: Performer = {
-      id: generateId(),
-      name: comic.name,
-      socialMedia: comic.socialMedia,
-      email: comic.email,
-      credits: comic.credits,
-      walkOnMusic: comic.walkOnMusic,
-      walkOnMusicName: comic.walkOnMusicName,
-      walkOnMusicArtist: comic.walkOnMusicArtist,
-      walkOnMusicTimestamp: comic.walkOnMusicTimestamp,
-      walkOnMusicLink: comic.walkOnMusicLink,
-    };
+    const performer = comicToPerformer(comic);
     handleUpdate({ performers: [...show.performers, performer] });
     return performer;
   }
