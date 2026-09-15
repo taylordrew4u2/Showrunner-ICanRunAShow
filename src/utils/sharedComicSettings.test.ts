@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, type AppSettings, type SignatureRequest } from '../types';
 import { normalizeComicSettings } from './sharedComicSettings';
+import { healSettings } from './secure-storage';
+import { mergeSettingsEdit } from './mergeSettingsEdit';
 
 const request = (patch: Partial<SignatureRequest> = {}): SignatureRequest => ({
   id: 'r', token: 'token', key: 'key', contractId: 'contract', contractName: 'Agreement',
@@ -11,6 +13,16 @@ const settings = (patch: Partial<AppSettings> = {}): AppSettings => ({
 });
 
 describe('canonical comic settings', () => {
+  it('loads an established account saved before contract request lists existed', () => {
+    const legacy = healSettings({ onboarded: true, brandName: 'Existing account', musicLibrary: [] } as unknown as AppSettings);
+    expect(legacy.signatureRequests).toBeUndefined();
+    const normalized = normalizeComicSettings(legacy, legacy);
+    const loaded = normalizeComicSettings(mergeSettingsEdit(DEFAULT_SETTINGS, normalized, DEFAULT_SETTINGS), DEFAULT_SETTINGS);
+    expect(loaded.onboarded).toBe(true);
+    expect(loaded.brandName).toBe('Existing account');
+    expect(loaded.potentialComics).toEqual([]);
+  });
+
   it('binds legacy paperwork before a rename without changing the signed snapshot', () => {
     const signed = { typedName: 'Mona Sable', signedAt: '2026-09-15', documentHash: 'hash' };
     const before = settings({ signatureRequests: [request({ signed })] });

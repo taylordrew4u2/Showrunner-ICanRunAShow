@@ -7,8 +7,9 @@ import { generateId } from './id';
 /** Connect legacy paperwork before a rename, without rewriting its signed record. */
 export function normalizeComicSettings(updated: AppSettings, previous: AppSettings): AppSettings {
   let changed = false;
-  const prior = new Map(previous.signatureRequests.map(request => [request.token, request]));
-  let requests = updated.signatureRequests.map(request => {
+  // Established accounts saved before contracts existed have no request list.
+  const prior = new Map((previous.signatureRequests ?? []).map(request => [request.token, request]));
+  let requests = (updated.signatureRequests ?? []).map(request => {
     const old = prior.get(request.token);
     const comic = !request.contactId && !old?.contactId
       ? resolvePerformerComic({ id: '', name: request.signerName }, previous.potentialComics)
