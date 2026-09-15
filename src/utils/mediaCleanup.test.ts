@@ -68,6 +68,24 @@ describe('settingsMediaRefs', () => {
     expect(settingsMediaRefs(s).sort()).toEqual(['media:doc#1', 'media:lib#1', 'media:rolo#1']);
   });
 
+  it("counts a rolodex headshot, which is usually the only copy of someone's face", () => {
+    const s = settings({
+      potentialComics: [{ id: 'c', name: 'Ada', photo: 'media:face#1' }],
+    });
+    expect(settingsMediaRefs(s)).toEqual(['media:face#1']);
+  });
+
+  it('counts the headshot kept on a signed agreement', () => {
+    const s = settings({
+      signatureRequests: [{
+        id: 'r', token: 't'.repeat(20), key: 'k', contractId: 'k1', contractName: 'Deal',
+        signerName: 'Ada', sentAt: '',
+        signed: { signedAt: '', typedName: 'Ada', documentHash: 'h', headshot: 'media:face#1' },
+      }],
+    });
+    expect(settingsMediaRefs(s)).toEqual(['media:face#1']);
+  });
+
   it('counts shows sitting in the trash, because they can be restored', () => {
     const s = settings({
       trash: [{
@@ -166,6 +184,15 @@ describe('unreferencedMedia', () => {
       }],
     });
     expect(unreferencedMedia(stored, [], s).map((m) => m.id)).toEqual(['kept']);
+  });
+
+  it('keeps the headshot of someone in the rolodex who is not booked on anything', () => {
+    // The sweep deletes whatever it cannot see a reference to, so a face
+    // imported from a signed contract has to be reachable from the rolodex
+    // alone — the person may not be on a bill for weeks.
+    const stored = [{ id: 'face', chunks: 1, bytes: 90 }];
+    const s = settings({ potentialComics: [{ id: 'c', name: 'Ada', photo: 'media:face#1' }] });
+    expect(unreferencedMedia(stored, [], s)).toEqual([]);
   });
 
   it('reports everything as unused when the account genuinely has no data', () => {

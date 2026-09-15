@@ -144,3 +144,95 @@ export function describeChanges(changes: ProfileChange[]): string {
   if (overwrites) parts.push(`${overwrites} to replace`);
   return parts.join(', ');
 }
+
+/**
+ * Headshots, which are filed rather than offered.
+ *
+ * The rest of this module asks before it writes, because a phone number typed
+ * at 1am can be wrong and a curated profile outranks it. A photo is not that:
+ * it is only ever taken where the entry has no face at all, so there is
+ * nothing to displace and nothing to weigh up — and left behind a button, it
+ * simply never got pressed. The face the producer needs for a flyer stayed
+ * inside a signed contract nobody reopened.
+ *
+ * Filing also gets the picture out of the settings blob. A headshot arrives as
+ * a data URL, and every save copies the whole blob — so one unfiled photo is
+ * re-uploaded on every edit and kept in every snapshot. In the media store it
+ * is written once, by id, like every other picture in the app.
+ */
+export interface HeadshotToFile {
+  /** The signature request carrying it. */
+  token: string;
+  /** What the signer sent, as a data URL. */
+  dataUrl: string;
+  /** Their Rolodex entry, when they already have one. */
+  entryId?: string;
+  /** Their name, for the entry that has to be created and for the filename. */
+  name: string;
+  /** Whether that entry still needs a face. An existing photo is never displaced. */
+  wantsPhoto: boolean;
+}
+
+/**
+ * Which signed headshots are not yet in the producer's own store.
+ *
+ * Matched to a Rolodex entry the same way the details import matches: the
+ * entry the contract was sent to, falling back to the name, since a contract
+ * typed out by hand still belongs to a person you know.
+ */
+export function headshotsToFile(
+  requests: SignatureRequestLike[],
+  comics: PotentialComic[],
+  key: (name: string) => string,
+): HeadshotToFile[] {
+  const out: HeadshotToFile[] = [];
+  for (const request of requests) {
+    const shot = request.signed?.headshot;
+    // Only data URLs: a reference means this one has already been filed.
+    if (!shot || !shot.startsWith('data:')) continue;
+    const name = (request.signerName ?? '').trim();
+    const entry =
+      comics.find((c) => c.id === request.contactId) ??
+      comics.find((c) => key(c.name) === key(name)) ??
+      null;
+    out.push({
+      token: request.token,
+      dataUrl: shot,
+      entryId: entry?.id,
+      name,
+      wantsPhoto: !entry?.photo,
+    });
+  }
+  return out;
+}
+
+/** The part of a signature request this needs, so tests can pass the shape. */
+export interface SignatureRequestLike {
+  token: string;
+  contactId?: string;
+  signerName: string;
+  signed?: { headshot?: string };
+}
+
+/**
+ * Put one filed headshot where it belongs: on the person, and on the record.
+ *
+ * The record keeps a reference rather than losing the photo, so a producer who
+ * later replaces the profile picture has not destroyed what the signer
+ * actually sent — the agreement still carries it.
+ */
+export function applyFiledHeadshot(
+  comics: PotentialComic[],
+  filed: HeadshotToFile,
+  ref: string,
+  newId: () => string,
+): PotentialComic[] {
+  if (!filed.wantsPhoto) return comics;
+  const entry = filed.entryId ? comics.find((c) => c.id === filed.entryId) : undefined;
+  if (entry) return comics.map((c) => (c.id === entry.id ? { ...c, photo: ref } : c));
+  // Nobody by that name yet. Someone who has signed an agreement is a contact
+  // whether or not they were filed as one, and an entry is how the photo is
+  // ever seen again.
+  if (!filed.name) return comics;
+  return [...comics, { id: newId(), name: filed.name, photo: ref }];
+}

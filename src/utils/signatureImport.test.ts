@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyFiledHeadshot,
   applyProfileChanges,
+  headshotsToFile,
   describeChanges,
   profileChanges,
   profileFromAnswers,
@@ -150,5 +152,50 @@ describe('a walk-on song, as words', () => {
     expect(changes).toEqual([
       { key: 'walkOnMusicName', label: 'Walk-on', from: undefined, to: 'Roundabout — Yes' },
     ]);
+  });
+});
+
+describe('a headshot that came back with a signature', () => {
+  const key = (name: string) => name.trim().toLowerCase();
+  const PHOTO = 'data:image/jpeg;base64,abcd';
+  const request = (over: Partial<{ token: string; contactId?: string; signerName: string; signed?: { headshot?: string } }> = {}) => ({
+    token: 'tok', signerName: 'Ada Reyes', signed: { headshot: PHOTO }, ...over,
+  });
+
+  it('is filed without the producer having to press anything', () => {
+    const comics = [{ id: 'c1', name: 'Ada Reyes' }];
+    const [shot] = headshotsToFile([request()], comics, key);
+    expect(shot).toMatchObject({ token: 'tok', entryId: 'c1', wantsPhoto: true });
+    expect(applyFiledHeadshot(comics, shot, 'media:face#2', () => 'new')).toEqual([
+      { id: 'c1', name: 'Ada Reyes', photo: 'media:face#2' },
+    ]);
+  });
+
+  it('never displaces a picture the producer chose themselves', () => {
+    const comics = [{ id: 'c1', name: 'Ada Reyes', photo: 'media:chosen#1' }];
+    const [shot] = headshotsToFile([request()], comics, key);
+    expect(shot.wantsPhoto).toBe(false);
+    expect(applyFiledHeadshot(comics, shot, 'media:face#2', () => 'new')).toEqual(comics);
+  });
+
+  it('files someone who signed but was never added to the rolodex', () => {
+    const [shot] = headshotsToFile([request()], [], key);
+    expect(applyFiledHeadshot([], shot, 'media:face#2', () => 'new')).toEqual([
+      { id: 'new', name: 'Ada Reyes', photo: 'media:face#2' },
+    ]);
+  });
+
+  it('goes to the entry the contract was sent to, not to a matching name', () => {
+    const comics = [{ id: 'sent', name: 'A. Reyes' }, { id: 'other', name: 'Ada Reyes' }];
+    const [shot] = headshotsToFile([request({ contactId: 'sent' })], comics, key);
+    expect(shot.entryId).toBe('sent');
+  });
+
+  it('is left alone once it has been filed, so the same face is stored once', () => {
+    expect(headshotsToFile([request({ signed: { headshot: 'media:face#2' } })], [], key)).toEqual([]);
+  });
+
+  it('is not looked for on a contract nobody has signed yet', () => {
+    expect(headshotsToFile([request({ signed: undefined })], [], key)).toEqual([]);
   });
 });
