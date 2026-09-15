@@ -77,6 +77,12 @@ test.describe('a contract sent from inside a show', () => {
     await page.locator('.lineup-add__name').fill('Dev Marchetti');
     await page.locator('.lineup-add__submit').click();
 
+    // Nobody on this bill has signed anything, so nobody on it is booked —
+    // and the section says so in those words, rather than counting two names
+    // and calling it a lineup.
+    await expect(page.locator('.lineup-booked')).toContainText('0 of 2 booked');
+    await expect(page.locator('.lineup-signed--none')).toHaveCount(2);
+
     // Their profile, and the contract sent from inside it.
     // By its accessible name, not its label text — the label is hidden on a
     // phone, where most of this actually happens.
@@ -151,12 +157,32 @@ test.describe('a contract sent from inside a show', () => {
     await late.getByLabel('Email').fill('nadia@example.com');
     await late.locator('.signing__field--signature input').fill('Nadia Okonjo');
     await late.locator('.signing__agree input').check();
+    // Asked once for a headshot, because the flyer needs one — and then never
+    // stopped. The nudge names what the photo is for and says what pressing
+    // again will do; it is not a refusal and not a disabled button.
+    await late.locator('.signing__cta').click();
+    await expect(late.locator('.signing__photo-ask')).toContainText('flyer');
+    await expect(late.locator('.signing__cta')).toBeEnabled();
     await late.locator('.signing__cta').click();
 
     // Signed, because it was. Not an error telling them to try again.
     await expect(late.locator('.signing__panel--done')).toContainText('Signed');
     await expect(late.locator('.signing__error')).toHaveCount(0);
     await flaky.close();
+
+    // Back on the bill: the one who signed is booked, the one who has not is
+    // not, and the count is of signatures rather than of names.
+    await page.goto('/');
+    await gotoTab(page, 'Shows');
+    await page.getByRole('button', { name: 'Open show' }).first().click();
+    await expect(
+      page.getByRole('heading', { name: 'Basement Comedy Hour', level: 1 }),
+    ).toBeVisible();
+    if ((await page.locator('.lineup-add__toggle').count()) === 0) {
+      await page.locator('button', { hasText: 'Performers' }).first().click();
+    }
+    await expect(page.locator('.lineup-booked')).toContainText('1 of 2 booked');
+    await expect(page.locator('.lineup-signed--signed')).toHaveCount(1);
 
     // And again from the library, where nothing says which night it is for.
     // The producer picks a name; the app knows what that person is booked on.
@@ -202,6 +228,7 @@ test.describe('a contract sent from inside a show', () => {
       attempts++;
       await route.abort('internetdisconnected');
     });
+    await basement.locator('.signing__cta').click();
     await basement.locator('.signing__cta').click();
 
     // Signed, and honest about where it has got to. Not an error, and not a
@@ -273,12 +300,28 @@ test.describe('a contract sent from inside a show', () => {
       ctx.putImageData(image, 0, 0);
       return canvas.toDataURL('image/jpeg', 0.95);
     });
+    // What a performer on an iPhone actually picks first. The browser cannot
+    // decode HEIC at all, so the only thing that matters is whether the page
+    // tells them something they can do about it on the phone in their hand.
+    await withPhoto.setInputFiles('.signing__photo-pick input[type=file]', {
+      name: 'IMG_4021.HEIC',
+      mimeType: 'image/heic',
+      buffer: Buffer.from('not really an image'),
+    });
+    const photoError = withPhoto.locator('.signing__photo-error');
+    await expect(photoError).toContainText('HEIC');
+    await expect(photoError).toContainText('screenshot');
+    await expect(withPhoto.locator('.signing__photo-preview')).toHaveCount(0);
+
     await withPhoto.setInputFiles('.signing__photo-pick input[type=file]', {
       name: 'headshot.jpg',
       mimeType: 'image/jpeg',
       buffer: Buffer.from(photo.split(',')[1], 'base64'),
     });
     await expect(withPhoto.locator('.signing__photo-preview')).toBeVisible();
+    // The advice goes once the photo lands; a stale warning beside a working
+    // picture reads as the picture being the problem.
+    await expect(photoError).toHaveCount(0);
 
     await withPhoto.getByLabel('Email').fill('priya@example.com');
     await withPhoto.locator('.signing__field--signature input').fill('Priya Raghunathan');

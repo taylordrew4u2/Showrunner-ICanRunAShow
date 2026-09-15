@@ -7,6 +7,7 @@ import {
   HEADSHOT_FALLBACK_DIMS,
   shrinkDataUrl,
 } from '../utils/imageResize';
+import { photoFailureMessage, photoProblem } from '../utils/photoProblem';
 import { submitFailureMessage } from '../utils/submitFailure';
 import {
   clearPendingSignature,
@@ -85,6 +86,15 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  /**
+   * Whether they have already been asked once about a missing headshot.
+   *
+   * The producer needs this photo — it is the face on the flyer and on the
+   * Run Show button, and chasing it afterwards costs a week of texts. But a
+   * missing photo must never be the reason an agreement goes unsigned, so it
+   * is asked once, loudly, and then never again. The second press signs.
+   */
+  const [photoAsked, setPhotoAsked] = useState(false);
   /** Set when the contract was signed but the headshot would not fit at all. */
   const [photoDropped, setPhotoDropped] = useState(false);
   /** Set when the headshot had to be made smaller to fit. */
@@ -255,6 +265,14 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   async function choosePhoto(file: File) {
     setPhotoBusy(true);
     setPhotoError(null);
+    // Checked before the resize is attempted: a HEIC fails somewhere inside the
+    // decode with nothing useful attached, and by then the reason is gone.
+    const known = photoProblem(file);
+    if (known) {
+      setPhotoError(known);
+      setPhotoBusy(false);
+      return;
+    }
     try {
       const small = await downscaleImage(file, FLYER_MAX_DIM);
       const reader = new FileReader();
@@ -263,9 +281,10 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
         reader.onerror = () => reject(reader.error);
         reader.readAsDataURL(small);
       });
+      if (!dataUrl.startsWith('data:image/')) throw new Error('not an image');
       setHeadshot(dataUrl);
     } catch {
-      setPhotoError('That image could not be read. Try a JPEG or PNG.');
+      setPhotoError(photoFailureMessage(file));
     } finally {
       setPhotoBusy(false);
     }
@@ -277,6 +296,14 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
     const name = signerName.trim();
     const missing = missingRequiredFields(payload.fields, values);
     if (!signature_ || !name || !agreed || missing.length > 0) return;
+    // Asked here rather than by disabling the button: everything else on this
+    // form is required, and this one is wanted. Pressing again goes through
+    // whatever they choose.
+    if (!headshot && !photoAsked) {
+      setPhotoAsked(true);
+      document.querySelector('.signing__photo')?.scrollIntoView({ block: 'center' });
+      return;
+    }
     setPhase('signing');
     setError(null);
     try {
@@ -578,9 +605,12 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           {/* The flyer needs a face, and this is the one moment the performer
               is already filling something in for you. Optional, because a
               missing photo must never be why a contract goes unsigned. */}
-          <div className="signing__field signing__photo">
+          <div className={`signing__field signing__photo ${photoAsked && !headshot ? 'signing__photo--asked' : ''}`}>
             <span>
-              Headshot <em className="signing__optional">optional — used on the flyer</em>
+              Headshot{' '}
+              <em className="signing__optional">
+                {headshot ? 'used on the flyer' : 'the flyer needs this'}
+              </em>
             </span>
             <div className="signing__photo-row">
               {headshot ? (
@@ -616,7 +646,16 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
                 )}
               </div>
             </div>
-            {photoError && <p className="signing__photo-error">{photoError}</p>}
+            {photoError && <p className="signing__photo-error" role="alert">{photoError}</p>}
+            {/* The one nudge. Said here, beside the button that would fix it,
+                rather than under the sign button where it reads as a refusal. */}
+            {photoAsked && !headshot && !photoError && (
+              <p className="signing__photo-ask" role="status">
+                No photo yet — this is the picture used on the flyer and the poster.
+                Add one above if you have it on this phone. Pressing Agree and sign
+                again will send your agreement without it.
+              </p>
+            )}
           </div>
 
           {/* Last, next to the agreement, and empty. Whatever was known about

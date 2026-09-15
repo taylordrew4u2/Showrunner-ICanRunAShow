@@ -2949,6 +2949,37 @@ select.show-detail__status--select {
   background: var(--surface);
 }
 
+/* The real state of the bill, under it. */
+.lineup-booked {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-1-5) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--success-text);
+  background: var(--success-soft);
+}
+
+.lineup-booked--short {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.lineup-booked__note {
+  font-weight: 400;
+}
+
+/* Nothing sent at all. Louder than "waiting" on purpose: a comic nobody has
+   sent an agreement to is the one who turns up on the night unbooked, and a
+   muted grey chip is how that gets scrolled past. */
+.lineup-signed--none {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
 /* On a narrow phone the colour and the tick carry it; the word is what pushes
    a lineup row onto a second line. The title attribute still says it, and so
    does the profile. */

@@ -440,19 +440,38 @@ export function signatureSummary(requests: SignatureRequest[]): SignatureSummary
 /**
  * Where one person stands on their paperwork, for a lineup row.
  *
- * `signed` only when nothing is outstanding: a comic who has signed the
- * performer agreement but not the photo release is still `waiting`, because
- * the question the producer is asking the row is "is this one done?".
- * `null` means nothing was ever sent, which is not the same as unsigned and
- * should not put a mark against their name.
+ * Nobody is booked until they have signed something, so the row says which of
+ * the three a performer is:
+ *
+ * - `signed`   — at least one agreement back from them. They are booked.
+ * - `waiting`  — sent something, nothing back. Not booked.
+ * - `none`     — never sent anything. Not booked, and the one most likely to
+ *                be forgotten, so it is marked rather than left blank.
+ *
+ * `some` rather than `every` deliberately. The rule used to be "signed only
+ * when nothing is outstanding", which read well until a producer sent a second
+ * agreement to someone who had already signed the first — a release, or next
+ * month's booking — and watched a comic who *had* signed flip back to unsigned
+ * on the bill. A signature is not undone by a later ask.
  */
-export type SignerStatus = 'signed' | 'waiting' | null;
+export type SignerStatus = 'signed' | 'waiting' | 'none';
 
 export function signerStatus(requests: SignatureRequest[], signerName: string): SignerStatus {
   const key = rolodexKey(signerName);
   const theirs = requests.filter((r) => rolodexKey(r.signerName) === key);
-  if (theirs.length === 0) return null;
-  return theirs.every((r) => r.signed) ? 'signed' : 'waiting';
+  if (theirs.length === 0) return 'none';
+  return theirs.some((r) => r.signed) ? 'signed' : 'waiting';
+}
+
+/** How much of a bill is actually booked — signed, not merely listed. */
+export function lineupSigned(
+  requests: SignatureRequest[],
+  names: string[],
+): { signed: number; total: number } {
+  return {
+    signed: names.filter((name) => signerStatus(requests, name) === 'signed').length,
+    total: names.length,
+  };
 }
 
 /** Requests for one contract, newest first. */

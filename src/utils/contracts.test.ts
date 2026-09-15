@@ -14,6 +14,7 @@ import {
   shortHash,
   signatureSummary,
   signerStatus,
+  lineupSigned,
   signedFileName,
   signingUrl,
   splitIntoChunks,
@@ -266,16 +267,35 @@ describe('prefillFromShow', () => {
 describe('signerStatus', () => {
   const signed = { signedAt: '2026-03-01T00:00:00.000Z', typedName: 'Ada', documentHash: 'h' };
 
-  it('says nothing about someone who was never sent anything', () => {
-    expect(signerStatus([], 'Ada Cole')).toBeNull();
-    expect(signerStatus([req({ signerName: 'Someone Else' })], 'Ada Cole')).toBeNull();
+  it('marks someone who was never sent anything as not booked', () => {
+    expect(signerStatus([], 'Ada Cole')).toBe('none');
+    expect(signerStatus([req({ signerName: 'Someone Else' })], 'Ada Cole')).toBe('none');
   });
 
-  it('is green only when nothing is outstanding', () => {
-    const one = req({ signerName: 'Ada Cole', signed });
+  it('counts someone as signed the moment one agreement comes back', () => {
+    expect(signerStatus([req({ signerName: 'Ada Cole', signed })], 'Ada Cole')).toBe('signed');
+  });
+
+  it('does not un-sign a comic because a second contract went out to them', () => {
+    // The release sent in March cannot undo the agreement signed in February.
+    const agreement = req({ signerName: 'Ada Cole', signed });
+    const release = req({ token: 't2', signerName: 'Ada Cole' });
+    expect(signerStatus([agreement, release], 'Ada Cole')).toBe('signed');
+  });
+
+  it('is waiting while everything sent is still out', () => {
+    const one = req({ signerName: 'Ada Cole' });
     const two = req({ token: 't2', signerName: 'Ada Cole' });
-    expect(signerStatus([one], 'Ada Cole')).toBe('signed');
     expect(signerStatus([one, two], 'Ada Cole')).toBe('waiting');
+  });
+
+  it('counts a bill as booked only by who has signed', () => {
+    const requests = [
+      req({ signerName: 'Ada Cole', signed }),
+      req({ token: 't2', signerName: 'Ben Stone' }),
+    ];
+    expect(lineupSigned(requests, ['Ada Cole', 'Ben Stone', 'Cass Reed']))
+      .toEqual({ signed: 1, total: 3 });
   });
 
   it('matches the way the Rolodex matches people, not by exact spelling', () => {

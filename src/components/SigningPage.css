@@ -361,6 +361,23 @@
   margin: var(--space-1) 0 0;
   font-size: var(--text-sm);
   color: var(--danger-text);
+  /* Every one of these ends with something to try, so it has to be readable
+     as a sentence rather than squeezed onto one line. */
+  line-height: 1.45;
+}
+
+/* The single nudge for a missing headshot. Deliberately not danger red: the
+   signer has done nothing wrong and is not being stopped. */
+.signing__photo-ask {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--warning);
+}
+
+.signing__photo--asked {
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 2px var(--warning-soft-border);
 }
 
 /* The signature reads as the act it is, not as one more detail in the list.

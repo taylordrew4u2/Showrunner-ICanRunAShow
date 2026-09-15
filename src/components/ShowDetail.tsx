@@ -26,7 +26,7 @@ import { buildShowStats, progressPercent, isComplete, formatRunTime } from '../u
 import { showDJSongs } from '../utils/musicLibrary';
 import { getRolodexTerm } from '../utils/terminology';
 import { hostChoices } from '../utils/hostChoices';
-import { signerStatus } from '../utils/contracts';
+import { refreshSignatures, signerStatus } from '../utils/contracts';
 import {
   describeRecurrence,
   MAX_OCCURRENCES,
@@ -173,6 +173,31 @@ export function ShowDetail({
    * more work it took with it.
    */
   const showRef = useRef(show);
+  /**
+   * Catch up on signatures before the bill claims nobody is booked.
+   *
+   * Nothing tells the app when a link is signed — the signer's browser writes
+   * a row and walks off — and the lineup now says "Not booked" against anyone
+   * without one. Left unchecked that reads as a lie the moment somebody signs:
+   * the producer opens the show, sees five people not booked, and has no idea
+   * the app simply has not looked. So it looks, here, when they open the show.
+   *
+   * Only when something is actually outstanding: an account whose contracts
+   * are all signed has nothing to ask the server about.
+   */
+  useEffect(() => {
+    const requests = settings.signatureRequests ?? [];
+    if (!onUpdateSettings || !requests.some((r) => !r.signed)) return;
+    let cancelled = false;
+    (async () => {
+      const updated = await refreshSignatures(requests);
+      if (!cancelled && updated) onUpdateSettings({ ...settings, signatureRequests: updated });
+    })();
+    return () => { cancelled = true; };
+    // On open, not on every settings write: finding a signature writes settings.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show.id]);
+
   useEffect(() => {
     showRef.current = show;
   }, [show]);

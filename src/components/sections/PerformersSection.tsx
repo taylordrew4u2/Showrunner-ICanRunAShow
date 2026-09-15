@@ -145,6 +145,16 @@ export function PerformersSection({
   // Asked of the whole lineup at once, because that is when it is fixable.
   const gaps = lineupGaps(performers);
 
+  // Only where the producer uses contracts at all: an account with no
+  // agreements uploaded has no way to sign anything, and telling them nobody
+  // is booked would be a scold about a feature they have not opted into.
+  const booking = contractStatus && performers.length > 0
+    ? {
+        signed: performers.filter((p) => contractStatus(p) === 'signed').length,
+        total: performers.length,
+      }
+    : null;
+
   const showAddForm = addingOpen || performers.length === 0;
 
   return (
@@ -168,15 +178,28 @@ export function PerformersSection({
                 {(() => {
                   const status = contractStatus?.(p);
                   if (!status) return null;
+                  // Said in the producer's own terms: nobody is booked until
+                  // they have signed. "Unsigned" was the paperwork's word for
+                  // it and read like a detail to tidy up later; "Not booked"
+                  // is what it actually means for the night.
+                  const SIGNED_LABELS = {
+                    signed: { label: 'Signed', icon: 'check', title: 'Signed — booked' },
+                    waiting: {
+                      label: 'Not booked',
+                      icon: 'clock',
+                      title: 'Contract sent, nothing back yet. Not booked until they sign.',
+                    },
+                    none: {
+                      label: 'Not booked',
+                      icon: 'alert',
+                      title: 'No contract sent yet. Not booked until they sign one.',
+                    },
+                  } as const;
+                  const { label, icon, title } = SIGNED_LABELS[status];
                   return (
-                    <span
-                      className={`lineup-signed lineup-signed--${status}`}
-                      title={status === 'signed' ? 'Contract signed' : 'Contract sent, not signed yet'}
-                    >
-                      <Icon name={status === 'signed' ? 'check' : 'clock'} size={13} aria-hidden />
-                      <span className="lineup-signed__label">
-                        {status === 'signed' ? 'Signed' : 'Unsigned'}
-                      </span>
+                    <span className={`lineup-signed lineup-signed--${status}`} title={title}>
+                      <Icon name={icon} size={13} aria-hidden />
+                      <span className="lineup-signed__label">{label}</span>
                     </span>
                   );
                 })()}
@@ -246,6 +269,27 @@ export function PerformersSection({
           </li>
         ))}
       </ul>
+
+      {/* How much of the bill is real. A lineup of eight with two signatures
+          is two people booked and six who might not turn up, and the count at
+          the top of the section — which is simply how many names are on the
+          list — cannot say that. */}
+      {booking && (
+        <p
+          className={`lineup-booked ${booking.signed < booking.total ? 'lineup-booked--short' : ''}`}
+          role="status"
+        >
+          <Icon name={booking.signed < booking.total ? 'alert' : 'check'} size={13} aria-hidden />
+          {booking.signed} of {booking.total} booked
+          {booking.signed < booking.total && (
+            <span className="lineup-booked__note">
+              {' — '}
+              {booking.total - booking.signed} {booking.total - booking.signed === 1 ? 'has' : 'have'}
+              {' not signed yet'}
+            </span>
+          )}
+        </p>
+      )}
 
       {/* Everything below the lineup, not above it. Adding people is what you
           do to this section; the bill is what the section is. */}
