@@ -49,5 +49,9 @@ for (const action of ['duplicate', 'repeat'] as const) {
     await page.reload();
     await gotoTab(page, 'Shows');
     await expect(page.locator('.show-card')).toHaveCount(count);
+    // Never a twin of every show. A reload that lands while the save is still
+    // in flight used to read "no baseline for this show" as "the server moved
+    // under us" and fork the whole account into "(recovered edits)" copies.
+    await expect(page.getByText('(recovered edits)')).toHaveCount(0);
   });
 }
