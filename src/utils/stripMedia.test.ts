@@ -70,6 +70,13 @@ describe('stripLegacyShowMedia', () => {
     expect(stripped.performers[0].photo).toBeUndefined();
   });
 
+  it('keeps a linked artist headshot when a saved show reloads', () => {
+    const show = legacyShow();
+    show.artists[0].comicId = 'comic-1';
+    show.artists[0].photo = 'media:artist-photo#1';
+    expect(stripLegacyShowMedia(show).artists[0].photo).toBe('media:artist-photo#1');
+  });
+
   it('keeps walk-on music references and links', () => {
     const stripped = stripLegacyShowMedia(legacyShow());
     expect(stripped.performers[0].walkOnMusic).toBe('media:abc123');

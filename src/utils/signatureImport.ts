@@ -177,8 +177,8 @@ export interface HeadshotToFile {
  * Which signed headshots are not yet in the producer's own store.
  *
  * Matched to a Rolodex entry the same way the details import matches: the
- * entry the contract was sent to, falling back to the name, since a contract
- * typed out by hand still belongs to a person you know.
+ * entry the contract was sent to. Only legacy requests without that identity
+ * can use a unique matching name; duplicate names never receive each other's photo.
  */
 export function headshotsToFile(
   requests: SignatureRequestLike[],
@@ -191,16 +191,16 @@ export function headshotsToFile(
     // Only data URLs: a reference means this one has already been filed.
     if (!shot || !shot.startsWith('data:')) continue;
     const name = (request.signerName ?? '').trim();
-    const entry =
-      comics.find((c) => c.id === request.contactId) ??
-      comics.find((c) => key(c.name) === key(name)) ??
-      null;
+    const nameMatches = comics.filter((c) => key(c.name) === key(name));
+    const entry = request.contactId
+      ? comics.find((c) => c.id === request.contactId)
+      : nameMatches.length === 1 ? nameMatches[0] : undefined;
     out.push({
       token: request.token,
       dataUrl: shot,
       entryId: entry?.id,
       name,
-      wantsPhoto: !entry?.photo,
+      wantsPhoto: entry ? !entry.photo : !request.contactId && nameMatches.length === 0,
     });
   }
   return out;
@@ -229,7 +229,10 @@ export function applyFiledHeadshot(
 ): PotentialComic[] {
   if (!filed.wantsPhoto) return comics;
   const entry = filed.entryId ? comics.find((c) => c.id === filed.entryId) : undefined;
+  if (entry?.photo) return comics;
   if (entry) return comics.map((c) => (c.id === entry.id ? { ...c, photo: ref } : c));
+  // It was removed while the upload was running; do not recreate the person.
+  if (filed.entryId) return comics;
   // Nobody by that name yet. Someone who has signed an agreement is a contact
   // whether or not they were filed as one, and an entry is how the photo is
   // ever seen again.
@@ -252,11 +255,13 @@ export function applyFiledHeadshot(
  */
 export function signedProfilePatch(
   requests: SignatureAnswersLike[],
-  person: { name: string } & Partial<ImportedProfile>,
+  person: { id?: string; comicId?: string; name: string } & Partial<ImportedProfile>,
   key: (name: string) => string,
 ): ImportedProfile | null {
   const theirs = requests.filter(
-    (r) => r.signed?.fields?.length && key(r.signerName ?? '') === key(person.name),
+    (r) => r.signed?.fields?.length && (r.contactId
+      ? r.contactId === (person.comicId ?? person.id)
+      : key(r.signerName ?? '') === key(person.name)),
   );
   if (theirs.length === 0) return null;
 
@@ -279,6 +284,7 @@ export function signedProfilePatch(
 /** The part of a signature request the answer-filling needs. */
 export interface SignatureAnswersLike {
   signerName: string;
+  profileFiled?: boolean;
   contactId?: string;
   sentAt?: string;
   signed?: { fields?: { label: string; value: string }[] };
@@ -297,9 +303,16 @@ export function fillRolodexFromSignatures(
   key: (name: string) => string,
   newId: () => string,
 ): PotentialComic[] | null {
+  const unfiled = requests.filter((request) => !request.profileFiled);
+  const nameCounts = new Map<string, number>();
+  for (const comic of comics) {
+    const name = key(comic.name);
+    nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
+  }
   let changed = false;
   let next = comics.map((comic) => {
-    const patch = signedProfilePatch(requests, comic, key);
+    const matching = unfiled.filter((request) => request.contactId || nameCounts.get(key(comic.name)) === 1);
+    const patch = signedProfilePatch(matching, comic, key);
     if (!patch) return comic;
     changed = true;
     return { ...comic, ...patch };
@@ -308,10 +321,11 @@ export function fillRolodexFromSignatures(
   // Someone who signed an agreement is a contact whether or not anyone filed
   // them as one, and their answers have nowhere else to live.
   const filed = new Set(next.map((c) => key(c.name)));
-  for (const request of requests) {
+  for (const request of unfiled) {
     const name = (request.signerName ?? '').trim();
-    if (!name || !request.signed?.fields?.length || filed.has(key(name))) continue;
-    const patch = signedProfilePatch(requests, { name }, key);
+    // Explicit identity is authoritative even after a rename or deletion.
+    if (request.contactId || !name || !request.signed?.fields?.length || filed.has(key(name))) continue;
+    const patch = signedProfilePatch(unfiled, { name }, key);
     filed.add(key(name));
     changed = true;
     next = [...next, { id: newId(), name, ...(patch ?? {}) }];

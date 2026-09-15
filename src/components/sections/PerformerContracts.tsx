@@ -2,17 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import type { AppSettings, SignatureRequest } from '../../types';
 import {
   refreshSignatures,
+  requestMatchesSigner,
   sendForSignature,
   shortHash,
   signingUrl,
   type ShowContext,
 } from '../../utils/contracts';
-import { rolodexKey } from '../../utils/rolodex';
 import type { SessionCredentials } from '../../utils/session-vault';
 import './PerformerContracts.css';
 
 interface PerformerContractsProps {
   performerName: string;
+  performerComicId?: string;
   performerEmail?: string;
   settings: AppSettings;
   session: SessionCredentials;
@@ -39,6 +40,7 @@ function fmtDate(iso: string): string {
  */
 export function PerformerContracts({
   performerName,
+  performerComicId,
   performerEmail,
   settings,
   session,
@@ -53,10 +55,9 @@ export function PerformerContracts({
 
   // Requests already sent to this person, whichever show they came from —
   // signing a performer agreement once is signing it.
-  const key = rolodexKey(performerName);
   const theirs = useMemo(
-    () => requests.filter((r) => rolodexKey(r.signerName) === key),
-    [requests, key],
+    () => requests.filter((r) => requestMatchesSigner(r, performerName, performerComicId)),
+    [requests, performerName, performerComicId],
   );
 
   // Nobody tells the app when a link is signed, so the check happens when the
@@ -68,6 +69,8 @@ export function PerformerContracts({
       if (!cancelled && updated) onUpdateSettings({ ...settings, signatureRequests: updated });
     })();
     return () => { cancelled = true; };
+    // Keep settings and its callback from the same initiating render: the
+    // settings merger compares this snapshot with the latest account state.
     // Mount only: finding a signature writes settings, which would re-run this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -99,7 +102,7 @@ export function PerformerContracts({
     try {
       const request = await sendForSignature(
         contract,
-        { name, email: performerEmail },
+        { name, email: performerEmail, contactId: performerComicId },
         settings.brandName,
         session,
         show,

@@ -110,6 +110,12 @@ describe('orphanedRefs', () => {
     expect(orphanedRefs(['media:shared#1'], [copy], settings())).toEqual([]);
   });
 
+  it('keeps a headshot still used by an artist after removing the Rolodex entry', () => {
+    const remaining = show({ artists: [{ id: 'a', comicId: 'comic-1', name: 'Ada', photo: 'media:face#1' }] });
+    expect(orphanedRefs(['media:face#1'], [remaining], settings())).toEqual([]);
+    expect(unreferencedMedia([{ id: 'face', chunks: 1, bytes: 20 }], [remaining], settings())).toEqual([]);
+  });
+
   it('keeps a file the music library owns', () => {
     const s = settings({
       musicLibrary: [{ id: 't', title: 'Bed', artist: '', music: 'media:lib#1', addedAt: '' }],

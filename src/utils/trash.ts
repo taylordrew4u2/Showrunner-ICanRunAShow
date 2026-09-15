@@ -28,10 +28,12 @@ export function stripShowMediaForTrash(show: Show): Show {
     ...show,
     performers: (show.performers || []).map((p) => ({
       ...p,
+      photo: drop(p.photo),
       walkOnMusic: drop(p.walkOnMusic),
     })),
     artists: (show.artists || []).map((a) => ({
       ...a,
+      photo: drop(a.photo),
       walkOnMusic: drop(a.walkOnMusic),
     })),
     schedule: (show.schedule || []).map((s) => ({ ...s, music: drop(s.music) })),

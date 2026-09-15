@@ -2,10 +2,15 @@ import { describe, it, expect } from 'vitest';
 import {
   addPerformersToRolodex,
   comicToPerformer,
+  comicToArtist,
+  getComicProfilePatch,
+  reconcileRolodexProfiles,
+  resolvePerformerComic,
+  syncShowsWithRolodex,
   performerToComic,
   rolodexKey,
 } from './rolodex';
-import type { Performer, PotentialComic } from '../types';
+import type { Performer, PotentialComic, Show } from '../types';
 
 const performer = (over: Partial<Performer>): Performer => ({
   id: 'p', name: '', ...over,
@@ -152,9 +157,8 @@ describe('booking a Rolodex entry onto a bill', () => {
     // headshot came to be missing.
     const comic = filed();
     const performer = comicToPerformer(comic);
-    // `id` is new by design, `notes` stays behind, and `name` is trimmed on
-    // the way — each asserted on its own below.
-    const skip = new Set(['id', 'notes', 'name']);
+    // The show-slot id is new and the name is trimmed; every profile field follows.
+    const skip = new Set(['id', 'name']);
     const carried = Object.keys(comic).filter((key) => !skip.has(key) && key in performer);
     expect(carried.length).toBeGreaterThan(7);
     for (const key of carried) {
@@ -165,19 +169,20 @@ describe('booking a Rolodex entry onto a bill', () => {
     }
   });
 
-  it('gives them their own id, because a booking is a copy and not a reference', () => {
+  it('gives each booking its own slot id and keeps the shared comic identity', () => {
     const comic = filed();
     const one = comicToPerformer(comic);
     const two = comicToPerformer(comic);
     expect(one.id).not.toBe(comic.id);
     expect(one.id).not.toBe(two.id);
+    expect(one.comicId).toBe(comic.id);
+    expect(two.comicId).toBe(comic.id);
   });
 
-  it('tidies the name, and leaves the producer’s private note behind', () => {
+  it('tidies the name and brings the shared private producer notes', () => {
     const performer = comicToPerformer(filed());
     expect(performer.name).toBe('Nadia Okonjo');
-    // "Pays late" belongs to the Rolodex entry, not to one night's lineup.
-    expect(JSON.stringify(performer)).not.toContain('Thursdays');
+    expect(performer.notes).toBe('Cannot do Thursdays');
   });
 
   it('carries nothing that was never filed, rather than inventing blanks', () => {
@@ -192,5 +197,138 @@ describe('booking a Rolodex entry onto a bill', () => {
     expect(back.photo).toBe('media:headshot-abc');
     expect(back.email).toBe('nadia@example.com');
     expect(back.walkOnMusicArtist).toBe('Missy Elliott');
+  });
+});
+
+const show = (id: string, performers: Performer[], over: Partial<Show> = {}): Show => ({
+  id, performers, name: id, date: '2026-10-01', time: '20:00', location: '', venueName: '',
+  status: 'upcoming', artists: [], schedule: [], hosts: [], djSongs: [], staff: [], expenses: [],
+  createdAt: '', updatedAt: '', ...over,
+});
+
+describe('shared Rolodex identities', () => {
+  it('migrates legacy shows together, keeping canonical values and gathering missing details', () => {
+    const comics = [comic({ id: 'ada', name: 'Ada Cole', credits: 'Current intro' })];
+    const shows = [
+      show('first', [performer({ id: 'first-slot', name: ' ada  cole ', credits: 'Old intro', photo: 'media:headshot' })]),
+      show('second', [performer({ id: 'second-slot', name: 'Ada Cole', email: 'ada@example.com', phone: '5551234567' })]),
+    ];
+    const result = reconcileRolodexProfiles(comics, shows);
+    expect(result.comics[0]).toMatchObject({
+      id: 'ada', credits: 'Current intro', photo: 'media:headshot', email: 'ada@example.com', phone: '5551234567',
+    });
+    for (const migrated of result.shows) {
+      expect(migrated.performers[0]).toMatchObject({
+        comicId: 'ada', name: 'Ada Cole', credits: 'Current intro', photo: 'media:headshot',
+        email: 'ada@example.com', phone: '5551234567',
+      });
+    }
+    expect(result.shows.map((s) => s.performers[0].id)).toEqual(['first-slot', 'second-slot']);
+    expect(comics[0].photo).toBeUndefined();
+    expect(shows[0].performers[0].comicId).toBeUndefined();
+    const again = reconcileRolodexProfiles(result.comics, result.shows);
+    expect(again.comics).toBe(result.comics);
+    expect(again.shows).toBe(result.shows);
+  });
+
+  it('files an unfiled performer once and links their old show appearances', () => {
+    const result = reconcileRolodexProfiles([], [
+      show('one', [performer({ id: 'slot-one', name: 'Ada Cole', photo: 'media:face' })]),
+      show('two', [performer({ id: 'slot-two', name: 'ADA COLE', socialMedia: '@ada' })]),
+    ]);
+    expect(result.comics).toHaveLength(1);
+    expect(result.comics[0]).toMatchObject({ photo: 'media:face', socialMedia: '@ada' });
+    expect(result.shows.map((s) => s.performers[0].comicId)).toEqual([result.comics[0].id, result.comics[0].id]);
+  });
+
+  it('does not merge ambiguous duplicate names or replace a missing explicit identity by name', () => {
+    const comics = [
+      comic({ id: 'ada-one', name: 'Ada Cole', photo: 'media:one' }),
+      comic({ id: 'ada-two', name: 'ada  cole', photo: 'media:two' }),
+    ];
+    const ambiguous = performer({ id: 'legacy', name: 'Ada Cole', email: 'unknown@example.com' });
+    const linked = performer({ id: 'known', comicId: 'ada-two', name: 'Old name' });
+    const deleted = performer({ id: 'deleted', comicId: 'removed-id', name: 'Ada Cole', photo: 'media:deleted' });
+    expect(resolvePerformerComic(ambiguous, comics)).toBeUndefined();
+    expect(resolvePerformerComic(linked, comics)?.id).toBe('ada-two');
+    expect(resolvePerformerComic(deleted, comics)).toBeUndefined();
+    const result = reconcileRolodexProfiles(comics, [show('one', [ambiguous, linked, deleted])]);
+    expect(result.comics).toBe(comics);
+    expect(result.shows[0].performers[0]).toBe(ambiguous);
+    expect(result.shows[0].performers[1]).toMatchObject({ comicId: 'ada-two', photo: 'media:two' });
+    expect(result.shows[0].performers[2]).toBe(deleted);
+  });
+
+  it('propagates explicit clears and never resurrects them from linked old snapshots on reload', () => {
+    const comics = [comic({ id: 'ada', name: 'Ada Cole', socialMedia: '' })];
+    const old = performer({
+      id: 'slot', comicId: 'ada', name: 'Ada Cole', photo: 'media:old', socialMedia: '@old',
+      walkOnMusic: 'media:old-audio', walkOnStartSec: 4, walkOnEndSec: 12,
+    });
+    const result = reconcileRolodexProfiles(comics, [show('one', [old])]);
+    expect(result.comics).toBe(comics);
+    expect(result.shows[0].performers[0]).toMatchObject({
+      photo: undefined, socialMedia: '', walkOnMusic: undefined, walkOnStartSec: undefined, walkOnEndSec: undefined,
+    });
+    expect(reconcileRolodexProfiles(result.comics, result.shows).shows).toBe(result.shows);
+  });
+
+  it('renames profile and linked schedule name without changing slot identity, custom cues, or other show data', () => {
+    const schedule = [
+      { id: 'cue', time: '20:00', description: 'Set', performerId: 'slot', performer: 'Ada Cole' },
+      { id: 'custom', time: '20:15', description: 'Duo', performerId: 'slot', performer: 'Ada with guests' },
+    ];
+    const original = show('one', [performer({ id: 'slot', comicId: 'ada', name: 'Ada Cole' })], {
+      schedule, productionNotes: 'Keep the signed contract unchanged',
+    });
+    const result = syncShowsWithRolodex([comic({ id: 'ada', name: 'Ada Newname' })], [original]);
+    expect(result[0].performers[0]).toMatchObject({ id: 'slot', comicId: 'ada', name: 'Ada Newname' });
+    expect(result[0].schedule[0]).toMatchObject({ id: 'cue', performerId: 'slot', performer: 'Ada Newname' });
+    expect(result[0].schedule[1]).toBe(schedule[1]);
+    expect(result[0].productionNotes).toBe(original.productionNotes);
+    expect(result[0].hosts).toBe(original.hosts);
+    expect(original.schedule[0].performer).toBe('Ada Cole');
+  });
+
+  it('shares all personal fields, media, and trim points with linked artist bookings while preserving their role', () => {
+    const current = comic({
+      id: 'ada', name: 'Ada Cole', photo: 'media:headshot', videoLink: 'https://example.com/reel',
+      walkOnMusic: 'media:audio', walkOnStartSec: 0, walkOnEndSec: 18, notes: 'Private profile note', phone: '5551234567',
+    });
+    const artist = { ...comicToArtist(current), artistType: 'Spoken word' };
+    expect(artist.comicId).toBe('ada');
+    expect(artist.walkOnStartSec).toBe(0);
+    const original = show('one', [], { artists: [{ ...artist, photo: undefined, notes: 'Outdated' }] });
+    const synced = syncShowsWithRolodex([current], [original])[0].artists[0];
+    expect(synced).toMatchObject({
+      id: artist.id, comicId: 'ada', artistType: 'Spoken word', photo: 'media:headshot',
+      notes: 'Private profile note', phone: '5551234567', videoLink: 'https://example.com/reel', walkOnEndSec: 18,
+    });
+  });
+
+  it('migrates uniquely matched legacy artists but does not file unrelated artists as comics', () => {
+    const comics = [comic({ id: 'ada', name: 'Ada Cole' })];
+    const unrelated = { id: 'artist-other', name: 'House Band', artistType: 'Music' };
+    const result = reconcileRolodexProfiles(comics, [show('one', [], { artists: [
+      { id: 'artist-ada', name: 'ada cole', artistType: 'Poetry', credits: 'Artist intro' }, unrelated,
+    ] })]);
+    expect(result.comics).toHaveLength(1);
+    expect(result.comics[0].credits).toBe('Artist intro');
+    expect(result.shows[0].artists[0]).toMatchObject({ id: 'artist-ada', comicId: 'ada', name: 'Ada Cole', artistType: 'Poetry' });
+    expect(result.shows[0].artists[1]).toBe(unrelated);
+  });
+
+  it('writes only edits back to the canonical profile while preserving explicit clears', () => {
+    const before = performer({ id: 'slot', comicId: 'ada', name: 'Ada Cole', photo: 'media:old', credits: 'Old intro' });
+    const after = { ...before, credits: 'New intro', email: undefined };
+    const canonical = comic({ id: 'ada', name: 'Ada Cole', photo: 'media:new', credits: 'Old intro', email: 'new@example.com' });
+    const patch = getComicProfilePatch(before, after);
+    expect(patch).toEqual({ credits: 'New intro' });
+    expect({ ...canonical, ...patch }).toMatchObject({ photo: 'media:new', email: 'new@example.com', credits: 'New intro' });
+    const clear = getComicProfilePatch(before, { ...before, photo: undefined });
+    expect(clear).toHaveProperty('photo', undefined);
+    expect(Object.hasOwn(clear, 'comicId')).toBe(false);
+    expect(Object.hasOwn(clear, 'id')).toBe(false);
+    expect(performerToComic(before).id).toBe('ada');
   });
 });

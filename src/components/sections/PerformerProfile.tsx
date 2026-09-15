@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { HeadshotPanel } from '../HeadshotPanel';
 import { audioUploadSizeError } from '../../utils/media';
@@ -10,10 +10,12 @@ import { socialLink } from '../../utils/social';
 import { performerToComic } from '../../utils/rolodex';
 import './PerformerProfile.css';
 import { useConfirm } from '../useConfirm';
+import { useComicProfileDraft } from './useComicProfileDraft';
 
 interface PerformerProfileProps {
   performer: Performer;
   onBack: () => void;
+  backLabel?: string;
   onChange: (updated: Performer) => void;
   onDelete: (id: string) => void;
   onSaveToRolodex?: (comic: PotentialComic) => void;
@@ -33,36 +35,19 @@ interface PerformerProfileProps {
   contracts?: React.ReactNode;
 }
 
-export function PerformerProfile({ performer, onBack, onChange, onDelete, onSaveToRolodex, inRolodex, contracts }: PerformerProfileProps) {
+export function PerformerProfile({ performer, onBack, backLabel = 'Performers', onChange, onDelete, onSaveToRolodex, inRolodex, contracts }: PerformerProfileProps) {
   // Labels have to point at the field they name: written as a plain <label>
   // beside an input they are decoration — not announced as the field's name,
   // and not tappable to focus it.
   const fieldId = useId();
   const { confirm, confirmDialog } = useConfirm();
-  const [name, setName] = useState(performer.name);
-  const [socialMedia, setSocialMedia] = useState(performer.socialMedia || '');
-  const [email, setEmail] = useState(performer.email || '');
-  const [credits, setCredits] = useState(performer.credits || '');
-  const [songName, setSongName] = useState(performer.walkOnMusicName || '');
-  const [songArtist, setSongArtist] = useState(performer.walkOnMusicArtist || '');
-  const [timestamp, setTimestamp] = useState(performer.walkOnMusicTimestamp || '');
-  const [musicLink, setMusicLink] = useState(performer.walkOnMusicLink || '');
-  const [dirty, setDirty] = useState(false);
+  const { draft, setField, dirty, save: handleSave, update } = useComicProfileDraft(performer, onChange);
+  const { name, socialMedia, email, phone, notes, credits,
+    walkOnMusicName: songName, walkOnMusicArtist: songArtist,
+    walkOnMusicTimestamp: timestamp, walkOnMusicLink: musicLink } = draft;
   const [savedToRolodex, setSavedToRolodex] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [audioDrag, setAudioDrag] = useState(false);
-  /**
-   * The record as it is now, for uploads that finish after the fact.
-   *
-   * An upload takes as long as it takes — resize, encrypt, chunk, send — and
-   * writing back `{ ...performer }` captured when the file was picked meant
-   * anything changed in between was reverted the moment the upload landed.
-   */
-  const performerRef = useRef(performer);
-  useEffect(() => {
-    performerRef.current = performer;
-  }, [performer]);
-
   // Resolves `media:` store references to a playable URL (passthrough otherwise).
   const walkOnUrl = useMediaUrl(performer.walkOnMusic);
 
@@ -75,32 +60,13 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
    * middle of whatever came next.
    */
   function attachWalkOn(result: string, file: File) {
-    onChange({
-      ...performerRef.current,
+    update({
       walkOnMusic: result,
       walkOnMusicName: file.name,
       walkOnStartSec: undefined,
       walkOnEndSec: undefined,
     });
-    setSongName(file.name);
   }
-  function mark() { setDirty(true); }
-
-  function handleSave() {
-    onChange({
-      ...performer,
-      name: name.trim() || performer.name,
-      socialMedia: socialMedia.trim() || undefined,
-      email: email.trim() || undefined,
-      credits: credits.trim() || undefined,
-      walkOnMusicName: songName.trim() || undefined,
-      walkOnMusicArtist: songArtist.trim() || undefined,
-      walkOnMusicTimestamp: timestamp.trim() || undefined,
-      walkOnMusicLink: musicLink.trim() || undefined,
-    });
-    setDirty(false);
-  }
-
   // Walk-on audio is the only upload — it goes to the chunked media store
   // (song-sized cap); the show payload only carries a small `media:` reference.
   function guardRead(file: File, onLoad: (result: string, file: File) => void) {
@@ -152,13 +118,14 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               clipRule="evenodd"
             />
           </svg>
-          <span>Performers</span>
+          <span>{backLabel}</span>
         </button>
       </div>
 
       {/* The person, not the word "profile" — you got here by pressing their
           name, and the page you land on should say whose it is. */}
       <h3 className="perf-profile__heading">{performer.name.trim() || 'Performer Profile'}</h3>
+      <p className="perf-profile__sync-hint">Changes update this comic in the Rolodex and every show.</p>
 
       {/* Main card: fields + photo */}
       <div className="perf-profile__card">
@@ -170,7 +137,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               <input id={`${fieldId}-name`}
                 className="perf-profile__input"
                 value={name}
-                onChange={e => { setName(e.target.value); mark(); }}
+                onChange={e => setField('name', e.target.value)}
                 placeholder="Performer name"
               />
             </div>
@@ -179,7 +146,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               <input id={`${fieldId}-instagram-social`}
                 className="perf-profile__input"
                 value={socialMedia}
-                onChange={e => { setSocialMedia(e.target.value); mark(); }}
+                onChange={e => setField('socialMedia', e.target.value)}
                 placeholder="@username"
               />
               {socialLink(socialMedia) && (
@@ -199,7 +166,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 className="perf-profile__input"
                 type="email"
                 value={email}
-                onChange={e => { setEmail(e.target.value); mark(); }}
+                onChange={e => setField('email', e.target.value)}
                 placeholder="name@email.com"
               />
               {email.trim() && (
@@ -208,13 +175,33 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 </a>
               )}
             </div>
+            <div className="perf-profile__field">
+              <label className="perf-profile__label" htmlFor={`${fieldId}-phone`}>Phone</label>
+              <input id={`${fieldId}-phone`}
+                className="perf-profile__input"
+                type="tel"
+                value={phone}
+                onChange={e => setField('phone', e.target.value)}
+                placeholder="Phone number"
+              />
+              {phone.trim() && <a href={`tel:${phone.trim()}`} className="perf-profile__inline-link">Call ↗</a>}
+            </div>
             <div className="perf-profile__field perf-profile__field--full">
               <label className="perf-profile__label" htmlFor={`${fieldId}-credits-intro-notes`}>Credits for the stage introduction</label>
               <input id={`${fieldId}-credits-intro-notes`}
                 className="perf-profile__input"
                 value={credits}
-                onChange={e => { setCredits(e.target.value); mark(); }}
+                onChange={e => setField('credits', e.target.value)}
                 placeholder="Credits the host should mention when bringing them onstage"
+              />
+            </div>
+            <div className="perf-profile__field perf-profile__field--full">
+              <label className="perf-profile__label" htmlFor={`${fieldId}-notes`}>Notes</label>
+              <input id={`${fieldId}-notes`}
+                className="perf-profile__input"
+                value={notes}
+                onChange={e => setField('notes', e.target.value)}
+                placeholder="Contact info, style notes, availability..."
               />
             </div>
             <div className="perf-profile__field">
@@ -222,7 +209,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               <input id={`${fieldId}-walk-on-song`}
                 className="perf-profile__input"
                 value={songName}
-                onChange={e => { setSongName(e.target.value); mark(); }}
+                onChange={e => setField('walkOnMusicName', e.target.value)}
                 placeholder="Song title"
               />
             </div>
@@ -231,7 +218,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               <input id={`${fieldId}-artist`}
                 className="perf-profile__input"
                 value={songArtist}
-                onChange={e => { setSongArtist(e.target.value); mark(); }}
+                onChange={e => setField('walkOnMusicArtist', e.target.value)}
                 placeholder="Artist name"
               />
             </div>
@@ -240,7 +227,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               <input id={`${fieldId}-start-timestamp`}
                 className="perf-profile__input"
                 value={timestamp}
-                onChange={e => { setTimestamp(e.target.value); mark(); }}
+                onChange={e => setField('walkOnMusicTimestamp', e.target.value)}
                 placeholder="e.g. 1:30"
               />
             </div>
@@ -249,7 +236,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
               <input id={`${fieldId}-youtube-spotify-link`}
                 className="perf-profile__input"
                 value={musicLink}
-                onChange={e => { setMusicLink(e.target.value); mark(); }}
+                onChange={e => setField('walkOnMusicLink', e.target.value)}
                 placeholder="https://open.spotify.com/... or youtu.be/..."
               />
             </div>
@@ -272,7 +259,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 onClick={() => {
                   // Same conversion the automatic filing uses, so the two can't
                   // drift into copying different fields across.
-                  onSaveToRolodex(performerToComic(performer));
+                  onSaveToRolodex(performerToComic(handleSave()));
                   setSavedToRolodex(true);
                   setTimeout(() => setSavedToRolodex(false), 2000);
                 }}
@@ -298,7 +285,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
         </div>
 
         <HeadshotPanel name={performer.name} photo={performer.photo}
-          onChange={photo => onChange({ ...performerRef.current, photo })} />
+          onChange={photo => update({ photo })} />
       </div>
 
       {/* Media card */}
@@ -353,8 +340,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                 <div className="perf-profile__media-actions">
                   <button
                     className="btn btn--ghost btn--sm"
-                    onClick={() => onChange({
-                      ...performer,
+                    onClick={() => update({
                       walkOnMusic: undefined,
                       walkOnMusicName: undefined,
                       // The cut belonged to that file. Leaving it behind would
@@ -373,8 +359,7 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
                   startSec={performer.walkOnStartSec}
                   endSec={performer.walkOnEndSec}
                   onChange={(trim) =>
-                    onChange({
-                      ...performerRef.current,
+                    update({
                       walkOnStartSec: trim.startSec,
                       walkOnEndSec: trim.endSec,
                     })
@@ -408,11 +393,12 @@ export function PerformerProfile({ performer, onBack, onChange, onDelete, onSave
 
           {/* Video link */}
           <div className="perf-profile__media-tile">
-            <p className="perf-profile__media-label">Video link</p>
+            <label className="perf-profile__media-label" htmlFor={`${fieldId}-video-link`}>Video link</label>
             <input
+              id={`${fieldId}-video-link`}
               className="perf-profile__input perf-profile__video-link"
               value={performer.videoLink || ''}
-              onChange={e => onChange({ ...performer, videoLink: e.target.value.trim() || undefined })}
+              onChange={e => update({ videoLink: e.target.value.trim() || undefined })}
               placeholder="Paste video link (YouTube, Vimeo, Drive…)"
             />
             {performer.videoLink ? (

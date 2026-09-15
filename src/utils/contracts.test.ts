@@ -14,6 +14,7 @@ import {
   prefillFromShow,
   readSignKeyFromHash,
   requestsForContract,
+  requestMatchesSigner,
   shortHash,
   signatureSummary,
   signerStatus,
@@ -572,5 +573,29 @@ describe('loading the agreement document', () => {
     const get = vi.spyOn(api, 'get');
     await expect(fetchSigningDocument('tok', key, total)).resolves.toBeNull();
     expect(get).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('contracts follow shared comic identity', () => {
+  const signed = { signedAt: '2026-03-01T00:00:00.000Z', typedName: 'Ada Original', documentHash: 'hash' };
+
+  it('keeps signed status and pending agreements after a profile rename without changing the signed record', () => {
+    const original = req({ signerName: 'Ada Original', contactId: 'ada', signed });
+    const pending = req({ token: 'new', signerName: 'Ada Original', contactId: 'ada' });
+    expect(signerStatus([original], 'Ada Current', 'ada')).toBe('signed');
+    expect(alreadyPending([pending], 'c1', 'Ada Current', 'ada')).toBe(true);
+    expect(lineupSigned([original], [{ name: 'Ada Current', comicId: 'ada' }])).toEqual({ signed: 1, total: 1 });
+    expect(original.signerName).toBe('Ada Original');
+    expect(original.signed).toBe(signed);
+    expect(original.signed?.typedName).toBe('Ada Original');
+  });
+
+  it('does not assign a namesake another comic’s linked agreement', () => {
+    const original = req({ signerName: 'Ada Cole', contactId: 'ada-one', signed });
+    expect(signerStatus([original], 'Ada Cole', 'ada-two')).toBe('none');
+    expect(signerStatus([original], 'Ada Cole')).toBe('none');
+    expect(requestMatchesSigner(original, 'Ada Cole', 'ada-two')).toBe(false);
+    expect(requestMatchesSigner(req({ signerName: ' ADA  COLE ' }), 'Ada Cole', 'ada-two')).toBe(true);
   });
 });

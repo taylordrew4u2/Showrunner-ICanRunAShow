@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Artist, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
 import { ArtistProfile } from './ArtistProfile';
+import { PerformerProfile } from './PerformerProfile';
+import { comicToArtist } from '../../utils/rolodex';
 
 interface ArtistsSectionProps {
   artists: Artist[];
@@ -11,6 +13,7 @@ interface ArtistsSectionProps {
 }
 
 export function ArtistsSection({ artists, potentialComics = [], onChange }: ArtistsSectionProps) {
+  const artistTypeId = useId();
   const [name, setName] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showRolodex, setShowRolodex] = useState(false);
@@ -24,25 +27,8 @@ export function ArtistsSection({ artists, potentialComics = [], onChange }: Arti
     setName('');
   }
 
-  /**
-   * Book someone already on file.
-   *
-   * Performers have had this since the Rolodex existed; artists never did, so
-   * the only way to put a act you've worked with on an artist bill was to type
-   * their name again and lose everything filed against it. The fields an
-   * Artist and a Rolodex entry share come across; the rest of the profile is
-   * filled in on the artist itself.
-   */
   function addFromRolodex(comic: PotentialComic) {
-    const a: Artist = {
-      id: generateId(),
-      name: comic.name,
-      socialMedia: comic.socialMedia,
-      credits: comic.credits,
-      walkOnMusic: comic.walkOnMusic,
-      walkOnMusicName: comic.walkOnMusicName,
-    };
-    onChange([...artists, a]);
+    onChange([...artists, comicToArtist(comic)]);
     setShowRolodex(false);
   }
 
@@ -159,12 +145,34 @@ export function ArtistsSection({ artists, potentialComics = [], onChange }: Arti
         <>
           <div className="perf-drawer__backdrop" onClick={() => setSelectedId(null)} />
           <div className="perf-drawer">
-            <ArtistProfile
-              artist={selectedArtist}
-              onBack={() => setSelectedId(null)}
-              onChange={updateArtist}
-              onDelete={deleteArtist}
-            />
+            {selectedArtist.comicId ? (
+              <>
+                <div className="perf-profile__field perf-profile__artist-type">
+                  <label className="perf-profile__label" htmlFor={artistTypeId}>Artist type for this show</label>
+                  <input id={artistTypeId}
+                    className="perf-profile__input"
+                    value={selectedArtist.artistType || ''}
+                    onChange={e => updateArtist({ ...selectedArtist, artistType: e.target.value || undefined })}
+                    placeholder="e.g. Musician, magician, poet"
+                  />
+                </div>
+                <PerformerProfile
+                  performer={selectedArtist}
+                  backLabel="Artists"
+                  inRolodex
+                  onBack={() => setSelectedId(null)}
+                  onChange={updateArtist}
+                  onDelete={deleteArtist}
+                />
+              </>
+            ) : (
+              <ArtistProfile
+                artist={selectedArtist}
+                onBack={() => setSelectedId(null)}
+                onChange={updateArtist}
+                onDelete={deleteArtist}
+              />
+            )}
           </div>
         </>
       )}

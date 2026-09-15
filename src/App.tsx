@@ -11,7 +11,10 @@ import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/the
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
 import { expandOriginFrom } from './utils/expandOrigin';
-import { addPerformersToRolodex, rolodexKey } from './utils/rolodex';
+import { getComicProfilePatch, reconcileRolodexProfiles, resolvePerformerComic, syncShowsWithRolodex } from './utils/rolodex';
+import { normalizeComicSettings } from './utils/sharedComicSettings';
+import { mergeSettingsEdit } from './utils/mergeSettingsEdit';
+import { mergeShowEdit } from './utils/mergeShowEdit';
 import { bulkMailto } from './utils/social';
 import { buildOverview } from './utils/showsOverview';
 import { 
@@ -154,18 +157,13 @@ function RolodexRefresh({
   requests: ProfileRequest[];
   onFound: (updated: ProfileRequest[]) => void;
 }) {
-  // The check is slow and the producer is not waiting for it: they may make
-  // a new link, or edit anything, before it resolves. Calling the `onFound`
-  // captured at mount would hand it the settings from that first render and
-  // overwrite whatever they did in between. The ref always points at the
-  // latest one, which closes over the latest settings.
-  const onFoundRef = useRef(onFound);
-  onFoundRef.current = onFound;
+  // Keep the callback paired with the requests snapshot it fetched. The
+  // settings merge needs that original baseline to preserve later edits.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const updated = await refreshProfiles(requests);
-      if (!cancelled && updated) onFoundRef.current(updated);
+      if (!cancelled && updated) onFound(updated);
     })();
     return () => { cancelled = true; };
     // On mount only, by design — see above.
@@ -342,7 +340,10 @@ export default function App() {
   // write them back untouched. Never rendered — only carried.
   const unreadableRowsRef = useRef<EncryptedShowRow[]>([]);
   const [unreadableCount, setUnreadableCount] = useState(0);
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const resolvedSettingsRef = useRef(new WeakMap<AppSettings, AppSettings>());
+  const latestSettingsRef = useRef(settings);
+  latestSettingsRef.current = settings;
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [onboardingSaving, setOnboardingSaving] = useState(false);
   const [view, setView] = useState<View>('list');
@@ -546,14 +547,19 @@ export default function App() {
             : show
         );
 
-        // A pending copy is by definition *not* what the server has; anything
-        // else came straight off it and needs no local copy until it's edited.
-        savedShowsRef.current = pendingShows ? null : initialShows;
-        latestShowsRef.current = initialShows;
-        setShows(initialShows);
-        setSettings(pendingSettings ?? migratedSettings);
+        // Link legacy snapshots only after recovery has compared the actual
+        // saved rows. The Rolodex then supplies every live comic profile.
+        const recoveredSettings = pendingSettings ?? migratedSettings;
+        const baseSettings = normalizeComicSettings(recoveredSettings, recoveredSettings);
+        const shared = reconcileRolodexProfiles(baseSettings.potentialComics, initialShows);
+        const sharedSettings = shared.comics === baseSettings.potentialComics
+          ? baseSettings : { ...baseSettings, potentialComics: shared.comics };
+        savedShowsRef.current = pendingShows || shared.shows !== initialShows ? null : initialShows;
+        latestShowsRef.current = shared.shows;
+        setShows(shared.shows);
+        setSettings(sharedSettings);
         dataLoaded.current = true;
-        if (pendingSettings) saveSettings(pendingSettings);
+        if (pendingSettings || sharedSettings !== recoveredSettings) saveSettings(sharedSettings);
         setLoadError(null);
       } catch (error) {
         if (cancelled) return;
@@ -596,6 +602,21 @@ export default function App() {
   // the server. The saver's own mid-flight re-check was reading the same stale
   // value for the same reason.
   latestShowsRef.current = shows;
+
+  // Every settings writer (Rolodex, contract imports, profile replies, restore)
+  // refreshes the same linked people. Show slots keep their own ids and cues.
+  function setSettings(updated: AppSettings) {
+    const current = latestSettingsRef.current;
+    const prepared = normalizeComicSettings(mergeSettingsEdit(settings, updated, current), current);
+    resolvedSettingsRef.current.set(updated, prepared);
+    latestSettingsRef.current = prepared;
+    setSettingsState(prepared);
+    const synced = syncShowsWithRolodex(prepared.potentialComics, latestShowsRef.current);
+    if (synced !== latestShowsRef.current) {
+      latestShowsRef.current = synced;
+      setShows(synced);
+    }
+  }
   // Guards against overlapping saves. The server replaces all rows per request,
   // so two concurrent saves can race and an older one can clobber a newer one.
   const savingRef = useRef(false);
@@ -836,7 +857,13 @@ export default function App() {
       const loaded = await loadShowsSnapshot(session, snapshot.at);
       unreadableRowsRef.current = loaded.unreadable;
       setUnreadableCount(loaded.unreadable.length);
-      const restored = loaded.shows.map((show) => stripLegacyShowMedia(show));
+      const shared = reconcileRolodexProfiles(latestSettingsRef.current.potentialComics, loaded.shows.map(show => stripLegacyShowMedia(show)));
+      const restored = shared.shows;
+      if (shared.comics !== latestSettingsRef.current.potentialComics) {
+        const updated = { ...latestSettingsRef.current, potentialComics: shared.comics };
+        setSettings(updated);
+        saveSettings(updated);
+      }
       latestShowsRef.current = restored;
       setShows(restored);
       writePending(PENDING_SHOWS_KEY, session.username, restored);
@@ -847,7 +874,7 @@ export default function App() {
       const back = new Set(restored.map((show) => show.id));
       const record = settings.deletedShowIds ?? [];
       if (record.some((id) => back.has(id))) {
-        const updated = { ...settings, deletedShowIds: record.filter((id) => !back.has(id)) };
+        const updated = { ...latestSettingsRef.current, deletedShowIds: record.filter((id) => !back.has(id)) };
         setSettings(updated);
         saveSettings(updated);
       }
@@ -1027,7 +1054,14 @@ export default function App() {
       // every new show read as opted in, which is why it is the form's choice
       // to make and not this function's.
     };
-    setShows((prev) => [newShow, ...prev]);
+    const shared = reconcileRolodexProfiles(latestSettingsRef.current.potentialComics, [newShow, ...latestShowsRef.current]);
+    latestShowsRef.current = shared.shows;
+    setShows(shared.shows);
+    if (shared.comics !== latestSettingsRef.current.potentialComics) {
+      const updated = { ...latestSettingsRef.current, potentialComics: shared.comics };
+      setSettings(updated);
+      saveSettings(updated);
+    }
     setShowForm(false);
     // Drop the user straight into the new show so create → populate is continuous.
     setSelectedShow(newShow);
@@ -1151,15 +1185,17 @@ export default function App() {
 
     // A show deleted on this device may already have been restored elsewhere —
     // don't create a duplicate if it's somehow back in the list.
-    setShows((prev) => (prev.some((s) => s.id === item.data.id) ? prev : [item.data, ...prev]));
-
+    const current = latestSettingsRef.current;
+    const candidates = latestShowsRef.current.some(s => s.id === item.data.id)
+      ? latestShowsRef.current : [item.data, ...latestShowsRef.current];
+    const shared = reconcileRolodexProfiles(current.potentialComics, candidates);
+    latestShowsRef.current = shared.shows;
+    setShows(shared.shows);
     const updatedSettings = {
-      ...settings,
-      trash: (settings.trash || []).filter((t) => t.id !== trashId),
-      // Putting it back retracts the deletion. Left on the record, the merge
-      // would read this show as deliberately deleted on the next launch and
-      // drop it off the account again.
-      deletedShowIds: (settings.deletedShowIds ?? []).filter((x) => x !== item.data.id),
+      ...current,
+      potentialComics: shared.comics,
+      trash: (current.trash || []).filter(t => t.id !== trashId),
+      deletedShowIds: (current.deletedShowIds ?? []).filter(id => id !== item.data.id),
     };
     setSettings(updatedSettings);
     saveSettings(updatedSettings);
@@ -1214,6 +1250,7 @@ export default function App() {
 
   function saveSettings(updatedSettings: typeof settings) {
     if (!session) return;
+    updatedSettings = resolvedSettingsRef.current.get(updatedSettings) ?? updatedSettings;
     const currentSession = session;
     // Each call supersedes any still-retrying older one, so a stale snapshot
     // can never land after (and clobber) a newer save.
@@ -1330,16 +1367,15 @@ export default function App() {
 
   function handleSavePerformerToRolodex(comic: PotentialComic) {
     if (!session) return;
-    // rolodexKey, not a bare lowercase: the control that offers this save is
-    // hidden by the same rule, and "Ada  Cole" must not slip past one and be
-    // caught by the other.
-    const existing = settings.potentialComics.find(c => rolodexKey(c.name) === rolodexKey(comic.name));
+    const current = latestSettingsRef.current;
+    const existing = current.potentialComics.find(c => c.id === comic.id)
+      ?? resolvePerformerComic(comic, current.potentialComics);
     const updated = existing
-      ? settings.potentialComics.map(c => c.id === existing.id ? { ...c, ...comic, id: c.id } : c)
-      : [comic, ...settings.potentialComics];
-    const updatedSettings = { ...settings, potentialComics: updated };
-    setSettings(updatedSettings);
-    saveSettings(updatedSettings);
+      ? current.potentialComics.map(c => c.id === existing.id ? { ...c, ...comic, id: c.id } : c)
+      : [comic, ...current.potentialComics];
+    const next = { ...current, potentialComics: updated };
+    setSettings(next);
+    saveSettings(next);
   }
 
   // The profile link just made, shown on its row until the producer moves on.
@@ -1478,33 +1514,13 @@ export default function App() {
 
   function handleUpdateRolodexComic(updated: PotentialComic, extra: Partial<AppSettings> = {}) {
     if (!session) return;
-    const updatedComics = settings.potentialComics.map(c => c.id === updated.id ? updated : c);
-    // `extra` rides in the same save: two writes in a row would race, and the
-    // second — computed from settings that had not caught up — would put the
-    // first one back the way it was.
-    const updatedSettings = { ...settings, ...extra, potentialComics: updatedComics };
+    const current = latestSettingsRef.current;
+    const updatedSettings = {
+      ...current, ...extra,
+      potentialComics: current.potentialComics.map(c => c.id === updated.id ? updated : c),
+    };
     setSettings(updatedSettings);
     saveSettings(updatedSettings);
-
-    // Sync matching performers in all shows (match by name, update profile fields)
-    setShows(prev =>
-      prev.map(show => ({
-        ...show,
-        performers: show.performers.map(p => {
-          if (p.name.toLowerCase() !== updated.name.toLowerCase()) return p;
-          return {
-            ...p,
-            socialMedia: updated.socialMedia ?? p.socialMedia,
-            credits: updated.credits ?? p.credits,
-            walkOnMusic: updated.walkOnMusic ?? p.walkOnMusic,
-            walkOnMusicName: updated.walkOnMusicName ?? p.walkOnMusicName,
-            walkOnMusicArtist: updated.walkOnMusicArtist ?? p.walkOnMusicArtist,
-            walkOnMusicTimestamp: updated.walkOnMusicTimestamp ?? p.walkOnMusicTimestamp,
-            walkOnMusicLink: updated.walkOnMusicLink ?? p.walkOnMusicLink,
-          };
-        }),
-      }))
-    );
   }
 
   /** Save the current run-of-show as a reusable template (account-wide). */
@@ -1554,64 +1570,46 @@ export default function App() {
   }
 
   function handleUpdateShow(incoming: Show) {
-    const previous = shows.find((s) => s.id === incoming.id);
-    // Stamp the edit. Every change to a show comes through here, and until now
-    // `updatedAt` was written once at creation and never again — so two copies
-    // of a show, one from this device and one from the account, carried no
-    // evidence of which was edited more recently. Reconciling them after a
-    // failed save needs exactly that evidence.
-    const updated: Show = { ...incoming, updatedAt: new Date().toISOString() };
-    const nextShows = shows.map((s) => (s.id === updated.id ? updated : s));
-    setShows(nextShows);
-    setSelectedShow(updated);
-    fileNewPerformers(updated);
-
-    // Every edit to a show lands here, which makes this the one place that can
-    // notice an upload going out of use: a cue deleted with its intro music, a
-    // performer dropped from the bill with their headshot, a walk-on replaced
-    // by a different track. Comparing what the show pointed at before with
-    // what it points at now gives that set without every section having to
-    // remember to clean up after itself.
-    //
-    // This treats a reference leaving the show as final, which it is — cue and
-    // lineup edits have no undo. Only whole shows are recoverable, and those
-    // go through the trash, which keeps their references alive until the trash
-    // itself is emptied.
-    if (previous) {
-      const before = showMediaRefs(previous);
-      const after = new Set(showMediaRefs(updated));
-      const dropped = before.filter((ref) => !after.has(ref));
-      if (dropped.length > 0) {
-        for (const ref of orphanedRefs(dropped, nextShows, settings)) deleteMedia(ref);
+    const currentShows = latestShowsRef.current;
+    const currentSettings = latestSettingsRef.current;
+    const previous = currentShows.find(s => s.id === incoming.id);
+    if (!previous) return;
+    const baseline = shows.find(s => s.id === incoming.id) ?? previous;
+    const merged = mergeShowEdit(baseline, incoming, previous);
+    let comics = currentSettings.potentialComics;
+    // Existing rows edit their linked comic. Only changed personal fields go
+    // upstream; a show's date, order, cues, and role stay on that show.
+    if (baseline) {
+      const before = new Map([...baseline.performers, ...baseline.artists].map(person => [person.id, person]));
+      const currentPeople = new Set([...previous.performers, ...previous.artists].map(person => person.id));
+      for (const person of [...incoming.performers, ...incoming.artists]) {
+        const old = before.get(person.id);
+        if (!old || !currentPeople.has(person.id)) continue;
+        const comic = resolvePerformerComic(old, comics);
+        if (!comic) continue;
+        const patch = getComicProfilePatch(old, person);
+        if (Object.keys(patch).length) {
+          comics = comics.map(c => c.id === comic.id ? { ...c, ...patch } : c);
+        }
       }
     }
-  }
-
-  /**
-   * Anyone booked onto a show joins the Rolodex, without being filed by hand.
-   *
-   * Every route a performer can arrive by — typed in, picked from the Rolodex,
-   * pulled off an imported schedule — lands in handleUpdateShow, so this is the
-   * one place that needs to know.
-   *
-   * It compares performer **ids** against the show as it was, not names against
-   * the Rolodex. Renaming someone keeps their id, so fixing a spelling doesn't
-   * file a second copy under the corrected name; only a genuinely new row on
-   * the lineup counts as a booking.
-   */
-  function fileNewPerformers(updated: Show) {
-    if (!session) return;
-    const before = shows.find((s) => s.id === updated.id);
-    const alreadyOnBill = new Set(before?.performers.map((p) => p.id) ?? []);
-    const added = updated.performers.filter((p) => !alreadyOnBill.has(p.id));
-    if (added.length === 0) return;
-
-    const merged = addPerformersToRolodex(settings.potentialComics, added);
-    if (!merged) return; // everyone was already filed — no write needed
-
-    const updatedSettings = { ...settings, potentialComics: merged };
-    setSettings(updatedSettings);
-    saveSettings(updatedSettings);
+    const updated: Show = { ...merged, updatedAt: new Date().toISOString() };
+    const shared = reconcileRolodexProfiles(comics, currentShows.map(s => s.id === updated.id ? updated : s));
+    const nextSettings = shared.comics === currentSettings.potentialComics
+      ? currentSettings : { ...currentSettings, potentialComics: shared.comics };
+    latestShowsRef.current = shared.shows;
+    setShows(shared.shows);
+    setSelectedShow(shared.shows.find(s => s.id === updated.id) ?? updated);
+    if (nextSettings !== currentSettings) {
+      setSettings(nextSettings);
+      saveSettings(nextSettings);
+    }
+    if (previous) {
+      const before = showMediaRefs(previous);
+      const after = new Set(showMediaRefs(shared.shows.find(s => s.id === updated.id) ?? updated));
+      const dropped = before.filter(ref => !after.has(ref));
+      for (const ref of orphanedRefs(dropped, shared.shows, nextSettings)) deleteMedia(ref);
+    }
   }
 
   function handleSelectShow(show: Show, e?: React.MouseEvent, runShow = false) {
@@ -2190,7 +2188,7 @@ export default function App() {
                 style={{ '--expand-origin-x': `${expandOrigin.x}%`, '--expand-origin-y': `${expandOrigin.y}%` } as React.CSSProperties}
               >
                 <ShowDetail
-                  show={selectedShow}
+                  show={shows.find(show => show.id === selectedShow.id) ?? selectedShow}
                   settings={settings}
                   startInRunShow={startInRunShow}
                   onBack={handleBack}
