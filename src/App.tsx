@@ -12,6 +12,7 @@ import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
 import { expandOriginFrom } from './utils/expandOrigin';
 import { addPerformersToRolodex } from './utils/rolodex';
+import { bulkMailto } from './utils/social';
 import { buildOverview } from './utils/showsOverview';
 import { 
   loadEncryptedShows, 
@@ -2249,9 +2250,22 @@ export default function App() {
                 />
                 <PageHeader
                   title={`${rolodexTerm.singular} Rolodex`}
-                  subtitle={`Keep a running list of ${rolodexTerm.plural.toLowerCase()} you want to book next.`}
+                  subtitle={`Everyone you might book. Save a ${rolodexTerm.singular.toLowerCase()} once and reuse them across shows — edits sync everywhere.`}
                   onBack={handleBack}
                   backLabel="Shows"
+                  actions={(() => {
+                    // Everybody filed here who left an address. One message to
+                    // the whole book — an availability ask, a new room — is the
+                    // thing a producer does with a rolodex that the app had no
+                    // way to start.
+                    const href = bulkMailto(
+                      settings.potentialComics.map(c => c.email),
+                      { subject: 'Are you around?' },
+                    );
+                    return href ? (
+                      <a className="btn btn--secondary btn--sm" href={href}>Email all</a>
+                    ) : null;
+                  })()}
                 />
 
                 {/* A form rather than a div: a name box beside an Add button

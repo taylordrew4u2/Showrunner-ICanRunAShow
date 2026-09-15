@@ -1184,7 +1184,7 @@ export function ShowDetail({
               ref={(el) => {
                 sectionRefs.current[section.key] = el;
               }}
-              className={`accordion-section${isExpanded ? ' accordion-section--expanded' : ''}`}
+              className="accordion-section"
             >
               {/* The whole header is one button, wrapped in the heading. It used
                   to be a div with a click handler and a separate arrow button,

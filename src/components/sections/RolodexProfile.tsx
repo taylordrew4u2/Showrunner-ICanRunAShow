@@ -235,7 +235,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
       {/* Walk-on music */}
       <div className="perf-profile__card perf-profile__card--media">
         <p className="perf-profile__section-label">Walk-On Music File</p>
-        <div className="perf-profile__media-tile perf-profile__media-tile--bare">
+        <div className="perf-profile__media-tile">
           {(comic.walkOnMusicName || comic.walkOnMusicArtist) && (
             <p className="perf-profile__song-info">
               {[comic.walkOnMusicName, comic.walkOnMusicArtist].filter(Boolean).join(' — ')}
