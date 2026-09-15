@@ -77,6 +77,15 @@ test.describe('a contract sent from inside a show', () => {
     await page.locator('.lineup-add__name').fill('Dev Marchetti');
     await page.locator('.lineup-add__submit').click();
 
+    // Booking someone already files them in the Rolodex, so their profile has
+    // nothing left to offer — and the offer is gone. It used to sit there
+    // regardless, a button whose only effect was to make a producer press it
+    // and wonder whether the last press had worked.
+    await page.getByRole('button', { name: "Open Dev Marchetti's profile" }).click();
+    await expect(page.getByRole('button', { name: 'Save to Rolodex' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Saved!' })).toHaveCount(0);
+    await page.locator('.perf-profile__back').click();
+
     // Nobody on this bill has signed anything, so nobody on it is booked —
     // and the section says so in those words, rather than counting two names
     // and calling it a lineup.
@@ -183,6 +192,13 @@ test.describe('a contract sent from inside a show', () => {
     }
     await expect(page.locator('.lineup-booked')).toContainText('1 of 2 booked');
     await expect(page.locator('.lineup-signed--signed')).toHaveCount(1);
+
+    // And what she filled in on the contract is on her profile, without an
+    // import being pressed. She was booked by name alone, with no email; the
+    // one she typed herself is the only one the app will ever have.
+    await page.getByRole('button', { name: "Open Nadia Okonjo's profile" }).click();
+    await expect(page.getByLabel('Email')).toHaveValue('nadia@example.com');
+    await page.locator('.perf-profile__back').click();
 
     // And again from the library, where nothing says which night it is for.
     // The producer picks a name; the app knows what that person is booked on.

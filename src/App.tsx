@@ -11,7 +11,7 @@ import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/the
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
 import { expandOriginFrom } from './utils/expandOrigin';
-import { addPerformersToRolodex } from './utils/rolodex';
+import { addPerformersToRolodex, rolodexKey } from './utils/rolodex';
 import { bulkMailto } from './utils/social';
 import { buildOverview } from './utils/showsOverview';
 import { 
@@ -1327,7 +1327,10 @@ export default function App() {
 
   function handleSavePerformerToRolodex(comic: PotentialComic) {
     if (!session) return;
-    const existing = settings.potentialComics.find(c => c.name.toLowerCase() === comic.name.toLowerCase());
+    // rolodexKey, not a bare lowercase: the control that offers this save is
+    // hidden by the same rule, and "Ada  Cole" must not slip past one and be
+    // caught by the other.
+    const existing = settings.potentialComics.find(c => rolodexKey(c.name) === rolodexKey(comic.name));
     const updated = existing
       ? settings.potentialComics.map(c => c.id === existing.id ? { ...c, ...comic, id: c.id } : c)
       : [comic, ...settings.potentialComics];
