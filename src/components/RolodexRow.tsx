@@ -134,14 +134,14 @@ export function RolodexRow({
         <div className="rolodex__import">
           <span className="rolodex__import-head">
             {comic.name} sent their details — {describeChanges(pending)}
-            {pendingPhoto ? ', and a headshot' : ''}
+            {pendingPhoto ? (comic.photo ? ', and a new headshot' : ', and a headshot') : ''}
           </span>
           {/* Shown rather than described: a photo is the one thing you can
               judge at a glance, and the flyer depends on it. */}
           {pendingPhoto && (
             <div className="rolodex__import-photo">
               <img src={pendingPhoto} alt={`Headshot sent by ${comic.name}`} />
-              <span>For the flyer</span>
+              <span>{comic.photo ? 'Replaces the photo on their profile' : 'For the flyer'}</span>
             </div>
           )}
           <ul className="rolodex__import-list">
