@@ -34,7 +34,7 @@ interface ReviewItem extends ScheduleItem {
 }
 
 const AI_STEPS = [
-  { label: 'Reading file', subFor: { photo: 'Vision · OCR fallback', pdf: 'PDF.js extract', paste: 'Text parse' } },
+  { label: 'Reading file', subFor: { photo: 'On-device OCR', pdf: 'PDF text', paste: 'Text parse' } },
   { label: 'Detecting times', sub: '12h / 24h / informal' },
   { label: 'Parsing cues', sub: 'Names · descriptions' },
   { label: 'Final pass', sub: 'Review & dedupe' },
@@ -197,7 +197,7 @@ export function AIImportFlow({
           <div>
             <h2 className="import-header__title">
               <Icon name="sparkle" size={18} />
-              Import with AI
+              Import a schedule
             </h2>
             <div className="import-header__sub">{showName} · Schedule</div>
           </div>
@@ -223,8 +223,9 @@ export function AIImportFlow({
                 How it works
               </div>
               <p className="import-banner__body">
-                Snap a photo of a printed run-of-show, drop a PDF, or paste from email. AI extracts every cue with
-                times — review before adding.
+                Snap a photo of a printed run-of-show, drop a PDF, or paste from email. Times, names and
+                lengths are read right here on your device — review before adding. Nothing is sent anywhere,
+                and there is no account or key to add.
               </p>
             </div>
 
@@ -255,10 +256,6 @@ export function AIImportFlow({
               </button>
             </div>
 
-            <p style={{ fontSize: 11, color: 'var(--text-soft)', textAlign: 'center', marginTop: 16 }}>
-              Falls back to local parsing if AI is unavailable.
-            </p>
-
             <input
               ref={fileInputRef}
               type="file"
@@ -286,7 +283,7 @@ export function AIImportFlow({
               disabled={!pasted.trim()}
             >
               <Icon name="sparkle" size={14} />
-              <span style={{ marginLeft: 6 }}>Extract cues</span>
+              <span style={{ marginLeft: 6 }}>Read cues</span>
             </button>
           </>
         )}

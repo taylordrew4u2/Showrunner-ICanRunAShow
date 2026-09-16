@@ -16,7 +16,7 @@ import { ScheduleTemplates } from '../ScheduleTemplates';
 import { ScheduleGenerator } from '../ScheduleGenerator';
 import { OnStagePicker } from '../OnStagePicker';
 
-// Loaded on demand — pulls in the AI/OCR/PDF parsing deps only when the
+// Loaded on demand — pulls in the OCR/PDF parsing deps only when the
 // import flow is actually opened, keeping them out of the main bundle.
 const AIImportFlow = lazy(() =>
   import('../AIImportFlow').then((m) => ({ default: m.AIImportFlow })),
@@ -557,8 +557,8 @@ export function ScheduleSection({
           )}
           <button className="schedule-choice__option" onClick={() => setImportOpen(true)}>
             <span className="schedule-choice__icon"><Icon name="sparkle" size={20} /></span>
-            <span className="schedule-choice__label">Import with AI</span>
-            <span className="schedule-choice__desc">Photo, PDF, or paste — AI extracts cues</span>
+            <span className="schedule-choice__label">Import a schedule</span>
+            <span className="schedule-choice__desc">Photo, PDF, or paste — read on this device</span>
           </button>
           <button className="schedule-choice__option" onClick={() => setMode('build')}>
             <span className="schedule-choice__icon"><Icon name="edit" size={20} /></span>

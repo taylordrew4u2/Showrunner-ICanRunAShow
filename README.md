@@ -246,8 +246,7 @@ showrunner/
 │   ├── live.ts                  # live-viewer state
 │   ├── media.ts                 # chunked encrypted uploads (+ inventory for the sweep)
 │   ├── sign.ts                  # signature requests — sign-once enforced in SQL
-│   ├── sign-doc.ts              # the contract itself, ciphertext under a per-request key
-│   └── ai-extract.ts            # server-side extraction proxy (key never in the bundle)
+│   └── sign-doc.ts              # the contract itself, ciphertext under a per-request key
 ├── e2e/                         # Playwright: desktop + phone, against a faked edge API
 │   ├── support/fake-api.ts      # In-memory stand-in, including the sign-once rule
 │   ├── critical-path.spec.ts
@@ -334,11 +333,9 @@ TURSO_DATABASE_URL=
 TURSO_AUTH_TOKEN=
 ```
 
-Optional (all server-side — **no** `VITE_` prefix):
-
-```env
-OPENAI_API_KEY=               # automatic schedule import via /api/ai-extract; falls back to OCR + regex without it
-```
+There is no optional AI key. Schedule import reads PDFs, photos and pasted
+text on the device (PDF.js, Tesseract OCR and a line parser) and never calls
+a model.
 
 The Turso variables are required for data persistence; the app surfaces a clear error if they are missing.
 
