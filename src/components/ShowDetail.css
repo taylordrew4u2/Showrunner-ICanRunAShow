@@ -3241,6 +3241,14 @@ select.show-detail__status--select {
   border-radius: 12px;
   background: var(--backdrop);
   color: var(--text);
+  /* The containing block for anything positioned inside — the notes field's
+     visually-hidden label is position: absolute, and with nothing positioned
+     between it and the viewport it was laid out against the document. On
+     desktop the app shell is the scroll container, not the document, so that
+     one 1px label made the document itself scrollable by the height of the
+     workspace: reach the end of the page and the whole shell — sidebar,
+     status pill, the pinned Run Show bar — slid up and off the screen. */
+  position: relative;
 }
 .show-workspace__sidebar {
   display: flex;
@@ -3271,8 +3279,21 @@ select.show-detail__status--select {
 .show-workspace__sidebar button:hover { color: var(--text); background: var(--surface); }
 .show-workspace__sidebar nav button[aria-expanded="true"] { color: var(--primary-text); background: var(--primary-soft); border-color: var(--primary-soft-border); }
 .show-workspace__sidebar .show-workspace__configure { border-color: var(--border); }
-.show-workspace__body { min-width: 0; padding: 0 24px 24px; }
-.show-workspace__body .show-detail__topbar { top: calc(var(--status-band) + env(safe-area-inset-top)); margin: 0 0 16px; padding: 12px 0; background: var(--backdrop); }
+/* One number for the body's side padding, because the pinned bar below has to
+   bleed back out through exactly that much to reach the card's edges. */
+.show-workspace__body { --workspace-gutter: 24px; min-width: 0; padding: 0 var(--workspace-gutter) 24px; }
+/* The one pinned bar on the page. Solid and edge to edge within the card: as
+   a 24px-inset strip it floated over the lineup with the page visibly
+   scrolling past on both sides of it, which read as a bar sat on top of the
+   screen rather than a header the page passes under. */
+.show-workspace__body .show-detail__topbar {
+  top: calc(var(--status-band) + env(safe-area-inset-top));
+  margin: 0 calc(var(--workspace-gutter) * -1) 16px;
+  padding: 12px var(--workspace-gutter);
+  background: var(--backdrop);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 .show-workspace__body .show-detail__hero { margin-bottom: 24px; }
 .show-workspace__body .show-detail__title { font-size: clamp(1.5rem, 2.4vw, 2.15rem); letter-spacing: -.035em; font-weight: 650; }
 .show-workspace__body .show-detail__header { gap: 10px; }
@@ -3341,16 +3362,20 @@ select.show-detail__status--select {
   .show-workspace__columns { grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr); gap: 18px; }
 }
 @media (max-width: 899px) {
-  .show-workspace__sidebar { position: sticky; top: calc(var(--status-band) + env(safe-area-inset-top)); z-index: 45; padding: 10px; background: var(--backdrop); }
+  /* The section tabs scroll away with the page. They used to pin under the
+     status band with the Run Show bar pinned under them: on a 390pt phone that
+     was 174px of chrome — a quarter of the screen — before any of the show
+     began, and the show's own title scrolled past in the gap between the two.
+     The tabs are a shortcut to the cards directly below them; the bar is the
+     thing you need from anywhere on the page. Only the bar stays. */
+  .show-workspace__sidebar { padding: 10px; }
   .show-workspace__sidebar nav button { padding-inline: 10px; }
-  .show-workspace__body { padding: 0 16px 20px; }
-  .show-workspace__body .show-detail__topbar { top: calc(var(--status-band) + env(safe-area-inset-top) + 65px); }
-  .show-workspace__card, .show-workspace__body .show-detail__header { scroll-margin-top: calc(var(--status-band) + env(safe-area-inset-top) + 132px); }
+  .show-workspace__body { --workspace-gutter: 16px; padding-bottom: 20px; }
   .show-workspace__columns { grid-template-columns: minmax(0, 1fr); }
   .show-workspace__body .show-detail__title { font-size: 1.6rem; }
 }
 @media (max-width: 430px) {
-  .show-workspace__body { padding-inline: 12px; }
+  .show-workspace__body { --workspace-gutter: 12px; }
   .show-workspace__running > ol > li button { grid-template-columns: 48px minmax(0, 1fr) auto; gap: 6px 10px; padding: 12px; }
   .show-workspace__cue-number { display: none; }
   .show-workspace .accordion-section__header { padding-inline: 14px; }

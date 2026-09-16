@@ -3658,13 +3658,26 @@ body:has([aria-modal='true']) .status-rail {
   .app-main {
     grid-column: 2;
     grid-row: 1;
-    padding: var(--space-16) var(--space-8) var(--space-12);
+    padding: 0 var(--space-8) var(--space-12);
     min-height: 100dvh;
     max-height: 100dvh;
     overflow-y: auto;
     /* At this width .app-main is the scroll container, not the document, so
        the scroll-padding has to be set here instead. */
     scroll-padding-bottom: 88px;
+  }
+
+  /* The room above the page, as a spacer inside the scrollport rather than
+     padding on it. A sticky element inside a scroll container pins relative
+     to that container's content box, so with 64px of padding up here the
+     show page's Run Show bar parked 64px lower than its `top` asked for —
+     under the status band with a strip of the page scrolling past above it.
+     A spacer scrolls away like any other content and the bar lands where
+     the base rule says. */
+  .app-main::before {
+    content: '';
+    display: block;
+    height: var(--space-16);
   }
 
   /* ── Sidebar ────────────────────────────────────────────────────────── */
@@ -3795,7 +3808,7 @@ body:has([aria-modal='true']) .status-rail {
   }
 
   .app-main {
-    padding: var(--space-16) var(--space-10) var(--space-12);
+    padding: 0 var(--space-10) var(--space-12);
   }
 
   .status-rail__pill-row {
