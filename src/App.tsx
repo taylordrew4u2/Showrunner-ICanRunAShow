@@ -1458,9 +1458,11 @@ export default function App() {
     );
     if (!request?.submitted) return null;
     const changes = profileChanges(comic, profileFromAnswers(request.submitted.fields));
-    // Only offered where the profile has no picture, so a headshot the
-    // producer chose is never displaced by one that arrived in the post.
-    const photo = !comic.photo ? profilePhotos[request.token] || undefined : undefined;
+    // Always offered, never applied on its own. This used to be withheld
+    // whenever the profile had any picture, so a headshot someone sent to
+    // replace an old one was never shown and was thrown away on Skip. The
+    // producer decides; the row says it replaces the current photo.
+    const photo = profilePhotos[request.token] || undefined;
     return { request, changes, photo };
   }
 
