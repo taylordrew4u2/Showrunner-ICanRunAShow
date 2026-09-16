@@ -87,13 +87,34 @@ export function addPerformersToRolodex(
   return additions.length ? [...additions, ...comics] : null;
 }
 
-function hydratePerformer<T extends Performer>(performer: T, comic: PotentialComic): T {
+/**
+ * Which comics had their headshot removed on purpose, in this write.
+ *
+ * A Rolodex entry with no photo usually means nothing was ever uploaded — but
+ * it also meant that after a settings save that failed, raced another device,
+ * or was recovered from an older copy, every show booking that person lost its
+ * headshot on the next load, and the show save then made the loss permanent.
+ * An upload is the one profile field that cannot be retyped, so an *absent*
+ * photo never erases one any more. Only the two "Remove photo" buttons clear
+ * every copy, and they say so by naming the comic here.
+ */
+export interface RolodexSyncOptions {
+  clearedPhotos?: ReadonlySet<string>;
+}
+
+function hydratePerformer<T extends Performer>(
+  performer: T,
+  comic: PotentialComic,
+  photoCleared: boolean,
+): T {
+  const fields = profileFields(comic);
+  if (fields.photo === undefined && !photoCleared && performer.photo) fields.photo = performer.photo;
   if (performer.comicId === comic.id &&
-      COMIC_PROFILE_FIELDS.every((field) => Object.is(performer[field], comic[field]))) {
+      COMIC_PROFILE_FIELDS.every((field) => Object.is(performer[field], fields[field]))) {
     return performer;
   }
   // Include undefined optional values so clearing a field clears every copy.
-  return { ...performer, ...profileFields(comic), comicId: comic.id };
+  return { ...performer, ...fields, comicId: comic.id };
 }
 
 /**
@@ -101,7 +122,11 @@ function hydratePerformer<T extends Performer>(performer: T, comic: PotentialCom
  * ids; labels that still use the previous name follow a rename. Custom cue
  * labels and every other show field remain unchanged.
  */
-export function syncShowsWithRolodex(comics: PotentialComic[], shows: Show[]): Show[] {
+export function syncShowsWithRolodex(
+  comics: PotentialComic[],
+  shows: Show[],
+  { clearedPhotos }: RolodexSyncOptions = {},
+): Show[] {
   const byId = new Map(comics.map((comic) => [comic.id, comic]));
   let changed = false;
   const synced = shows.map((show) => {
@@ -110,7 +135,7 @@ export function syncShowsWithRolodex(comics: PotentialComic[], shows: Show[]): S
     const hydrate = <T extends Performer>(performer: T): T => {
       const comic = performer.comicId ? byId.get(performer.comicId) : undefined;
       if (!comic) return performer;
-      const hydrated = hydratePerformer(performer, comic);
+      const hydrated = hydratePerformer(performer, comic, clearedPhotos?.has(comic.id) ?? false);
       if (hydrated !== performer) performersChanged = true;
       if (hydrated.name !== performer.name) {
         renames.set(performer.id, { before: performer.name, after: hydrated.name });
@@ -144,17 +169,28 @@ function hasProfileValue(value: ComicProfile[keyof ComicProfile]): boolean {
  * show and a social handle saved in another survive the migration together.
  *
  * Linked rows never backfill the Rolodex: once identity is established its
- * empty values may be intentional clears, including after a page reload.
+ * empty values may be intentional clears, including after a page reload. The
+ * headshot is the exception, for the reason given on RolodexSyncOptions — a
+ * booked person's photo is the one copy left when the Rolodex's own was lost,
+ * so it goes back on the entry rather than being wiped from the booking.
  */
 export function reconcileRolodexProfiles(
   comics: PotentialComic[],
   shows: Show[],
+  options: RolodexSyncOptions = {},
 ): { comics: PotentialComic[]; shows: Show[] } {
   let reconciledComics = addPerformersToRolodex(comics, shows.flatMap((show) => show.performers)) ?? comics;
   const backfills = new Map<string, PotentialComic>();
   for (const show of shows) {
     for (const performer of [...show.performers, ...show.artists]) {
-      if (performer.comicId) continue;
+      if (performer.comicId) {
+        const linked = backfills.get(performer.comicId)
+          ?? reconciledComics.find((comic) => comic.id === performer.comicId);
+        if (linked && !linked.photo && performer.photo && !options.clearedPhotos?.has(linked.id)) {
+          backfills.set(linked.id, { ...linked, photo: performer.photo });
+        }
+        continue;
+      }
       const matched = resolvePerformerComic(performer, reconciledComics);
       if (!matched) continue;
       const current = backfills.get(matched.id) ?? matched;
@@ -190,6 +226,6 @@ export function reconcileRolodexProfiles(
   });
   return {
     comics: reconciledComics,
-    shows: syncShowsWithRolodex(reconciledComics, linksChanged ? linkedShows : shows),
+    shows: syncShowsWithRolodex(reconciledComics, linksChanged ? linkedShows : shows, options),
   };
 }

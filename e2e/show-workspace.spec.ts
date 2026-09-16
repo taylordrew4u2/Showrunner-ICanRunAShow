@@ -35,6 +35,31 @@ test('every show has the workspace with private notes and working planning tools
   await page.screenshot({path:testInfo.outputPath('workspace.png'),fullPage:false,animations:'disabled'});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.getByText('Everything is saved',{exact:false})).toBeVisible();
+
+  // Scrolled well into the show, the Run Show bar is the only thing pinned: it
+  // sits flush under the status band, spans the card edge to edge, and the
+  // section tabs have scrolled away rather than stacking above it. Two pinned
+  // bars ate a quarter of a phone screen with the page showing through the
+  // seams between them.
+  await page.evaluate(() => { document.querySelector('.app-main')?.scrollTo(0, 700); window.scrollTo(0, 700); });
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  const pinned = await page.evaluate(() => {
+    const bar = document.querySelector('.show-detail__topbar')!.getBoundingClientRect();
+    const body = document.querySelector('.show-workspace__body')!.getBoundingClientRect();
+    const tabs = document.querySelector('.show-workspace__sidebar')!.getBoundingClientRect();
+    const band = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--status-band'));
+    return { barTop: Math.round(bar.top), band, barLeft: Math.round(bar.left), bodyLeft: Math.round(body.left),
+      barRight: Math.round(bar.right), bodyRight: Math.round(body.right), tabsBottom: Math.round(tabs.bottom),
+      docScrollable: document.documentElement.scrollHeight > innerHeight };
+  });
+  expect(pinned.barTop).toBe(pinned.band);
+  expect(pinned.barLeft).toBe(pinned.bodyLeft);
+  expect(pinned.barRight).toBe(pinned.bodyRight);
+  expect(pinned.tabsBottom).toBeLessThanOrEqual(pinned.barTop);
+  // On desktop the shell is the scroll container; the document itself must not
+  // scroll, or the whole shell slides off the top of the window.
+  if (testInfo.project.name === 'desktop') expect(pinned.docScrollable).toBe(false);
+  await page.evaluate(() => { document.querySelector('.app-main')?.scrollTo(0,0); window.scrollTo(0,0); });
   await page.getByRole('button', {name:'Back to shows',exact:true}).click();
   await createShow(page, 'Second show');
   await expect(page.getByLabel('Production notes', {exact:true})).toHaveValue('');

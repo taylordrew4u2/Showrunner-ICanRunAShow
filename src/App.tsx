@@ -11,7 +11,7 @@ import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/the
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
 import { expandOriginFrom } from './utils/expandOrigin';
-import { getComicProfilePatch, reconcileRolodexProfiles, resolvePerformerComic, syncShowsWithRolodex } from './utils/rolodex';
+import { getComicProfilePatch, reconcileRolodexProfiles, resolvePerformerComic, syncShowsWithRolodex, type RolodexSyncOptions } from './utils/rolodex';
 import { normalizeComicSettings } from './utils/sharedComicSettings';
 import { mergeSettingsEdit } from './utils/mergeSettingsEdit';
 import { mergeShowEdit } from './utils/mergeShowEdit';
@@ -605,13 +605,13 @@ export default function App() {
 
   // Every settings writer (Rolodex, contract imports, profile replies, restore)
   // refreshes the same linked people. Show slots keep their own ids and cues.
-  function setSettings(updated: AppSettings) {
+  function setSettings(updated: AppSettings, sync: RolodexSyncOptions = {}) {
     const current = latestSettingsRef.current;
     const prepared = normalizeComicSettings(mergeSettingsEdit(settings, updated, current), current);
     resolvedSettingsRef.current.set(updated, prepared);
     latestSettingsRef.current = prepared;
     setSettingsState(prepared);
-    const synced = syncShowsWithRolodex(prepared.potentialComics, latestShowsRef.current);
+    const synced = syncShowsWithRolodex(prepared.potentialComics, latestShowsRef.current, sync);
     if (synced !== latestShowsRef.current) {
       latestShowsRef.current = synced;
       setShows(synced);
@@ -1370,8 +1370,9 @@ export default function App() {
     const current = latestSettingsRef.current;
     const existing = current.potentialComics.find(c => c.id === comic.id)
       ?? resolvePerformerComic(comic, current.potentialComics);
+    // A booking with no headshot must not blank the one already on the entry.
     const updated = existing
-      ? current.potentialComics.map(c => c.id === existing.id ? { ...c, ...comic, id: c.id } : c)
+      ? current.potentialComics.map(c => c.id === existing.id ? { ...c, ...comic, id: c.id, photo: comic.photo ?? c.photo } : c)
       : [comic, ...current.potentialComics];
     const next = { ...current, potentialComics: updated };
     setSettings(next);
@@ -1515,11 +1516,15 @@ export default function App() {
   function handleUpdateRolodexComic(updated: PotentialComic, extra: Partial<AppSettings> = {}) {
     if (!session) return;
     const current = latestSettingsRef.current;
+    const before = current.potentialComics.find(c => c.id === updated.id);
     const updatedSettings = {
       ...current, ...extra,
       potentialComics: current.potentialComics.map(c => c.id === updated.id ? updated : c),
     };
-    setSettings(updatedSettings);
+    // "Remove photo" is the one edit that has to reach every booking as a
+    // clear; a merely missing photo does not (see RolodexSyncOptions).
+    const clearedPhotos = before?.photo && !updated.photo ? new Set([updated.id]) : undefined;
+    setSettings(updatedSettings, { clearedPhotos });
     saveSettings(updatedSettings);
   }
 
@@ -1577,6 +1582,9 @@ export default function App() {
     const baseline = shows.find(s => s.id === incoming.id) ?? previous;
     const merged = mergeShowEdit(baseline, incoming, previous);
     let comics = currentSettings.potentialComics;
+    // Comics whose headshot this edit removed on purpose, so the clear reaches
+    // their other bookings too (see RolodexSyncOptions).
+    const clearedPhotos = new Set<string>();
     // Existing rows edit their linked comic. Only changed personal fields go
     // upstream; a show's date, order, cues, and role stay on that show.
     if (baseline) {
@@ -1588,13 +1596,14 @@ export default function App() {
         const comic = resolvePerformerComic(old, comics);
         if (!comic) continue;
         const patch = getComicProfilePatch(old, person);
+        if (Object.hasOwn(patch, 'photo') && patch.photo === undefined) clearedPhotos.add(comic.id);
         if (Object.keys(patch).length) {
           comics = comics.map(c => c.id === comic.id ? { ...c, ...patch } : c);
         }
       }
     }
     const updated: Show = { ...merged, updatedAt: new Date().toISOString() };
-    const shared = reconcileRolodexProfiles(comics, currentShows.map(s => s.id === updated.id ? updated : s));
+    const shared = reconcileRolodexProfiles(comics, currentShows.map(s => s.id === updated.id ? updated : s), { clearedPhotos });
     const nextSettings = shared.comics === currentSettings.potentialComics
       ? currentSettings : { ...currentSettings, potentialComics: shared.comics };
     latestShowsRef.current = shared.shows;
