@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { deriveDurationMin, importScheduleFromFile, parseScheduleManually } from './aiExtractor';
+import { describe, expect, it } from 'vitest';
+import { deriveDurationMin, importScheduleFromFile, parseScheduleManually, splitPerformer } from './aiExtractor';
 
 describe('parseScheduleManually', () => {
   it('extracts time + description from each line', () => {
@@ -55,11 +55,34 @@ describe('parseScheduleManually', () => {
     const items = parseScheduleManually('7:00 PM 5 min break');
     expect(items[0].description).toBe('5 min break');
   });
+
+  it('puts the name before the dash on stage and keeps the rest as the segment', () => {
+    const items = parseScheduleManually('8:35 PM Marisol — headliner\n8:05 PM Devon Park: opening set\n8:20 PM June Ito | closer');
+    expect(items.map((i) => [i.performer, i.description])).toEqual([
+      ['Marisol', 'headliner'],
+      ['Devon Park', 'opening set'],
+      ['June Ito', 'closer'],
+    ]);
+  });
+
+  it('does not mistake a segment with a separator in it for a person', () => {
+    const items = parseScheduleManually('8:55 PM Intermission / DJ\n7:30 PM Doors — bar opens\n9:00 PM the band - second set');
+    expect(items.map((i) => i.performer)).toEqual([undefined, undefined, undefined]);
+    expect(items[1].description).toBe('Doors — bar opens');
+  });
+});
+
+describe('splitPerformer', () => {
+  it('needs both a name-shaped left side and a segment on the right', () => {
+    expect(splitPerformer('Maya —')).toEqual({ description: 'Maya —' });
+    expect(splitPerformer('A very long list of words here: set')).toEqual({ description: 'A very long list of words here: set' });
+    expect(splitPerformer("D'Angelo O’Neil-Smith: closer")).toEqual({ performer: "D'Angelo O’Neil-Smith", description: 'closer' });
+  });
 });
 
 
 describe('deriveDurationMin', () => {
-  it('takes what the model returned when it is a usable number', () => {
+  it('takes a stated length when it is a usable number', () => {
     expect(deriveDurationMin(15, 'Opening set')).toBe(15);
     expect(deriveDurationMin('20', 'Opening set')).toBe(20);
     expect(deriveDurationMin(12.4, 'Opening set')).toBe(12);
@@ -77,7 +100,7 @@ describe('deriveDurationMin', () => {
     expect(deriveDurationMin(undefined, 'Intermission 15 min')).toBe(15);
   });
 
-  it('prefers what the model said over what it can work out', () => {
+  it('prefers a stated length over one it can work out', () => {
     expect(deriveDurationMin(10, 'Devon', '8:20 PM', '8:00 PM')).toBe(10);
   });
 
@@ -86,34 +109,19 @@ describe('deriveDurationMin', () => {
   });
 });
 
-describe('importScheduleFromFile via the AI proxy', () => {
-  function mockProxy(items: unknown[]) {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200, json: async () => ({ items }),
-    } as Response));
-  }
-  afterEach(() => vi.restoreAllMocks());
-
+describe('importScheduleFromFile', () => {
   const textFile = (body: string) =>
     new File([body], 'schedule.txt', { type: 'text/plain' });
 
-  it('keeps the length the model reports', async () => {
-    mockProxy([{ time: '8:00 PM', description: 'Opening set', performer: 'Maya', durationMin: 15 }]);
-    const items = await importScheduleFromFile(textFile('8:00 PM Maya opening set'));
-    expect(items[0].durationMin).toBe(15);
-    expect(items[0].performer).toBe('Maya');
+  it('reads a text file on this device, with no request to anyone', async () => {
+    const items = await importScheduleFromFile(textFile('8:00-8:20 PM Devon\n8:35 PM Marisol — headliner (15 min)'));
+    expect(items.map((i) => [i.time, i.performer, i.description, i.durationMin])).toEqual([
+      ['8:00 pm', undefined, 'Devon', 20],
+      ['8:35 PM', 'Marisol', 'headliner (15 min)', 15],
+    ]);
   });
 
-  it('works out the length when the model puts a range in the time field', async () => {
-    mockProxy([{ time: '8:00–8:20 PM', description: 'Devon' }]);
-    const items = await importScheduleFromFile(textFile('8:00-8:20 PM Devon'));
-    expect(items[0].time).toBe('8:00 pm');
-    expect(items[0].durationMin).toBe(20);
-  });
-
-  it('drops a length the model could not have meant', async () => {
-    mockProxy([{ time: '8:00 PM', description: 'Set', durationMin: -3 }]);
-    const items = await importScheduleFromFile(textFile('8:00 PM Set'));
-    expect(items[0].durationMin).toBeUndefined();
+  it('says so when a file has no schedule in it', async () => {
+    await expect(importScheduleFromFile(textFile('Just notes\nNo times here'))).rejects.toThrow(/No schedule lines/);
   });
 });
