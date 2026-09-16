@@ -260,7 +260,7 @@ describe('shared Rolodex identities', () => {
   });
 
   it('propagates explicit clears and never resurrects them from linked old snapshots on reload', () => {
-    const comics = [comic({ id: 'ada', name: 'Ada Cole', socialMedia: '' })];
+    const comics = [comic({ id: 'ada', name: 'Ada Cole', socialMedia: '', photo: 'media:current' })];
     const old = performer({
       id: 'slot', comicId: 'ada', name: 'Ada Cole', photo: 'media:old', socialMedia: '@old',
       walkOnMusic: 'media:old-audio', walkOnStartSec: 4, walkOnEndSec: 12,
@@ -268,9 +268,50 @@ describe('shared Rolodex identities', () => {
     const result = reconcileRolodexProfiles(comics, [show('one', [old])]);
     expect(result.comics).toBe(comics);
     expect(result.shows[0].performers[0]).toMatchObject({
-      photo: undefined, socialMedia: '', walkOnMusic: undefined, walkOnStartSec: undefined, walkOnEndSec: undefined,
+      photo: 'media:current', socialMedia: '', walkOnMusic: undefined, walkOnStartSec: undefined, walkOnEndSec: undefined,
     });
     expect(reconcileRolodexProfiles(result.comics, result.shows).shows).toBe(result.shows);
+  });
+
+  it('a Rolodex entry that has lost its headshot does not take the booking’s with it', () => {
+    // The settings save that carried the photo failed, raced another device,
+    // or came back from an older copy. The show still has the face.
+    const comics = [comic({ id: 'ada', name: 'Ada Cole', socialMedia: '@ada' })];
+    const booked = performer({ id: 'slot', comicId: 'ada', name: 'Ada Cole', photo: 'media:face', socialMedia: '@stale' });
+    const synced = syncShowsWithRolodex(comics, [show('one', [booked])]);
+    expect(synced[0].performers[0]).toMatchObject({ photo: 'media:face', socialMedia: '@ada' });
+
+    const result = reconcileRolodexProfiles(comics, [show('one', [booked])]);
+    expect(result.comics[0].photo).toBe('media:face');
+    expect(result.shows[0].performers[0]).toMatchObject({ comicId: 'ada', photo: 'media:face', socialMedia: '@ada' });
+    expect(comics[0].photo).toBeUndefined();
+    const again = reconcileRolodexProfiles(result.comics, result.shows);
+    expect(again.comics).toBe(result.comics);
+    expect(again.shows).toBe(result.shows);
+  });
+
+  it('a booking without a headshot leaves the Rolodex entry alone', () => {
+    const comics = [comic({ id: 'ada', name: 'Ada Cole' })];
+    const booked = performer({ id: 'slot', comicId: 'ada', name: 'Ada Cole' });
+    const result = reconcileRolodexProfiles(comics, [show('one', [booked])]);
+    expect(result.comics).toBe(comics);
+    expect(result.shows[0].performers[0]).toBe(booked);
+  });
+
+  it('removing a headshot on purpose clears every booking and is not brought back', () => {
+    const cleared = comic({ id: 'ada', name: 'Ada Cole' });
+    const shows = [
+      show('one', [performer({ id: 'slot-one', comicId: 'ada', name: 'Ada Cole', photo: 'media:face' })]),
+      show('two', [], { artists: [{ id: 'slot-two', comicId: 'ada', name: 'Ada Cole', photo: 'media:face', artistType: 'Poetry' }] }),
+    ];
+    const clearedPhotos = new Set(['ada']);
+    const synced = syncShowsWithRolodex([cleared], shows, { clearedPhotos });
+    expect(synced[0].performers[0].photo).toBeUndefined();
+    expect(synced[1].artists[0]).toMatchObject({ photo: undefined, artistType: 'Poetry' });
+
+    const result = reconcileRolodexProfiles([cleared], shows, { clearedPhotos });
+    expect(result.comics).toEqual([cleared]);
+    expect(result.shows.map((s) => [...s.performers, ...s.artists][0].photo)).toEqual([undefined, undefined]);
   });
 
   it('renames profile and linked schedule name without changing slot identity, custom cues, or other show data', () => {
