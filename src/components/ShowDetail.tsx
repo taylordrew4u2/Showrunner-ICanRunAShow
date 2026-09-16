@@ -30,6 +30,8 @@ import { showDJSongs } from '../utils/musicLibrary';
 import { getRolodexTerm } from '../utils/terminology';
 import { hostChoices } from '../utils/hostChoices';
 import { refreshSignatures, signerStatus } from '../utils/contracts';
+import { fileSignedHeadshots } from '../utils/signedHeadshots';
+import { uploadMedia } from '../utils/mediaStore';
 import {
   describeRecurrence,
   MAX_OCCURRENCES,
@@ -178,7 +180,14 @@ export function ShowDetail({
     let cancelled = false;
     (async () => {
       const updated = await refreshSignatures(requests);
-      if (!cancelled && updated) onUpdateSettings({ ...settings, signatureRequests: updated });
+      if (cancelled) return;
+      // The headshot on a signed contract is filed here as well, not only on
+      // the Contracts page — this is where the producer most often finds out
+      // someone has signed, and the face has to arrive with the signature.
+      const filed = await fileSignedHeadshots(updated ?? requests, settings.potentialComics, uploadMedia);
+      if (cancelled) return;
+      if (filed) onUpdateSettings({ ...settings, ...filed });
+      else if (updated) onUpdateSettings({ ...settings, signatureRequests: updated });
     })();
     return () => { cancelled = true; };
     // On open, not on every settings write: finding a signature writes settings.

@@ -8,7 +8,9 @@ import {
   signingUrl,
   type ShowContext,
 } from '../../utils/contracts';
+import { uploadMedia } from '../../utils/mediaStore';
 import type { SessionCredentials } from '../../utils/session-vault';
+import { fileSignedHeadshots } from '../../utils/signedHeadshots';
 import './PerformerContracts.css';
 
 interface PerformerContractsProps {
@@ -66,7 +68,13 @@ export function PerformerContracts({
     let cancelled = false;
     (async () => {
       const updated = await refreshSignatures(requests);
-      if (!cancelled && updated) onUpdateSettings({ ...settings, signatureRequests: updated });
+      if (cancelled) return;
+      // File the headshot with the signature, so it reaches this person's
+      // profile from here and not only from the Contracts page.
+      const filed = await fileSignedHeadshots(updated ?? requests, settings.potentialComics, uploadMedia);
+      if (cancelled) return;
+      if (filed) onUpdateSettings({ ...settings, ...filed });
+      else if (updated) onUpdateSettings({ ...settings, signatureRequests: updated });
     })();
     return () => { cancelled = true; };
     // Keep settings and its callback from the same initiating render: the

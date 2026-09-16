@@ -26,20 +26,30 @@ import { uploadMedia, deleteMedia, isMediaRef } from '../utils/mediaStore';
 import { rolodexKey, resolvePerformerComic } from '../utils/rolodex';
 import { showContextForSigner } from '../utils/contractShow';
 import {
-  applyFiledHeadshot,
   applyProfileChanges,
   describeChanges,
   fillRolodexFromSignatures,
-  headshotsToFile,
   profileChanges,
   profileFromAnswers,
   type ProfileChange,
 } from '../utils/signatureImport';
+import { fileSignedHeadshots } from '../utils/signedHeadshots';
+import { useMediaUrl } from '../utils/useMediaUrl';
 import type { SessionCredentials } from '../utils/session-vault';
 import { getRolodexTerm } from '../utils/terminology';
 import { PageHeader } from './PageHeader';
 import { useConfirm } from './useConfirm';
 import './Contracts.css';
+
+/**
+ * The face they sent, whether it is still the data URL on the record or has
+ * already been filed into the store. It used to vanish from the offer the
+ * moment it was filed, leaving a sentence about a photo and no photo.
+ */
+function SentHeadshot({ src, alt }: { src: string; alt: string }) {
+  const url = useMediaUrl(src);
+  return url ? <img src={url} alt={alt} /> : null;
+}
 
 interface ContractsProps {
   settings: AppSettings;
@@ -127,7 +137,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
       const updated = await refreshSignatures(requests);
       if (cancelled) return;
       const next = updated ?? requests;
-      const filed = await fileHeadshots(next);
+      const filed = await fileSignedHeadshots(next, settings.potentialComics ?? [], uploadMedia);
       if (cancelled) return;
 
       // Then the answers. Gaps only — a field the producer has already filled
@@ -150,49 +160,6 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     // loop, since finding a signature writes settings.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /**
-   * Move every headshot that came back signed into the store and onto the
-   * person, without being asked.
-   *
-   * Returns the settings fields to write, or null when there was nothing to
-   * do — so the ordinary "found a new signature" save is not turned into a
-   * second render for accounts where nobody sent a photo.
-   *
-   * A photo that will not upload is left exactly where it is: the data URL
-   * stays on the record and the next visit tries again. Losing the only copy
-   * of someone's face to a dropped connection is not a trade worth making.
-   */
-  async function fileHeadshots(
-    current: SignatureRequest[],
-  ): Promise<Partial<AppSettings> | null> {
-    const pending = headshotsToFile(current, settings.potentialComics ?? [], rolodexKey);
-    if (pending.length === 0) return null;
-
-    let comics = settings.potentialComics ?? [];
-    const refs = new Map<string, string>();
-    for (const shot of pending) {
-      try {
-        const file = dataUrlToFile(shot.dataUrl, `${shot.name || 'headshot'}.jpg`);
-        if (!file) continue;
-        const ref = await uploadMedia(file);
-        refs.set(shot.token, ref);
-        comics = applyFiledHeadshot(comics, shot, ref, generateId);
-      } catch {
-        // Left on the record to retry. Nothing is lost by failing here.
-      }
-    }
-    if (refs.size === 0) return null;
-
-    return {
-      potentialComics: comics,
-      signatureRequests: current.map((r) =>
-        refs.has(r.token) && r.signed
-          ? { ...r, signed: { ...r.signed, headshot: refs.get(r.token) } }
-          : r,
-      ),
-    };
-  }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -383,10 +350,13 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     const comics = settings.potentialComics ?? [];
     const entry = resolvePerformerComic({ id: '', comicId: request.contactId, name: request.signerName }, comics) ?? null;
     const all = profileChanges(entry ?? undefined, profileFromAnswers(request.signed.fields));
-    // A photo they sent replaces nothing: it is only offered where the entry
-    // has no picture, so a headshot the producer chose is never displaced.
+    // Always offered, never applied on its own: where the entry has no
+    // picture the refresh has already filed it, and where it has one this is
+    // the producer's choice to replace it. Hiding it whenever the entry had
+    // any photo at all meant a headshot someone sent to replace an old one
+    // was never seen.
     const headshot =
-      request.signed.headshot && !entry?.photo && !declined.has(`${request.token}:photo`)
+      request.signed.headshot && !declined.has(`${request.token}:photo`)
         ? request.signed.headshot
         : undefined;
     return {
@@ -477,7 +447,9 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
         <p className="contracts__import-head">
           {entry
             ? `Their ${rolodexTerm.singular.toLowerCase()} profile: ${
-                changes.length === 0 ? 'a photo to add' : describeChanges(changes)
+                changes.length === 0
+                  ? entry.photo ? 'a new headshot' : 'a photo to add'
+                  : describeChanges(changes)
               }`
             : `Not in your ${rolodexTerm.plural} yet — saving files them with what they sent`}
         </p>
@@ -485,10 +457,12 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
             shown rather than described. */}
         {headshot && (
           <div className="contracts__import-photo">
-            {!isMediaRef(headshot) && (
-              <img src={headshot} alt={`Headshot sent by ${request.signerName}`} />
-            )}
-            <span>They sent a headshot for the flyer</span>
+            <SentHeadshot src={headshot} alt={`Headshot sent by ${request.signerName}`} />
+            <span>
+              {entry?.photo
+                ? 'They sent a new headshot — saving replaces the one on their profile'
+                : 'They sent a headshot for the flyer'}
+            </span>
             <button
               className="btn btn--ghost btn--sm contracts__import-skip"
               onClick={() => setDeclined((d) => new Set(d).add(`${request.token}:photo`))}
