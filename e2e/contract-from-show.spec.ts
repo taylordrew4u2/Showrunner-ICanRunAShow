@@ -164,6 +164,7 @@ test.describe('a contract sent from inside a show', () => {
     await late.goto(link);
     await expect(late.locator('.signing__title')).toBeVisible();
     await late.getByLabel('Email').fill('nadia@example.com');
+    await late.getByLabel('Instagram or main social').fill('@nadiaokonjo');
     await late.locator('.signing__field--signature input').fill('Nadia Okonjo');
     await late.locator('.signing__agree input').check();
     // Optional headshots never add a second submission step.
@@ -228,6 +229,7 @@ test.describe('a contract sent from inside a show', () => {
     await basement.goto(fromLibrary);
     await expect(basement.locator('.signing__title')).toBeVisible();
     await basement.getByLabel('Email').fill('dev@example.com');
+    await basement.getByLabel('Instagram or main social').fill('@devmarchetti');
     await basement.locator('.signing__field--signature input').fill('Dev Marchetti');
     await basement.locator('.signing__agree input').check();
 
@@ -333,6 +335,7 @@ test.describe('a contract sent from inside a show', () => {
     await expect(photoError).toHaveCount(0);
 
     await withPhoto.getByLabel('Email').fill('priya@example.com');
+    await withPhoto.getByLabel('Instagram or main social').fill('@priyaraghunathan');
     await withPhoto.locator('.signing__field--signature input').fill('Priya Raghunathan');
     await withPhoto.locator('.signing__agree input').check();
     await withPhoto.locator('.signing__cta').click();
