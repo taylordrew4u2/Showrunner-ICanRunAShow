@@ -105,11 +105,59 @@ export function suggestedFields(): ContractField[] {
     { id: 'phone', label: 'Phone' },
     // Where to tag them. The profile has a box for it and a contract never
     // asked, so it was filled in by going and looking them up.
-    { id: 'social', label: 'Instagram or main social', placeholder: '@handle or a link' },
+    instagramField(),
     // These two answer themselves when the contract is sent from a show.
     { id: 'show-date', label: 'Show date' },
     { id: 'venue', label: 'Venue' },
   ];
+}
+
+/** The id and wording of the Instagram question, matched on by name elsewhere. */
+export const INSTAGRAM_FIELD_ID = 'social';
+export const INSTAGRAM_FIELD_LABEL = 'Instagram or main social';
+
+/** The Instagram question as every contract asks it. */
+function instagramField(): ContractField {
+  return {
+    id: INSTAGRAM_FIELD_ID,
+    label: INSTAGRAM_FIELD_LABEL,
+    placeholder: '@handle or a link',
+    required: true,
+  };
+}
+
+/**
+ * Is this the producer's version of the Instagram question?
+ *
+ * Matched on the label as well as the id, because a producer who typed their
+ * own "Your IG" row should not then be handed a second one asking the same
+ * thing.
+ */
+export function isInstagramField(field: ContractField): boolean {
+  // A release that asks for a social security number is not asking for a
+  // handle, and requiring one in its place would be worse than useless.
+  if (/social security|\bssn\b/i.test(field.label)) return false;
+  return field.id === INSTAGRAM_FIELD_ID
+    || /instagram|\big\b|social|@handle/i.test(field.label);
+}
+
+/**
+ * The contract's questions, with the Instagram one guaranteed and required.
+ *
+ * A signature that arrives without a handle means looking the performer up
+ * before anything can be announced or tagged, and the answer found that way is
+ * a guess. So this question is not the producer's to drop: it is put back for
+ * contracts uploaded before it existed, and for rows deleted since.
+ */
+export function withInstagramField(fields: ContractField[] | undefined): ContractField[] {
+  const list = fields ?? [];
+  const at = list.findIndex(isInstagramField);
+  if (at === -1) return [...list, instagramField()];
+  return list.map((f, i) => (
+    i === at
+      ? { ...f, label: f.label.trim() || INSTAGRAM_FIELD_LABEL, required: true }
+      : f
+  ));
 }
 
 /** A blank question, ready for the producer to name. */
@@ -229,6 +277,10 @@ export async function sendForSignature(
     );
   }
 
+  // Asked here rather than only in the editor, so a contract uploaded before
+  // the question existed still comes back with a handle on it.
+  const fields = withInstagramField(contract.fields);
+
   const payload: SigningPayload = {
     contractName: contract.name,
     signerName: signer.name,
@@ -236,9 +288,9 @@ export async function sendForSignature(
     fileName: contract.fileName,
     total: chunks.length,
     createdAt: new Date().toISOString(),
-    fields: contract.fields?.length ? contract.fields : undefined,
+    fields,
     prefill: (() => {
-      const filled = prefillFromShow(contract.fields, show);
+      const filled = prefillFromShow(fields, show);
       return Object.keys(filled).length ? filled : undefined;
     })(),
   };
