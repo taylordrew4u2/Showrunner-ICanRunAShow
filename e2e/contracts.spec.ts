@@ -198,9 +198,10 @@ test.describe('contracts', () => {
     });
     await expect(signer.locator('.signing__photo-preview')).toBeVisible();
 
-    // The contract asks for a few details as well as a signature; Email is the
-    // one it insists on.
+    // The contract asks for a few details as well as a signature; Email and the
+    // handle to tag them by are the ones it insists on.
     await signer.getByLabel('Email').fill('nadia@example.com');
+    await signer.getByLabel('Instagram or main social').fill('@nadiaokonjo');
     await signer.locator('.signing__agree input').check();
     // Everything else answered, and it still will not sign until they sign it.
     await expect(signer.locator('.signing__cta')).toBeEnabled();

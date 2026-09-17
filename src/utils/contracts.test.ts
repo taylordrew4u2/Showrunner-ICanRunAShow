@@ -25,6 +25,8 @@ import {
   splitIntoChunks,
   submitSignature,
   suggestedFields,
+  isInstagramField,
+  withInstagramField,
 } from './contracts';
 import { api, SUBMIT_TIMEOUT_MS } from './api';
 import { encryptWithKey } from './encryption';
@@ -407,6 +409,58 @@ describe("a contract's starting questions", () => {
   it('still lets the show answer for itself', () => {
     expect(labels).toContain('Show date');
     expect(labels).toContain('Venue');
+  });
+
+  it('will not let a performer sign without leaving a handle to tag', () => {
+    const social = suggestedFields().find((f) => f.label === 'Instagram or main social');
+    expect(social?.required).toBe(true);
+  });
+});
+
+/**
+ * Every contract asks for a handle, whatever its question list says.
+ *
+ * Without one, announcing the show means going and looking the performer up,
+ * and tagging the wrong account is worse than tagging none.
+ */
+describe('the Instagram question on a contract', () => {
+  it('is added to a contract uploaded before anyone was asked for one', () => {
+    const fields = withInstagramField([{ id: 'stage-name', label: 'Stage name' }]);
+
+    expect(fields.map((f) => f.label)).toEqual(['Stage name', 'Instagram or main social']);
+    expect(fields[1].required).toBe(true);
+  });
+
+  it('is added to a contract that asks nothing else at all', () => {
+    expect(withInstagramField(undefined)).toHaveLength(1);
+    expect(withInstagramField([])[0].required).toBe(true);
+  });
+
+  it('does not ask twice when the producer worded the question themselves', () => {
+    const fields = withInstagramField([{ id: 'abc123', label: 'Your IG' }]);
+
+    expect(fields).toHaveLength(1);
+    expect(fields[0].label).toBe('Your IG');
+    expect(fields[0].required).toBe(true);
+  });
+
+  it('leaves the rest of the questions as the producer set them', () => {
+    const fields = withInstagramField([
+      { id: 'stage-name', label: 'Stage name' },
+      { id: 'payout', label: 'Payout address', required: true, multiline: true },
+    ]);
+
+    expect(fields[1]).toEqual({
+      id: 'payout', label: 'Payout address', required: true, multiline: true,
+    });
+  });
+
+  it('does not mistake a release asking for a social security number', () => {
+    expect(isInstagramField({ id: 'ssn', label: 'Social Security Number' })).toBe(false);
+
+    const fields = withInstagramField([{ id: 'ssn', label: 'Social Security Number' }]);
+    expect(fields).toHaveLength(2);
+    expect(fields[0].required).toBeUndefined();
   });
 });
 

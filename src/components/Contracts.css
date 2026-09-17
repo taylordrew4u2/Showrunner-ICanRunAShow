@@ -351,6 +351,13 @@
   color: var(--text-muted);
 }
 
+/* Sits where a question's Remove button would be, for the one that has none. */
+.contracts__field-fixed {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
 .contracts__field-rows {
   display: flex;
   flex-direction: column;

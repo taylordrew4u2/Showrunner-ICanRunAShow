@@ -19,6 +19,8 @@ import {
   signatureSummary,
   signingUrl,
   suggestedFields,
+  isInstagramField,
+  withInstagramField,
 } from '../utils/contracts';
 import { generateId } from '../utils/id';
 import { dataUrlToFile } from '../utils/media';
@@ -325,9 +327,12 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
 
   /** Save an edited question list onto the open contract. */
   function updateFields(contract: Contract, fields: ContractField[]) {
+    // The Instagram question is put back if an edit loses it, so what is saved
+    // here matches what the signer will actually be asked.
+    const kept = withInstagramField(fields);
     onUpdateSettings({
       ...settings,
-      contracts: contracts.map((c) => (c.id === contract.id ? { ...c, fields } : c)),
+      contracts: contracts.map((c) => (c.id === contract.id ? { ...c, fields: kept } : c)),
     });
   }
 
@@ -501,7 +506,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
   if (open) {
     const sent = requestsForContract(requests, open.id);
     const openSummary = signatureSummary(sent);
-    const openFields = open.fields ?? [];
+    const openFields = withInstagramField(open.fields);
     return (
       <div className="page contracts">
         <PageHeader
@@ -580,9 +585,9 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
             </button>
           </div>
           <p className="contracts__fields-note">
-            Everyone is asked for their name. Add anything else this agreement needs — a stage
-            name, how they want to be credited, a payout address. Changes apply to links you
-            send from now on.
+            Everyone is asked for their name and their Instagram handle. Add anything else this
+            agreement needs — a stage name, how they want to be credited, a payout address.
+            Changes apply to links you send from now on.
           </p>
 
           {editingFields ? (
@@ -601,10 +606,14 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                         )
                       }
                     />
+                    {/* The Instagram row stays required: a signature with no
+                        handle to tag means looking the performer up and
+                        guessing. */}
                     <label className="contracts__field-toggle">
                       <input
                         type="checkbox"
                         checked={!!f.required}
+                        disabled={isInstagramField(f)}
                         onChange={(e) =>
                           updateFields(
                             open,
@@ -631,13 +640,17 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                       />
                       <span>Long answer</span>
                     </label>
-                    <button
-                      className="btn btn--ghost btn--sm"
-                      aria-label={`Remove ${f.label || 'this question'}`}
-                      onClick={() => updateFields(open, openFields.filter((_, j) => j !== i))}
-                    >
-                      Remove
-                    </button>
+                    {isInstagramField(f) ? (
+                      <span className="contracts__field-fixed">Always asked</span>
+                    ) : (
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        aria-label={`Remove ${f.label || 'this question'}`}
+                        onClick={() => updateFields(open, openFields.filter((_, j) => j !== i))}
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -648,8 +661,6 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                 Add a question
               </button>
             </>
-          ) : openFields.length === 0 ? (
-            <p className="contracts__fields-empty">Just their name and signature.</p>
           ) : (
             <ul className="contracts__field-list">
               {openFields.map((f) => (
