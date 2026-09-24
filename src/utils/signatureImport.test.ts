@@ -1,6 +1,7 @@
 import type { PotentialComic } from '../types';
 import { describe, expect, it } from 'vitest';
 import {
+  signatureVisitPatch,
   applyFiledHeadshot,
   applyProfileChanges,
   fillRolodexFromSignatures,
@@ -323,5 +324,29 @@ describe('signed details stay attached to their Rolodex identity', () => {
     expect(applyFiledHeadshot(newer, headshot, 'media:old-upload', () => 'new-id')).toBe(newer);
     const removed: PotentialComic[] = [];
     expect(applyFiledHeadshot(removed, headshot, 'media:old-upload', () => 'new-id')).toBe(removed);
+  });
+});
+
+describe('what a visit to the Contracts page writes back', () => {
+  const signed = [{ id: 'r', token: 't', key: 'k', contractId: 'c', contractName: 'Agreement', signerName: 'Ada', sentAt: '' }];
+  const comics: PotentialComic[] = [{ id: 'ada', name: 'Ada' }];
+
+  it('keeps a signature that only filled Rolodex gaps, with no headshot to file', () => {
+    // The case that read as unsigned until the next visit: answers filled a
+    // gap, nothing to file, and the paperwork list was left out of the write.
+    const patch = signatureVisitPatch(signed, null, comics);
+    expect(patch).toEqual({ signatureRequests: signed, potentialComics: comics });
+  });
+
+  it('lets a filed headshot carry the paperwork list, and the gap fill the Rolodex', () => {
+    const filedRequests = [{ ...signed[0], id: 'filed' }];
+    const filedComics: PotentialComic[] = [{ id: 'ada', name: 'Ada', photo: 'media:1' }];
+    const patch = signatureVisitPatch(signed, { signatureRequests: filedRequests, potentialComics: filedComics }, comics);
+    expect(patch).toEqual({ signatureRequests: filedRequests, potentialComics: comics });
+  });
+
+  it('writes nothing when nothing changed', () => {
+    expect(signatureVisitPatch(null, null, null)).toBeNull();
+    expect(signatureVisitPatch(signed, null, null)).toEqual({ signatureRequests: signed });
   });
 });

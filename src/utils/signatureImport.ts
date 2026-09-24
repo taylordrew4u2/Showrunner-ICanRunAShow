@@ -1,4 +1,4 @@
-import type { PotentialComic, SignatureRecord } from '../types';
+import type { AppSettings, PotentialComic, SignatureRecord, SignatureRequest } from '../types';
 import { isEmail } from './social';
 import { toHandle } from './socialPost';
 
@@ -332,4 +332,26 @@ export function fillRolodexFromSignatures(
   }
 
   return changed ? next : null;
+}
+
+/**
+ * What a visit to the Contracts page writes back, from what it found there.
+ *
+ * Three lookups run on that visit — signatures that landed while the producer
+ * was away, headshots to file from them, and Rolodex gaps their answers fill —
+ * and each reports only what it changed. Combining them by hand lost the first
+ * one: a signature whose answers filled a gap but carried no headshot wrote the
+ * Rolodex and not the paperwork list, so the contract read as unsigned until
+ * the next visit. Every piece that changed goes in, whichever others did.
+ */
+export function signatureVisitPatch(
+  signed: SignatureRequest[] | null,
+  filed: Pick<AppSettings, 'potentialComics' | 'signatureRequests'> | null,
+  filledComics: PotentialComic[] | null,
+): Partial<AppSettings> | null {
+  const patch: Partial<AppSettings> = {};
+  if (signed) patch.signatureRequests = signed;
+  if (filed) Object.assign(patch, filed);
+  if (filledComics) patch.potentialComics = filledComics;
+  return Object.keys(patch).length > 0 ? patch : null;
 }
