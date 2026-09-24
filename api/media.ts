@@ -68,9 +68,16 @@ export default async function handler(req: Request): Promise<Response> {
       // them lives inside the user's encrypted blobs, which only their browser
       // can read. So the sweep is theirs to run — this hands them the
       // inventory, they work out what is unreachable, and they delete it.
+      //
+      // `ageSeconds` is how long ago the newest chunk landed, measured on this
+      // clock so the browser's being wrong does not matter. The sweep needs it
+      // to tell an orphan from an upload still in progress: the chunks arrive
+      // before the show that points at them is saved, and until it is, the
+      // account's data has no trace of them.
       if (url.searchParams.get('list')) {
         const result = await db.execute({
-          sql: `SELECT id, COUNT(*) AS chunks, SUM(LENGTH(data)) AS bytes
+          sql: `SELECT id, COUNT(*) AS chunks, SUM(LENGTH(data)) AS bytes,
+                       strftime('%s', 'now') - strftime('%s', MAX(created_at)) AS age
                   FROM user_media
                  WHERE user_id = ?
                  GROUP BY id`,
@@ -80,6 +87,7 @@ export default async function handler(req: Request): Promise<Response> {
           id: String(row[0]),
           chunks: Number(row[1]),
           bytes: Number(row[2]),
+          ageSeconds: row[3] == null ? undefined : Number(row[3]),
         }));
         return json({ items });
       }

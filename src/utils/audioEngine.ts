@@ -60,6 +60,30 @@ const DEFAULT_FADE_IN_MS = 1200;
 const DEFAULT_FADE_OUT_MS = 400;
 
 /**
+ * How much decoded audio the engine keeps ready, in bytes of PCM.
+ *
+ * A decoded track is float samples, not the file: a 3½-minute stereo song is
+ * ~75MB, so a full bill of walk-ons decoded up front ran to the better part of
+ * a gigabyte, and a phone browser answers that by reloading the tab — blank
+ * page, clock and pads gone, mid-show. 320MB is four or five whole songs, or
+ * dozens of trimmed walk-ons, ready to start on the press; anything past that
+ * decodes when it's pressed. The budget is soft: the track that crosses it is
+ * kept, and a press always gets its track, so the engine can run over by one.
+ */
+export const BUFFER_BUDGET_BYTES = 320 * 1024 * 1024;
+
+function bufferBytes(buf: AudioBuffer): number {
+  return buf.length * buf.numberOfChannels * Float32Array.BYTES_PER_ELEMENT;
+}
+
+/**
+ * What to do with a freshly decoded track. A press keeps it whatever the cost
+ * and lets older tracks go to make room; decoding ahead stops at the budget so
+ * it never pushes out a pad the operator is about to press.
+ */
+type Retain = 'always' | 'if-room';
+
+/**
  * The bytes behind an already-resolved source, ready for decodeAudioData.
  *
  * Uploaded tracks resolve to a `data:` URL, and those are decoded in-process:
@@ -88,7 +112,13 @@ class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private current: Playing | null = null;
+  /**
+   * Decoded tracks, oldest use first: a hit is re-inserted at the end, so the
+   * front is the track that has gone longest without a press or a preload —
+   * the one to let go of when a press needs room. See BUFFER_BUDGET_BYTES.
+   */
   private buffers = new Map<string, AudioBuffer>();
+  private bufferedBytes = 0;
   private muted = false;
   /**
    * Bumped on every play() and stop(). A play() that awaits a decode and comes
@@ -140,11 +170,13 @@ class AudioEngine {
   /**
    * Pre-decode an audio source so the next play() call is instant.
    * Safe to call any time after init() — silently no-ops if there's no ctx
-   * yet. Repeated calls for the same src hit the buffer cache.
+   * yet. Repeated calls for the same src hit the buffer cache. Once the ready
+   * tracks fill the budget this does nothing, and the track loads on its press.
    */
   async preload(src: string): Promise<void> {
     if (!this.ctx) return;
-    await this.getBuffer(src);
+    if (!this.buffers.has(src) && !this.pending.has(src) && this.bufferedBytes >= BUFFER_BUDGET_BYTES) return;
+    await this.getBuffer(src, 'if-room');
   }
 
   /**
@@ -176,7 +208,7 @@ class AudioEngine {
     // Safari/iOS can auto-suspend the AudioContext after a stretch of silence.
     // Always resume before scheduling a source — otherwise start() is silent.
     await this.ensureRunning();
-    const buffer = await this.getBuffer(src);
+    const buffer = await this.getBuffer(src, 'always');
     if (this.token !== token || !this.ctx || !this.master) return 'superseded';
     if (!buffer) return this.loadFailures.get(src) ?? 'media-unavailable';
     // The decode and resume above are async; the ctx could have been suspended
@@ -272,6 +304,7 @@ class AudioEngine {
     }
     this.master = null;
     this.buffers.clear();
+    this.bufferedBytes = 0;
   }
 
   /** Decoded and ready to start on the next press with no wait. */
@@ -279,15 +312,49 @@ class AudioEngine {
     return this.buffers.has(src);
   }
 
-  private getBuffer(src: string): Promise<AudioBuffer | null> {
+  private getBuffer(src: string, retain: Retain): Promise<AudioBuffer | null> {
     if (!this.ctx) return Promise.resolve(null);
     const cached = this.buffers.get(src);
-    if (cached) return Promise.resolve(cached);
+    if (cached) {
+      this.retain(src, cached, retain);
+      return Promise.resolve(cached);
+    }
+    // Each caller decides for itself whether the decode is kept: a press that
+    // joins a preload past the budget still keeps its track.
     const inFlight = this.pending.get(src);
-    if (inFlight) return inFlight;
+    if (inFlight) return inFlight.then((buf) => this.keep(src, buf, retain));
     const load = this.loadBuffer(src).finally(() => this.pending.delete(src));
     this.pending.set(src, load);
-    return load;
+    return load.then((buf) => this.keep(src, buf, retain));
+  }
+
+  private keep(src: string, buf: AudioBuffer | null, retain: Retain): AudioBuffer | null {
+    if (buf) this.retain(src, buf, retain);
+    return buf;
+  }
+
+  /**
+   * File `buf` under `src` at the fresh end of the cache, or move it there if
+   * it's already in. A press then lets the stalest tracks go until the rest
+   * fit the budget; decoding ahead keeps the track only while there's room.
+   */
+  private retain(src: string, buf: AudioBuffer, retain: Retain): void {
+    if (this.buffers.has(src)) {
+      this.buffers.delete(src);
+      this.buffers.set(src, buf);
+      return;
+    }
+    if (retain === 'if-room' && this.bufferedBytes >= BUFFER_BUDGET_BYTES) return;
+    this.buffers.set(src, buf);
+    this.bufferedBytes += bufferBytes(buf);
+    if (retain !== 'always') return;
+    for (const [oldSrc, old] of this.buffers) {
+      if (this.bufferedBytes <= BUFFER_BUDGET_BYTES || oldSrc === src) break;
+      // The buffer is only dropped from the cache: a source node already
+      // playing it holds its own reference and runs to the end regardless.
+      this.buffers.delete(oldSrc);
+      this.bufferedBytes -= bufferBytes(old);
+    }
   }
 
   private async loadBuffer(src: string): Promise<AudioBuffer | null> {
@@ -301,7 +368,7 @@ class AudioEngine {
       // Large tracks live in the chunked media store and the show only holds
       // a `media:` reference — resolve it to a data URL before decoding.
       // Plain data URLs / http links pass through unchanged. Buffers cache
-      // under the original src, so a track only resolves once per session.
+      // under the original src, so a track resolves once while it stays ready.
       const resolved = isMediaRef(src) ? await resolveMediaUrl(src) : src;
       if (!resolved) return null;
       const arr = await readSourceBytes(resolved);
@@ -309,7 +376,6 @@ class AudioEngine {
       this.loadFailures.set(src, 'decode-failed');
       // Older Safari requires the callback form, but modern returns a promise.
       const buf = await this.ctx.decodeAudioData(arr);
-      this.buffers.set(src, buf);
       this.loadFailures.delete(src);
       return buf;
     } catch (e) {

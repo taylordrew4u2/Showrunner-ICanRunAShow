@@ -19,7 +19,8 @@ import { mergeShowEdit } from './utils/mergeShowEdit';
 import { bulkMailto } from './utils/social';
 import { buildOverview, completePastShows } from './utils/showsOverview';
 import { 
-  loadEncryptedShows, 
+  loadEncryptedShows,
+  rebaseLoadedShows,
   saveEncryptedShows,
   loadEncryptedSettings,
   saveEncryptedSettings,
@@ -178,7 +179,32 @@ function RolodexRefresh({
 // restored and re-saved on the next launch.
 const PENDING_SHOWS_KEY = 'showrunner:pendingShows';
 const PENDING_SETTINGS_KEY = 'showrunner:pendingSettings';
+// When a backup file was last downloaded, and for which account. Two
+// producers sharing a laptop share this key, and without the name one's
+// download kept the other from ever being nudged to make their own.
 const LAST_EXPORT_KEY = 'showrunner:lastExport';
+
+function readLastExport(username: string): string | null {
+  try {
+    const raw = localStorage.getItem(LAST_EXPORT_KEY);
+    if (!raw) return null;
+    // Written before the account was recorded with it. Whose it was cannot be
+    // known now, so it stands until the next download replaces it.
+    if (!raw.startsWith('{')) return raw;
+    const parsed = JSON.parse(raw) as { username: string; at: string };
+    return parsed.username === username && typeof parsed.at === 'string' ? parsed.at : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLastExport(username: string, at: string): void {
+  try {
+    localStorage.setItem(LAST_EXPORT_KEY, JSON.stringify({ username, at }));
+  } catch {
+    /* ignore */
+  }
+}
 // When this account last had a save confirmed by the server. Kept across
 // reloads so the status pill can answer "when did this last reach my account?"
 // on a cold start, before the first save of the session.
@@ -311,6 +337,10 @@ export default function App() {
   // pill instead — a retry that's already working shouldn't look like an alarm.
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Edits this device held that could not be applied at launch, and where
+  // they went. Its own notice, not saveError: the first save to land clears
+  // that one, and a launch usually saves something straight away.
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   // A new build is installed and waiting; the reload is offered, not taken.
   const [updateWaiting, setUpdateWaiting] = useState(isUpdateReady);
   useEffect(() => onUpdateReady(setUpdateWaiting), []);
@@ -320,13 +350,7 @@ export default function App() {
   // True while edits are parked in this device's local backup — i.e. written
   // here but not yet confirmed by the server.
   const [hasLocalCopy, setHasLocalCopy] = useState(false);
-  const [lastBackupAt, setLastBackupAt] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(LAST_EXPORT_KEY);
-    } catch {
-      return null;
-    }
-  });
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
   // Start in the loading state whenever a session will be restored, so the app
   // never shows an interactive (empty) shows list before the initial load
   // finishes. Creating a show during that window would be silently lost: the
@@ -451,6 +475,7 @@ export default function App() {
   // when your work last reached your account instead of starting blank.
   useEffect(() => {
     setLastSavedAt(session ? readLastSync(session.username) : null);
+    setLastBackupAt(session ? readLastExport(session.username) : null);
   }, [session]);
 
   // Load data for signed in user
@@ -490,6 +515,9 @@ export default function App() {
             show.expenses = [];
           }
         }
+        // The baseline was taken from the rows as stored; the held copy of an
+        // offline edit is measured against the shows as they are now.
+        rebaseLoadedShows(currentSession, migratedShows);
 
         // If a previous session had unsaved edits (save failed, tab closed),
         // recover edits against their original baseline. Conflicting versions
@@ -519,8 +547,17 @@ export default function App() {
           if (heldSettings.metadata?.settingsHash !== undefined && heldSettings.metadata.settingsHash === settingsBaselineHash(currentSession)) {
             pendingSettings = healedHeldSettings;
           } else {
+            const acknowledge = pendingStore.capture(PENDING_SETTINGS_KEY, currentSession.username);
             void parkSettingsSnapshot(heldSettings.data, currentSession)
-              .then(pendingStore.capture(PENDING_SETTINGS_KEY, currentSession.username))
+              .then(() => {
+                acknowledge();
+                // Replacing edits someone can still see on screen with an
+                // older Rolodex, silently, reads as the edits having saved.
+                // Say where they went, so they are found on purpose and not
+                // by accident weeks later.
+                if (activeSessionRef.current !== currentSession) return;
+                setRecoveryNotice("Edits made on this device couldn't be saved: your settings were saved from somewhere else first. Those edits are kept under Earlier versions in Settings.");
+              })
               .catch((err) => console.error('Failed to park held settings:', err));
           }
         }
@@ -661,6 +698,15 @@ export default function App() {
       // A launch with no signal never got the account at all; fetch it now
       // rather than leaving an empty list behind the error notice.
       if (!dataLoaded.current) setLoadRetryTick((t) => t + 1);
+      // Only a save reports "saved", and a blip with nothing to save runs no
+      // save — so the pill said Offline for the rest of the night, and the
+      // browser asked about unsaved changes on every close. Say where the work
+      // is: on the account if nothing was waiting, held here if something was.
+      setSyncState((prev) => {
+        if (prev !== 'offline') return prev;
+        const clean = latestShowsRef.current === savedShowsRef.current && !settingsSaveFailedRef.current;
+        return clean ? 'saved' : 'retrying';
+      });
     }
     // Losing signal isn't a failure — say so plainly rather than waiting for a
     // request to time out and reporting it as an error.
@@ -782,7 +828,10 @@ export default function App() {
           if ((error as { code?: string })?.code === 'save_conflict') {
             showSaveConflictRef.current = true;
             setSyncState('blocked');
-            setSaveError('This show changed in another tab or device. Your edits are kept here; the newer saved version has not been overwritten. Download a backup before reloading to reconcile the two versions.');
+            // Every later save on this device is measured against the same
+            // version and fails the same way. The way out is a reload, and
+            // the held copy is what the reload recovers — so say both.
+            setSaveError('This show changed in another tab or device. Your edits are kept on this device and the newer saved version has not been overwritten. Nothing more will save until you reload this page: download a backup first, then reload, and your edits come back as a recovered copy of the show.');
             return;
           }
           const tooLarge =
@@ -972,6 +1021,23 @@ export default function App() {
     setSelectedShow(null);
     setShowForm(false);
     setAuthError('');
+    // Everything the status rail knows belongs to the account that just left.
+    // A conflict on one producer's show had the pill stuck on "Needs you" and
+    // their banner on screen for the co-producer who signed in next, and
+    // markSynced would not say "saved" for the new account until one of its
+    // own saves happened to clear the flags.
+    savedShowsRef.current = null;
+    unreadableRowsRef.current = [];
+    showSaveConflictRef.current = false;
+    settingsSaveFailedRef.current = false;
+    retryDelayRef.current = 5000;
+    setUnreadableCount(0);
+    setSaveError(null);
+    setLoadError(null);
+    setRecoveryNotice(null);
+    setSyncState('saved');
+    setHasLocalCopy(false);
+    setLocalBackupFailed(false);
   }
 
   /**
@@ -991,14 +1057,16 @@ export default function App() {
       const a = document.createElement('a');
       a.href = url;
       a.download = `showrunner-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      // In the page, and the URL left alive for a while: Firefox and iOS
+      // Safari start the download after click() returns, and a URL revoked
+      // before then gave no file — while the app went on to say a backup had
+      // been taken today.
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
       const at = new Date().toISOString();
-      try {
-        localStorage.setItem(LAST_EXPORT_KEY, at);
-      } catch {
-        /* ignore */
-      }
+      writeLastExport(session.username, at);
       setLastBackupAt(at);
       setBackupNudgeDismissed(true);
     } catch (error) {
@@ -1023,6 +1091,10 @@ export default function App() {
     try {
       writePending(PENDING_SETTINGS_KEY, session.username, updatedSettings);
       const acknowledge = pendingStore.capture(PENDING_SETTINGS_KEY, session.username);
+      // This save supersedes any older one still retrying in the background,
+      // as every saveSettings call does — otherwise that retry wakes after
+      // this one lands and writes its older snapshot over it.
+      ++settingsSaveSeqRef.current;
       await saveEncryptedSettings(updatedSettings, session);
       acknowledge();
       if (activeSessionRef.current !== savingSession) return;
@@ -1045,6 +1117,11 @@ export default function App() {
     try {
       writePending(PENDING_SETTINGS_KEY, session.username, updatedSettings);
       const acknowledge = pendingStore.capture(PENDING_SETTINGS_KEY, session.username);
+      // Supersede any older save still retrying in the background. Offline,
+      // a Rolodex edit's retry slept a minute; wifi came back, the Settings
+      // page saved a new brand name, and the retry then woke and wrote its
+      // older snapshot over the top — with the pill saying saved.
+      ++settingsSaveSeqRef.current;
       await saveEncryptedSettings(updatedSettings, session);
       acknowledge();
       if (activeSessionRef.current !== savingSession) return;
@@ -1265,12 +1342,29 @@ export default function App() {
    * Gated on `dataLoaded`, and that gate is the whole safety of it. A client
    * that failed to load would see no references at all and cheerfully delete
    * every file in the account.
+   *
+   * Judged against the account as the server holds it now, not against what
+   * this tab loaded. A laptop left open since the afternoon has no idea about
+   * the headshots the phone uploaded to a new show at three, and it called
+   * them unused. Re-reading only works once this tab has nothing of its own
+   * still on the way to the server, so the sweep waits for that; and a row
+   * this device cannot read may point at anything, so it stops the sweep.
    */
   async function handleSweepMedia(dryRun: boolean): Promise<SweepReport> {
     if (!session || !dataLoaded.current) {
       throw new Error('Your shows are still loading. Try again in a moment.');
     }
-    return sweepUnusedMedia(latestShowsRef.current ?? shows, settings, session, { dryRun });
+    if (savingRef.current || latestShowsRef.current !== savedShowsRef.current || settingsSaveFailedRef.current) {
+      throw new Error("Some of your changes haven't saved yet. Wait for the pill to say Saved, then try again.");
+    }
+    const [loaded, loadedSettings] = await Promise.all([
+      loadEncryptedShows(session, false),
+      loadEncryptedSettings(session, false),
+    ]);
+    if (loaded.unreadable.length > 0) {
+      throw new Error("Some shows couldn't be opened on this device, so their files can't be told apart from unused ones. Nothing has been removed.");
+    }
+    return sweepUnusedMedia(loaded.shows, loadedSettings, session, { dryRun });
   }
 
   function saveSettings(updatedSettings: typeof settings) {
@@ -1307,7 +1401,9 @@ export default function App() {
             (err as { status?: number })?.status === 413;
           if ((err as { code?: string })?.code === 'save_conflict') {
             setSyncState('blocked');
-            setSaveError('Settings changed in another tab or device. Your local edits are still here. Download a backup before reviewing the saved version.');
+            // As with shows: the same version blocks every later settings
+            // save on this device, and only a reload moves past it.
+            setSaveError('Settings changed in another tab or device. Your edits are kept on this device. Nothing more will save until you reload this page: download a backup first, then reload, and your edits are kept under Earlier versions in Settings.');
             return;
           }
           if (tooLarge) {
@@ -1413,6 +1509,17 @@ export default function App() {
   // '' means "fetched, there was none", so a missing photo is not refetched
   // on every render.
   const [profilePhotos, setProfilePhotos] = useState<Record<string, string>>({});
+  // Bumped to fetch again a headshot that failed to load — venue wifi — so
+  // "there was none" is not the last word on it for the rest of the session.
+  const [photoRetryTick, setPhotoRetryTick] = useState(0);
+  function retryProfilePhoto(token: string) {
+    setProfilePhotos(prev => {
+      const next = { ...prev };
+      delete next[token];
+      return next;
+    });
+    setPhotoRetryTick(t => t + 1);
+  }
   const photoTokens = (settings.profileRequests ?? [])
     .filter(r => r.submitted?.photoChunks)
     .map(r => r.token)
@@ -1431,7 +1538,7 @@ export default function App() {
     return () => { cancelled = true; };
     // Keyed on which replies carry a photo, not on the settings object.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photoTokens, session]);
+  }, [photoTokens, photoRetryTick, session]);
 
   /**
    * Ask someone for their own details.
@@ -1511,16 +1618,28 @@ export default function App() {
       } catch {
         photoFailed = true;
       }
+    } else if ((pending.request.submitted?.photoChunks ?? 0) > 0) {
+      // They sent one, but it never loaded here — so the row said nothing
+      // about a headshot, and importing went on to throw it away unseen.
+      photoFailed = true;
+      retryProfilePhoto(pending.request.token);
     }
 
     const next = applyProfileChanges(comic, pending.changes);
-    handleUpdateRolodexComic(photoRef ? { ...next, photo: photoRef } : next, {
+    // The link is retired, and its photo dropped from the server, only once
+    // the headshot is filed or there was none. Retired after a photo that did
+    // not load or store, the only copy of what the performer sent was gone,
+    // and the sealed link could not be sent again. Kept, the import can be
+    // tried again — or the reply skipped, on purpose.
+    handleUpdateRolodexComic(photoRef ? { ...next, photo: photoRef } : next, photoFailed ? {} : {
       profileRequests: (settings.profileRequests ?? []).filter(r => r.token !== pending.request.token),
     });
-    void deleteProfilePhoto(pending.request, session);
+    if (!photoFailed) void deleteProfilePhoto(pending.request, session);
 
     setLinkErrorFor(photoFailed ? comic.id : null);
-    setLinkError(photoFailed ? `${comic.name}'s details were saved, but their photo could not be stored.` : null);
+    setLinkError(photoFailed
+      ? `${comic.name}'s details were saved, but their headshot could not be ${pending.photo ? 'stored' : 'loaded'}. Try again, or skip it.`
+      : null);
   }
 
   /**
@@ -1864,6 +1983,24 @@ export default function App() {
                 <button
                   className="system-notice__close"
                   onClick={() => setLoadError(null)}
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {recoveryNotice && (
+              <div className="system-notice" role="alert">
+                <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />
+                <div className="system-notice__body">
+                  <span className="system-notice__text">{recoveryNotice}</span>
+                  <span className="system-notice__reassurance">
+                    Nothing has been lost — you can bring that version back from there.
+                  </span>
+                </div>
+                <button
+                  className="system-notice__close"
+                  onClick={() => setRecoveryNotice(null)}
                   aria-label="Dismiss"
                 >
                   ×

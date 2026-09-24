@@ -1,7 +1,23 @@
 import { useState } from 'react';
 import { DEFAULT_SECTIONS, SELECTABLE_SECTIONS, hiddenFromSelected } from '../utils/showBlocks';
+import { normaliseShowTime } from '../utils/readShowStart';
 import type { Show, ShowStatus, SectionKey } from '../types';
 import './ShowForm.css';
+
+/**
+ * The time to store for what was typed. Most show times are entered on this
+ * form, and stored verbatim "Doors 8:30 Show 9" reads back as no time at all
+ * to the show page, the timeline and the viewer link — the same rule Basic
+ * Info applies on blur, so a show made here and one edited there agree. Text
+ * with no clock in it is kept as typed rather than dropped.
+ *
+ * Exported so a test can pin the rule. Fast refresh only minds exports it has
+ * to re-render, and this one has no UI of its own.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function storedShowTime(typed: string): string {
+  return normaliseShowTime(typed) ?? typed.trim();
+}
 
 interface ShowFormProps {
   initial?: Partial<Show>;
@@ -69,7 +85,7 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
     onSave({
       name: name.trim(),
       date,
-      time,
+      time: storedShowTime(time),
       venueName: venueName.trim(),
       location: location.trim(),
       status,

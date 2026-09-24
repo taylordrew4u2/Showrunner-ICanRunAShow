@@ -65,6 +65,24 @@ describe('buildOverview', () => {
     expect(o.nextShowWhen).toBe('In 6 days');
   });
 
+  it('picks the earlier show when two fall on the same night', () => {
+    // The producer added the late show second, so it sits first in the list.
+    // The 7pm show is still the one they have to run first.
+    const o = buildOverview([
+      show({ id: 'late', date: '2026-09-24', time: '10:00 PM' }),
+      show({ id: 'early', date: '2026-09-24', time: '7:00 PM' }),
+    ], TODAY);
+    expect(o.nextShow?.id).toBe('early');
+  });
+
+  it('puts a same-night show with no time after the one that has one', () => {
+    const o = buildOverview([
+      show({ id: 'untimed', date: '2026-09-24', time: '' }),
+      show({ id: 'timed', date: '2026-09-24', time: '9pm' }),
+    ], TODAY);
+    expect(o.nextShow?.id).toBe('timed');
+  });
+
   it('does not call a finished or cancelled show next', () => {
     const o = buildOverview([
       show({ id: 'done', date: '2026-08-16', status: 'completed' }),
@@ -169,6 +187,13 @@ describe('attention queue', () => {
     const dated = show({ id: 'dated', date: '2026-08-20' });
     const { attention } = buildOverview([undated, dated], TODAY);
     expect(attention.map((a) => a.show.id)).toEqual(['dated', 'undated']);
+  });
+
+  it('orders two shows on the same night by their start time', () => {
+    const late = show({ id: 'late', date: '2026-08-20', time: '10:00 PM' });
+    const early = show({ id: 'early', date: '2026-08-20', time: '7:00 PM' });
+    const { attention } = buildOverview([late, early], TODAY);
+    expect(attention.map((a) => a.show.id)).toEqual(['early', 'late']);
   });
 
   it('is empty when every upcoming show is ready', () => {

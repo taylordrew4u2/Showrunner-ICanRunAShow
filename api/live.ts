@@ -15,10 +15,32 @@
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { exceedsSize, handleError, json, readJson, tooLarge } from './_lib/http';
+import { liveTokenOwnership } from './_lib/tokenOwnership';
 
 // The live payload is a small on-stage/up-next snapshot — cap it well clear of
 // any legitimate size.
 const MAX_PAYLOAD_BYTES = 64 * 1024;
+
+/**
+ * How far behind the stored state a publish may be and still count as a late
+ * arrival rather than a new board.
+ *
+ * The board writes on every cue change and every pad press, and does not wait
+ * for one request to finish before sending the next. On venue wifi the earlier
+ * request can land second, and it used to overwrite the later one: the viewer
+ * screen carrying the sound would restart a walk-on the operator had just
+ * stopped, or show the previous act as on stage. The payload's `lastUpdateMs`
+ * is the board's own clock when it wrote, so an older one arriving on top of a
+ * newer one is refused.
+ *
+ * Only by a minute, though. The clock is the producer's device, and a producer
+ * who moves from a phone to a laptop moves to a different clock. Refusing
+ * every write from a clock that is minutes behind would freeze the room's
+ * screen for exactly that long with nothing on either device to say why. A
+ * request is seconds late, never minutes, so past this gap the newer clock is
+ * simply the one the room follows now.
+ */
+export const STALE_PUBLISH_WINDOW_MS = 60_000;
 
 export default async function handler(req: Request): Promise<Response> {
   try {
@@ -51,6 +73,11 @@ export default async function handler(req: Request): Promise<Response> {
       // already published by another account is left alone. `user_id IS NULL`
       // claims a row published before publishing required auth — only the
       // producer whose show it is can be publishing to that token.
+      //
+      // The second condition is the late-arrival check — see
+      // STALE_PUBLISH_WINDOW_MS. Either side missing a time makes the
+      // subtraction NULL, and COALESCE turns that into "write it": a row from
+      // before payloads carried a clock must not block the board for good.
       const result = await db.execute({
         sql: `INSERT INTO live_view (token, user_id, payload, updated_at)
               VALUES (?, ?, ?, datetime('now'))
@@ -58,13 +85,23 @@ export default async function handler(req: Request): Promise<Response> {
                 user_id = excluded.user_id,
                 payload = excluded.payload,
                 updated_at = excluded.updated_at
-              WHERE live_view.user_id IS NULL OR live_view.user_id = excluded.user_id`,
-        args: [token, userId, JSON.stringify(payload)],
+              WHERE (live_view.user_id IS NULL OR live_view.user_id = excluded.user_id)
+                AND COALESCE(
+                  json_extract(live_view.payload, '$.lastUpdateMs')
+                    - json_extract(excluded.payload, '$.lastUpdateMs')
+                    NOT BETWEEN 1 AND ?,
+                  1)`,
+        args: [token, userId, JSON.stringify(payload), STALE_PUBLISH_WINDOW_MS],
       });
-      // Nothing written means the row belongs to somebody else. Reported as
-      // forbidden rather than a silent success, so a caller cannot mistake a
-      // refused publish for a live page that is up to date.
-      if (result.rowsAffected === 0) return json({ error: 'forbidden' }, 403);
+      if (result.rowsAffected === 0) {
+        // Nothing written means the row belongs to somebody else, or a newer
+        // publish from the same board got there first. Somebody else's is
+        // reported as forbidden rather than a silent success, so a caller
+        // cannot mistake a refused publish for a live page that is up to date.
+        // A late arrival is a success: what the room shows is newer than this.
+        if ((await liveTokenOwnership(db, token, userId)) === 'other') return json({ error: 'forbidden' }, 403);
+        return json({ ok: true, stale: true });
+      }
       return json({ ok: true });
     }
 

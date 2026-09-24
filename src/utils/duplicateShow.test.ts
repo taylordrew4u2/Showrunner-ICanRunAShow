@@ -72,6 +72,37 @@ describe('duplicateShow', () => {
 });
 
 for (const options of [{}, { name: original.name, date: '2026-04-14' }]) {
+  it(`starts the scenes and to-dos over for ${options.date ? 'a repeat' : 'a duplicate'}`, () => {
+    const source: Show = {
+      ...original,
+      scenes: [
+        { id: 'sc1', title: 'Cold open', description: '', duration: 5, status: 'done', order: 0 },
+        { id: 'sc2', title: 'Headliner', description: '', duration: 20, status: 'filmed', order: 1 },
+      ],
+      todos: [
+        { id: 't1', text: 'Print the set list', completed: true },
+        { id: 't2', text: 'Test the mics', completed: false },
+      ],
+    };
+    const before = structuredClone(source);
+    const copy = duplicateShow(source, options);
+    // Last week's ticks would show a full progress bar on a night that has
+    // not been planned yet.
+    expect(copy.scenes?.map((scene) => scene.status)).toEqual(['planned', 'planned']);
+    expect(copy.scenes?.map((scene) => scene.title)).toEqual(['Cold open', 'Headliner']);
+    expect(copy.todos?.map((todo) => todo.completed)).toEqual([false, false]);
+    expect(copy.todos?.map((todo) => todo.text)).toEqual(['Print the set list', 'Test the mics']);
+    expect(source).toEqual(before);
+  });
+
+  it(`leaves scenes and to-dos alone when the show never used them, for ${options.date ? 'a repeat' : 'a duplicate'}`, () => {
+    // `scenes: undefined` means the section was never opened, and an empty
+    // array would make it appear on the copy.
+    const copy = duplicateShow(original, options);
+    expect(copy.scenes).toBeUndefined();
+    expect(copy.todos).toBeUndefined();
+  });
+
   it(`clears artist bookings and old cue assignments for ${options.date ? 'a repeat' : 'a duplicate'}`, () => {
     const source: Show = {
       ...original,

@@ -60,13 +60,44 @@ export function AIImportFlow({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const cancelledRef = useRef(false);
 
   useEffect(() => {
+    // Cleared on the way in, not only set on the way out: StrictMode runs
+    // this cleanup once on a dev mount, and a flag that only ever went true
+    // left every import in `npm run dev` sitting at 0% for good.
+    cancelledRef.current = false;
     return () => {
       cancelledRef.current = true;
     };
   }, []);
+
+  useEffect(() => {
+    // Take the keyboard in with the sheet, and hand it back when the sheet
+    // goes. Opened with a keyboard, focus otherwise stayed on the import
+    // button under the backdrop and Tab walked the dimmed Schedule section
+    // before it ever reached Close.
+    const previous = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => {
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      // A dialog opened over this one answers to Escape first.
+      const above = document.activeElement?.closest('[role="dialog"]');
+      if (above && above !== sheetRef.current) return;
+      e.stopPropagation();
+      onClose();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   function startWithFile(src: 'photo' | 'pdf') {
     setSource(src);
@@ -190,12 +221,23 @@ export function AIImportFlow({
   const aiStepProgress = Math.min(AI_STEPS.length - 1, Math.floor((progress / 100) * AI_STEPS.length));
 
   return (
-    <div className="sheet-backdrop" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-backdrop" onClick={onClose}>
+      {/* The sheet is the dialog, not the backdrop: a tap on the backdrop
+          closes it, and a screen reader had been announcing the close
+          target as the thing that was open. */}
+      <div
+        ref={sheetRef}
+        className="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-import-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="sheet__handle" />
         <div className="import-header">
           <div>
-            <h2 className="import-header__title">
+            <h2 className="import-header__title" id="ai-import-title">
               <Icon name="sparkle" size={18} />
               Import a schedule
             </h2>
@@ -207,7 +249,7 @@ export function AIImportFlow({
                 Add {selectedCount}
               </button>
             )}
-            <button className="icon-btn icon-btn--ghost" onClick={onClose} aria-label="Close">
+            <button ref={closeRef} className="icon-btn icon-btn--ghost" onClick={onClose} aria-label="Close">
               <Icon name="x" size={18} />
             </button>
           </div>

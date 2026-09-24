@@ -13,6 +13,10 @@
  * exactly the plaintext it must not be given. Keyed by the link's token so two
  * contracts open on one phone cannot overwrite each other.
  *
+ * The profile page keeps what a performer typed here too, for the same reason.
+ * Its tokens come from the same generator as a contract's, so the two kinds of
+ * link cannot collide.
+ *
  * The headshot is deliberately not kept. A data URL is megabytes and would
  * exhaust the storage quota, taking the typed answers with it — and picking a
  * photo again is one tap, where retyping a credit list is not.

@@ -188,6 +188,18 @@ describe('signedFileName', () => {
   it('drops punctuation a download would choke on', () => {
     expect(signedFileName('Release / Waiver', 'D\'Arcy')).toBe('Release-Waiver-DArcy.pdf');
   });
+
+  it('keeps a name that is not written in ASCII', () => {
+    // Two signers on a drag bill with non-Latin stage names must not both be
+    // handed 'Agreement-.pdf'.
+    expect(signedFileName('Agreement', 'Zoë Müller')).toBe('Agreement-Zoë-Müller.pdf');
+    expect(signedFileName('Agreement', '李小龙')).toBe('Agreement-李小龙.pdf');
+  });
+
+  it('still names the file when nothing printable is left', () => {
+    expect(signedFileName('Agreement', '???')).toBe('Agreement-signed.pdf');
+    expect(signedFileName('', 'Ada Cole')).toBe('Contract-Ada-Cole.pdf');
+  });
 });
 
 
@@ -264,6 +276,33 @@ describe('prefillFromShow', () => {
 
   it('does not mistake a date of birth for the show date', () => {
     expect(prefillFromShow([f('b', 'Date of birth')], show)).toEqual({});
+  });
+
+  it('does not put the venue in a question about the signer that happens to say "address"', () => {
+    // "Email address" is the commonest wording of the required email question,
+    // and the producer's own suggested copy mentions a payout address. The
+    // venue arriving in either passes the required check with the wrong thing.
+    expect(prefillFromShow([
+      f('e', 'Email address'),
+      f('p', 'Payout address'),
+      f('w', 'Where should we send payment'),
+    ], show)).toEqual({});
+  });
+
+  it('does not read "date" inside another word as the show date', () => {
+    expect(prefillFromShow([f('u', 'Any updates to your bio'), f('c', 'Candidate number')], show)).toEqual({});
+  });
+
+  it('still answers the venue and date questions producers actually write', () => {
+    const filled = prefillFromShow([
+      f('a', 'Venue address'), f('l', 'Location'), f('w', 'Where is it'),
+      f('d', 'Date'), f('n', 'When'),
+    ], show);
+    expect(filled.a).toBe('The Basement — Portland, OR');
+    expect(filled.l).toBe('The Basement — Portland, OR');
+    expect(filled.w).toBe('The Basement — Portland, OR');
+    expect(filled.d).toContain('2026');
+    expect(filled.n).toContain('2026');
   });
 
   it('fills nothing when there is no show, and nothing from an empty show', () => {

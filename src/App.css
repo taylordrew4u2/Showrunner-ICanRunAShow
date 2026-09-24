@@ -1707,21 +1707,29 @@ html {
   background: var(--surface);
 }
 .review-edit--off { opacity: 0.5; }
+/* Painted like .review-row--checked: a filled box with the tick in the
+   on-primary colour. It used to be a white tick on --surface-strong, which is
+   near-white in the light scheme, so every box looked empty whether the cue
+   was going in or not. */
 .review-edit__check {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
   margin-top: var(--space-1);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--surface-strong);
-  color: #fff;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
 }
-.review-edit--off .review-edit__check { background: transparent; }
+.review-edit--off .review-edit__check {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: transparent;
+}
 .review-edit__fields {
   flex: 1;
   min-width: 0;
@@ -1798,6 +1806,13 @@ html {
 @keyframes sheetUp {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
+}
+/* A full-height slide on a phone — the largest movement in the app, and the
+   one Reduce Motion is for. */
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    animation: none;
+  }
 }
 .sheet__handle {
   width: 36px;
@@ -2454,7 +2469,9 @@ html {
   appearance: none;
   width: 20px;
   height: 32px;
-  margin-top: -var(--space-3);
+  /* Half the thumb's overhang past the 8px track, so it rides centred. Not
+     `-var()`, which is invalid and silently dropped. */
+  margin-top: calc(-1 * var(--space-3));
   border-radius: var(--radius-xs);
   border: 1px solid #14171f;
   background:
@@ -3083,6 +3100,24 @@ body:has([aria-modal='true']) .status-rail {
   flex-shrink: 0;
 }
 
+/* The × is the only way out from under a notice, and it measured 23px on a
+   phone. Same floor as every other small control gets on touch. */
+@media (pointer: coarse) {
+  .system-notice__close,
+  .backup-nudge__close {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Tall enough to hit without making the one-line nudge any taller. */
+  .backup-nudge__close {
+    margin-block: calc(-1 * var(--space-2));
+  }
+}
+
 /* First-load overlay: skeleton screens shaped like the shows list, so the app
    appears to be assembling rather than stalled. */
 .app-loading {
@@ -3153,11 +3188,21 @@ body:has([aria-modal='true']) .status-rail {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: var(--space-6);
   text-align: center;
   gap: var(--space-4-5);
+  /* The page scrolls itself. It is a fixed box, so it adds nothing to the
+     document's scroll height — and a pre-show page with a note and eight
+     names is taller than a phone. Without this, the top and bottom were
+     both off the screen and nothing could bring them back. */
+  overflow-y: auto;
 }
+/* Centred by the children's auto margins rather than justify-content: those
+   collapse to nothing once the content is taller than the box, so it starts
+   at the top and can be scrolled to. `center` pushed both ends off-screen. */
+.live-viewer > :first-child { margin-top: auto; }
+.live-viewer > :last-child { margin-bottom: auto; }
 /* The show's name is whatever the producer called it, and this is the page an
    audience opens. Without wrapping, a long name squeezed the status pill off
    the right edge — "SOLD OUT SATURDAY NIGHT COMEDY HOUR" left it reading
@@ -3242,7 +3287,9 @@ body:has([aria-modal='true']) .status-rail {
    because someone chose a blue scheme would not be a warning. */
 .live-viewer--alarm::after {
   content: '';
-  position: absolute;
+  /* Fixed for the same reason as the slashes: the field has to stay red
+     however far the page is scrolled. */
+  position: fixed;
   inset: 0;
   /* Behind the content, which is lifted to z-index 1, and above the page
      background — so the field goes red while the names stay put. */
@@ -3469,10 +3516,11 @@ body:has([aria-modal='true']) .status-rail {
   color: var(--public-white) !important;
   font-family: var(--font-display);
 }
-/* Diagonal red slashes in the background */
+/* Diagonal red slashes in the background. Fixed, not absolute: the viewer
+   scrolls, and an absolute backdrop only covers its first screenful. */
 .live-viewer::before {
   content: '';
-  position: absolute;
+  position: fixed;
   inset: 0;
   background:
     repeating-linear-gradient(

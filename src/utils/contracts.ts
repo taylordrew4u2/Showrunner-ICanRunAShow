@@ -80,10 +80,15 @@ export function prefillFromShow(
     // Order matters: "show name" is asking for the show, not the venue, and
     // "date of birth" is not the show's date.
     if (/\bbirth|\bdob\b/.test(label)) continue;
+    // Questions about the signer, not the booking. "Email address" and "Payout
+    // address" both used to arrive with the venue in them — and the venue in a
+    // required email field passes the required check, so it got sent.
+    if (/e-?mail|pay|bank|venmo|paypal|zelle|mailing/.test(label)) continue;
     let value = '';
-    if (/date|when\b/.test(label)) value = date;
+    // Whole words only: "updates" and "candidate" are not asking for the date.
+    if (/\bdate\b|\bwhen\b/.test(label)) value = date;
     else if (/\btime\b|call time|set time|doors/.test(label)) value = time;
-    else if (/venue|location|address|where/.test(label)) value = venue;
+    else if (/\bvenue\b|\blocation\b|\bwhere\b/.test(label)) value = venue;
     else if (/show|event|production/.test(label)) value = (show.showName ?? '').trim();
     if (value) out[field.id] = value;
   }
@@ -616,8 +621,13 @@ export function contractNameFromFile(fileName: string): string {
   return spaced || base || 'Contract';
 }
 
-/** A name for the signed copy the signer downloads. */
+/**
+ * A name for the signed copy the signer downloads.
+ *
+ * Letters in any script, not just ASCII: `\w` erased every accented and
+ * non-Latin character, so 李小龙 saved a file called "Agreement-.pdf".
+ */
 export function signedFileName(contractName: string, signerName: string): string {
-  const safe = (s: string) => s.trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-  return `${safe(contractName)}-${safe(signerName)}.pdf`;
+  const safe = (s: string) => s.trim().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s+/g, '-');
+  return `${safe(contractName) || 'Contract'}-${safe(signerName) || 'signed'}.pdf`;
 }

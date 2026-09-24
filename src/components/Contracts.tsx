@@ -22,6 +22,7 @@ import {
   isInstagramField,
   withInstagramField,
 } from '../utils/contracts';
+import type { ApiError } from '../utils/api';
 import { generateId } from '../utils/id';
 import { dataUrlToFile } from '../utils/media';
 import { uploadMedia, deleteMedia, isMediaRef } from '../utils/mediaStore';
@@ -86,6 +87,204 @@ function fmtSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Whether a picked file is a PDF.
+ *
+ * Not by type alone: Android file managers often hand over a PDF with the
+ * type left blank, and some desktop browsers call it `application/x-pdf`, so
+ * a real agreement was being refused as "not a PDF". The name settles those.
+ * A file that is genuinely something else still fails to render for the
+ * signer, which is where a bad file shows itself.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function isPdfFile(file: Pick<File, 'type' | 'name'>): boolean {
+  return file.type === 'application/pdf' || file.type === 'application/x-pdf' || /\.pdf$/i.test(file.name);
+}
+
+/**
+ * Whether a withdraw that threw has left the link working on the server.
+ *
+ * A dropped connection or a timeout is not "already gone": the row survives,
+ * the signer can still open and sign, and the producer's copy of the token
+ * and key is the only way that signature can ever be read. Only an answer
+ * from the server saying the row is missing means the link is dead.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function linkStillLive(err: unknown): boolean {
+  return (err as ApiError | null)?.status !== 404;
+}
+
+/**
+ * What a signed contract could add to the signer's Rolodex entry.
+ *
+ * The signer answered these questions themselves, which makes this the most
+ * reliable version of their details the app will ever hold — and the only
+ * moment it gets them without a form to send and chase. Matched by the
+ * Rolodex entry the contract was sent to, falling back to the name, since a
+ * contract typed out by hand still belongs to a person you know.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function pendingImportFor(
+  request: SignatureRequest,
+  comics: PotentialComic[],
+  declined: ReadonlySet<string>,
+): {
+  entry: PotentialComic | null;
+  changes: ProfileChange[];
+  /** A headshot they sent in that isn't on their profile yet. */
+  headshot?: string;
+} {
+  if (!request.signed) return { entry: null, changes: [] };
+  const entry = resolvePerformerComic({ id: '', comicId: request.contactId, name: request.signerName }, comics) ?? null;
+  const all = profileChanges(entry ?? undefined, profileFromAnswers(request.signed.fields));
+  // Offered, never applied on its own: where the entry has no picture the
+  // refresh has already filed it, and where it has one this is the producer's
+  // choice to replace it. Hiding it whenever the entry had any photo at all
+  // meant a headshot someone sent to replace an old one was never seen. But
+  // once it *is* the photo on the profile — filed by the refresh, or saved
+  // from here — there is nothing left to offer, and the offer used to stay
+  // up regardless, asking to replace a photo with itself.
+  const headshot =
+    request.signed.headshot &&
+    entry?.photo !== request.signed.headshot &&
+    !declined.has(`${request.token}:photo`)
+      ? request.signed.headshot
+      : undefined;
+  return {
+    entry,
+    changes: all.filter((c) => !declined.has(`${request.token}:${c.key}`)),
+    headshot,
+  };
+}
+
+/**
+ * The settings to write once the producer accepts an import.
+ *
+ * When there is no entry to write onto, one is made — and the request is
+ * pointed at it. It used to keep whatever contactId it was sent with, which
+ * after that entry was deleted meant the offer came straight back and every
+ * press filed another copy of the same person, none of them linked to the
+ * contract.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function filedImportPatch(
+  settings: Pick<AppSettings, 'potentialComics' | 'signatureRequests'>,
+  request: SignatureRequest,
+  entry: PotentialComic | null,
+  changes: ProfileChange[],
+  photoRef: string | undefined,
+  newId: () => string,
+): { potentialComics: PotentialComic[]; signatureRequests: SignatureRequest[] } {
+  const withPhoto = (person: PotentialComic): PotentialComic =>
+    photoRef ? { ...person, photo: photoRef } : person;
+  // A headshot the refresh could not file arrives here as a data URL and is
+  // uploaded on the way in; the record takes the stored copy too, so the
+  // offer can see it is now the photo on the profile and stand down.
+  const withFiledShot = (r: SignatureRequest): SignatureRequest =>
+    photoRef && r.signed?.headshot && !isMediaRef(r.signed.headshot)
+      ? { ...r, signed: { ...r.signed, headshot: photoRef } }
+      : r;
+  const comics = settings.potentialComics ?? [];
+  const requests = settings.signatureRequests ?? [];
+  if (entry) {
+    return {
+      potentialComics: comics.map((c) => (c.id === entry.id ? withPhoto(applyProfileChanges(c, changes)) : c)),
+      signatureRequests: requests.map((r) => (r.token === request.token ? withFiledShot(r) : r)),
+    };
+  }
+  const created = withPhoto(
+    applyProfileChanges({ id: newId(), name: request.signerName.trim() }, changes),
+  );
+  return {
+    potentialComics: [...comics, created],
+    signatureRequests: requests.map((r) =>
+      r.token === request.token ? withFiledShot({ ...r, contactId: created.id }) : r,
+    ),
+  };
+}
+
+interface ImportOfferProps {
+  request: SignatureRequest;
+  offer: ReturnType<typeof pendingImportFor>;
+  /** True just after a save, for the "Saved" line. */
+  saved: boolean;
+  rolodexTerm: ReturnType<typeof getRolodexTerm>;
+  onDecline: (key: string) => void;
+  onSave: () => void;
+}
+
+/**
+ * The details a signature brought in, offered rather than applied.
+ *
+ * Shown right under the answers, because that is where the producer is
+ * already looking when a contract comes back, and because seeing "Phone:
+ * empty → 555 0142" is the whole argument for pressing the button.
+ *
+ * Defined out here on purpose, for the same reason as RunShow's TrackButton:
+ * declared inside Contracts it was a new component type on every render, so
+ * each keystroke in the name box remounted every offer, blinked the sent
+ * headshot out while it resolved again, and dropped focus from the Skip
+ * buttons.
+ */
+function ImportOffer({ request, offer, saved, rolodexTerm, onDecline, onSave }: ImportOfferProps) {
+  const { entry, changes, headshot } = offer;
+  if (saved) {
+    return <p className="contracts__import contracts__import--done">Saved to their profile</p>;
+  }
+  if (changes.length === 0 && !headshot) return null;
+  return (
+    <div className="contracts__import">
+      <p className="contracts__import-head">
+        {entry
+          ? `Their ${rolodexTerm.singular.toLowerCase()} profile: ${
+              changes.length === 0
+                ? entry.photo ? 'a new headshot' : 'a photo to add'
+                : describeChanges(changes)
+            }`
+          : `Not in your ${rolodexTerm.plural} yet — saving files them with what they sent`}
+      </p>
+      {/* The photo is the one thing you can judge at a glance, so it is
+          shown rather than described. */}
+      {headshot && (
+        <div className="contracts__import-photo">
+          <SentHeadshot src={headshot} alt={`Headshot sent by ${request.signerName}`} />
+          <span>
+            {entry?.photo
+              ? 'They sent a new headshot — saving replaces the one on their profile'
+              : 'They sent a headshot for the flyer'}
+          </span>
+          <button
+            className="btn btn--ghost btn--sm contracts__import-skip"
+            onClick={() => onDecline(`${request.token}:photo`)}
+            aria-label="Leave their photo out"
+          >
+            Skip
+          </button>
+        </div>
+      )}
+      <ul className="contracts__import-list">
+        {changes.map((c) => (
+          <li key={c.key} className="contracts__import-item">
+            <span className="contracts__import-label">{c.label}</span>
+            {c.from && <span className="contracts__import-was">{c.from}</span>}
+            <span className="contracts__import-new">{c.to}</span>
+            <button
+              className="btn btn--ghost btn--sm contracts__import-skip"
+              onClick={() => onDecline(`${request.token}:${c.key}`)}
+              aria-label={`Leave ${c.label} as it is`}
+            >
+              Skip
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button className="btn btn--secondary btn--sm" onClick={onSave}>
+        {entry ? 'Save to profile' : `Add to ${rolodexTerm.plural}`}
+      </button>
+    </div>
+  );
 }
 
 export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows', onUpdateSettings }: ContractsProps) {
@@ -166,7 +365,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (file.type !== 'application/pdf') {
+    if (!isPdfFile(file)) {
       setError('Contracts need to be PDFs. Export or print your document to PDF first.');
       return;
     }
@@ -292,10 +491,21 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     if (!go) return;
     try {
       await revokeSignature(request, session);
-    } catch {
-      // The row may already be gone; drop it locally regardless so the list
-      // does not keep showing a link the producer has decided is dead.
+    } catch (err) {
+      // "Already gone" is dropped locally so the list does not keep showing a
+      // link the producer has decided is dead. A request that never reached
+      // the server is kept: dropping it would throw away the only key that
+      // can read a signature the still-working link goes on to collect.
+      if (linkStillLive(err)) {
+        setError(
+          request.signed
+            ? 'Could not delete that record. Check your connection and try again.'
+            : 'Could not withdraw that link. Check your connection and try again.',
+        );
+        return;
+      }
     }
+    setError(null);
     onUpdateSettings({
       ...settings,
       signatureRequests: requests.filter((r) => r.token !== request.token),
@@ -313,8 +523,19 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     });
     if (!go) return;
     for (const request of sent) {
-      try { await revokeSignature(request, session); } catch { /* already gone */ }
+      try {
+        await revokeSignature(request, session);
+      } catch (err) {
+        // Same as a single withdraw: a link the server still serves is not
+        // deleted from under the producer. The ones already revoked answer
+        // "gone" on the retry, so nothing is done twice.
+        if (linkStillLive(err)) {
+          setError('Could not delete that contract. Check your connection and try again.');
+          return;
+        }
+      }
     }
+    setError(null);
     deleteMedia(contract.fileRef);
     onUpdateSettings({
       ...settings,
@@ -335,39 +556,8 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     });
   }
 
-  /**
-   * What a signed contract could add to the signer's Rolodex entry.
-   *
-   * The signer answered these questions themselves, which makes this the most
-   * reliable version of their details the app will ever hold — and the only
-   * moment it gets them without a form to send and chase. Matched by the
-   * Rolodex entry the contract was sent to, falling back to the name, since a
-   * contract typed out by hand still belongs to a person you know.
-   */
-  function pendingImport(request: SignatureRequest): {
-    entry: PotentialComic | null;
-    changes: ProfileChange[];
-    /** A headshot they sent in that isn't on their profile yet. */
-    headshot?: string;
-  } {
-    if (!request.signed) return { entry: null, changes: [] };
-    const comics = settings.potentialComics ?? [];
-    const entry = resolvePerformerComic({ id: '', comicId: request.contactId, name: request.signerName }, comics) ?? null;
-    const all = profileChanges(entry ?? undefined, profileFromAnswers(request.signed.fields));
-    // Always offered, never applied on its own: where the entry has no
-    // picture the refresh has already filed it, and where it has one this is
-    // the producer's choice to replace it. Hiding it whenever the entry had
-    // any photo at all meant a headshot someone sent to replace an old one
-    // was never seen.
-    const headshot =
-      request.signed.headshot && !declined.has(`${request.token}:photo`)
-        ? request.signed.headshot
-        : undefined;
-    return {
-      entry,
-      changes: all.filter((c) => !declined.has(`${request.token}:${c.key}`)),
-      headshot,
-    };
+  function pendingImport(request: SignatureRequest) {
+    return pendingImportFor(request, settings.potentialComics ?? [], declined);
   }
 
   /** File the accepted details, creating the entry when there isn't one yet. */
@@ -396,19 +586,10 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
       }
     }
 
-    const withPhoto = (person: PotentialComic): PotentialComic =>
-      photoRef ? { ...person, photo: photoRef } : person;
-
-    const comics = settings.potentialComics ?? [];
-    const nextComics = entry
-      ? comics.map((c) => (c.id === entry.id ? withPhoto(applyProfileChanges(c, changes)) : c))
-      : [
-          ...comics,
-          withPhoto(
-            applyProfileChanges({ id: generateId(), name: request.signerName.trim() }, changes),
-          ),
-        ];
-    onUpdateSettings({ ...settings, potentialComics: nextComics });
+    onUpdateSettings({
+      ...settings,
+      ...filedImportPatch(settings, request, entry, changes, photoRef, generateId),
+    });
 
     // Said after the save, not before it: the old message asserted "the details
     // were saved" while the save had yet to happen. The details are safe either
@@ -432,74 +613,6 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
       .filter((c) => c.name.trim() && !done.has(rolodexKey(c.name)))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [open, requests, settings.potentialComics]);
-
-  /**
-   * The details a signature brought in, offered rather than applied.
-   *
-   * Shown right under the answers, because that is where the producer is
-   * already looking when a contract comes back, and because seeing "Phone:
-   * empty → 555 0142" is the whole argument for pressing the button.
-   */
-  function ImportOffer({ request }: { request: SignatureRequest }) {
-    const { entry, changes, headshot } = pendingImport(request);
-    if (imported === request.token) {
-      return <p className="contracts__import contracts__import--done">Saved to their profile</p>;
-    }
-    if (changes.length === 0 && !headshot) return null;
-    return (
-      <div className="contracts__import">
-        <p className="contracts__import-head">
-          {entry
-            ? `Their ${rolodexTerm.singular.toLowerCase()} profile: ${
-                changes.length === 0
-                  ? entry.photo ? 'a new headshot' : 'a photo to add'
-                  : describeChanges(changes)
-              }`
-            : `Not in your ${rolodexTerm.plural} yet — saving files them with what they sent`}
-        </p>
-        {/* The photo is the one thing you can judge at a glance, so it is
-            shown rather than described. */}
-        {headshot && (
-          <div className="contracts__import-photo">
-            <SentHeadshot src={headshot} alt={`Headshot sent by ${request.signerName}`} />
-            <span>
-              {entry?.photo
-                ? 'They sent a new headshot — saving replaces the one on their profile'
-                : 'They sent a headshot for the flyer'}
-            </span>
-            <button
-              className="btn btn--ghost btn--sm contracts__import-skip"
-              onClick={() => setDeclined((d) => new Set(d).add(`${request.token}:photo`))}
-              aria-label="Leave their photo out"
-            >
-              Skip
-            </button>
-          </div>
-        )}
-        <ul className="contracts__import-list">
-          {changes.map((c) => (
-            <li key={c.key} className="contracts__import-item">
-              <span className="contracts__import-label">{c.label}</span>
-              {c.from && <span className="contracts__import-was">{c.from}</span>}
-              <span className="contracts__import-new">{c.to}</span>
-              <button
-                className="btn btn--ghost btn--sm contracts__import-skip"
-                onClick={() =>
-                  setDeclined((d) => new Set(d).add(`${request.token}:${c.key}`))
-                }
-                aria-label={`Leave ${c.label} as it is`}
-              >
-                Skip
-              </button>
-            </li>
-          ))}
-        </ul>
-        <button className="btn btn--secondary btn--sm" onClick={() => void saveToProfile(request)}>
-          {entry ? 'Save to profile' : `Add to ${rolodexTerm.plural}`}
-        </button>
-      </div>
-    );
-  }
 
   // ── One contract, opened ───────────────────────────────────────────────────
   if (open) {
@@ -701,7 +814,16 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                         ))}
                       </dl>
                     ) : null}
-                    {r.signed ? <ImportOffer request={r} /> : null}
+                    {r.signed ? (
+                      <ImportOffer
+                        request={r}
+                        offer={pendingImport(r)}
+                        saved={imported === r.token}
+                        rolodexTerm={rolodexTerm}
+                        onDecline={(key) => setDeclined((d) => new Set(d).add(key))}
+                        onSave={() => void saveToProfile(r)}
+                      />
+                    ) : null}
                     {!r.signed && shownLink === r.token && (
                       <p className="contracts__link">
                         <span className="contracts__link-note">

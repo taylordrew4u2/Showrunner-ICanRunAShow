@@ -29,6 +29,45 @@ export interface RenderedPage {
  */
 const RENDER_WIDTH = 1100;
 
+/**
+ * The WebAssembly decoders pdf.js asks the page for, by the name it asks with.
+ *
+ * A scanned agreement is usually one JPEG 2000 image per page, and pdf.js can
+ * only decode those through its OpenJPEG module. It asks for that module by
+ * filename, and with no answer it drops the image and draws the page without
+ * it: the signer is shown white paper and asked to agree to it. pdf.js expects
+ * the files at one directory URL (`wasmUrl`), which the bundle cannot offer —
+ * Vite hashes every asset's name — so each file is resolved here on its own.
+ */
+const WASM_FILES: Record<string, URL> = {
+  'openjpeg.wasm': new URL('pdfjs-dist/wasm/openjpeg.wasm', import.meta.url),
+  'jbig2.wasm': new URL('pdfjs-dist/wasm/jbig2.wasm', import.meta.url),
+};
+
+/** Fetch one of pdf.js's decoders from the app's own bundle. */
+export async function fetchBundledWasm(
+  filename: string,
+  load: (url: URL) => Promise<Response> = (url) => fetch(url),
+): Promise<Uint8Array> {
+  const url = Object.hasOwn(WASM_FILES, filename) ? WASM_FILES[filename] : undefined;
+  if (!url) throw new Error(`That document needs ${filename}, which the app does not carry.`);
+  const response = await load(url);
+  // A 404 here is an HTML page, and pdf.js would try to run it as a module.
+  if (!response.ok) throw new Error(`Unable to load ${filename}.`);
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+/**
+ * The `WasmFactory` pdf.js constructs and calls from its main-thread side
+ * whenever the worker needs a decoder. pdf.js constructs it with its own
+ * `{ baseUrl }`, which there is no use for here and so no constructor to take.
+ */
+export class BundledWasmFactory {
+  fetch({ filename }: { filename: string }): Promise<Uint8Array> {
+    return fetchBundledWasm(filename);
+  }
+}
+
 function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -80,7 +119,13 @@ export async function renderPdfPages(
     import.meta.url,
   ).toString();
 
-  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  const pdf = await pdfjsLib.getDocument({
+    data: bytes,
+    WasmFactory: BundledWasmFactory,
+    // The worker cannot fetch the decoders itself without a directory URL, so
+    // it asks the page, and the page answers from the bundle.
+    useWorkerFetch: false,
+  }).promise;
   const total = pdf.numPages;
   const pages: RenderedPage[] = [];
 

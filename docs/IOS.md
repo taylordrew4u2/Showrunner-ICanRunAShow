@@ -11,6 +11,12 @@ run on a simulator, install on your iPhone, or submit to the App Store.
   (the API has no CORS headers, so bundled-asset builds would be blocked), and
   web deploys reach the iOS app instantly — no App Store release needed for
   web-side changes.
+- **`window.open` does not work in the shell.** Capacitor's WKWebView
+  delegate hands every `window.open` URL to the system and returns `nil`, so
+  `window.open("", "_blank")` gives the page `null` instead of a new tab.
+  Anything that needs a second window (the print/PDF exports, for one) has to
+  fall back to a same-document route — a hidden iframe plus `window.print()`,
+  or a `blob:` link — or it silently does nothing in the App Store build.
 - **Swift Package Manager, no CocoaPods.** The project was scaffolded with
   `--packagemanager SPM`, so Xcode resolves Capacitor automatically on first
   open. You don't need to install CocoaPods or run `pod install`.

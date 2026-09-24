@@ -69,13 +69,22 @@ export function hasStoredSession(): boolean {
   }
 }
 
+/**
+ * The name an account is filed under. "Taylor", "taylor" and " TAYLOR " are
+ * one account on the server, so anything this device files by name — held
+ * unsaved work, above all — has to be filed the same way, or a sign-in typed
+ * with a phone keyboard's capital letter can never find what the last one held.
+ */
+export function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase();
+}
+
 /** Everything derivable from a password, computed once so it need not be kept. */
 export function credentialsFrom(username: string, password: string): SessionCredentials {
-  const normalized = username.trim().toLowerCase();
   const { key, legacyKey } = deriveSessionKeys(password);
   return {
     username,
-    userId: deriveUserId(normalized),
+    userId: deriveUserId(normalizeUsername(username)),
     authHash: hashPassword(password),
     key,
     legacyKey,
