@@ -22,15 +22,23 @@
 import type { ScheduleItem } from '../types';
 import { parseClockToMinutes } from './showTiming';
 
-/** Minutes-since-midnight → "8:00 PM", wrapping past midnight. */
+/**
+ * Minutes-since-midnight → "8:00 PM", wrapping past midnight.
+ *
+ * Spelled out by hand rather than through the device locale, because this is
+ * what gets *stored*: the Show Time field tidies itself into it, and
+ * "Re-time from lengths" writes it onto every cue. `parseClockToMinutes` reads
+ * exactly one shape, and a phone set to English (Canada) prints "8:00 p.m.",
+ * Korean "PM 8:00", French Canadian "20 h 00" — none of which it reads, so
+ * the show lost its clock the moment the field tried to fix it, and re-editing
+ * produced the same string again. One shape, on every device, that reads back.
+ */
 export function clockLabel(minutes: number): string {
   const wrapped = ((minutes % 1440) + 1440) % 1440;
   const h = Math.floor(wrapped / 60);
   const m = wrapped % 60;
-  return new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
 /** Minutes into the show → "0:00", "0:35", "1:05", "12:20". */

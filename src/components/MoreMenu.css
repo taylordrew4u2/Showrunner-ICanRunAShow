@@ -86,6 +86,13 @@
   background: var(--surface-strong);
 }
 
+/* Arrow keys walk the items, so the one that has focus has to show it. The
+   outline sits inside the list's padding rather than spilling over its edge. */
+.more-menu__item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
 .more-menu__item--danger {
   color: var(--danger-text);
 }

@@ -34,7 +34,7 @@ test('every show has the workspace with private notes and working planning tools
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   await page.screenshot({path:testInfo.outputPath('workspace.png'),fullPage:false,animations:'disabled'});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await expect(page.getByText('Everything is saved',{exact:false})).toBeVisible();
+  await expect(page.locator('.sync-status--saved')).toBeVisible();
 
   // Scrolled well into the show, the Run Show bar is the only thing pinned: it
   // sits flush under the status band, spans the card edge to edge, and the

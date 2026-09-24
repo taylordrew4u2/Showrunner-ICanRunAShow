@@ -108,7 +108,22 @@ export interface StoredMedia {
   id: string;
   chunks: number;
   bytes: number;
+  /** Seconds since its newest chunk landed, on the server's clock. Absent from older listings. */
+  ageSeconds?: number;
 }
+
+/**
+ * How recently uploaded a file can be and still be left alone.
+ *
+ * Chunks reach the server before the show pointing at them is saved — from a
+ * form still open on the phone, or from an upload half done in another tab —
+ * and until that save lands, no data anywhere references them. Judged on
+ * references alone they are orphans, and the sweep deleted them out from under
+ * the show that was about to use them. A day covers a slow upload, the form
+ * being finished, and a save that queued while the connection was down; the
+ * cost is that a file genuinely abandoned today waits until tomorrow.
+ */
+export const UPLOAD_GRACE_SECONDS = 24 * 60 * 60;
 
 /** Every media id reachable from the account's current data. */
 export function liveMediaIds(shows: Show[], settings: AppSettings): Set<string> {
@@ -128,6 +143,10 @@ export function liveMediaIds(shows: Show[], settings: AppSettings): Set<string> 
  * These are the ones deletion used to leave behind: a show removed before
  * anything collected its uploads has no trace left in the account's data, so
  * its audio is unreachable but still stored.
+ *
+ * A file uploaded within the grace period is kept whatever the data says: it
+ * may be about to be referenced. One with no age is judged on references
+ * alone — nothing recent could be missing a date.
  */
 export function unreferencedMedia(
   stored: StoredMedia[],
@@ -135,7 +154,10 @@ export function unreferencedMedia(
   settings: AppSettings,
 ): StoredMedia[] {
   const live = liveMediaIds(shows, settings);
-  return stored.filter((item) => !live.has(item.id));
+  return stored.filter((item) => {
+    if (live.has(item.id)) return false;
+    return !(item.ageSeconds !== undefined && item.ageSeconds < UPLOAD_GRACE_SECONDS);
+  });
 }
 
 export interface SweepReport {
@@ -148,10 +170,12 @@ export interface SweepReport {
 /**
  * Find and delete every stored file the account no longer references.
  *
- * The caller must be sure `shows` and `settings` are the account's complete,
- * loaded data — a half-loaded client would see almost nothing as referenced
- * and delete almost everything. `dryRun` reports without touching anything,
- * which is what the screen offering this shows before asking.
+ * The caller must be sure `shows` and `settings` are the account's complete
+ * data as the server holds it *now* — a half-loaded client would see almost
+ * nothing as referenced and delete almost everything, and a tab open since
+ * the morning knows nothing of what the phone uploaded this afternoon. `dryRun`
+ * reports without touching anything, which is what the screen offering this
+ * shows before asking.
  */
 export async function sweepUnusedMedia(
   shows: Show[],

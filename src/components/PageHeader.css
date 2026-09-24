@@ -17,7 +17,9 @@
   align-items: center;
   gap: var(--space-1);
   min-height: 36px;
-  margin-left: -var(--space-2);
+  /* Not `-var()`: that is invalid and dropped, and the chevron stayed 8px in
+     from the title it is meant to line up with. */
+  margin-left: calc(-1 * var(--space-2));
   padding: var(--space-1-5) var(--space-2-5) var(--space-1-5) var(--space-2);
   border: 0;
   border-radius: var(--radius-md);

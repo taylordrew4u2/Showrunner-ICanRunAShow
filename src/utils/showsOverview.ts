@@ -1,5 +1,6 @@
 import type { Show } from '../types';
 import { parseShowDate, toDateKey } from './showDate';
+import { parseClockToMinutes } from './showTiming';
 
 /**
  * What the Shows page can tell you before you read a single card.
@@ -105,7 +106,7 @@ export function buildOverview(shows: Show[], today: Date = new Date()): ShowsOve
   const dated = ahead
     .map((show) => ({ show, date: parseShowDate(show.date) }))
     .filter((entry): entry is { show: Show; date: Date } => entry.date !== null)
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
+    .sort((a, b) => compareByWhen(a.show, b.show));
 
   const next = dated[0] ?? null;
 
@@ -119,7 +120,7 @@ export function buildOverview(shows: Show[], today: Date = new Date()): ShowsOve
   const attention: AttentionItem[] = [
     ...needsLineup.map((show) => ({ show, reason: 'lineup' as const, label: 'No lineup yet' })),
     ...needsSchedule.map((show) => ({ show, reason: 'schedule' as const, label: 'No running order' })),
-  ].sort((a, b) => sortKey(a.show) - sortKey(b.show));
+  ].sort((a, b) => compareByWhen(a.show, b.show));
 
   return {
     nextShow: next?.show ?? null,
@@ -135,6 +136,27 @@ export function buildOverview(shows: Show[], today: Date = new Date()): ShowsOve
 function sortKey(show: Show): number {
   const date = parseShowDate(show.date);
   return date ? date.getTime() : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Orders shows by day, then by start time within the day.
+ *
+ * Two shows on one night are common — an early and a late — and the date
+ * alone can't tell them apart. Left as a tie, they keep list order, which is
+ * newest-created first, so the show added second led the dashboard whatever
+ * time it started. A show with no readable time sorts after the ones that
+ * have one: it can't claim to be sooner than a show that says when it is.
+ */
+export function compareByWhen(a: Show, b: Show): number {
+  // Compared rather than subtracted: two undated shows are both Infinity,
+  // and Infinity minus Infinity is NaN, not the tie it is.
+  const aDay = sortKey(a);
+  const bDay = sortKey(b);
+  if (aDay !== bDay) return aDay < bDay ? -1 : 1;
+  const aTime = parseClockToMinutes(a.time) ?? Number.POSITIVE_INFINITY;
+  const bTime = parseClockToMinutes(b.time) ?? Number.POSITIVE_INFINITY;
+  if (aTime === bTime) return 0;
+  return aTime < bTime ? -1 : 1;
 }
 
 /**

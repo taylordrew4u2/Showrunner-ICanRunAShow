@@ -1,8 +1,8 @@
-import { useId, useState } from 'react';
+import { useCallback, useId, useState } from 'react';
 import type { Artist, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
 import { ArtistProfile } from './ArtistProfile';
-import { PerformerProfile } from './PerformerProfile';
+import { PerformerProfile, ProfileDrawer } from './PerformerProfile';
 import { comicToArtist } from '../../utils/rolodex';
 
 interface ArtistsSectionProps {
@@ -19,6 +19,9 @@ export function ArtistsSection({ artists, potentialComics = [], onChange }: Arti
   const [showRolodex, setShowRolodex] = useState(false);
 
   const selectedArtist = artists.find((a) => a.id === selectedId) ?? null;
+  // Stable, so the drawer's Escape listener is not torn down on every keystroke
+  // in the profile.
+  const closeProfile = useCallback(() => setSelectedId(null), []);
 
   function addArtist() {
     if (!name.trim()) return;
@@ -142,39 +145,39 @@ export function ArtistsSection({ artists, potentialComics = [], onChange }: Arti
       </ul>
 
       {selectedArtist && (
-        <>
-          <div className="perf-drawer__backdrop" onClick={() => setSelectedId(null)} />
-          <div className="perf-drawer">
-            {selectedArtist.comicId ? (
-              <>
-                <div className="perf-profile__field perf-profile__artist-type">
-                  <label className="perf-profile__label" htmlFor={artistTypeId}>Artist type for this show</label>
-                  <input id={artistTypeId}
-                    className="perf-profile__input"
-                    value={selectedArtist.artistType || ''}
-                    onChange={e => updateArtist({ ...selectedArtist, artistType: e.target.value || undefined })}
-                    placeholder="e.g. Musician, magician, poet"
-                  />
-                </div>
-                <PerformerProfile
-                  performer={selectedArtist}
-                  backLabel="Artists"
-                  inRolodex
-                  onBack={() => setSelectedId(null)}
-                  onChange={updateArtist}
-                  onDelete={deleteArtist}
+        <ProfileDrawer
+          label={`${selectedArtist.name.trim() || 'Artist'}'s profile`}
+          onClose={closeProfile}
+        >
+          {selectedArtist.comicId ? (
+            <>
+              <div className="perf-profile__field perf-profile__artist-type">
+                <label className="perf-profile__label" htmlFor={artistTypeId}>Artist type for this show</label>
+                <input id={artistTypeId}
+                  className="perf-profile__input"
+                  value={selectedArtist.artistType || ''}
+                  onChange={e => updateArtist({ ...selectedArtist, artistType: e.target.value || undefined })}
+                  placeholder="e.g. Musician, magician, poet"
                 />
-              </>
-            ) : (
-              <ArtistProfile
-                artist={selectedArtist}
-                onBack={() => setSelectedId(null)}
+              </div>
+              <PerformerProfile
+                performer={selectedArtist}
+                backLabel="Artists"
+                inRolodex
+                onBack={closeProfile}
                 onChange={updateArtist}
                 onDelete={deleteArtist}
               />
-            )}
-          </div>
-        </>
+            </>
+          ) : (
+            <ArtistProfile
+              artist={selectedArtist}
+              onBack={closeProfile}
+              onChange={updateArtist}
+              onDelete={deleteArtist}
+            />
+          )}
+        </ProfileDrawer>
       )}
     </div>
   );

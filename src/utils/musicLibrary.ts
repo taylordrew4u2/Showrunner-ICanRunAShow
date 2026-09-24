@@ -97,6 +97,37 @@ export function songFromTrack(track: MusicTrack, id: string): DJSong {
 }
 
 /**
+ * A show's DJ list once the audio is taken off one of its rows.
+ *
+ * A row the library fills in is not in the show's own list, so clearing its
+ * audio in place found nothing to clear — the button confirmed and changed
+ * nothing. The row is copied into the show first, the way any other edit to a
+ * library row is, and the library original hidden so the same song is not
+ * listed twice. The library keeps its audio: only this show let go of it.
+ */
+export function songsWithoutAudio(
+  own: DJSong[],
+  hidden: string[],
+  song: DJSong,
+  library: MusicTrack[],
+  newId: string,
+): Pick<Show, 'djSongs' | 'djHiddenLibraryIds'> {
+  const silent = { music: undefined, musicName: undefined, libraryId: undefined };
+  if (!isAutoLibrarySong(song)) {
+    return {
+      djSongs: own.map((s) => (s.id === song.id ? { ...s, ...silent } : s)),
+      djHiddenLibraryIds: hidden,
+    };
+  }
+  const track = library.find((t) => t.id === song.libraryId);
+  const base = track ? songFromTrack(track, newId) : { ...song, id: newId };
+  return {
+    djSongs: [...own, { ...base, ...silent }],
+    djHiddenLibraryIds: song.libraryId ? [...new Set([...hidden, song.libraryId])] : hidden,
+  };
+}
+
+/**
  * Whether removing a song from a show should delete its audio. A song that
  * came from the library never owns its media; one uploaded straight into the
  * show does.

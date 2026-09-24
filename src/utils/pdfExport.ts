@@ -94,13 +94,15 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     .meta { color: #4B5563; margin-bottom: 4px; font-size: 14px; }
     h2 { font-size: 16px; color: #6B46C1; border-bottom: 2px solid #6B46C1; padding-bottom: 6px; margin: 24px 0 10px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-    th { background: #6B46C1; color: #fff; padding: 8px 12px; text-align: left; font-size: 12px; }
+    /* White text on a fill. Print dialogs drop backgrounds by default, which
+       would leave every header row a blank strip — so the fill is forced. */
+    th { background: #6B46C1; color: #fff; padding: 8px 12px; text-align: left; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     td { padding: 7px 12px; border-bottom: 1px solid #E5E7EB; font-size: 13px; vertical-align: top; }
     tr:last-child td { border-bottom: none; }
-    .total-row td { font-weight: bold; background: #F3F4F6; }
+    .total-row td { font-weight: bold; background: #F3F4F6; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .rules-box { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 14px; margin-top: 10px; white-space: pre-wrap; font-size: 13px; }
     .section-empty { color: #9CA3AF; font-style: italic; font-size: 12px; padding: 6px 0; }
-    .badge { display: inline-block; background: #EDE9FE; color: #5B21B6; border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+    .badge { display: inline-block; background: #EDE9FE; color: #5B21B6; border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; margin-left: 6px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .badge--green { background: #D1FAE5; color: #065F46; }
     .todo-item { padding: 4px 0; border-bottom: 1px solid #F3F4F6; font-size: 13px; }
     .todo-item:last-child { border-bottom: none; }
@@ -389,7 +391,9 @@ export function exportDJListToPDF(show: Show, library: MusicTrack[] = []): void 
     .meta { color: #4B5563; margin-bottom: 4px; font-size: 13px; }
     h2 { font-size: 15px; color: #0F766E; border-bottom: 2px solid #0F766E; padding-bottom: 6px; margin: 24px 0 10px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-    th { background: #0F766E; color: #fff; padding: 8px 12px; text-align: left; font-size: 12px; }
+    /* Forced for the same reason as the runsheet's: printers strip the fill
+       and take the white header text with it. */
+    th { background: #0F766E; color: #fff; padding: 8px 12px; text-align: left; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     td { padding: 7px 12px; border-bottom: 1px solid #E5E7EB; font-size: 13px; }
     tr:last-child td { border-bottom: none; }
   </style>

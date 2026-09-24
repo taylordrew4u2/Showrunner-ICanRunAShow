@@ -4,6 +4,8 @@ import type { ProfileSubmission } from '../types';
 import { collectFieldAnswers, missingRequiredFields } from '../utils/contracts';
 import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
 import { readFileAsDataURL } from '../utils/media';
+import { clearSignerDraft, loadSignerDraft, saveSignerDraft } from '../utils/signerDraft';
+import { isEmail } from '../utils/social';
 import { submitFailureMessage } from '../utils/submitFailure';
 import {
   fetchProfileRequest,
@@ -19,7 +21,7 @@ interface ProfilePageProps {
   profileKey: string | null;
 }
 
-type Phase = 'nokey' | 'loading' | 'missing' | 'ready' | 'sending' | 'done';
+type Phase = 'nokey' | 'loading' | 'load-error' | 'missing' | 'ready' | 'sending' | 'done';
 
 /**
  * The page a performer sees when a producer sends them a profile link.
@@ -45,28 +47,51 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     if (!profileKey) return;
     let cancelled = false;
+    setPhase('loading');
     (async () => {
-      const view = await fetchProfileRequest(token, profileKey);
-      if (cancelled) return;
-      if (!view) {
-        setPhase('missing');
-        return;
-      }
-      setPayload(view.payload);
-      setTypedName(view.payload.personName);
-      if (view.submitted) {
-        setSubmitted(view.submitted);
-        setPhase('done');
-      } else {
-        setPhase('ready');
+      try {
+        const view = await fetchProfileRequest(token, profileKey);
+        if (cancelled) return;
+        if (!view) {
+          setPhase('missing');
+          return;
+        }
+        setPayload(view.payload);
+        // What they typed before the tab was killed comes first; the
+        // producer's spelling of their name is only the starting point.
+        const draft = loadSignerDraft(token);
+        setTypedName(draft?.signerName ?? view.payload.personName);
+        setValues(draft?.values ?? {});
+        if (view.submitted) {
+          setSubmitted(view.submitted);
+          clearSignerDraft(token);
+          setPhase('done');
+        } else {
+          setPhase('ready');
+        }
+      } catch {
+        // The request died, which says nothing about the link. Offer another
+        // go rather than telling them it was withdrawn.
+        if (!cancelled) setPhase('load-error');
       }
     })();
     return () => { cancelled = true; };
-  }, [token, profileKey]);
+  }, [token, profileKey, loadAttempt]);
+
+  /*
+   * Written on every change, as the signing page does: a tab discarded in the
+   * background while they go to find a headshot does not warn first, and an
+   * empty form on return is where someone gives up and texts instead.
+   */
+  useEffect(() => {
+    if (phase !== 'ready') return;
+    saveSignerDraft(token, { signerName: typedName, values });
+  }, [token, typedName, values, phase]);
 
   /**
    * Take the photo down to flyer size on this device, before it goes
@@ -85,11 +110,23 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
     }
   }
 
+  /**
+   * An email the producer's import would drop. It only files an answer that
+   * looks like an address, so "mona at gmail dot com" sealed the link and
+   * then vanished — the one required answer, gone without a trace.
+   */
+  const emailProblem = (() => {
+    const typed = (values.email ?? '').trim();
+    return typed && !isEmail(typed) ? 'That does not look like an email address.' : null;
+  })();
+
   async function handleSend() {
     if (!profileKey || !payload) return;
     const name = typedName.trim();
     const missing = missingRequiredFields(payload.fields, values);
-    if (!name || missing.length > 0) return;
+    // The photo is still being shrunk: sending now would send without it, and
+    // the link takes answers only once.
+    if (!name || missing.length > 0 || emailProblem || photoBusy) return;
     setPhase('sending');
     setError(null);
     try {
@@ -114,6 +151,7 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
         photoChunks,
       );
       setSubmitted(record);
+      clearSignerDraft(token);
       setPhase('done');
     } catch (err) {
       // Same as the signing page: a write that lost its answer is not a write
@@ -122,6 +160,7 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
       const landed = await fetchProfileRequest(token, profileKey!).catch(() => null);
       if (landed?.submitted) {
         setSubmitted(landed.submitted);
+        clearSignerDraft(token);
         setPhase('done');
         return;
       }
@@ -142,6 +181,18 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
               ? 'The link is missing its key. Open it exactly as it was sent — copying only part of it leaves the key behind.'
               : 'It may have been withdrawn, or the address was not copied in full. Ask whoever sent it for a fresh one.'}
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'load-error') {
+    return (
+      <div className="signing signing--message">
+        <div className="signing__card">
+          <h1>Let’s try opening that again</h1>
+          <p role="alert">The page could not finish loading. Check your connection and try again.</p>
+          <button className="btn btn--primary" onClick={() => setLoadAttempt((n) => n + 1)}>Try again</button>
         </div>
       </div>
     );
@@ -171,7 +222,11 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
             <p className="signing__done-line">
               {payload.fromName} has what they need to book you and put you on the flyer.
             </p>
-            {headshot && <img className="signing__photo-preview" src={headshot} alt="Your headshot" />}
+            {/* Only a photo that went with the answers. One chosen after
+                pressing Send was never uploaded, and the link is sealed. */}
+            {headshot && submitted.photoChunks
+              ? <img className="signing__photo-preview" src={headshot} alt="Your headshot" />
+              : null}
             <dl className="signing__answers">
               <div className="signing__answer">
                 <dt>Name</dt>
@@ -227,8 +282,12 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
                     value={values[f.id] ?? ''}
                     placeholder={f.placeholder}
                     autoComplete={f.id === 'email' ? 'email' : f.id === 'phone' ? 'tel' : 'off'}
+                    aria-invalid={f.id === 'email' && !!emailProblem}
                     onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.value }))}
                   />
+                )}
+                {f.id === 'email' && emailProblem && (
+                  <small className="signing__photo-error" role="alert">{emailProblem}</small>
                 )}
               </label>
             ))}
@@ -274,9 +333,9 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
             <button
               className="btn btn--primary signing__cta"
               onClick={handleSend}
-              disabled={phase === 'sending' || !typedName.trim() || missing.length > 0}
+              disabled={phase === 'sending' || !typedName.trim() || missing.length > 0 || !!emailProblem || photoBusy}
             >
-              {phase === 'sending' ? 'Sending…' : 'Send my details'}
+              {phase === 'sending' ? 'Sending…' : photoBusy ? 'Adding your photo…' : 'Send my details'}
             </button>
             {missing.length > 0 && (
               <p className="signing__hint">Still needed: {missing.join(', ')}</p>

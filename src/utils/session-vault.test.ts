@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { credentialsFrom } from './session-vault';
+import { credentialsFrom, normalizeUsername } from './session-vault';
 import { deriveKey, deriveUserId, hashPassword } from './encryption';
 
 // A password with no hex characters in it, so a substring hit against a
@@ -40,5 +40,13 @@ describe('credentialsFrom', () => {
 
   it('preserves the username as typed, for display', () => {
     expect(credentialsFrom('  Producer  ', PASSWORD).username).toBe('  Producer  ');
+  });
+});
+
+describe('the name an account is filed under', () => {
+  it('is the same however the producer capitalised or spaced it at sign-in', () => {
+    expect(normalizeUsername('  Producer  ')).toBe('producer');
+    expect(normalizeUsername('PRODUCER')).toBe(normalizeUsername('producer'));
+    expect(credentialsFrom(' Producer ', PASSWORD).userId).toBe(deriveUserId(normalizeUsername(' Producer ')));
   });
 });

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { HeadshotPanel } from '../HeadshotPanel';
 import { audioUploadSizeError } from '../../utils/media';
@@ -33,6 +33,108 @@ interface PerformerProfileProps {
    * no idea about settings or the session, and does not need one.
    */
   contracts?: React.ReactNode;
+}
+
+/**
+ * Whether `dialog` is the one the keyboard is in.
+ *
+ * A confirmation ("Remove this performer?") and the headshot preview both open
+ * over the drawer, and every one of them listens for Escape on the document.
+ * Only the one on top should answer, or one press dismissed the question and
+ * the profile it was asked about. Focus nowhere, or on the page under the
+ * backdrop, still counts as the drawer's: it is the thing on top.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function isFrontDialog(dialog: Element, active: Element | null): boolean {
+  const above = active?.closest('dialog, [role="dialog"]') ?? null;
+  return above === null || above === dialog;
+}
+
+const FOCUSABLE =
+  'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * The panel a profile opens in — a dialog, not a div that happens to cover
+ * the page.
+ *
+ * Opened with a keyboard, focus used to stay on the row's Profile button under
+ * the backdrop: the next Tab landed on "Move performer 4 up", dimmed or, on a
+ * phone, off the screen entirely, and Escape did nothing. The keyboard comes
+ * in with the drawer, stays inside it, and goes back to the row when it
+ * closes.
+ */
+export function ProfileDrawer({ label, onClose, children }: {
+  /** What the dialog is called for someone who cannot see it. */
+  label: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    // The drawer itself, not its first control: on a phone that is a text
+    // field, and focusing it raises the keyboard over a profile nobody has
+    // asked to edit yet.
+    drawerRef.current?.focus();
+    return () => {
+      // The row's button leaves with the row when the performer is removed,
+      // and focusing a detached node drops focus to the top of the page.
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const drawer = drawerRef.current;
+      if (!drawer || !isFrontDialog(drawer, document.activeElement)) return;
+      if (e.key === 'Tab') {
+        // Tab stays inside: aria-modal alone does not keep a keyboard out of
+        // the page behind the backdrop, whose controls still work when reached.
+        const controls = [...drawer.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+          (el) => el.getClientRects().length > 0,
+        );
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (!first) {
+          e.preventDefault();
+          drawer.focus();
+          return;
+        }
+        const active = document.activeElement;
+        if (!drawer.contains(active) || active === drawer || (e.shiftKey ? active === first : active === last)) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        }
+        return;
+      }
+      if (e.key !== 'Escape') return;
+      // Spent here: Run Show listens on window, downstream of document, and
+      // would otherwise close on the same press.
+      e.stopPropagation();
+      onClose();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <>
+      {/* Pressing the dim page is a way out for a pointer; Escape is the
+          keyboard's, so this needs no role of its own. */}
+      <div className="perf-drawer__backdrop" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={drawerRef}
+        className="perf-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        tabIndex={-1}
+      >
+        {children}
+      </div>
+    </>
+  );
 }
 
 export function PerformerProfile({ performer, onBack, backLabel = 'Performers', onChange, onDelete, onSaveToRolodex, inRolodex, contracts }: PerformerProfileProps) {

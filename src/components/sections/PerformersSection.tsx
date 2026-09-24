@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
 import { comicToPerformer, rolodexKey } from '../../utils/rolodex';
@@ -6,7 +6,7 @@ import { socialLink } from '../../utils/social';
 import { LineupActions } from '../LineupActions';
 import { lineupProgress } from '../../utils/lineupTarget';
 import { describeGaps, lineupGaps } from '../../utils/performerReadiness';
-import { PerformerProfile } from './PerformerProfile';
+import { PerformerProfile, ProfileDrawer } from './PerformerProfile';
 import { Icon } from '../Icon';
 import type { SignerStatus } from '../../utils/contracts';
 
@@ -82,6 +82,9 @@ export function PerformersSection({
   const [filed, setFiled] = useState<string | null>(null);
 
   const selectedPerformer = performers.find(p => p.id === selectedId) ?? null;
+  // Stable, so the drawer's Escape listener is not torn down on every keystroke
+  // in the profile.
+  const closeProfile = useCallback(() => setSelectedId(null), []);
 
   useEffect(() => {
     if (!filed) return;
@@ -490,20 +493,20 @@ export function PerformersSection({
 
 
       {selectedPerformer && (
-        <>
-          <div className="perf-drawer__backdrop" onClick={() => setSelectedId(null)} />
-          <div className="perf-drawer">
-            <PerformerProfile
-              performer={selectedPerformer}
-              onBack={() => setSelectedId(null)}
-              onChange={updatePerformer}
-              onDelete={deletePerformer}
-              onSaveToRolodex={onSaveToRolodex}
-              inRolodex={filedInRolodex.has(rolodexKey(selectedPerformer.name))}
-              contracts={renderContracts?.(selectedPerformer)}
-            />
-          </div>
-        </>
+        <ProfileDrawer
+          label={`${selectedPerformer.name.trim() || 'Performer'}'s profile`}
+          onClose={closeProfile}
+        >
+          <PerformerProfile
+            performer={selectedPerformer}
+            onBack={closeProfile}
+            onChange={updatePerformer}
+            onDelete={deletePerformer}
+            onSaveToRolodex={onSaveToRolodex}
+            inRolodex={filedInRolodex.has(rolodexKey(selectedPerformer.name))}
+            contracts={renderContracts?.(selectedPerformer)}
+          />
+        </ProfileDrawer>
       )}
     </div>
   );

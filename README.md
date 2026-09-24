@@ -133,7 +133,7 @@ Live show coordinators have no dedicated tool that spans pre-show planning and r
 I Can Run A Show handles the full workflow in a single application:
 
 - **Before the show:** build the lineup, attach walk-on music and profile data to each performer, track the budget, coordinate staff and hosts, and export a PDF runsheet
-- **Day of:** upload a photo, PDF, or plain text to import the schedule automatically (with OCR + regex fallback)
+- **Day of:** upload a photo, PDF, or plain text to import the schedule — read on the device, with OCR for photos
 - **During the show:** run a full-screen live mode with per-cue countdowns, manual walk-on music with automatic fade in/out, and live status broadcast to a public viewer URL
 
 ---
@@ -156,8 +156,8 @@ I Can Run A Show handles the full workflow in a single application:
 - Vendors, staff, host, expenses, and per-section deadlines on each show
 
 **Schedule import**
-- Automatic schedule import from images and text — routed through a server-side extraction proxy so the API key never ships in the bundle; PDF.js (PDFs) and the regex parser run in the browser
-- On-device OCR fallback (Tesseract.js) + local parsing when the server has no extraction key configured
+- Schedule import from a photo, a PDF, or pasted text — all read on the device: PDF.js for PDFs, Tesseract.js OCR for photos, then a line parser that picks out times, performers and durations
+- Nothing leaves the phone and there is no key or account to add; a photo of a messy run sheet gets what OCR can read off it, not a model's guess
 
 **Run show**
 - Full-screen live mode: a clock, a soundboard, and the lineup — the clock and the sound are independent, so nothing you press changes the time
@@ -191,7 +191,7 @@ I Can Run A Show handles the full workflow in a single application:
 - **Database:** Turso (libSQL — serverless SQLite at the edge), accessed **server-side** via `@libsql/client`
 - **Server API:** Vercel serverless functions (Node) under `/api` — all DB reads/writes go through these, so no DB credential is exposed to the browser
 - **Encryption:** crypto-js (PBKDF2 key derivation, AES)
-- **Schedule extraction:** server-side proxy for image + text parsing; Tesseract.js OCR fallback
+- **Schedule import:** Tesseract.js OCR for photos + a line parser — all on the device, no service
 - **PDF:** PDF.js (pdfjs-dist) — client-side extraction
 - **Typography:** Inter — the variable axis, self-hosted and precached, so the design survives a dead connection (see [Technical Decisions](#technical-decisions))
 - **Styling:** Custom CSS with a comprehensive design-token system — no CSS framework
@@ -225,7 +225,7 @@ showrunner/
 │       ├── secure-storage.ts    # Client-side encryption + calls to the API
 │       ├── encryption.ts        # Key derivation and AES helpers (browser)
 │       ├── api.ts               # fetch wrapper for the server API
-│       ├── aiExtractor.ts       # extraction proxy call + PDF.js + OCR + regex pipeline
+│       ├── aiExtractor.ts       # on-device PDF.js + OCR + line-parser pipeline
 │       ├── audioEngine.ts       # Web Audio wrapper with fade + preload
 │       ├── pdfExport.ts         # Client-side PDF generation
 │       ├── liveView.ts          # Live state pub/sub (via the API)
@@ -372,7 +372,7 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 - Designed and built the application from scratch, solo
 - Designed the layout phone-first with no layout library — one set of components whose *shape* changes with width: cards where two fit side by side, iOS-style inset list rows on a phone, and a bottom navigation that becomes a sidebar on a wide screen
 - Built the encryption layer: password-derived AES keys via PBKDF2, all data encrypted before reaching Turso; per-show write is debounced 1s
-- Built the schedule import pipeline: server-side image extraction for photos (via a proxy so the key stays off the client), PDF.js for multi-page PDFs in the browser, and a Tesseract.js OCR + regex fallback for plain text
+- Built the schedule import pipeline, entirely on the device: PDF.js for multi-page PDFs, Tesseract.js OCR for photos, and a line parser that reads times, performers and durations out of whatever text either produces
 - Built the Web Audio engine wrapper for cue music — single AudioContext unlocked on Start, fade-in / fade-out on every cue change, buffer preloading for the current and next cue, and context-resume retry to survive iOS Safari auto-suspension
 - Built the public read-only viewer URL, broadcast live from Run Show
 - Built the performer rolodex with cross-show sync — editing a rolodex entry propagates to all matching performers
@@ -394,7 +394,7 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 
 **Deleting an upload is a reachability question, not a delete.** Uploads live as encrypted chunks, and for a long time nothing collected them — a deleted show left its walk-on tracks and headshots on the server for good. The naive fix loses data, because a reference is not owned by whoever holds it: duplicating a show `structuredClone`s it, so the copy carries the *same* media ids; a library track appears in every show's DJ list while the audio belongs to the library; and a show in the trash is still restorable. So the collector subtracts everything still reachable — from any remaining show, the library, the Rolodex, contracts, and the trash — and deletes only the remainder. Reclaiming what older builds already stranded is split across the trust boundary out of necessity: the server can list what it stores but cannot know what is in use, so it hands over the inventory and the browser decides. That sweep is gated on the account having actually loaded, because a client that failed to load would judge every file unused.
 
-**Import pipeline with fallback.** Schedule import works without an API key by falling back to OCR + regex matching for common time formats. This makes the feature usable in environments where the extraction key is not configured or hits a rate limit.
+**Import runs on the device, and only there.** Schedule import used to try a paid model over the network first, which meant a producer setting the app up read that they needed to buy a key to import a run sheet. They never did. It is now PDF.js, on-device OCR and a line parser matching common time formats — nothing leaves the phone, nothing in the app can bill anyone, and the feature works the same on every install.
 
 **Web Audio API for cue music.** HTMLAudioElement was unreliable across iOS Safari's autoplay rules after auto-advance / pre-roll. The Web Audio path unlocks a single AudioContext on the Start tap, preloads buffers, and explicitly resumes the context on every play — this is the only path that works reliably in the field.
 
@@ -455,7 +455,7 @@ CI (GitHub Actions) runs lint, type-check, build and unit tests on every push an
 - The database is reached only through server-side API routes; the Turso credential is a server env var and is never included in the client bundle
 - The stored auth credential is a per-user salted, slow PBKDF2 hash (the client hash is never stored verbatim), compared in constant time, with legacy rows upgraded transparently on next login
 - Authentication is rate-limited (per-account fixed window); public upsert routes cap payload size
-- The optional schedule extractor runs behind a server proxy, so the key stays in the server environment and never ships in the client bundle
+- Schedule import runs entirely on the device, so a photo of a run sheet is never uploaded anywhere
 - The encryption KDF uses SHA-256 at 100k iterations; reaching the OWASP 600k target needs migrating from pure-JS crypto-js to native WebCrypto/Argon2 (a tracked follow-up)
 
 ---
@@ -478,8 +478,8 @@ A full keyboard-navigation + ARIA + color-contrast audit is a future improvement
 
 - The encryption-key KDF still uses a static (non-per-user) salt and, capped by pure-JS crypto-js, 100k iterations rather than the OWASP-recommended 600k — improving both needs a move to native WebCrypto/Argon2
 - No password recovery — losing the password means losing access to all data
-- Automatic schedule import depends on a server-side API key; without it, only the OCR + regex fallback runs
-- The OCR fallback fetches its worker and language data from a CDN at runtime, so schedule-import-from-photo needs a live connection even though the rest of the app is offline-capable. Lower risk than it sounds — importing a schedule is desk work during planning, not something done in a venue at 7pm — but it is not offline
+- Schedule import from a photo is OCR plus a line parser, not a model: a clean printed run sheet imports well, a handwritten or crooked one may need rows fixed by hand afterwards
+- The OCR fetches its worker and language data from a CDN at runtime, so schedule-import-from-photo needs a live connection even though the rest of the app is offline-capable. Lower risk than it sounds — importing a schedule is desk work during planning, not something done in a venue at 7pm — but it is not offline
 - The stage remote is any Bluetooth clicker that pairs as a keyboard. A phone cannot serve as one from the web app: no browser can advertise as a Bluetooth peripheral, and iOS Safari has no Web Bluetooth at all
 - Error handling is present but not exhaustive — some failure states surface as console errors rather than user-facing messages
 - Headshot uploads rely on the browser decoding the image; an iPhone HEIC won't decode outside Safari, so those need converting to JPEG/PNG first

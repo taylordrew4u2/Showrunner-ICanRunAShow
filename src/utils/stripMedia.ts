@@ -6,7 +6,8 @@ import { isMediaRef } from './mediaStore';
  * photos live in the chunked media store and the payload carries only a small
  * `media:` reference. Accounts that saved before that change can still carry
  * megabytes of embedded base64 media, so scrub those legacy keys on load; the
- * next save then writes the slimmed-down data and storage shrinks back down.
+ * next save of that show then writes the slimmed-down data and storage
+ * shrinks back down.
  *
  * A performer photo is the one key that can be either: a legacy base64 blob to
  * throw away, or a current reference to keep. It's checked rather than deleted.

@@ -78,6 +78,31 @@ describe('reading a signed contract as a profile', () => {
     expect(profileFromAnswers(undefined)).toEqual({});
     expect(profileFromAnswers([])).toEqual({});
   });
+
+  it('never files a social security or bank number as a phone or a handle', () => {
+    // A release can ask for these. "Number" and "social" are in the labels,
+    // but the answer is nobody's phone and must not end up tagged in a post.
+    const profile = profileFromAnswers(
+      answers(
+        ['Social Security Number', '123-45-6789'],
+        ['Social security', '987-65-4321'],
+        ['Bank account number', '00012345678'],
+        ['Routing number', '021000021'],
+        ['Card number', '4111 1111 1111 1111'],
+        ['Tax ID', '12-3456789'],
+        ['Passport number', 'X1234567'],
+        ["Driver's licence number", 'D1234567'],
+      ),
+    );
+    expect(profile).toEqual({});
+  });
+
+  it('still reads an Instagram account and a phone number the ordinary way', () => {
+    const profile = profileFromAnswers(
+      answers(['Instagram account', '@monasable'], ['Phone number', '555 0142']),
+    );
+    expect(profile).toEqual({ socialMedia: '@monasable', phone: '555 0142' });
+  });
 });
 
 describe('deciding what to offer the producer', () => {
@@ -271,6 +296,19 @@ describe('what a signed contract fills in by itself', () => {
       [signed([{ label: 'Email', value: 'ada@example.com' }])], [], key, () => 'new',
     );
     expect(filled).toEqual([{ id: 'new', name: 'Ada Cole', email: 'ada@example.com' }]);
+  });
+
+  it('does not quietly put a social security number on the profile as a phone', () => {
+    // The gap fill runs on every visit with no offer, so anything it writes
+    // has to be something nobody would mind seeing on a show's performer.
+    const comics = [{ id: 'c', name: 'Ada Cole' }];
+    expect(fillRolodexFromSignatures(
+      [signed([
+        { label: 'Social Security Number', value: '123-45-6789' },
+        { label: 'Bank account number', value: '00012345678' },
+      ])],
+      comics, key, () => 'new',
+    )).toBeNull();
   });
 });
 

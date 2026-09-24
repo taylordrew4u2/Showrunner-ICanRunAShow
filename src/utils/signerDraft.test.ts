@@ -79,6 +79,20 @@ describe('what a signer has typed', () => {
     });
   });
 
+  it('keeps what a performer typed into a profile link, name and answers alike', () => {
+    // The profile page has no signature or checkbox, only the name they want
+    // billed as and the answers. Those must come back after the phone
+    // discards the tab while they go to Photos for a headshot.
+    saveSignerDraft('profile-tok', {
+      signerName: 'Mona Sable',
+      values: { email: 'mona@sable.example', credits: 'As seen at the Basement' },
+    });
+
+    const draft = loadSignerDraft('profile-tok');
+    expect(draft?.signerName).toBe('Mona Sable');
+    expect(draft?.values).toEqual({ email: 'mona@sable.example', credits: 'As seen at the Basement' });
+  });
+
   it('does nothing at all without a token', () => {
     expect(loadSignerDraft('')).toBeNull();
     expect(() => saveSignerDraft('', { signerName: 'x' })).not.toThrow();

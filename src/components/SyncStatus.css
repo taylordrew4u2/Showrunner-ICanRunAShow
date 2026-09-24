@@ -29,6 +29,21 @@
     box-shadow var(--duration-normal) var(--ease-out);
 }
 
+/* Stays visually a pill; the hit area is what grows. Painted at 24px tall it
+   was the smallest control on the page, and the page underneath took the
+   taps that missed it. */
+@media (pointer: coarse) {
+  .sync-status__pill {
+    position: relative;
+  }
+
+  .sync-status__pill::before {
+    content: '';
+    position: absolute;
+    inset: calc(-1 * var(--space-2-5)) 0;
+  }
+}
+
 .sync-status__pill:hover {
   color: var(--text);
   border-color: var(--border-strong);

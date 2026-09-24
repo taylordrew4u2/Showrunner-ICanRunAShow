@@ -8,6 +8,7 @@ import {
   SEARCH_LIST_FROM,
   showDJSongs,
   songFromTrack,
+  songsWithoutAudio,
   trackMatches,
 } from '../../utils/musicLibrary';
 import { exportDJListToPDF } from '../../utils/pdfExport';
@@ -224,11 +225,9 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
       ? `Remove the library track from "${song.title}"? The track stays in your Music library.`
       : `Remove the uploaded audio for "${song.title}"?`;
     if (!(await confirm({ message: question, confirmLabel: 'Remove' }))) return;
-    onUpdate({
-      djSongs: ownRef.current.map((s) =>
-        s.id === song.id ? { ...s, music: undefined, musicName: undefined, libraryId: undefined } : s,
-      ),
-    });
+    // A library row is copied into this show first — it was never in the own
+    // list, so clearing it in place used to change nothing.
+    onUpdate(songsWithoutAudio(ownRef.current, hiddenRef.current, song, library, generateId()));
     setStatus(song.id, null);
   }
 

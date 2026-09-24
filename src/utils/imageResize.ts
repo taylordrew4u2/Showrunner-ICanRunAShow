@@ -83,6 +83,27 @@ async function decode(file: File): Promise<{ source: CanvasImageSource; width: n
 }
 
 /**
+ * Draw `source` over a white sheet, not onto the bare canvas.
+ *
+ * A fresh canvas is transparent and a JPEG cannot be: whatever is see-through
+ * is composited onto black at encode time, so a PNG cutout — a performer with
+ * the background removed, the usual flyer asset — came back standing in a
+ * solid black box on the board, the flyer and the download. White is what a
+ * poster is printed on. Keeping such files as PNG is not an option: at 1400px
+ * that is several megabytes through the encrypt-and-chunk path.
+ */
+export function drawFlattened(
+  ctx: Pick<CanvasRenderingContext2D, 'fillStyle' | 'fillRect' | 'drawImage'>,
+  source: CanvasImageSource,
+  width: number,
+  height: number,
+): void {
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(source, 0, 0, width, height);
+}
+
+/**
  * Resize `file` to fit `maxDim` and re-encode it as JPEG. Throws if the browser
  * can't decode the image — an iPhone HEIC outside Safari is the usual case, and
  * the caller turns that into "try a JPEG or PNG".
@@ -97,7 +118,7 @@ export async function downscaleImage(file: File, maxDim = AVATAR_MAX_DIM): Promi
     canvas.height = size.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not read that image');
-    ctx.drawImage(source, 0, 0, size.width, size.height);
+    drawFlattened(ctx, source, size.width, size.height);
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY),
     );

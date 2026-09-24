@@ -34,7 +34,7 @@ test('comic headshots upload, preview, download, persist, and replace by drop', 
   expect(download.suggestedFilename()).toBe('Mona Sable-headshot.jpg');
   expect(await download.failure()).toBeNull();
   await dialog.getByRole('button', { name: 'Close preview' }).click();
-  await expect(page.getByText('Everything is saved', { exact: false })).toBeVisible();
+  await expect(page.locator('.sync-status--saved')).toBeVisible();
   await page.reload();
   await gotoTab(page, 'Rolodex');
   await expect(row.locator('img')).toBeVisible();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { audioEngine } from './audioEngine';
 import { loadFadeSettings } from './audioSettings';
 
@@ -23,6 +23,25 @@ const FAILURE_MESSAGE: Record<string, string> = {
 /** How often a preview checks it's still the thing the engine is playing. */
 const RECONCILE_MS = 400;
 
+/**
+ * Whether a reconcile tick should take the button back from the preview.
+ *
+ * Between the press and the first sample the engine is fetching, decrypting
+ * and decoding — seconds on a phone for a big walk-on — and its playingSrc is
+ * still null. Reading that as "someone else took over" flipped the button back
+ * to Play under a track that then started, and the next press restarted it
+ * instead of stopping it. So a source play() hasn't answered for yet stays
+ * ours, whatever the engine says.
+ */
+export function previewTakenOver(
+  claimed: string,
+  loading: string | null,
+  enginePlaying: string | null,
+): boolean {
+  if (loading === claimed) return false;
+  return enginePlaying !== claimed;
+}
+
 export interface TrackPreview {
   /** The source currently previewing, or null. */
   playingSrc: string | null;
@@ -34,6 +53,8 @@ export interface TrackPreview {
 export function useTrackPreview(): TrackPreview {
   const [playingSrc, setPlayingSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** The source play() is still working on, or null once it has answered. */
+  const loading = useRef<string | null>(null);
 
   // Stop on unmount — leaving a track playing under a screen the operator has
   // already navigated away from is how you end up with music nobody can find
@@ -46,7 +67,7 @@ export function useTrackPreview(): TrackPreview {
   useEffect(() => {
     if (!playingSrc) return;
     const t = window.setInterval(() => {
-      if (audioEngine.playingSrc !== playingSrc) setPlayingSrc(null);
+      if (previewTakenOver(playingSrc, loading.current, audioEngine.playingSrc)) setPlayingSrc(null);
     }, RECONCILE_MS);
     return () => window.clearInterval(t);
   }, [playingSrc]);
@@ -55,9 +76,11 @@ export function useTrackPreview(): TrackPreview {
     const fade = loadFadeSettings();
     if (playingSrc === src) {
       audioEngine.stop({ fadeMs: fade.fadeOutMs });
+      loading.current = null;
       setPlayingSrc(null);
       return;
     }
+    loading.current = src;
     setPlayingSrc(src);
     setError(null);
     audioEngine
@@ -74,6 +97,10 @@ export function useTrackPreview(): TrackPreview {
       .catch(() => {
         setPlayingSrc((k) => (k === src ? null : k));
         setError(FAILURE_MESSAGE['media-unavailable']);
+      })
+      .finally(() => {
+        // A later press may already be loading something else; leave that one.
+        if (loading.current === src) loading.current = null;
       });
   }
 

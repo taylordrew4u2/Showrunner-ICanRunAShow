@@ -98,6 +98,7 @@ export function Onboarding({ username, onComplete, saving = false }: OnboardingP
                 value={otherType}
                 onChange={(e) => setOtherType(e.target.value)}
                 placeholder="Tell us what kind of show"
+                aria-label="What kind of show"
                 autoFocus
               />
             )}
@@ -134,6 +135,7 @@ export function Onboarding({ username, onComplete, saving = false }: OnboardingP
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
               placeholder="e.g. Late Night Laughs"
+              aria-label="Brand name"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !saving) finish();

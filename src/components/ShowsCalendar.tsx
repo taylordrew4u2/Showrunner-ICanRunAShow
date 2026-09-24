@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { Show } from '../types';
 import { parseShowDate, toDateKey, formatShowTime } from '../utils/showDate';
 import { parseClockToMinutes } from '../utils/showTiming';
@@ -16,6 +16,56 @@ const STATUS_LABELS: Record<Show['status'], string> = {
   cancelled: 'Cancelled',
 };
 
+/**
+ * The month as rows of seven, Sunday first, with `null` where a cell belongs
+ * to the neighbouring month. Rows are what a screen reader needs to announce
+ * "row 3, column 5" for a grid; a flat run of buttons reads as an empty table.
+ *
+ * Exported so a test can pin the layout. Fast refresh only minds exports it
+ * has to re-render, and this one has no UI of its own.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function weeksOfMonth(startOffset: number, daysInMonth: number): (number | null)[][] {
+  const cells: (number | null)[] = [
+    ...Array.from({ length: startOffset }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+  const weeks: (number | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}
+
+/**
+ * Which day of the month a key moves focus to from `day`, or null for a key
+ * the grid does not handle. Arrows step a day or a week; Home and End go to
+ * the ends of the week. Movement stops at the month's edges rather than
+ * turning the page — the month buttons do that, and a producer skimming for
+ * a free Saturday should not find themselves in October by accident.
+ *
+ * Exported so a test can pin the rule; see weeksOfMonth on fast refresh.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function dayReachedByKey(
+  key: string,
+  day: number,
+  startOffset: number,
+  daysInMonth: number,
+): number | null {
+  const column = (startOffset + day - 1) % 7;
+  let next: number;
+  switch (key) {
+    case 'ArrowLeft': next = day - 1; break;
+    case 'ArrowRight': next = day + 1; break;
+    case 'ArrowUp': next = day - 7; break;
+    case 'ArrowDown': next = day + 7; break;
+    case 'Home': next = day - column; break;
+    case 'End': next = day + (6 - column); break;
+    default: return null;
+  }
+  return Math.min(daysInMonth, Math.max(1, next));
+}
+
 export function ShowsCalendar({ shows, onSelectShow }: ShowsCalendarProps) {
   const today = new Date();
   const todayKey = toDateKey(today);
@@ -23,6 +73,10 @@ export function ShowsCalendar({ shows, onSelectShow }: ShowsCalendarProps) {
     () => new Date(today.getFullYear(), today.getMonth(), 1),
   );
   const [selectedKey, setSelectedKey] = useState(todayKey);
+  // The one day that is in the Tab order. Arrow keys move it; Tab then leaves
+  // the grid in a single press instead of walking every remaining day.
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const { showsByDay, undatedShows } = useMemo(() => {
     const map = new Map<string, Show[]>();
@@ -50,6 +104,23 @@ export function ShowsCalendar({ shows, onSelectShow }: ShowsCalendarProps) {
   const month = monthCursor.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const startOffset = new Date(year, month, 1).getDay();
+  const weeks = weeksOfMonth(startOffset, daysInMonth);
+
+  const inThisMonth = (key: string | null) => key !== null && key.startsWith(toDateKey(monthCursor).slice(0, 7));
+  // Tab lands on the day being looked at, the selected day, or failing both
+  // the 1st — whichever is actually on screen this month.
+  const tabStopKey = inThisMonth(focusedKey) ? focusedKey
+    : inThisMonth(selectedKey) ? selectedKey
+    : toDateKey(new Date(year, month, 1));
+
+  function handleGridKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, day: number) {
+    const next = dayReachedByKey(e.key, day, startOffset, daysInMonth);
+    if (next === null) return;
+    e.preventDefault();
+    const key = toDateKey(new Date(year, month, next));
+    setFocusedKey(key);
+    gridRef.current?.querySelector<HTMLButtonElement>(`[data-day-key="${key}"]`)?.focus();
+  }
 
   const weekdayLabels = useMemo(() => {
     // Sunday-first, localized (Jan 4 2026 is a Sunday)
@@ -136,42 +207,52 @@ export function ShowsCalendar({ shows, onSelectShow }: ShowsCalendarProps) {
         ))}
       </div>
 
-      <div className="shows-cal__grid" role="grid" aria-label={monthTitle}>
-        {Array.from({ length: startOffset }, (_, i) => (
-          <span key={`blank-${i}`} className="shows-cal__day shows-cal__day--blank" aria-hidden="true" />
+      <div ref={gridRef} className="shows-cal__grid" role="grid" aria-label={monthTitle}>
+        {weeks.map((week, w) => (
+          <div key={w} className="shows-cal__week" role="row">
+            {week.map((day, col) => {
+              if (day === null) {
+                // Still a cell, and not hidden: an announced column number only
+                // lines up with the weekday header if the empty ones count too.
+                return <span key={`blank-${col}`} className="shows-cal__day shows-cal__day--blank" role="gridcell" />;
+              }
+              const key = toDateKey(new Date(year, month, day));
+              const dayShows = showsByDay.get(key) ?? [];
+              const classes = [
+                'shows-cal__day',
+                key === todayKey ? 'shows-cal__day--today' : '',
+                key === selectedKey ? 'shows-cal__day--selected' : '',
+                dayShows.length > 0 ? 'shows-cal__day--has-shows' : '',
+              ].filter(Boolean).join(' ');
+              const dateLabel = new Date(year, month, day).toLocaleDateString(undefined, {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+              });
+              return (
+                <div key={key} role="gridcell" aria-selected={key === selectedKey} className="shows-cal__cell">
+                  <button
+                    className={classes}
+                    data-day-key={key}
+                    tabIndex={key === tabStopKey ? 0 : -1}
+                    onClick={() => setSelectedKey(key)}
+                    onFocus={() => setFocusedKey(key)}
+                    onKeyDown={(e) => handleGridKeyDown(e, day)}
+                    aria-label={`${dateLabel}, ${dayShows.length} show${dayShows.length === 1 ? '' : 's'}`}
+                    aria-pressed={key === selectedKey}
+                  >
+                    <span className="shows-cal__day-num">{day}</span>
+                    <span className="shows-cal__dots" aria-hidden="true">
+                      {dayShows.slice(0, 3).map((s) => (
+                        <span key={s.id} className={`shows-cal__dot shows-cal__dot--${s.status}`} />
+                      ))}
+                    </span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         ))}
-        {Array.from({ length: daysInMonth }, (_, i) => {
-          const day = i + 1;
-          const key = toDateKey(new Date(year, month, day));
-          const dayShows = showsByDay.get(key) ?? [];
-          const classes = [
-            'shows-cal__day',
-            key === todayKey ? 'shows-cal__day--today' : '',
-            key === selectedKey ? 'shows-cal__day--selected' : '',
-            dayShows.length > 0 ? 'shows-cal__day--has-shows' : '',
-          ].filter(Boolean).join(' ');
-          const dateLabel = new Date(year, month, day).toLocaleDateString(undefined, {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-          });
-          return (
-            <button
-              key={key}
-              className={classes}
-              onClick={() => setSelectedKey(key)}
-              aria-label={`${dateLabel}, ${dayShows.length} show${dayShows.length === 1 ? '' : 's'}`}
-              aria-pressed={key === selectedKey}
-            >
-              <span className="shows-cal__day-num">{day}</span>
-              <span className="shows-cal__dots" aria-hidden="true">
-                {dayShows.slice(0, 3).map((s) => (
-                  <span key={s.id} className={`shows-cal__dot shows-cal__dot--${s.status}`} />
-                ))}
-              </span>
-            </button>
-          );
-        })}
       </div>
 
       <div className="shows-cal__agenda">

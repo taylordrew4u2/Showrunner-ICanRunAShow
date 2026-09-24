@@ -189,9 +189,13 @@ export async function fetchProfileRequest(token: string, key: string): Promise<P
 export async function uploadProfilePhoto(token: string, key: string, dataUrl: string): Promise<number> {
   const chunks = splitIntoChunks(dataUrl);
   for (let seq = 0; seq < chunks.length; seq++) {
-    await api.put('/api/profile-photo', {
-      token, seq, total: chunks.length, data: encryptWithKey(chunks[seq], key),
-    });
+    const body = { token, seq, total: chunks.length, data: encryptWithKey(chunks[seq], key) };
+    // The same two minutes the answers get — this is the megabyte they were
+    // sized for. Safe to send again: the route upserts by (token, seq), so a
+    // chunk whose answer was lost lands once however many times it is sent.
+    await withNetworkRetry(() =>
+      api.put('/api/profile-photo', body, { timeoutMs: SUBMIT_TIMEOUT_MS }),
+    );
   }
   return chunks.length;
 }
@@ -238,9 +242,11 @@ export async function fetchProfilePhoto(
   try {
     const parts: string[] = [];
     for (let seq = 0; seq < total; seq++) {
+      // A megabyte coming down is no quicker than one going up, and the
+      // producer is usually on the same wifi the performer sent it over.
       const res = await api.get<{ data: string }>(
         `/api/profile-photo?token=${encodeURIComponent(request.token)}&seq=${seq}`,
-        auth,
+        { ...auth, timeoutMs: SUBMIT_TIMEOUT_MS },
       );
       const chunk = decryptWithKey<string>(res.data, request.key);
       if (typeof chunk !== 'string') return null;

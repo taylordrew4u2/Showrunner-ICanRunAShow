@@ -59,7 +59,7 @@ function initialOf(name: string): string {
  * fresh one — and a cue that still names them should still find them.
  */
 export function resolveCuePerformer(
-  cue: ScheduleItem | undefined,
+  cue: Pick<ScheduleItem, 'performer' | 'performerId'> | undefined,
   performers: Performer[],
 ): Performer | null {
   if (!cue) return null;

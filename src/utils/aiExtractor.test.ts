@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveDurationMin, importScheduleFromFile, parseScheduleManually, splitPerformer } from './aiExtractor';
+import { deriveDurationMin, importScheduleFromFile, linesFromPdfText, parseScheduleManually, splitPerformer } from './aiExtractor';
 
 describe('parseScheduleManually', () => {
   it('extracts time + description from each line', () => {
@@ -69,6 +69,42 @@ describe('parseScheduleManually', () => {
     const items = parseScheduleManually('8:55 PM Intermission / DJ\n7:30 PM Doors — bar opens\n9:00 PM the band - second set');
     expect(items.map((i) => i.performer)).toEqual([undefined, undefined, undefined]);
     expect(items[1].description).toBe('Doors — bar opens');
+  });
+
+  it('starts a range whose first hour has no am/pm at the start, not the end', () => {
+    // "8-8:20pm" writes the meridiem once; the cue starts at 8, not 8:20, and
+    // the "8-" is part of the time, not the name of the act.
+    const items = parseScheduleManually('8-8:20pm Devon\nDoors 7-7:30 PM');
+    expect(items.map((i) => [i.time, i.description, i.durationMin])).toEqual([
+      ['8 pm', 'Devon', 20],
+      ['7 pm', 'Doors', 30],
+    ]);
+  });
+
+  it('still takes the first time on a line when a range comes later', () => {
+    const items = parseScheduleManually('7:00 PM Doors, bar 5-6 pm');
+    expect(items[0].time).toBe('7:00 PM');
+  });
+});
+
+describe('linesFromPdfText', () => {
+  const row = (str: string, y: number, hasEOL = true) => ({ str, hasEOL, transform: [1, 0, 0, 1, 40, y] });
+
+  it('keeps each row of a PDF run sheet on its own line', () => {
+    // pdf.js hands back one item per row with hasEOL set; flattening them into
+    // one line made the parser see a single cue whose text was the whole page.
+    const text = linesFromPdfText([row('Doors 7:30 PM', 700), row('8:00 PM Maya welcome', 680), row('8:05 PM Devon Park', 660)]);
+    expect(parseScheduleManually(text).map((i) => i.time)).toEqual(['7:30 PM', '8:00 PM', '8:05 PM']);
+  });
+
+  it('breaks the line when the text moves down the page even without an end-of-line flag', () => {
+    const text = linesFromPdfText([row('8:00 PM', 700, false), row('Maya welcome', 700, false), row('8:05 PM Devon Park', 680, false)]);
+    expect(text).toBe('8:00 PM Maya welcome\n8:05 PM Devon Park');
+  });
+
+  it('ignores marked-content markers that carry no text', () => {
+    const text = linesFromPdfText([{ type: 'beginMarkedContent' }, row('8:00 PM Maya', 700), { type: 'endMarkedContent' }]);
+    expect(text).toBe('8:00 PM Maya');
   });
 });
 

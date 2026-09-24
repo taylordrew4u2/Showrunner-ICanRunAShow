@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Performer, PotentialComic } from '../types';
+import { resolveCuePerformer } from '../utils/soundboard';
 
 /**
  * Who's on stage for a cue — one control, everywhere a cue is edited.
@@ -19,6 +20,23 @@ const CUSTOM_OPTION = 'custom:';
 export interface OnStageValue {
   performer?: string;
   performerId?: string;
+}
+
+/**
+ * The bill entry the picker should show as selected, or '' for none.
+ *
+ * A link can point at a slot that is gone — someone removed from the lineup
+ * and booked again gets a fresh id, and the cue keeps the old one. The select
+ * has no option for it, so the browser fell back to "On stage: nobody" while
+ * the row beside it still printed their name. Follow the name the same way
+ * Run Show does, so the two agree about who is on. A cue with no link at all
+ * is left alone: a name typed for a guest is not a link, even when it happens
+ * to match someone on the bill.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function linkedPerformerId(value: OnStageValue, performers: Performer[]): string {
+  if (!value.performerId) return '';
+  return resolveCuePerformer(value, performers)?.id ?? '';
 }
 
 interface OnStagePickerProps {
@@ -63,7 +81,7 @@ export function OnStagePicker({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const focusNameRef = useRef(false);
 
-  const performerId = value.performerId ?? '';
+  const performerId = linkedPerformerId(value, performers);
   const typedName = (value.performer ?? '').trim();
   const hostName = host?.trim() ?? '';
   // A host who is also booked is already in the list — link the cue to that

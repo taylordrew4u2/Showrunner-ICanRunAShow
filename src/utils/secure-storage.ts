@@ -112,9 +112,14 @@ export interface LoadedShows {
  * other show lost to one bad one. Now a row that won't decrypt is set aside and
  * everything else loads.
  */
-export async function loadEncryptedShows(creds: SessionCredentials): Promise<LoadedShows> {
+export async function loadEncryptedShows(creds: SessionCredentials, trackBaseline = true): Promise<LoadedShows> {
   const { shows } = await api.get<{ shows: EncryptedShowRow[] }>("/api/shows", auth(creds));
   const loaded = decryptShowRows(shows, creds);
+  // A look at the account that is not a load — the unused-files sweep takes
+  // one — must leave the baseline alone. The tab's list is still measured
+  // against what it loaded; measured against fresher rows instead, its next
+  // save would delete a show another device added in between.
+  if (!trackBaseline) return loaded;
   const readable = new Map(loaded.shows.map(show => [show.id, JSON.stringify(show)]));
   showBaselines.set(creds, new Map(shows.map(row => [row.id, {
     cipher: row.encryptedData, plain: readable.get(row.id),
@@ -152,6 +157,78 @@ export function showBaselineHashes(creds: SessionCredentials): Record<string, st
     .map(([id, row]) => [id, CryptoJS.SHA256(row.plain!).toString()]));
 }
 
+/**
+ * Re-record what each loaded show looks like once the app has migrated it.
+ *
+ * The baseline is taken from the rows as they came off the server, but the
+ * app then strips legacy embedded media and moves per-show expenses out, in
+ * place. The held copy of an offline edit carried the hash of the row before
+ * those changes, so on the next launch the migrated server copy never matched
+ * it, and every such edit came back as a "(recovered edits)" twin of its show.
+ * Only the readable text moves; the cipher stays what the server holds.
+ */
+export function rebaseLoadedShows(creds: SessionCredentials, shows: Show[]): void {
+  const baseline = showBaselines.get(creds);
+  if (!baseline) return;
+  for (const show of shows) {
+    const row = baseline.get(show.id);
+    if (row?.plain !== undefined) row.plain = JSON.stringify(show);
+  }
+}
+
+const sha = (value: string) => CryptoJS.SHA256(value).toString();
+
+/**
+ * What this tab has sent the server for each row, newest last: the hash of
+ * each cipher (null for a deletion) and the show text it stood for.
+ *
+ * On venue wifi a save can commit and its answer never arrive. The next save
+ * is then measured against the version this tab loaded while the server holds
+ * the one it sent, and the server calls that a conflict — after which nothing
+ * saved for the rest of the night, though nobody else had written. This is how
+ * the tab tells its own lost writes from somebody else's.
+ */
+interface SentRow { hash: string | null; plain?: string }
+const showsSent = new WeakMap<SessionCredentials, Map<string, SentRow[]>>();
+const settingsSent = new WeakMap<SessionCredentials, string[]>();
+// Enough to cover a lost answer or two; a show being run is saved on every
+// tick, and each entry holds the show's text.
+const SENT_MEMORY = 4;
+
+function rememberShowSent(creds: SessionCredentials, id: string, cipher: string | null, plain?: string): void {
+  let sent = showsSent.get(creds);
+  if (!sent) { sent = new Map(); showsSent.set(creds, sent); }
+  const rows = sent.get(id) ?? [];
+  rows.push({ hash: cipher === null ? null : sha(cipher), plain });
+  sent.set(id, rows.slice(-SENT_MEMORY));
+}
+
+/**
+ * After a conflict, move the baseline for the rows in `ids` up to what the
+ * server holds — but only where that is something this tab itself sent. Any
+ * row holding a version this tab never wrote is a real conflict: false, and
+ * the baseline is left alone.
+ */
+async function adoptOwnShowWrites(creds: SessionCredentials, baseline: Map<string, SavedRow>, ids: string[]): Promise<boolean> {
+  const sent = showsSent.get(creds);
+  if (!sent) return false;
+  const { shows } = await api.get<{ shows: EncryptedShowRow[] }>('/api/shows', auth(creds));
+  const current = new Map(shows.map(row => [row.id, row.encryptedData]));
+  const adopt = new Map<string, SavedRow | null>();
+  for (const id of ids) {
+    const cipher = current.get(id);
+    const previous = baseline.get(id);
+    if (cipher === previous?.cipher) continue;
+    const own = (sent.get(id) ?? []).find(row => row.hash === (cipher === undefined ? null : sha(cipher)));
+    if (!own) return false;
+    adopt.set(id, cipher === undefined ? null : { cipher, plain: own.plain });
+  }
+  for (const [id, row] of adopt) {
+    if (row) baseline.set(id, row); else baseline.delete(id);
+  }
+  return true;
+}
+
 const showCipherCache = new WeakMap<Show, { key: string; cipher: string }>();
 
 /** Save only changes against the version this tab actually loaded. */
@@ -175,13 +252,17 @@ export async function saveEncryptedShows(
   for (const row of unreadable) {
     if (!desired.has(row.id)) desired.set(row.id, { cipher: row.encryptedData });
   }
+  /** The write that takes one row from the baseline to the list, or null when it is already there. */
+  function changeFor(id: string) {
+    const previous = baseline!.get(id);
+    const next = desired.get(id);
+    if (previous?.cipher === next?.cipher) return null;
+    return { id, expectedHash: previous ? sha(previous.cipher) : null, encryptedData: next?.cipher ?? null };
+  }
   const changes = [];
   for (const id of new Set([...baseline.keys(), ...desired.keys()])) {
-    const previous = baseline.get(id);
-    const next = desired.get(id);
-    if (previous?.cipher === next?.cipher) continue;
-    changes.push({ id, expectedHash: previous ? CryptoJS.SHA256(previous.cipher).toString() : null,
-      encryptedData: next?.cipher ?? null });
+    const change = changeFor(id);
+    if (change) changes.push(change);
   }
   // Independent batches only touch named rows; there is no destructive final
   // "prune everything missing" request. A failed batch can be safely retried.
@@ -198,9 +279,22 @@ export async function saveEncryptedShows(
     batch.push(change); bytes += size;
   }
   if (batch.length) batches.push(batch);
-  for (const changes of batches) {
+  async function put(changes: (typeof batches)[number]) {
+    for (const change of changes) rememberShowSent(creds, change.id, change.encryptedData, desired.get(change.id)?.plain);
     const response = await api.put<{ ok: boolean }>('/api/shows', { changes }, auth(creds));
     if (response.ok !== true) throw new Error('The server did not confirm the show save.');
+  }
+  for (const changes of batches) {
+    try {
+      await put(changes);
+    } catch (err) {
+      // A conflict against a version this tab sent itself is a lost answer,
+      // not another device: measure against that version and send once more.
+      if ((err as ApiError).code !== 'save_conflict') throw err;
+      if (!(await adoptOwnShowWrites(creds, baseline, changes.map(c => c.id)))) throw err;
+      const again = changes.map(c => changeFor(c.id)).filter(c => c !== null);
+      if (again.length) await put(again);
+    }
     for (const change of changes) {
       const saved = desired.get(change.id);
       if (saved) baseline.set(change.id, saved); else baseline.delete(change.id);
@@ -367,10 +461,25 @@ export function saveEncryptedSettings(settings: AppSettings, creds: SessionCrede
     if (encryptedData.length > MAX_SAVE_BYTES) throw new PayloadTooLargeError('Your settings are too large to save. Download a backup before reducing large files. Nothing has been discarded.');
     const before = settingsBaselines.get(creds)!;
     if (before === encryptedData) return;
-    const response = await api.put<{ ok: boolean }>('/api/settings', {
-      encryptedData, expectedHash: before === null ? null : CryptoJS.SHA256(before).toString(),
-    }, auth(creds));
-    if (response.ok !== true) throw new Error('The server did not confirm the settings save.');
+    const sent = settingsSent.get(creds) ?? [];
+    settingsSent.set(creds, [...sent, sha(encryptedData)].slice(-SENT_MEMORY * 4));
+    async function put(base: string | null) {
+      const response = await api.put<{ ok: boolean }>('/api/settings', {
+        encryptedData, expectedHash: base === null ? null : sha(base),
+      }, auth(creds));
+      if (response.ok !== true) throw new Error('The server did not confirm the settings save.');
+    }
+    try {
+      await put(before);
+    } catch (err) {
+      // As for shows: the server holding a version this tab sent is a lost
+      // answer, not another device. Measure against it and send once more.
+      if ((err as ApiError).code !== 'save_conflict') throw err;
+      const { encryptedData: current } = await api.get<{ encryptedData: string | null }>('/api/settings', auth(creds));
+      if (!current || !settingsSent.get(creds)?.includes(sha(current))) throw err;
+      settingsBaselines.set(creds, current);
+      await put(current);
+    }
     settingsBaselines.set(creds, encryptedData);
   });
   settingsQueues.set(creds, next);

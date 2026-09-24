@@ -54,6 +54,35 @@ export function deriveDurationMin(
   return undefined;
 }
 
+/** The parts of a pdf.js text item this file reads; a marked-content marker has none of them. */
+type PdfTextPiece = { str: string; hasEOL: boolean; transform: number[] };
+
+/**
+ * Put a page's pdf.js text items back on the lines they were printed on.
+ *
+ * pdf.js hands back one item per run of text and only flags a line break on
+ * the item (hasEOL); joining every item with a space flattened a whole page
+ * onto one line, and the parser — which takes the first time on each line —
+ * then found one cue per page whose text was the rest of the run sheet. When
+ * a PDF sets no hasEOL at all, a drop in the item's y position (transform[5])
+ * is the next row; a couple of points of slack keeps a superscript or a
+ * slightly misaligned glyph on its line.
+ */
+export function linesFromPdfText(items: ReadonlyArray<PdfTextPiece | { type: string }>): string {
+  let text = "";
+  let lastY: number | undefined;
+  for (const item of items) {
+    if (!("str" in item)) continue;
+    const y = item.transform?.[5];
+    const movedDown = lastY !== undefined && y !== undefined && Math.abs(y - lastY) > 2;
+    if (text && !text.endsWith("\n")) text += movedDown ? "\n" : item.str ? " " : "";
+    text += item.str;
+    if (item.hasEOL) text += "\n";
+    lastY = y;
+  }
+  return text.trim();
+}
+
 /**
  * Extract text from PDF files using PDF.js
  */
@@ -75,10 +104,7 @@ async function extractTextFromPDF(file: File): Promise<string> {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ");
-    fullText += pageText + "\n";
+    fullText += linesFromPdfText(textContent.items) + "\n";
   }
 
   return fullText.trim();
@@ -219,12 +245,21 @@ export function parseScheduleManually(text: string): ScheduleItem[] {
 
   // "7:00 PM", "19:00", "7pm", "7 a.m." — a colon-time, or a bare hour with am/pm.
   const timePattern = /\b(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?|\d{1,2}\s*[ap]\.?m\.?)\b/i;
+  // "8-8:20pm Devon": the start of a range often has no am/pm of its own, so
+  // the pattern above skips it and lands on the range END — the cue then
+  // starts twenty minutes late with a stray "8-" in its text. A range whose
+  // end carries the meridiem is a time too, and it wins when it begins no
+  // later than the first stand-alone time on the line.
+  const rangePattern = /\b(\d{1,2}(?::\d{2})?)\s*(?:[-–—]|to)\s*(\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?)\b/i;
+  const cleanTime = (raw: string) => raw.replace(/\s+/g, " ").replace(/\.\s*/g, "").trim();
 
   for (const line of lines) {
-    const match = line.match(timePattern);
+    const single = line.match(timePattern);
+    const range = line.match(rangePattern);
+    const match = range && (!single || (range.index ?? 0) <= (single.index ?? 0)) ? range : single;
     if (!match || match.index === undefined) continue;
 
-    const time = match[1].replace(/\s+/g, " ").replace(/\.\s*/g, "").trim();
+    const time = cleanTime(match[1]);
     let description = line.slice(0, match.index) + line.slice(match.index + match[0].length);
 
     // Take the range-end time out of the description ("8:00–8:20 PM Devon" →
@@ -235,10 +270,10 @@ export function parseScheduleManually(text: string): ScheduleItem[] {
     // It's captured rather than discarded: the end of the range is the one
     // place a plain-text schedule states how long a segment runs, and throwing
     // it away is why every imported cue arrived with no minutes on it.
-    const rangeMatch = description.match(
+    const rangeMatch = match === range ? null : description.match(
       /^[\s•·*>]*(?:[-–—]|to)\s*(\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?)(?=\s|$)/i,
     );
-    const rangeEnd = rangeMatch?.[1]?.replace(/\s+/g, " ").replace(/\.\s*/g, "").trim();
+    const rangeEnd = match === range ? cleanTime(match[2]) : rangeMatch?.[1] && cleanTime(rangeMatch[1]);
     if (rangeMatch) description = description.slice(rangeMatch[0].length);
     // Trim leading bullets/separators and trailing separators.
     description = description

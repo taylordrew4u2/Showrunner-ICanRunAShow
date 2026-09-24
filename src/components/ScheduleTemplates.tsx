@@ -14,6 +14,12 @@ interface ScheduleTemplatesProps {
   onDelete: (id: string) => void;
   /** Replaces or appends, already resolved by the caller. */
   onApply: (items: ScheduleTemplateItem[], mode: 'replace' | 'append') => void;
+  /**
+   * What replacing the show's cues costs, from the caller that keeps the way
+   * back. Said on the row, before the button, because "Replace them" on its
+   * own reads as a layout choice rather than twenty cues going.
+   */
+  replaceWarning?: string;
 }
 
 function cueCount(n: number): string {
@@ -27,6 +33,7 @@ export function ScheduleTemplates({
   onSave,
   onDelete,
   onApply,
+  replaceWarning,
 }: ScheduleTemplatesProps) {
   const { confirm, confirmDialog } = useConfirm();
   const [name, setName] = useState('');
@@ -124,6 +131,7 @@ export function ScheduleTemplates({
                     <div className="sched-templates__choice">
                       <span className="sched-templates__choice-text">
                         This show already has {cueCount(schedule.length)}.
+                        {replaceWarning ? ` ${replaceWarning}` : ''}
                       </span>
                       <div className="sched-templates__choice-actions">
                         <button className="btn btn--secondary btn--sm" onClick={() => applyPending('append')}>

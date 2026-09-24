@@ -2,7 +2,7 @@ import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState
 import type { DJSong, Performer, PotentialComic, ScheduleItem, ScheduleTemplate, ScheduleTemplateItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
-import { uploadMedia } from '../../utils/mediaStore';
+import { isMediaRef, uploadMedia } from '../../utils/mediaStore';
 import { TrimControls } from '../TrimControls';
 import { Icon } from '../Icon';
 import { ShowTimeline } from '../ShowTimeline';
@@ -61,6 +61,50 @@ interface ScheduleSectionProps {
 }
 
 type ScheduleMode = 'choose' | 'build';
+
+/** A running order that a generated or template one took the place of. */
+export interface ReplacedOrder {
+  /** The cues that were on the show before. */
+  cues: ScheduleItem[];
+  /** The ids of the cues that took their place, to tell the order is still theirs. */
+  byIds: string[];
+}
+
+// Kept outside the component. The section unmounts when it is collapsed, and
+// the way back from a replace has to survive a look at the bill in between —
+// the tap that wiped twenty hand-built cues is exactly the one that sends a
+// producer off to check something before they notice.
+let lastReplaced: ReplacedOrder | null = null;
+
+/**
+ * The order an undo would restore, if the schedule on screen is still the one
+ * that replaced it. Another show's cues, or a show cleared since, get nothing:
+ * restoring over those would be a second wipe, not a way back from the first.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function undoableReplace(schedule: ScheduleItem[], stash: ReplacedOrder | null): ReplacedOrder | null {
+  if (!stash) return null;
+  const ids = new Set(schedule.map((cue) => cue.id));
+  return stash.byIds.some((id) => ids.has(id)) ? stash : null;
+}
+
+/**
+ * What a replace costs, for the question asked before it.
+ *
+ * Undo brings the cues back, but not audio uploaded onto them: the moment the
+ * replace saves, the app deletes any upload nothing else still plays. A cue
+ * playing a song from the DJ list shares that song's file, so it is safe —
+ * only a track uploaded straight onto a cue is counted here.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function replaceWarning(schedule: ScheduleItem[], djSongs: DJSong[]): string {
+  const count = schedule.length;
+  const shared = new Set(djSongs.map((song) => song.music).filter(Boolean));
+  const uploads = schedule.filter((cue) => isMediaRef(cue.music) && !shared.has(cue.music)).length;
+  const back = `Undo brings the ${count} cue${count === 1 ? '' : 's'} back`;
+  if (uploads === 0) return `${back}.`;
+  return `${back}, but not the music uploaded to ${uploads === 1 ? 'one' : uploads} of them. That is deleted.`;
+}
 
 function formatMinutes(total: number): string {
   if (total >= 60) {
@@ -387,6 +431,7 @@ export function ScheduleSection({
   const [importOpen, setImportOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [replaced, setReplaced] = useState<ReplacedOrder | null>(() => undoableReplace(schedule, lastReplaced));
   const templatesEnabled = !!onSaveTemplate && !!onDeleteTemplate;
 
   // Keep latest schedule + onChange in refs so the per-row callbacks
@@ -484,6 +529,23 @@ export function ScheduleSection({
     }
   }
 
+  /** Swap the running order out, keeping the old one so the swap can be undone. */
+  function replaceSchedule(cues: ScheduleItem[]) {
+    if (schedule.length > 0) {
+      lastReplaced = { cues: schedule, byIds: cues.map((cue) => cue.id) };
+      setReplaced(lastReplaced);
+    }
+    onChange(cues);
+  }
+
+  function undoReplace() {
+    const stash = undoableReplace(schedule, replaced);
+    if (!stash) return;
+    onChange(stash.cues);
+    lastReplaced = null;
+    setReplaced(null);
+  }
+
   /** Template cues carry no ids — mint fresh ones so the same template can be
    *  applied twice in one show without two cues sharing a key. */
   function handleApplyTemplate(items: ScheduleTemplateItem[], applyMode: 'replace' | 'append') {
@@ -494,17 +556,30 @@ export function ScheduleSection({
       performer: item.performer,
       durationMin: item.durationMin,
     }));
-    onChange(applyMode === 'replace' ? cues : [...schedule, ...cues]);
+    if (applyMode === 'replace') replaceSchedule(cues);
+    else onChange([...schedule, ...cues]);
     setMode('build');
   }
 
   /** A generated order replaces the list wholesale, so it lands as one undo-able
-   *  decision rather than cues appended onto cues. */
-  function handleApplyGenerated(items: ScheduleItem[]) {
-    onChange(withMatchedPerformers(items, knownNames));
+   *  decision rather than cues appended onto cues. The generator says it will
+   *  replace, but a notice under a preview is read as part of the preview: the
+   *  question gets asked on its own before twenty hand-built cues go. */
+  async function handleApplyGenerated(items: ScheduleItem[]) {
+    if (schedule.length > 0) {
+      const ok = await confirm({
+        title: 'Replace the running order',
+        message: `Replace the ${schedule.length} cue${schedule.length === 1 ? '' : 's'} on this show? ${replaceWarning(schedule, djSongs)}`,
+        confirmLabel: 'Replace',
+      });
+      if (!ok) return;
+    }
+    replaceSchedule(withMatchedPerformers(items, knownNames));
     setGeneratorOpen(false);
     setMode('build');
   }
+
+  const undo = undoableReplace(schedule, replaced);
 
   function handleApplyImport(items: ScheduleItem[]) {
     onChange([...schedule, ...withMatchedPerformers(items, knownNames)]);
@@ -615,6 +690,20 @@ export function ScheduleSection({
             </div>
           </div>
 
+          {undo && (
+            <p className="schedule-choice__note" role="status" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-3)' }}>
+              <span>
+                Replaced {undo.cues.length} cue{undo.cues.length === 1 ? '' : 's'} that {undo.cues.length === 1 ? 'was' : 'were'} on this show.
+              </span>
+              <button className="btn btn--secondary btn--sm" onClick={undoReplace}>
+                Put {undo.cues.length === 1 ? 'it' : 'them'} back
+              </button>
+              <button className="btn btn--ghost btn--sm" onClick={() => { lastReplaced = null; setReplaced(null); }}>
+                Keep this order
+              </button>
+            </p>
+          )}
+
           {/* Above the cue list, because the shape of the night is what you
               want before you start reading rows — and it's the fastest way to
               spot a bill that's gone lopsided. */}
@@ -713,6 +802,7 @@ export function ScheduleSection({
           onSave={onSaveTemplate!}
           onDelete={onDeleteTemplate!}
           onApply={handleApplyTemplate}
+          replaceWarning={replaceWarning(schedule, djSongs)}
         />
       )}
 

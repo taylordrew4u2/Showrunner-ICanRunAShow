@@ -1,22 +1,29 @@
+import { normalizeUsername } from './session-vault';
+
 export interface Pending<T> { data: T; at: number; metadata?: { settingsHash?: string | null; showHashes?: Record<string, string> } }
 
 /** One slot per tab and account. A successful save cannot clear another
  * tab's edits, or a newer draft written while a request was in flight. */
 export function createPendingStore(storage: () => Storage, writer: string) {
   const claimed = new Map<string, Map<string, string>>();
-  const scope = (key: string, username: string) => `${key}:${encodeURIComponent(username)}:`;
+  // Filed under the account, not the name as typed: the account is the same
+  // whether the keyboard capitalised it, and the draft has to be found either way.
+  const scope = (key: string, username: string) => `${key}:${encodeURIComponent(normalizeUsername(username))}:`;
   const slot = (key: string, username: string) => scope(key, username) + writer;
   function list<T>(key: string, username: string): Array<Pending<T> & { key: string; raw: string }> {
     try {
       const store = storage();
+      const account = normalizeUsername(username);
       const result = [];
       for (let i = 0; i < store.length; i++) {
         const name = store.key(i)!;
-        if (name !== key && !name.startsWith(scope(key, username))) continue;
+        // Every slot under this key, whichever spelling of the name an earlier
+        // build filed it under; the entry itself says whose it is.
+        if (name !== key && !name.startsWith(`${key}:`)) continue;
         const raw = store.getItem(name)!;
         try {
           const value = JSON.parse(raw);
-          if (value.username === username && 'data' in value) result.push({ data: value.data, at: value.at ?? 0, key: name, raw, metadata: value.metadata });
+          if (typeof value.username === 'string' && normalizeUsername(value.username) === account && 'data' in value) result.push({ data: value.data, at: value.at ?? 0, key: name, raw, metadata: value.metadata });
         } catch { /* Keep damaged entries; never delete an unreadable draft. */ }
       }
       return result.sort((a, b) => a.at - b.at);

@@ -64,6 +64,7 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
       <div className="section-add-grid">
         <select
           className="section-field__select"
+          aria-label="Role"
           value={role}
           onChange={(e) => setRole(e.target.value)}
         >
@@ -77,6 +78,7 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
             value={customRole}
             onChange={(e) => setCustomRole(e.target.value)}
             placeholder="Custom role"
+            aria-label="Custom role"
           />
         )}
         <input
@@ -85,6 +87,7 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
           onChange={(e) => setPersonName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addStaff())}
           placeholder="Person name"
+          aria-label="Person name"
         />
         <input
           className="section-field__input"
@@ -93,6 +96,7 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
           onChange={(e) => setPhone(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addStaff())}
           placeholder="Phone (optional)"
+          aria-label="Phone"
         />
         <button className="btn btn--primary btn--sm" onClick={addStaff}>Add</button>
       </div>
@@ -105,9 +109,9 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
             <div className="section-list-item__body">
               {editId === s.id ? (
                 <div className="section-edit-row">
-                  <input className="section-field__input" value={editRole} onChange={(e) => setEditRole(e.target.value)} placeholder="Role" />
-                  <input className="section-field__input" value={editPerson} onChange={(e) => setEditPerson(e.target.value)} placeholder="Person" autoFocus />
-                  <input className="section-field__input" type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="Phone" />
+                  <input className="section-field__input" value={editRole} onChange={(e) => setEditRole(e.target.value)} placeholder="Role" aria-label="Role" />
+                  <input className="section-field__input" value={editPerson} onChange={(e) => setEditPerson(e.target.value)} placeholder="Person" aria-label="Person name" autoFocus />
+                  <input className="section-field__input" type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="Phone" aria-label="Phone" />
                   <button className="btn btn--primary btn--sm" onClick={saveEdit}>Save</button>
                   <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
                 </div>

@@ -48,6 +48,17 @@ const LABELS: Record<keyof ImportedProfile, string> = {
 };
 
 /**
+ * Questions whose answer is nobody's phone or handle, however the label reads.
+ *
+ * A release can ask for a social security number or the bank account the fee
+ * goes to. "Number" and "social" are right there in the label, and because
+ * gaps fill themselves with no offer, one wrong match puts the answer on a
+ * show's performer and tags it in the next announcement.
+ */
+const NOT_A_CONTACT_DETAIL =
+  /social security|\bssn\b|national insurance|bank|routing|sort code|account number|card number|credit card|debit card|\btax\b|passport|licen[cs]e number|driver'?s licen[cs]e|date of birth|\bdob\b/;
+
+/**
  * Read a contract's answers as profile fields.
  *
  * Matched on the label rather than a field id, because the questions are the
@@ -67,6 +78,7 @@ export function profileFromAnswers(
     const label = field.label.toLowerCase();
     const value = field.value.trim();
     if (!value) continue;
+    if (NOT_A_CONTACT_DETAIL.test(label)) continue;
 
     // Order matters: "email" inside "email or phone" should not also claim the
     // phone slot, and a question about credit is not a question about socials

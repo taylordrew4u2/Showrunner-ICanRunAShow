@@ -23,11 +23,11 @@ interface Opts {
   /**
    * How long to wait before giving up, in milliseconds.
    *
-   * The default suits a small request on a bad connection. A signature
-   * carrying a headshot is a megabyte of ciphertext, and a megabyte uphill
-   * from a basement does not finish in twenty seconds — it was aborted every
-   * time, including on every retry, so that signer could never get through at
-   * all. Those calls ask for longer.
+   * Left unset, the deadline is sized to the body (see `timeoutForBody`). A
+   * signature carrying a headshot is a megabyte of ciphertext, and a megabyte
+   * uphill from a basement does not finish in twenty seconds — it was aborted
+   * every time, including on every retry, so that signer could never get
+   * through at all. Those calls ask for longer explicitly.
    */
   timeoutMs?: number;
 }
@@ -43,7 +43,8 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), opts.timeoutMs ?? 20_000);
+  // Ciphertext is ASCII, so the string length is the wire size near enough.
+  const timeout = setTimeout(() => controller.abort(), opts.timeoutMs ?? timeoutForBody(body?.length ?? 0));
   try {
     const res = await fetch(path, { method, headers, body, signal: controller.signal });
 
@@ -82,6 +83,22 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
  * waiting is a performer who cannot sign at all.
  */
 export const SUBMIT_TIMEOUT_MS = 120_000;
+
+/**
+ * The deadline a request gets when the caller did not choose one.
+ *
+ * Twenty seconds suits a small request on a bad connection. It did not suit
+ * the producer's own saves: a show batch is up to ~4MB of ciphertext and the
+ * settings blob travels whole (a legacy walk-on track can keep it near 3MB),
+ * and neither asked for longer — so on a slow uplink every one of them was
+ * aborted before the body had left the phone, and the sync pill said
+ * "retrying" forever. Budget a basement's 20KB/s for the body, and stop where
+ * a signature upload stops: past that the save is too big for the connection
+ * and waiting longer would not help.
+ */
+export function timeoutForBody(bodyBytes: number): number {
+  return Math.min(SUBMIT_TIMEOUT_MS, Math.max(20_000, Math.ceil(bodyBytes / 20)));
+}
 
 /**
  * Retry a write that failed before the server could answer.

@@ -92,6 +92,12 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
                 placeholder="Enter username"
                 disabled={loading}
                 autoComplete="username"
+                // A phone keyboard capitalises the first letter of a text field
+                // on its own, and "Taylor" and "taylor" look like two different
+                // people to anything filed on this device by name.
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
               />
             </div>
 

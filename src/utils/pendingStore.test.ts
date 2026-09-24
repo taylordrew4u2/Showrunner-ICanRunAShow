@@ -32,6 +32,24 @@ it('reports storage failure instead of claiming that work is backed up', () => {
   expect(a.write('shows', 'user', ['new'])).toBe(false);
 });
 
+it('finds a draft held under the name as typed when the next sign-in types it differently', () => {
+  const storage = memoryStorage();
+  const before = createPendingStore(() => storage, 'a'); before.write('shows', 'Taylor', ['edit']);
+  const after = createPendingStore(() => storage, 'b');
+  expect(after.readAll('shows', ' taylor ').map(p => p.data)).toEqual([['edit']]);
+  after.capture('shows', ' taylor ')();
+  expect(before.list('shows', 'Taylor')).toEqual([]);
+});
+
+it('recovers a draft an older build filed under the typed name, and lets go of it once saved', () => {
+  const storage = memoryStorage();
+  storage.setItem('shows:Taylor:old-tab', JSON.stringify({ username: 'Taylor', data: ['held'], at: 1 }));
+  const a = createPendingStore(() => storage, 'a');
+  expect(a.read('shows', 'taylor')?.data).toEqual(['held']);
+  a.capture('shows', 'taylor')();
+  expect(storage.getItem('shows:Taylor:old-tab')).toBeNull();
+});
+
 it('recovers legacy and multiple-tab drafts and acknowledges only captured versions', () => {
   const storage = memoryStorage();
   storage.setItem('shows', JSON.stringify({ username: 'user', data: ['legacy'], at: 1 }));

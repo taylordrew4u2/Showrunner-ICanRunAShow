@@ -23,6 +23,53 @@ const DOORS_CHOICES = [0, 15, 30];
 const INTRO_CHOICES = [1, 2, 3];
 const SET_CHOICES = [5, 8, 10, 15];
 
+/** The per-act minutes boxes: what they are worth, and what is in them. */
+export interface ActMinutesEdit {
+  /** Per-act set lengths, by performer id. Anything absent runs at the default. */
+  lengths: Record<string, number>;
+  /** What a box holds while it is being typed in, by performer id. */
+  drafts: Record<string, string>;
+}
+
+/**
+ * A keystroke in an act's minutes box. The box keeps the raw text: if it
+ * showed the scheduled minutes instead, clearing it would snap straight back
+ * to the default and the next digit would land after it — backspace twice on
+ * "10", type 5, and the act runs for 105 minutes. On a phone keypad there is
+ * no select-all, so that is the ordinary way of changing a number.
+ *
+ * Exported so a test can pin the rule. Fast refresh only minds exports it has
+ * to re-render, and none of these has UI of its own.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function typeActMinutes(edit: ActMinutesEdit, id: string, raw: string): ActMinutesEdit {
+  const minutes = parseInt(raw, 10);
+  const lengths = { ...edit.lengths };
+  // A cleared field means "whatever the default is", not zero — a nought
+  // would silently drop the act out of the running order entirely.
+  if (!Number.isFinite(minutes) || minutes <= 0) delete lengths[id];
+  else lengths[id] = Math.min(180, minutes);
+  return { lengths, drafts: { ...edit.drafts, [id]: raw } };
+}
+
+/** Leaving the box: it goes back to showing what the act is scheduled for. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function settleActMinutes(edit: ActMinutesEdit, id: string): ActMinutesEdit {
+  const drafts = { ...edit.drafts };
+  delete drafts[id];
+  return { ...edit, drafts };
+}
+
+/** What an act's minutes box shows: the text being typed, else its minutes. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function actMinutesField(
+  edit: ActMinutesEdit,
+  id: string,
+  scheduledMin: number | undefined,
+): string | number {
+  return edit.drafts[id] ?? scheduledMin ?? '';
+}
+
 /**
  * Building a run-of-show from the people already booked.
  *
@@ -53,8 +100,8 @@ export function ScheduleGenerator({
   const [introMin, setIntroMin] = useState(1);
   const [setMin, setSetMin] = useState(10);
   const [withIntermission, setWithIntermission] = useState(performers.length >= 4);
-  /** Per-act set lengths, by performer id. Anything absent runs at `setMin`. */
-  const [lengths, setLengths] = useState<Record<string, number>>({});
+  const [edit, setEdit] = useState<ActMinutesEdit>({ lengths: {}, drafts: {} });
+  const { lengths } = edit;
   /** The running order, by performer id. Empty means "as booked". */
   const [order, setOrder] = useState<string[]>([]);
 
@@ -121,21 +168,17 @@ export function ScheduleGenerator({
   }
 
   function setActLength(id: string, raw: string) {
-    const minutes = parseInt(raw, 10);
-    setLengths((prev) => {
-      const next = { ...prev };
-      // A cleared field means "whatever the default is", not zero — a nought
-      // would silently drop the act out of the running order entirely.
-      if (!Number.isFinite(minutes) || minutes <= 0) delete next[id];
-      else next[id] = Math.min(180, minutes);
-      return next;
-    });
+    setEdit((prev) => typeActMinutes(prev, id, raw));
+  }
+
+  function leaveActLength(id: string) {
+    setEdit((prev) => settleActMinutes(prev, id));
   }
 
   /** The chips set every act at once, so they clear the per-act overrides. */
   function chooseSetLength(value: number) {
     setSetMin(value);
-    setLengths({});
+    setEdit({ lengths: {}, drafts: {} });
   }
 
   return (
@@ -294,8 +337,9 @@ export function ScheduleGenerator({
                               min="1"
                               max="180"
                               step="1"
-                              value={item.durationMin ?? ''}
+                              value={actMinutesField(edit, item.performerId!, item.durationMin)}
                               onChange={(e) => setActLength(item.performerId!, e.target.value)}
+                              onBlur={() => leaveActLength(item.performerId!)}
                               aria-label={`Set length for ${item.performer}, in minutes`}
                             />
                             <span className="gen__cue-min-unit" aria-hidden>
