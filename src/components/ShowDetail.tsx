@@ -20,7 +20,8 @@ import { ShowRecapSection } from './sections/ShowRecapSection';
 import { RunShow } from './RunShow';
 import { Modal } from './Modal';
 import { exportShowToPDF } from '../utils/pdfExport';
-import { parseShowDate, formatShowTime } from '../utils/showDate';
+import { parseShowDate, formatShowTime, showStartISO } from '../utils/showDate';
+import { daysUntil } from '../utils/showsOverview';
 import { joinNames, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
@@ -287,8 +288,10 @@ export function ShowDetail({
   }, [show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers, session]);
 
   // Show the recap once the show is done — either explicitly marked completed
-  // or its date has passed.
-  const datePassed = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
+  // or its date has passed. By local day: `new Date('YYYY-MM-DD')` is UTC
+  // midnight, which put the recap on the page all show day west of Greenwich.
+  const showDay = parseShowDate(show.date);
+  const datePassed = !!showDay && daysUntil(showDay, new Date()) < 0;
   const isPastShow = datePassed || show.status === 'completed';
 
   /**
@@ -508,9 +511,7 @@ export function ShowDetail({
   }
 
   function buildStartsAtISO(): string | undefined {
-    if (!show.date) return undefined;
-    if (show.time) return `${show.date}T${show.time}`;
-    return show.date;
+    return showStartISO(show.date, show.time);
   }
 
   function viewerUrl(token: string): string {

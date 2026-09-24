@@ -10,6 +10,7 @@
  */
 
 import type { Artist, Performer, Show } from '../types';
+import { formatShowTime, parseShowDate } from './showDate';
 
 /** Anyone who appears on the bill and can be tagged. */
 type Billed = Pick<Performer, 'id' | 'name' | 'socialMedia'>;
@@ -89,7 +90,11 @@ export function buildSocialPost(show: Show): SocialPost {
   lines.push(show.name.toUpperCase());
 
   const where = [show.venueName, show.location].filter(Boolean).join(', ');
-  const when = [show.date, show.time].filter(Boolean).join(' · ');
+  // In words, the way every other screen prints them: the date input stores
+  // "2026-09-24", and that is not a line anyone pastes under a flyer.
+  const day = parseShowDate(show.date);
+  const dateText = day ? day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : show.date;
+  const when = [dateText, formatShowTime(show.time)].filter(Boolean).join(' · ');
   if (when) lines.push(when);
   if (where) lines.push(where);
 
