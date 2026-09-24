@@ -16,7 +16,7 @@ import { normalizeComicSettings } from './utils/sharedComicSettings';
 import { mergeSettingsEdit } from './utils/mergeSettingsEdit';
 import { mergeShowEdit } from './utils/mergeShowEdit';
 import { bulkMailto } from './utils/social';
-import { buildOverview } from './utils/showsOverview';
+import { buildOverview, completePastShows } from './utils/showsOverview';
 import { 
   loadEncryptedShows, 
   saveEncryptedShows,
@@ -537,15 +537,10 @@ export default function App() {
         // Recover against the actual saved version first. Automatically marking
         // a past show completed before comparing hashes looks like a concurrent
         // server edit and can create a false recovered copy during a reload.
-        // Auto-correct: a show still marked 'upcoming' whose date has passed
-        // should be 'completed'. Only touch 'upcoming' — leave 'in-progress'
-        // and 'cancelled' alone since those are intentional manual states.
-        const today = new Date().toISOString().split('T')[0];
-        const initialShows = recoveredShows.map((show) =>
-          show.status === 'upcoming' && show.date && show.date < today
-            ? { ...show, status: 'completed' as const }
-            : show
-        );
+        // Auto-correct: a show still marked 'upcoming' whose night has passed
+        // should be 'completed'. By local calendar day — a UTC day here marked
+        // tonight's show completed to anyone reloading after 8pm in New York.
+        const initialShows = completePastShows(recoveredShows);
 
         // Link legacy snapshots only after recovery has compared the actual
         // saved rows. The Rolodex then supplies every live comic profile.
@@ -828,6 +823,11 @@ export default function App() {
   async function beginSession(username: string, password: string) {
     const creds = credentialsFrom(username, password);
     await saveSession(creds);
+    // Loading before the session, in the same render: the load effect only
+    // flips the skeleton on after the first paint with a session, and that
+    // paint showed onboarding — which then unmounted for the skeleton and came
+    // back at step one, with whatever a producer had clicked or typed gone.
+    setLoadingData(true);
     setSession(creds);
   }
 
