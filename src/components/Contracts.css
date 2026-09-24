@@ -596,3 +596,31 @@
 .contracts__chase .contracts__rows {
   margin-top: var(--space-1);
 }
+
+.signed-agreements { margin-bottom: var(--space-6); }
+.signed-agreements__form fieldset {
+  border: 0;
+  padding: 0;
+  margin: var(--space-4) 0;
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.signed-agreements label { display: grid; gap: var(--space-2); }
+.signed-agreements input, .signed-agreements select {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-2-5);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font: inherit;
+}
+.signed-agreements__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.signed-agreements__group { margin: var(--space-6) 0; }
+.signed-agreements__list { list-style: none; padding: 0; }
+.signed-agreements__list .contracts__item { cursor: default; flex-wrap: wrap; }
+.signed-agreements__list .contracts__item-main { min-width: 0; overflow-wrap: anywhere; }
+
+.signed-agreements__heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }

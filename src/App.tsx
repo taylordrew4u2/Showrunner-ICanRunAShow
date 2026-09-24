@@ -2286,7 +2286,7 @@ export default function App() {
                     label: 'Contracts',
                     description: signatureSummary(settings.signatureRequests ?? []).waiting > 0
                       ? `${signatureSummary(settings.signatureRequests ?? []).waiting} waiting to be signed`
-                      : 'Agreements to be signed',
+                      : 'Signed venue and producer agreements',
                     icon: 'file',
                     badge: signatureSummary(settings.signatureRequests ?? []).waiting || undefined,
                     onSelect: () => setView('contracts'),

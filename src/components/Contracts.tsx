@@ -44,6 +44,7 @@ import { getRolodexTerm } from '../utils/terminology';
 import { PageHeader } from './PageHeader';
 import { useConfirm } from './useConfirm';
 import './Contracts.css';
+import { SignedAgreements } from './SignedAgreements';
 
 /**
  * The face they sent, whether it is still the data URL on the record or has
@@ -877,7 +878,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
         title="Contracts"
         subtitle={
           summary.total === 0
-            ? 'Agreements you send out to be signed'
+            ? 'Signed agreements and signature requests'
             : `${summary.signed} signed · ${summary.waiting} waiting`
         }
         onBack={onBack}
@@ -888,7 +889,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
             disabled={busy === 'upload'}
             onClick={() => fileInput.current?.click()}
           >
-            {busy === 'upload' ? 'Adding…' : 'Add contract'}
+            {busy === 'upload' ? 'Adding…' : 'Add for signature'}
           </button>
         }
       />
@@ -901,6 +902,9 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
       />
 
       {error && <p className="contracts__error" role="alert">{error}</p>}
+
+      <SignedAgreements settings={settings} onUpdateSettings={onUpdateSettings} />
+      <h2 className="contracts__section-label">Signature requests</h2>
 
       {outstanding.length > 0 && (
         <section className="contracts__chase">

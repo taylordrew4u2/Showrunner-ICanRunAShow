@@ -207,3 +207,14 @@ describe('unreferencedMedia', () => {
     expect(unreferencedMedia(stored, [], settings()).map((m) => m.id)).toEqual(['kept', 'orphan']);
   });
 });
+
+ it('protects signed venue and producer agreements from the unused-file sweep', () => {
+  const data = settings({ signedAgreements: [
+    { id: 'v', name: 'Venue', category: 'venue', counterparty: '', fileRef: 'media:venue#1', fileName: 'v.pdf', sizeBytes: 100, uploadedAt: '' },
+    { id: 'p', name: 'Producer', category: 'producer', counterparty: '', fileRef: 'media:producer#1', fileName: 'p.pdf', sizeBytes: 100, uploadedAt: '' },
+  ] });
+  expect(unreferencedMedia([
+    { id: 'venue', chunks: 1, bytes: 100 }, { id: 'producer', chunks: 1, bytes: 100 },
+    { id: 'orphan', chunks: 1, bytes: 100 },
+  ], [], data).map(item => item.id)).toEqual(['orphan']);
+});

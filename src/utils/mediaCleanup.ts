@@ -66,6 +66,7 @@ export function settingsMediaRefs(settings: AppSettings): string[] {
     push(refs, comic.photo);
     push(refs, comic.walkOnMusic);
   }
+  for (const agreement of settings.signedAgreements ?? []) push(refs, agreement.fileRef);
   for (const contract of settings.contracts ?? []) push(refs, contract.fileRef);
   // The headshot a signer sent, once it has been filed. The agreement keeps
   // its own copy of what the person actually sent, so replacing their profile

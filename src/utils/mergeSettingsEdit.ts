@@ -84,7 +84,7 @@ function mergeRows(baseline: Row[], incoming: Row[], current: Row[], idField?: s
 
 const RECORD_ARRAY_KEYS: Partial<Record<keyof AppSettings, string>> = {
   producers: 'id', trash: 'id', expenses: 'id', emailList: 'email',
-  scheduleTemplates: 'id', musicLibrary: 'id', contracts: 'id',
+  scheduleTemplates: 'id', musicLibrary: 'id', contracts: 'id', signedAgreements: 'id',
   signatureRequests: 'token', profileRequests: 'token',
 };
 

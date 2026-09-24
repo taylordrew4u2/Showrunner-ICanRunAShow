@@ -310,6 +310,18 @@ export interface ContractField {
   multiline?: boolean;
 }
 
+/** An agreement signed outside the app, stored for the producer's records. */
+export interface SignedAgreement {
+  id: string;
+  name: string;
+  category: 'venue' | 'producer';
+  counterparty: string;
+  fileRef: string;
+  fileName: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
 export interface Contract {
   id: string;
   name: string; // what the producer calls it, e.g. "Performer Agreement"
@@ -421,6 +433,7 @@ export interface AppSettings {
   emailList: EmailListEntry[]; // collected audience emails — storage only, no sending
   scheduleTemplates: ScheduleTemplate[]; // reusable run-of-show layouts
   musicLibrary: MusicTrack[]; // account-wide DJ tracks, addable to any show
+  signedAgreements?: SignedAgreement[];
   contracts: Contract[]; // uploaded agreements, sent out for signature
   signatureRequests: SignatureRequest[]; // who was sent what, and who has signed
   profileRequests?: ProfileRequest[]; // self-serve links asking someone for their own details
