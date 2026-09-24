@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { deriveKey, encryptWithKey } from '../src/utils/encryption';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { signUp } from './support/app';
+import { daysFromNow, signUp } from './support/app';
 
 // Valid silent audio keeps this test deterministic without playing sound in CI.
 function silentWav(): string {
@@ -19,7 +19,7 @@ for (const remoteKey of ['F18', ' ']) {
   test(`clicker ${remoteKey === ' ' ? 'Space' : remoteKey} toggles selected music after adjusting a slider, independently of the timer`, async ({ page, context }) => {
     const key = deriveKey('correct horse battery staple');
     const show = {
-      id: 'clicker-show', name: 'Clicker Test', date: '2026-09-24', status: 'upcoming',
+      id: 'clicker-show', name: 'Clicker Test', date: daysFromNow(1), status: 'upcoming',
       time: '', location: '', venueName: '', performers: [], artists: [], hosts: [],
       staff: [], expenses: [],
       schedule: [
