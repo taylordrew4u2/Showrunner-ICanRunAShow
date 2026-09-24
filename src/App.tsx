@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, ScheduleTemplateItem } from './types';
 import { DEFAULT_SETTINGS, MAX_DELETED_SHOW_IDS } from './types';
 import { generateId } from './utils/id';
-import { ServerNotConfiguredError } from './utils/api';
+import { ServerNotConfiguredError, type ApiError } from './utils/api';
 import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
@@ -915,7 +915,11 @@ export default function App() {
       setAuthError(
         error instanceof ServerNotConfiguredError
           ? "The server isn't connected to the database yet. Check the deployment's environment variables."
-          : 'Failed to sign in. Please try again.',
+          // "Try again" is the one thing that does not help here, and the
+          // password may well have been right.
+          : (error as ApiError).status === 429
+            ? 'Too many attempts. Wait a few minutes, then try again.'
+            : 'Failed to sign in. Please try again.',
       );
     } finally {
       setAuthLoading(false);
@@ -938,6 +942,8 @@ export default function App() {
         );
       } else if (message === 'ACCOUNT_EXISTS') {
         setAuthError('Account already exists. Please sign in.');
+      } else if ((error as ApiError).status === 429) {
+        setAuthError('Too many attempts. Wait a few minutes, then try again.');
       } else {
         setAuthError('Failed to create account. Please try again.');
       }

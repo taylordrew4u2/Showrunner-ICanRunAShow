@@ -107,6 +107,7 @@ const DDL: string[] = [
   // and when, and can read nothing else about it.
   `CREATE TABLE IF NOT EXISTS sign_request (
      token      TEXT PRIMARY KEY,
+     user_id    TEXT,
      payload    TEXT NOT NULL,
      signature  TEXT,
      signed_at  TEXT,
@@ -157,6 +158,10 @@ const MIGRATIONS: string[] = [
   // producer whose show it is — nobody else has the token in a state where
   // they could publish it. See api/live.ts.
   `ALTER TABLE live_view ADD COLUMN user_id TEXT`,
+  // Same story for signing and profile links: requests made before the
+  // producer's account was recorded on them are claimed by the next
+  // authenticated write to the token. See api/_lib/tokenOwnership.ts.
+  `ALTER TABLE sign_request ADD COLUMN user_id TEXT`,
 ];
 
 async function runMigrations(db: Client): Promise<void> {
