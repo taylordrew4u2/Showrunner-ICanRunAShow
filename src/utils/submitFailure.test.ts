@@ -29,6 +29,8 @@ describe('why a submission did not go through', () => {
 
   it('tells a signer with a photo that shrinking was already tried', () => {
     expect(submitFailureMessage(err(413), { hasPhoto: true })).toMatch(/even shrunk down/i);
+    expect(submitFailureMessage(err(413), { hasPhoto: true })).toMatch(/headshot is required/i);
+    expect(submitFailureMessage(err(413), { hasPhoto: true })).not.toMatch(/sign without|photo is optional/i);
     // Without one, the photo is not the problem and must not be blamed.
     expect(submitFailureMessage(err(413), { hasPhoto: false })).not.toMatch(/photo/i);
   });
