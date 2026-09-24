@@ -130,7 +130,9 @@
   gap: var(--space-1);
   flex-shrink: 0;
   min-height: 36px;
-  margin-left: -var(--space-2);
+  /* A leading minus is not how a token is negated — `-var()` is dropped
+     outright, and the chevron sat 8px inboard of the title for it. */
+  margin-left: calc(-1 * var(--space-2));
   padding: var(--space-1-5) var(--space-2-5) var(--space-1-5) var(--space-2);
   border: 0;
   border-radius: var(--radius-md);
@@ -951,6 +953,18 @@ select.show-detail__status--select {
   padding: var(--space-4-5) var(--space-5) var(--space-5);
   border-top: 1px solid var(--border);
   animation: accordionSlideDown 0.22s var(--ease-out);
+}
+
+/* Every entrance on this page that slides — a section opening, a section
+   expanded, the receipt lightbox — holds still under Reduce Motion, like the
+   chevron and the progress bar already do. */
+@media (prefers-reduced-motion: reduce) {
+  .accordion-section__content,
+  .show-detail__expanded-section,
+  .show-section--expanded,
+  .receipt-lightbox {
+    animation: none;
+  }
 }
 
 @media (max-width: 768px) {
@@ -3114,6 +3128,18 @@ select.show-detail__status--select {
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
+}
+
+/* A name is one line of text 2px above the next name. On a phone that is a
+   20px target, and a tap opened the wrong performer — same floor the links in
+   the add box get. */
+@media (pointer: coarse) {
+  .lineup-gaps__name {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min);
+    padding-inline: var(--space-1);
+  }
 }
 
 .lineup-gaps__need {

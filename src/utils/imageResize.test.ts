@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fitWithin } from './imageResize';
+import { drawFlattened, fitWithin } from './imageResize';
 
 describe('fitWithin', () => {
   it('leaves an image that already fits alone', () => {
@@ -25,5 +25,19 @@ describe('fitWithin', () => {
     expect(fitWithin(0, 0, 640)).toEqual({ width: 0, height: 0 });
     expect(fitWithin(100, 0, 640)).toEqual({ width: 0, height: 0 });
     expect(fitWithin(Number.NaN, 100, 640)).toEqual({ width: 0, height: 0 });
+  });
+});
+
+describe('a transparent PNG cutout becoming a JPEG headshot', () => {
+  it('stands the performer on white, not on the black a JPEG makes of nothing', () => {
+    // No canvas here: a context that only remembers what it was told, in order.
+    const calls: string[] = [];
+    const ctx = {
+      fillStyle: '',
+      fillRect: (x: number, y: number, w: number, h: number) => calls.push(`fill ${ctx.fillStyle} ${x},${y} ${w}x${h}`),
+      drawImage: (_s: unknown, x: number, y: number, w: number, h: number) => calls.push(`draw ${x},${y} ${w}x${h}`),
+    };
+    drawFlattened(ctx as unknown as Parameters<typeof drawFlattened>[0], {} as CanvasImageSource, 640, 480);
+    expect(calls).toEqual(['fill #fff 0,0 640x480', 'draw 0,0 640x480']);
   });
 });

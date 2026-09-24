@@ -48,6 +48,14 @@
   }
 }
 
+/* The rest of the app holds still under Reduce Motion; so does every dialog. */
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal-box {
+    animation: none;
+  }
+}
+
 @media (max-width: 640px) {
   .modal-overlay {
     padding: 0;

@@ -4,16 +4,17 @@ import type { ScheduleItem } from '../types';
 export const DEFAULT_CUE_SECONDS = 5 * 60;
 export const MIN_CUE_SECONDS = 30;
 
-/** Parse a wall-clock time ("7:00 PM", "19:00", "7pm") to minutes-since-midnight, or null. */
+/** Parse a wall-clock time ("7:00 PM", "19:00", "7pm", "8 p.m.") to minutes-since-midnight, or null. */
 export function parseClockToMinutes(time: string | undefined): number | null {
   if (!time) return null;
-  const m = time.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  const m = time.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?$/i);
   if (!m) return null;
   let h = parseInt(m[1], 10);
   const mins = m[2] ? parseInt(m[2], 10) : 0;
-  const meridiem = m[3]?.toLowerCase();
-  if (meridiem === 'pm' && h < 12) h += 12;
-  if (meridiem === 'am' && h === 12) h = 0;
+  // "PM", "p.m." and "P.M" are the same word; only the first letter carries it.
+  const meridiem = m[3]?.[0].toLowerCase();
+  if (meridiem === 'p' && h < 12) h += 12;
+  if (meridiem === 'a' && h === 12) h = 0;
   if (h > 23 || mins > 59) return null;
   return h * 60 + mins;
 }
@@ -47,11 +48,20 @@ const MAX_SPAN_MINUTES = 12 * 60;
  * A written range states the meridiem once, at the end — nobody types
  * "8:00 PM–8:20 PM". Read literally the start of that range is eight in the
  * morning, which turns a twenty-minute set into a twelve-hour one.
+ *
+ * The end's meridiem is not always the start's, though. Hours on one side of
+ * the day run 12, 1, 2 … 11, so a start whose hour is above the end's has
+ * crossed twelve on the way there and sits on the other side: "11:30–12:00 AM"
+ * is the closer of a late show, not a morning cue, and "10:00–1:00 AM" is
+ * three hours, not fifteen.
  */
 export function borrowMeridiem(start: string, end: string | undefined): string {
   if (!end || /[ap]\.?m\.?/i.test(start)) return start;
-  const meridiem = end.match(/([ap])\.?m\.?/i)?.[1];
-  return meridiem ? `${start.trim()} ${meridiem.toLowerCase()}m` : start;
+  const meridiem = end.match(/([ap])\.?m\.?/i)?.[1]?.toLowerCase();
+  if (!meridiem) return start;
+  const crossedTwelve = parseInt(start, 10) % 12 > parseInt(end, 10) % 12;
+  const borrowed = crossedTwelve ? (meridiem === 'a' ? 'p' : 'a') : meridiem;
+  return `${start.trim()} ${borrowed}m`;
 }
 
 export function minutesBetweenClock(

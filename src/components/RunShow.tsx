@@ -96,6 +96,70 @@ const FAILURE_MESSAGE: Record<string, string> = {
     'the browser is blocking audio. Click the song or Play music on this screen to try again.',
 };
 
+type WakeLockSentinel = { release: () => Promise<void> };
+/** The one corner of the Screen Wake Lock API the board uses. */
+export interface ScreenAwakeNavigator {
+  wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinel> };
+}
+/** The one corner of the document the board watches for the tab coming back. */
+export interface ScreenAwakeDocument {
+  visibilityState: string;
+  addEventListener(type: 'visibilitychange', fn: () => void): void;
+  removeEventListener(type: 'visibilitychange', fn: () => void): void;
+}
+
+/**
+ * Hold the screen awake until the returned function is called.
+ *
+ * A laptop that sleeps mid-set takes the soundboard with it, and takes the
+ * stage remote with it too — a remote can only reach an app the machine is
+ * still running. Re-requested when the tab comes back, because the lock is
+ * dropped whenever the page is hidden. Unsupported browsers simply carry on
+ * without it.
+ *
+ * The browser answers a request asynchronously, so the board can close while
+ * one is still in flight. A lock that arrives after that has to be let go on
+ * the spot: nothing else will ever hold a reference to it, and a phone that
+ * cannot sleep for the rest of the evening is a flat battery before doors.
+ *
+ * Exported so a test can drive it with a fake navigator. Fast refresh only
+ * minds exports it has to re-render, and this one has no UI of its own.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function holdScreenAwake(nav: ScreenAwakeNavigator, doc: ScreenAwakeDocument): () => void {
+  const lock = nav.wakeLock;
+  if (!lock) return () => {};
+  let sentinel: WakeLockSentinel | null = null;
+  let dropped = false;
+  const acquire = async () => {
+    try {
+      const next = await lock.request('screen');
+      if (dropped) {
+        void next.release().catch(() => {});
+        return;
+      }
+      // Two answers can land without a hidden step between them (the opening
+      // request and a visibility event racing). Releasing an already-dropped
+      // lock is harmless; leaving one behind is not.
+      void sentinel?.release().catch(() => {});
+      sentinel = next;
+    } catch {
+      // Denied (a background tab, or battery saver). Nothing to do but run.
+    }
+  };
+  const onVisible = () => {
+    if (doc.visibilityState === 'visible' && !dropped) void acquire();
+  };
+  void acquire();
+  doc.addEventListener('visibilitychange', onVisible);
+  return () => {
+    dropped = true;
+    doc.removeEventListener('visibilitychange', onVisible);
+    void sentinel?.release().catch(() => {});
+    sentinel = null;
+  };
+}
+
 /**
  * One button on the board. Defined out here on purpose: the clock re-renders
  * every second, and a component declared inside RunShow would be a new type on
@@ -749,6 +813,22 @@ export function RunShow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewToken, idx, running, totalSec, showName, playingKey, viewerAudio, cueResets]);
 
+  // What the room is shown once the board closes. The close effect below runs
+  // its cleanup once, with whatever it closed over on the first render — read
+  // from there, the "final" cue of every show was cue one. So the latest cue is
+  // kept here, refreshed after every render, and the cleanup reads it instead.
+  const finalSegmentRef = useRef<Pick<LiveViewPayload, 'segment' | 'totalSec'>>({ segment: {}, totalSec });
+  useEffect(() => {
+    finalSegmentRef.current = {
+      segment: {
+        name: onStageName,
+        description: current?.description,
+        credits: onStagePerformer?.credits,
+      },
+      totalSec,
+    };
+  });
+
   // On Run Show close, mark the live view ended so viewers see the final state.
   useEffect(() => () => {
     if (!viewToken) return;
@@ -756,13 +836,8 @@ export function RunShow({
       showName,
       status: 'ended',
       theme: loadColorScheme(),
-      segment: {
-        name: onStageName,
-        description: current?.description,
-        credits: onStagePerformer?.credits,
-      },
+      ...finalSegmentRef.current,
       next: {},
-      totalSec,
       remainingAtLastUpdate: 0,
       lastUpdateMs: Date.now(),
     };
@@ -771,39 +846,8 @@ export function RunShow({
   }, []);
 
 
-  /**
-   * Hold the screen awake while the show runs.
-   *
-   * A laptop that sleeps mid-set takes the soundboard with it, and takes the
-   * stage remote with it too — a remote can only reach an app the machine is
-   * still running. Re-requested when the tab comes back, because the lock is
-   * dropped whenever the page is hidden. Unsupported browsers simply carry on
-   * without it.
-   */
-  useEffect(() => {
-    type Sentinel = { release: () => Promise<void> };
-    const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<Sentinel> } };
-    if (!nav.wakeLock) return;
-    let sentinel: Sentinel | null = null;
-    let dropped = false;
-    const acquire = async () => {
-      try {
-        sentinel = await nav.wakeLock!.request('screen');
-      } catch {
-        // Denied (a background tab, or battery saver). Nothing to do but run.
-      }
-    };
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && !dropped) void acquire();
-    };
-    void acquire();
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      dropped = true;
-      document.removeEventListener('visibilitychange', onVisible);
-      void sentinel?.release().catch(() => {});
-    };
-  }, []);
+  // Hold the screen awake while the show runs — see holdScreenAwake.
+  useEffect(() => holdScreenAwake(navigator, document), []);
 
   /**
    * Real fullscreen, not just a full-viewport layout.
@@ -1175,6 +1219,19 @@ export function RunShow({
 
         {/* ── Clock ───────────────────────────────────────────────────── */}
         <section className="rs-panel rs-clock" aria-label="Independent timer">
+          {/* The clock's words for a screen reader. Next and Prev keep their
+              labels and focus stays put, so without this a keyboard operator
+              gets nothing back from a cue change; the digits are left out,
+              since a region that changes every second never stops talking.
+              The overrun is its own alert so it cuts in, once, when the
+              digits go red. */}
+          <span className="visually-hidden" role="status" aria-live="polite">
+            Cue {idx + 1} of {schedule.length}: {current?.description || 'Untitled cue'}
+            {onStageName ? ` — ${onStageName}` : ''}. {status}.
+          </span>
+          {isOver && (
+            <span className="visually-hidden" role="alert">This cue is over time.</span>
+          )}
           <div className="rs-clock__head">
             <span className="rs-clock__pos">
               Cue {idx + 1} / {schedule.length}

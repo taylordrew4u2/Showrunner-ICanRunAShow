@@ -23,6 +23,11 @@ export function duplicateShow(original: Show, options: { name?: string; date?: s
     copy.completions.artists = false;
     if (clearedAssignment) copy.completions.schedule = false;
   }
+  // Scene progress and ticked to-dos belong to the night they were done on;
+  // carried over, a new card shows a full progress bar before anyone has
+  // planned it. `undefined` stays undefined so an unused section stays hidden.
+  for (const scene of copy.scenes ?? []) scene.status = 'planned';
+  for (const todo of copy.todos ?? []) todo.completed = false;
   return {
     ...copy,
     performers: [],

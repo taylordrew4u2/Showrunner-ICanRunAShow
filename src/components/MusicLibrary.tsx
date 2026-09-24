@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MusicTrack, Show } from '../types';
 import { generateId } from '../utils/id';
 import { audioUploadSizeError, pickFile } from '../utils/media';
@@ -37,6 +37,18 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
   const [editArtist, setEditArtist] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [query, setQuery] = useState('');
+  /**
+   * The library as it is now, for the handlers that resolve after an await —
+   * an upload that can take a minute, or a confirmation still waiting to be
+   * answered. Only the Upload button is disabled meanwhile, so a trim or an
+   * edit made during the wait was in the list; rebuilding from the array
+   * captured when the button was pressed wrote it back out, and a removal
+   * confirmed after an upload finished dropped the track just added.
+   */
+  const tracksRef = useRef(tracks);
+  useEffect(() => {
+    tracksRef.current = tracks;
+  }, [tracks]);
 
   // The crate only grows — every track uploaded for any show is on this page
   // forever — so past a couple of dozen, finding one meant scrolling the lot.
@@ -62,7 +74,7 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
         musicName: file.name,
         addedAt: new Date().toISOString(),
       };
-      onChange([track, ...tracks]);
+      onChange([track, ...tracksRef.current]);
       setStatus(`Added "${track.title}". Give it an artist so the DJ list reads properly.`);
     } catch {
       setStatus('Could not upload that audio file. Check your connection and try again.');
@@ -105,7 +117,7 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
     if (!(await confirm({ message: warning, confirmLabel: 'Remove' }))) return;
 
     if (canDeleteMedia(track, shows)) deleteMedia(track.music);
-    onChange(tracks.filter((t) => t.id !== track.id));
+    onChange(tracksRef.current.filter((t) => t.id !== track.id));
     setStatus('');
   }
 

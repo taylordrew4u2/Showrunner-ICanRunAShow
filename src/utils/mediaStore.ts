@@ -2,7 +2,7 @@
 // show/settings payloads as encrypted chunks, and the data model carries only
 // a tiny reference string. Same end-to-end encryption as everything else —
 // chunks are AES-encrypted with the session's data key before upload.
-import { api } from './api';
+import { api, withNetworkRetry } from './api';
 import { encryptWithKey, decryptWithKey } from './encryption';
 import type { SessionCredentials } from './session-vault';
 import { readFileAsDataURL } from './media';
@@ -36,6 +36,19 @@ export function splitIntoChunks(text: string, sliceChars = SLICE_CHARS): string[
   return chunks;
 }
 
+/**
+ * How long one chunk gets to travel.
+ *
+ * The fetch wrapper's default deadline suits a small request. A chunk is
+ * around two megabytes of ciphertext, and a track's chunks all travel at
+ * once, sharing whatever the venue's connection gives — so on a slow one
+ * every chunk ran out of time together, the whole download failed, and the
+ * soundboard reported the headliner's track as broken while shorter ones
+ * played. The retries in useMediaUrl and the audio engine hit the same wall.
+ * Two minutes is the same allowance a signer's headshot gets going uphill.
+ */
+export const MEDIA_CHUNK_TIMEOUT_MS = 120_000;
+
 // The store needs the session credentials for auth headers + the encryption
 // key. App sets them at login/restore and clears them at logout. These are the
 // values derived at sign-in — the raw password is never held here.
@@ -67,6 +80,13 @@ function authOpts() {
 /**
  * Upload a file to the media store. Returns the `media:` reference to put in
  * the data model. Chunks upload sequentially so each request stays small.
+ *
+ * Each chunk is sent again if the connection drops under it. A track is a
+ * dozen chunks going uphill from a basement, and one of them dying used to
+ * fail the whole file — and every retry by the producer started over from
+ * chunk zero, so the same chunk was as likely to die again. Repeating a chunk
+ * is safe: the server upserts by (id, seq), so a chunk that did land before
+ * the answer was lost is simply written once more.
  */
 export async function uploadMedia(file: File): Promise<string> {
   if (!creds) throw new Error('Media store not initialized (no session)');
@@ -74,11 +94,22 @@ export async function uploadMedia(file: File): Promise<string> {
   const key = creds.key;
   const id = crypto.randomUUID();
   const chunks = splitIntoChunks(dataUrl);
+  const ref = `${REF_PREFIX}${id}#${chunks.length}`;
   const a = authOpts();
   for (let seq = 0; seq < chunks.length; seq++) {
-    await api.put('/api/media', { id, seq, total: chunks.length, data: encryptWithKey(chunks[seq], key) }, a);
+    const data = encryptWithKey(chunks[seq], key);
+    try {
+      await withNetworkRetry(() =>
+        api.put('/api/media', { id, seq, total: chunks.length, data }, { ...a, timeoutMs: MEDIA_CHUNK_TIMEOUT_MS }),
+      );
+    } catch (err) {
+      // Nothing will ever point at the chunks that did land: the reference is
+      // only handed out once the whole file is up. Clear them rather than
+      // leave a few megabytes behind for every failed try.
+      deleteMedia(ref);
+      throw err;
+    }
   }
-  const ref = `${REF_PREFIX}${id}#${chunks.length}`;
   urlCache.set(ref, dataUrl); // already have the plaintext — warm the cache
   return ref;
 }
@@ -123,7 +154,7 @@ export async function resolveMediaUrl(src: string): Promise<string | null> {
         Array.from({ length: parsed.total }, async (_, seq) => {
           const res = await api.get<{ data: string }>(
             `/api/media?id=${encodeURIComponent(parsed.id)}&seq=${seq}`,
-            a,
+            { ...a, timeoutMs: MEDIA_CHUNK_TIMEOUT_MS },
           );
           return decryptWithKey<string>(res.data, key);
         }),

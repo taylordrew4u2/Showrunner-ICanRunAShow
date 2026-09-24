@@ -155,10 +155,10 @@ export function Expenses({ settings, onBack, backLabel = 'Shows', onUpdateSettin
                   <select className="section-field__select" aria-label="Expense category" value={editDraft.category} onChange={(ev) => setEditDraft(d => ({ ...d, category: ev.target.value }))}>
                     {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
-                  <input className="section-field__input" value={editDraft.itemName} onChange={(ev) => setEditDraft(d => ({ ...d, itemName: ev.target.value }))} placeholder="Item" />
-                  <input className="section-field__input" type="number" step="0.01" value={editDraft.cost} onChange={(ev) => setEditDraft(d => ({ ...d, cost: ev.target.value }))} placeholder="Cost" />
+                  <input className="section-field__input" value={editDraft.itemName} onChange={(ev) => setEditDraft(d => ({ ...d, itemName: ev.target.value }))} placeholder="Item" aria-label="Item or service name" />
+                  <input className="section-field__input" type="number" step="0.01" value={editDraft.cost} onChange={(ev) => setEditDraft(d => ({ ...d, cost: ev.target.value }))} placeholder="Cost" aria-label="Cost in dollars" />
                   <input className="section-field__input" type="date" aria-label="Expense date" value={editDraft.date} onChange={(ev) => setEditDraft(d => ({ ...d, date: ev.target.value }))} />
-                  <input className="section-field__input" value={editDraft.notes} onChange={(ev) => setEditDraft(d => ({ ...d, notes: ev.target.value }))} placeholder="Notes" />
+                  <input className="section-field__input" value={editDraft.notes} onChange={(ev) => setEditDraft(d => ({ ...d, notes: ev.target.value }))} placeholder="Notes" aria-label="Notes" />
                   <button className="btn btn--primary btn--sm" onClick={saveEdit}>Save</button>
                   <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
                 </div>

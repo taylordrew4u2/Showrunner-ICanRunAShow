@@ -96,10 +96,28 @@
 
 /* ── Day grid ───────────────────────────────────────────────── */
 
+/* One element per week row so the grid has real rows for a screen reader;
+   each row lays its seven cells out, so the columns still line up with the
+   weekday header above. */
 .shows-cal__grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.shows-cal__week {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: var(--space-1);
+}
+
+.shows-cal__cell {
+  display: flex;
+  min-width: 0;
+}
+
+.shows-cal__cell > .shows-cal__day {
+  width: 100%;
 }
 
 .shows-cal__day {

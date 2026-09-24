@@ -257,6 +257,16 @@
   color: var(--primary-text);
 }
 
+/* Small text under two full-size buttons: a 15px sliver on a phone. */
+@media (pointer: coarse) {
+  .perf-profile__photo-remove {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min);
+    padding-inline: var(--space-2);
+  }
+}
+
 /* ── Photo gallery ─────────────────────────────────────────────────── */
 
 .perf-profile__photo-gallery {
@@ -718,6 +728,12 @@
   box-shadow: var(--shadow-drawer);
 }
 
+/* Focused on open so the keyboard comes in with it; the panel's edge is the
+   focus ring, as with Run Show. */
+.perf-drawer:focus {
+  outline: none;
+}
+
 @keyframes perf-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -726,6 +742,16 @@
 @keyframes perf-slide-in {
   from { transform: translateX(100%); }
   to   { transform: translateX(0); }
+}
+
+/* On a phone the drawer is the whole screen sliding in from the right — the
+   kind of movement Reduce Motion exists to turn off. */
+@media (prefers-reduced-motion: reduce) {
+  .perf-drawer,
+  .perf-drawer__backdrop,
+  .photo-lightbox {
+    animation: none;
+  }
 }
 
 @media (max-width: 640px) {

@@ -49,3 +49,17 @@
   padding: var(--space-1) var(--space-1-5);
   flex-shrink: 0;
 }
+
+/* It sits 8px from "Install", and at 27px wide a miss installs the app
+   instead of dismissing the banner. The negative margin keeps the row at the
+   height it was fought down to above. */
+@media (pointer: coarse) {
+  .install-prompt__close {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+    margin-block: calc(-1 * var(--space-2));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

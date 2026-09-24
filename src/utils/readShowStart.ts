@@ -38,6 +38,10 @@ interface Token {
   meridiem: 'am' | 'pm' | null;
   /** What the words around it called this time. */
   role: 'doors' | 'show' | null;
+  /** The far end of "8-10pm": when the night ends, never when it starts. */
+  rangeEnd: boolean;
+  /** Where the written time stops, so the next one can see what joins them. */
+  to: number;
 }
 
 /**
@@ -46,8 +50,21 @@ interface Token {
  * One pattern rather than several, because two passes let "9:00" be matched by
  * the colon rule and its " PM" then be read as a separate thing — which turns
  * a nine o'clock show into a nine in the morning one.
+ *
+ * The edges rule out the numbers that share a field with a show time and are
+ * not one: "$10" is the ticket, "21+" the age limit, "9/12" and "12th" the
+ * date. Left in, the last of them wins as the show and the field rewrites
+ * itself to nine or ten at night.
  */
-const TOKEN = /(\d{1,2})(?:\s*:\s*(\d{2})?)?\s*(a\.?m\.?|p\.?m\.?)?/gi;
+const TOKEN = /(?<![\d$/])(\d{1,2})(?:\s*:\s*(\d{2})?)?\s*(a\.?m\.?|p\.?m\.?)?(?![\d+%/]|(?:st|nd|rd|th)\b)/gi;
+
+/** "Sept 12" or "12 Sept": the number beside a month is a day, not a time. */
+const MONTH = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+const MONTH_BEFORE = new RegExp(`\\b${MONTH}\\.?\\s*$`, 'i');
+const MONTH_AFTER = new RegExp(`^\\s*${MONTH}\\b`, 'i');
+
+/** What joins the two ends of a range: "8-10pm", "8 to 10pm", "8pm – 10". */
+const RANGE_JOIN = /^\s*(?:[-–—]|to|till|until|thru|through)\s*$/i;
 
 const DOORS_WORDS = /doors?|house\s*opens?/gi;
 const SHOW_WORDS = /show(?:time)?|starts?|curtain|first\s*act|begins?/gi;
@@ -114,6 +131,8 @@ function readTokens(text: string): Token[] {
     // matches with a trailing space — which pushes the token's span up against
     // the *next* label and hands it that label's name.
     const to = from + m[0].trimEnd().length;
+    if (MONTH_BEFORE.test(text.slice(0, from)) || MONTH_AFTER.test(text.slice(to))) continue;
+    const previous = found[found.length - 1];
     found.push({
       hour,
       minutes,
@@ -122,6 +141,8 @@ function readTokens(text: string): Token[] {
       // and quietly turns a nine o'clock show into nine in the morning.
       meridiem: m[3] ? (m[3][0].toLowerCase() === 'p' ? 'pm' : 'am') : null,
       role: roleFor(labels, from, to),
+      rangeEnd: !!previous && !previous.rangeEnd && RANGE_JOIN.test(text.slice(previous.to, from)),
+      to,
     });
   }
 
@@ -153,6 +174,41 @@ function toMinutes(token: Token, borrowed: 'am' | 'pm' | null): { minutes: numbe
 const MAX_DOORS_MIN = 180;
 
 /**
+ * The meridiem a time written without one takes.
+ *
+ * A range says it once, at the end — "8-10pm" — and the start sits on the same
+ * side of noon unless its hour is the higher of the two, in which case it
+ * crossed twelve on the way: "10-1am" starts at ten at night. Otherwise a
+ * meridiem written anywhere on the line covers it: "doors 8:30, show 9pm"
+ * says nine at night, and so says half past eight at night.
+ */
+function meridiemFor(token: Token, tokens: Token[]): 'am' | 'pm' | null {
+  if (token.meridiem) return token.meridiem;
+  const next = tokens[tokens.indexOf(token) + 1];
+  if (next?.rangeEnd && next.meridiem) {
+    const crossedTwelve = token.hour % 12 > next.hour % 12;
+    return crossedTwelve ? (next.meridiem === 'am' ? 'pm' : 'am') : next.meridiem;
+  }
+  return tokens.find((t) => t.meridiem)?.meridiem ?? null;
+}
+
+/**
+ * Which of the times nobody labelled is the show.
+ *
+ * A line that names two times is nearly always doors-then-show, so the last
+ * one wins — but only when the gap between them could be doors. "7:30 8:30"
+ * is a half-hour of doors; two times that are not that close are a start and
+ * something else, and the start is the one written first.
+ */
+function pickUnlabelled(candidates: Token[], tokens: Token[]): Token | undefined {
+  if (candidates.length < 2) return candidates[0];
+  const last = candidates[candidates.length - 1];
+  const before = candidates[candidates.length - 2];
+  const gap = toMinutes(last, meridiemFor(last, tokens)).minutes - toMinutes(before, meridiemFor(before, tokens)).minutes;
+  return gap > 0 && gap <= MAX_DOORS_MIN ? last : candidates[0];
+}
+
+/**
  * The show's start, and its doors, out of free text. Null when there is no
  * time in there at all.
  */
@@ -161,23 +217,20 @@ export function readShowStart(text: string | undefined): ShowStart | null {
   const tokens = readTokens(text);
   if (tokens.length === 0) return null;
 
-  // A meridiem written once covers the whole line: "doors 8:30, show 9pm" says
-  // nine at night, and so says half past eight at night.
-  const borrowed = tokens.find((t) => t.meridiem)?.meridiem ?? null;
-
-  const labelled = tokens.find((t) => t.role === 'show');
-  const unlabelled = tokens.filter((t) => t.role !== 'doors');
+  // The end of a range is never the start of the show, whatever it sits next to.
+  const starts = tokens.filter((t) => !t.rangeEnd);
+  const labelled = starts.find((t) => t.role === 'show');
+  const unlabelled = starts.filter((t) => t.role !== 'doors');
   // The show is the one called the show; failing that the one not called
-  // doors; failing that the last time written, since a line that names two
-  // times is nearly always doors-then-show.
-  const showToken = labelled ?? unlabelled[unlabelled.length - 1] ?? tokens[tokens.length - 1];
-  const show = toMinutes(showToken, borrowed);
+  // doors; failing that whatever was written first.
+  const showToken = labelled ?? pickUnlabelled(unlabelled, tokens) ?? tokens[0];
+  const show = toMinutes(showToken, meridiemFor(showToken, tokens));
 
   const doorsToken = tokens.find((t) => t.role === 'doors') ?? null;
   let doorsMin: number | undefined;
   let doorsLabel: string | undefined;
   if (doorsToken && doorsToken !== showToken) {
-    const doors = toMinutes(doorsToken, borrowed);
+    const doors = toMinutes(doorsToken, meridiemFor(doorsToken, tokens));
     const gap = show.minutes - doors.minutes;
     // Doors after the show, or half a day before it, is a misread rather than
     // a very patient audience.

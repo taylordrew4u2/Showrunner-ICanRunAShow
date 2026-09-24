@@ -2,7 +2,7 @@
 
 > Live-show management software for comedians, promoters, and stage managers who run recurring live events.
 
-I Can Run A Show is a production tool that covers the full show lifecycle in a single app: build the lineup, import the schedule by photo or PDF (AI-assisted), and operate the show in a full-screen live mode with per-cue countdowns and walk-on music. It also powers a public read-only viewer link for audiences.
+I Can Run A Show is a production tool that covers the full show lifecycle in a single app: build the lineup, import the schedule from a photo or PDF (read on the device, nothing uploaded), and operate the show in a full-screen live mode with per-cue countdowns and walk-on music. It also powers a public read-only viewer link for audiences.
 
 ## Who it's for
 
@@ -12,7 +12,7 @@ Independent live-show coordinators — comedians who produce their own shows, dr
 
 - **Show management** — multiple shows with status tracking (upcoming, in-progress, completed, cancelled), venue and date info, per-show sections (lineup, schedule, vendors, staff, host, expenses, deadlines)
 - **Lineup builder** — performer profiles with social media, email, walk-on music, and video links; clickable Instagram links; bulk email all performers
-- **Schedule import** — upload a photo, PDF, or plain text; GPT-4o-mini Vision extracts the cue list automatically; Tesseract.js OCR + regex fallback runs without an API key
+- **Schedule import** — upload a photo, PDF, or plain text; the cue list is read on the device (PDF.js for PDFs, Tesseract.js OCR for photos, then a line parser); nothing is sent to a server and there is no key to add
 - **Run Show mode** — full-screen live mode, per-cue countdown timers, drift indicator, keyboard navigation, walk-on music with automatic fade in/out, live broadcast to a public viewer URL
 - **Public viewer** — read-only link showing the current on-stage performer and what's next; updates live during the show
 - **Performer rolodex** — global performer directory that syncs across shows

@@ -56,6 +56,24 @@ const PILL: Record<SyncState, { label: string; headline: string; detail: string 
 };
 
 /**
+ * What the live region says when the pill settles on `next`, having last
+ * settled on `previous` — or null to stay quiet. `saving` never settles: it is
+ * the moment between two resting states, not a place the work lives.
+ *
+ * Every pause in typing runs a save, so announcing each one read "Saving your
+ * changes. Everything is saved." after every few characters, on every screen.
+ * A region that chatty gets silenced, and then the transitions that matter go
+ * unheard. So the ordinary save cycle is silent, and the region speaks only
+ * when where the work lives changes: it is being held here, it needs the
+ * user, or it is back on the account after one of those.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function syncAnnouncement(previous: SyncState, next: SyncState): string | null {
+  if (next === 'saving' || next === previous) return null;
+  return PILL[next].headline;
+}
+
+/**
  * The always-on answer to "is my work safe?".
  *
  * The app already retried failed saves, kept local backups, and encrypted
@@ -100,6 +118,18 @@ export function SyncStatus({
     };
   }, [open]);
 
+  // The last state the pill settled on, and the last line worth saying about
+  // it. Kept in state rather than a ref so it can be compared during render,
+  // which is when the new state is known. Starts at `saved` because that is
+  // where the app rests: a mount that lands anywhere else is news.
+  const [announced, setAnnounced] = useState<{ settled: SyncState; line: string }>({
+    settled: 'saved',
+    line: '',
+  });
+  if (state !== 'saving' && state !== announced.settled) {
+    setAnnounced({ settled: state, line: syncAnnouncement(announced.settled, state) ?? announced.line });
+  }
+
   const copy = PILL[state];
   const savedLabel = lastSavedSentence(lastSavedAt);
 
@@ -120,9 +150,11 @@ export function SyncStatus({
           a screen reader reports — so "your work is saved" was visible-only.
           Show detail used to carry its own live region for this, which is why
           the app had two save messages at once; the announcement belongs with
-          the state it describes, and this is where that state lives. */}
+          the state it describes, and this is where that state lives.
+          Only the transitions that change where the work is get read out —
+          see syncAnnouncement. The pill's own label still carries the rest. */}
       <span className="visually-hidden" role="status" aria-live="polite">
-        {copy.headline}
+        {announced.line}
       </span>
       <button
         type="button"

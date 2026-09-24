@@ -1,8 +1,37 @@
-import type { PotentialComic } from '../types';
+import { useState } from 'react';
+import type { PotentialComic, ProfileRequest } from '../types';
 import { describeGaps, performerReadiness } from '../utils/performerReadiness';
-import type { ProfileLinkStatus } from '../utils/profileLink';
+import { profileUrl, type ProfileLinkStatus } from '../utils/profileLink';
 import { describeChanges, type ProfileChange } from '../utils/signatureImport';
 import { useMediaUrl } from '../utils/useMediaUrl';
+import { useConfirm } from './useConfirm';
+
+/**
+ * The address a row can put back on screen for a link still out asking.
+ *
+ * The one just made, when there is one; otherwise rebuilt from the request
+ * on file. The link used to live only in the page's memory, shown once — so a
+ * producer who switched to Messages before pasting, or whose phone dropped
+ * the app, came back to "Asked for details" with nothing to send and no way
+ * to ask again until an answer arrived. The token and key were filed all
+ * along; this is what turns them back into the link.
+ *
+ * Nothing once it is answered: that link is used up.
+ *
+ * Exported so a test can pin the rule. The lint rule minds exports it has to
+ * re-render, and this one has no UI of its own.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function shownProfileUrl(
+  origin: string,
+  status: ProfileLinkStatus,
+  request: ProfileRequest | undefined,
+  freshUrl?: string,
+): string | undefined {
+  if (freshUrl) return freshUrl;
+  if (status !== 'waiting' || !request || request.submitted) return undefined;
+  return profileUrl(origin, request.token, request.key);
+}
 
 /**
  * One person in the Rolodex.
@@ -29,15 +58,21 @@ export function RolodexRow({
   onSkipImport,
   linkError,
   pendingPhoto,
+  request,
+  onWithdraw,
 }: {
   comic: PotentialComic;
   onEdit: () => void;
   /** Whether a profile link has been sent, and whether it came back. */
   linkStatus: ProfileLinkStatus;
-  /** The link just created for this row, shown once so it can be sent on. */
+  /** The link just created for this row, shown as soon as it is made. */
   linkUrl?: string;
   linkBusy?: boolean;
   onRequestDetails: () => void;
+  /** The link still out asking, as filed, so it can be shown again later. */
+  request?: ProfileRequest;
+  /** Withdraw that link: stop it working and drop it, so the ask comes back. */
+  onWithdraw?: () => void | Promise<void>;
   /** What their answers would change on the profile, once they have replied. */
   pending?: ProfileChange[];
   onImport?: () => void;
@@ -50,6 +85,45 @@ export function RolodexRow({
   const photoUrl = useMediaUrl(comic.photo);
   const { gaps } = performerReadiness(comic);
   const walkOn = [comic.walkOnMusicName, comic.walkOnMusicArtist].filter(Boolean).join(' — ');
+  const { confirm, confirmDialog } = useConfirm();
+
+  const url = shownProfileUrl(window.location.origin, linkStatus, request, linkUrl);
+  // A link just made is open on the row; one brought back after a reload is
+  // behind "Show link", so a Rolodex with a dozen links out is still a list
+  // of people rather than a list of addresses.
+  const [revealed, setRevealed] = useState(false);
+  const linkOpen = Boolean(url) && (Boolean(linkUrl) || revealed);
+  const [copied, setCopied] = useState<'no' | 'yes' | 'failed'>('no');
+  const [withdrawing, setWithdrawing] = useState(false);
+
+  // Copied here, on the tap, rather than claimed. The page's own write
+  // happens after the link is made — outside the gesture, where iOS Safari
+  // refuses it without a word — and the row used to say "Copied." either way.
+  async function copy(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied('yes');
+    } catch {
+      setCopied('failed');
+    }
+    setTimeout(() => setCopied('no'), 2500);
+  }
+
+  async function withdraw() {
+    if (!onWithdraw) return;
+    const go = await confirm({
+      message: `Withdraw ${comic.name}'s link? It stops working straight away. You can ask again after.`,
+      confirmLabel: 'Withdraw',
+    });
+    if (!go) return;
+    setWithdrawing(true);
+    try {
+      await onWithdraw();
+      setRevealed(false);
+    } finally {
+      setWithdrawing(false);
+    }
+  }
 
   return (
     <article className="rolodex__item">
@@ -98,26 +172,56 @@ export function RolodexRow({
             {linkBusy ? 'Making link…' : 'Ask for details'}
           </button>
         )}
+        {/* The way back to a link that is out asking. Same spot as the ask,
+            so the row never carries more than two buttons on a phone. */}
+        {linkStatus === 'waiting' && !linkUrl && url && (
+          <button
+            className="btn btn--ghost btn--sm"
+            type="button"
+            onClick={() => setRevealed((r) => !r)}
+          >
+            {revealed ? 'Hide link' : 'Show link'}
+          </button>
+        )}
         <button className="btn btn--secondary btn--sm" type="button" onClick={onEdit}>
           Edit
         </button>
       </div>
 
-      {/* Shown once, right after it is made: the producer's next move is
-          always to send it, and a link they cannot see is a link they cannot
-          paste into a message. Copied to the clipboard as well, where that
-          works. */}
-      {linkUrl && (
+      {/* Shown right after it is made: the producer's next move is always to
+          send it, and a link they cannot see is a link they cannot paste into
+          a message. Shown again on request while it is still out, for the
+          send that did not happen the first time. */}
+      {linkOpen && url && (
         <div className="rolodex__link">
           <input
             className="rolodex__link-url"
             readOnly
-            value={linkUrl}
+            value={url}
             aria-label={`Profile link for ${comic.name}`}
             onFocus={(e) => e.currentTarget.select()}
           />
-          <span className="rolodex__link-hint">
-            Copied. Send it to {comic.name} — it works once, and only for them.
+          <button
+            className="btn btn--secondary btn--sm"
+            type="button"
+            onClick={() => void copy(url)}
+          >
+            {copied === 'yes' ? 'Copied' : 'Copy link'}
+          </button>
+          {onWithdraw && (
+            <button
+              className="btn btn--ghost btn--sm"
+              type="button"
+              onClick={() => void withdraw()}
+              disabled={withdrawing}
+            >
+              {withdrawing ? 'Withdrawing…' : 'Withdraw'}
+            </button>
+          )}
+          <span className="rolodex__link-hint" role="status">
+            {copied === 'failed'
+              ? "Couldn't reach the clipboard — select the link above and copy it."
+              : `Send it to ${comic.name} — it works once, and only for them.`}
           </span>
         </div>
       )}
@@ -165,6 +269,7 @@ export function RolodexRow({
           </div>
         </div>
       )}
+      {confirmDialog}
     </article>
   );
 }
