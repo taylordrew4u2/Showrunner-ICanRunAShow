@@ -84,8 +84,14 @@ test('a show deleted while the save was failing stays deleted after a reload', a
   await page.route('**/api/shows', route => route.request().method() === 'PUT'
     ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"unavailable"}' })
     : route.fallback());
-  await page.locator('.show-card').filter({ hasText: 'Goes' }).getByRole('button', { name: 'Delete show' }).click();
+  // From the show's own page: the card's delete control is a desktop
+  // affordance, and a phone is where this deletion is most likely made.
+  await page.locator('.show-card').filter({ hasText: 'Goes' }).getByRole('button', { name: /Open Goes/ }).click();
+  await expect(page.getByRole('heading', { name: 'Goes', level: 1 })).toBeVisible();
+  await page.locator('button[aria-label="More"], .more-menu__trigger').first().click();
+  await page.getByText('Delete show', { exact: true }).click();
   await page.locator('.confirm-dialog__actions button:has-text("Delete")').click();
+  await gotoTab(page, 'Shows');
   await expect(page.locator('.dash-next__name')).toHaveText('Keeps');
   await expect(page.locator('.sync-status--retrying')).toBeVisible();
   expect(state.shows).toHaveLength(2);
