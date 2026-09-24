@@ -46,6 +46,33 @@ it('keeps the later edit when it has no record of what it loaded', () => {
   expect(recoverShowDraft([ahead], [behind]).map(s => s.name)).toEqual(['Newer here']);
 });
 
+it('keeps a show deleted on this device deleted, while the server still has what it loaded', () => {
+  // Delete a show in the basement, background the app, launch again with
+  // signal: the held copy is the list without it, and the server still has
+  // the version this device loaded. Starting from the server's list put it
+  // straight back, next to its own copy in the trash.
+  const kept = show('Kept'); const gone = { ...show('Gone'), id: 'x' };
+  const recovered = recoverShowDraft([kept], [kept, gone], { a: hash(kept), x: hash(gone) });
+  expect(recovered.map(s => s.id)).toEqual(['a']);
+});
+
+it('lets an edit made elsewhere outlive a deletion made here', () => {
+  // The server's copy moved since this device loaded it. Somebody worked on
+  // that show; the deletion here was made on a stale picture, and the edit
+  // is the one that must not be lost.
+  const kept = show('Kept'); const loaded = { ...show('Loaded'), id: 'x' };
+  const edited = { ...show('Edited elsewhere'), id: 'x' };
+  const recovered = recoverShowDraft([kept], [kept, edited], { a: hash(kept), x: hash(loaded) });
+  expect(recovered.map(s => s.name)).toEqual(['Kept', 'Edited elsewhere']);
+});
+
+it('does not read a show it never loaded as deleted', () => {
+  // Added from another device after this copy was held: no baseline, so
+  // nothing here is evidence about it.
+  const kept = show('Kept'); const elsewhere = { ...show('From the laptop'), id: 'b' };
+  expect(recoverShowDraft([kept], [kept, elsewhere], { a: hash(kept) }).map(s => s.id)).toEqual(['a', 'b']);
+});
+
 it('still keeps both when it knows the server moved under it', () => {
   // A real conflict is unchanged: this is what the forking is for.
   const base = show('Original'); const local = show('Local'); const remote = show('Remote');

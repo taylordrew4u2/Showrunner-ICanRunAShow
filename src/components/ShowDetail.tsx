@@ -20,7 +20,8 @@ import { ShowRecapSection } from './sections/ShowRecapSection';
 import { RunShow } from './RunShow';
 import { Modal } from './Modal';
 import { exportShowToPDF } from '../utils/pdfExport';
-import { parseShowDate, formatShowTime } from '../utils/showDate';
+import { parseShowDate, formatShowTime, showStartISO } from '../utils/showDate';
+import { daysUntil } from '../utils/showsOverview';
 import { joinNames, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
 import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { loadColorScheme } from '../utils/theme';
@@ -199,7 +200,11 @@ export function ShowDetail({
   }, [show]);
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set());
-  const [previewPerformerId, setPreviewPerformerId] = useState<string | undefined>();
+  // A tap on a face in the lineup preview, as a request to the Performers
+  // section to open that profile. Counted rather than remembered: the section
+  // used to be keyed on the id, which remounted it — and dropped an open
+  // profile's unsaved edits — every time any other section was toggled.
+  const [openProfile, setOpenProfile] = useState<{ id: string; seq: number } | undefined>();
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(startInRunShow);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -260,7 +265,7 @@ export function ShowDetail({
   // and land inside the Performers section instead of scrolling to find it.
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   function jumpToSection(sectionKey: string, performerId?: string) {
-    setPreviewPerformerId(performerId);
+    if (performerId) setOpenProfile((prev) => ({ id: performerId, seq: (prev?.seq ?? 0) + 1 }));
     setExpandedSections((prev) => (prev.has(sectionKey) ? prev : new Set(prev).add(sectionKey)));
     // Two frames: one for React to commit the newly-expanded section, one for
     // the browser to lay it out, so the scroll targets the section's real
@@ -287,8 +292,10 @@ export function ShowDetail({
   }, [show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers, session]);
 
   // Show the recap once the show is done — either explicitly marked completed
-  // or its date has passed.
-  const datePassed = show.date && new Date(show.date) < new Date(new Date().setHours(0, 0, 0, 0));
+  // or its date has passed. By local day: `new Date('YYYY-MM-DD')` is UTC
+  // midnight, which put the recap on the page all show day west of Greenwich.
+  const showDay = parseShowDate(show.date);
+  const datePassed = !!showDay && daysUntil(showDay, new Date()) < 0;
   const isPastShow = datePassed || show.status === 'completed';
 
   /**
@@ -485,7 +492,6 @@ export function ShowDetail({
   }
 
   function toggleSection(sectionKey: string) {
-    setPreviewPerformerId(undefined);
     const newExpanded = new Set(expandedSections);
     if (newExpanded.has(sectionKey)) {
       newExpanded.delete(sectionKey);
@@ -508,9 +514,7 @@ export function ShowDetail({
   }
 
   function buildStartsAtISO(): string | undefined {
-    if (!show.date) return undefined;
-    if (show.time) return `${show.date}T${show.time}`;
-    return show.date;
+    return showStartISO(show.date, show.time);
   }
 
   function viewerUrl(token: string): string {
@@ -611,8 +615,7 @@ export function ShowDetail({
       count: show.performers.length,
       preview: joinNames(show.performers.map((p) => p.name)),
       content: <PerformersSection
-        key={previewPerformerId ?? "lineup"}
-        initialPerformerId={previewPerformerId}
+        openProfile={openProfile}
         performers={show.performers}
         potentialComics={settings.potentialComics}
         showName={show.name}
@@ -930,7 +933,7 @@ export function ShowDetail({
         <div className="show-workspace__brand"><BrandMark /><span>I Can Run A Show</span></div>
         <button className="show-workspace__nav-back" onClick={onBack}>← All shows</button>
         <nav aria-label="Show sections">
-          <button onClick={() => { setExpandedSections(new Set()); setPreviewPerformerId(undefined); heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><Icon name="file" size={17} />Overview</button>
+          <button onClick={() => { setExpandedSections(new Set()); heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><Icon name="file" size={17} />Overview</button>
           {visibleSections.map(section => <button key={section.key} aria-expanded={expandedSections.has(section.key)} aria-controls={`show-section-panel-${section.key}`} onClick={() => jumpToSection(section.key)}>
             <Icon name={SECTION_ICONS[section.key] ?? 'file'} size={17} />{section.title}
           </button>)}

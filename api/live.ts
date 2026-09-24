@@ -11,7 +11,7 @@
 //
 // So writing is authenticated and scoped to the account that owns the token,
 // while reading stays open to anyone with the link. /api/live-media, which
-// carries the audio for the same viewer, was already arranged this way.
+// carries the audio for the same viewer, reads the owner from this table.
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { exceedsSize, handleError, json, readJson, tooLarge } from './_lib/http';

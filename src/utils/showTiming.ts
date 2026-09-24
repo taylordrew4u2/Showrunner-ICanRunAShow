@@ -58,10 +58,20 @@ export function minutesBetweenClock(
   start: string | undefined,
   end: string | undefined,
 ): number | null {
-  const a = parseClockToMinutes(start ? borrowMeridiem(start, end) : start);
-  const b = parseClockToMinutes(end);
-  if (a == null || b == null) return null;
-  const span = b >= a ? b - a : b + MINUTES_IN_DAY - a;
+  return clockGap(parseClockToMinutes(start ? borrowMeridiem(start, end) : start), parseClockToMinutes(end));
+}
+
+/**
+ * Minutes from one clock reading to the next, or null when the pair does not
+ * describe a forward span of at most half a day.
+ *
+ * The one rule for "how long until the next cue", so the cue list, the
+ * timeline and Run Show cannot disagree. Wraps past midnight: the cue before
+ * the 12:15 AM closer is not five minutes long because 15 is less than 705.
+ */
+export function clockGap(from: number | null, to: number | null): number | null {
+  if (from == null || to == null) return null;
+  const span = to >= from ? to - from : to + MINUTES_IN_DAY - from;
   if (span <= 0 || span > MAX_SPAN_MINUTES) return null;
   return span;
 }
@@ -75,9 +85,8 @@ export function baseDurations(schedule: ScheduleItem[]): number[] {
   const clock = schedule.map((s) => parseClockToMinutes(s.time));
   return schedule.map((s, i) => {
     if (s.durationMin && s.durationMin > 0) return Math.max(MIN_CUE_SECONDS, s.durationMin * 60);
-    const cur = clock[i];
-    const next = clock[i + 1];
-    if (cur != null && next != null && next > cur) return (next - cur) * 60;
+    const gap = clockGap(clock[i], clock[i + 1]);
+    if (gap != null) return gap * 60;
     const fromText = parseDurationSeconds(s.description);
     if (fromText != null) return Math.max(MIN_CUE_SECONDS, fromText);
     return DEFAULT_CUE_SECONDS;

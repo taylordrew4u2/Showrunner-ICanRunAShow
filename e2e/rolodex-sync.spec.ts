@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { AppSettings, Show } from '../src/types';
 import { decryptWithKey, deriveKey } from '../src/utils/encryption';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { createShow, gotoTab, openSection, signUpAndOnboard } from './support/app';
+import { createShow, daysFromNow, gotoTab, openSection, signUpAndOnboard } from './support/app';
 
 const profileFields = {
   'Name': 'Mona Sable',
@@ -86,7 +86,7 @@ test('a Rolodex comic keeps the same complete profile in every show, after edits
   // Both bookings must bring the complete existing profile with them.
   for (const name of ['First Shared Show', 'Second Shared Show']) {
     await gotoTab(page, 'Shows');
-    await createShow(page, name, '2026-10-20');
+    await createShow(page, name, daysFromNow(26));
     await page.getByRole('button', { name: 'From Rolodex', exact: true }).click();
     await page.locator('.section-rolodex-picker__item').filter({ hasText: 'Mona Sable' }).click();
     const profile = await openShowProfile(page, 'Mona Sable');

@@ -11,6 +11,7 @@
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, tooLarge } from './_lib/http';
+import { signTokenOwnership } from './_lib/tokenOwnership';
 
 // Matches /api/media: the client slices at ~1.5M chars before encryption.
 const MAX_CHUNK_CHARS = 3_500_000;
@@ -39,6 +40,9 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // ── Producer writes ────────────────────────────────────────────────────
+    // The document is uploaded before the request that names it exists, so
+    // a token nobody has written under yet is free to write under; once the
+    // request row is there, only its account may touch the document.
     const userId = await authorize(req);
     if (!userId) return json({ error: 'unauthorized' }, 401);
 
@@ -60,6 +64,7 @@ export default async function handler(req: Request): Promise<Response> {
         return json({ error: 'bad_request' }, 400);
       }
       if (data.length > MAX_CHUNK_CHARS) return tooLarge();
+      if ((await signTokenOwnership(db, token, userId)) === 'other') return json({ error: 'forbidden' }, 403);
 
       await db.execute({
         sql: `INSERT INTO sign_doc (token, seq, total, data) VALUES (?, ?, ?, ?)
@@ -74,6 +79,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (req.method === 'DELETE') {
       const token = new URL(req.url).searchParams.get('token');
       if (!token) return json({ error: 'bad_request' }, 400);
+      if ((await signTokenOwnership(db, token, userId)) === 'other') return json({ error: 'forbidden' }, 403);
       await db.execute({ sql: `DELETE FROM sign_doc WHERE token = ?`, args: [token] });
       return json({ ok: true });
     }

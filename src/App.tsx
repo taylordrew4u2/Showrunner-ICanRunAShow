@@ -6,7 +6,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, ScheduleTemplateItem } from './types';
 import { DEFAULT_SETTINGS, MAX_DELETED_SHOW_IDS } from './types';
 import { generateId } from './utils/id';
-import { ServerNotConfiguredError } from './utils/api';
+import { ServerNotConfiguredError, type ApiError } from './utils/api';
+import { applyUpdate, isUpdateReady, onUpdateReady } from './utils/appUpdate';
 import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
@@ -16,7 +17,7 @@ import { normalizeComicSettings } from './utils/sharedComicSettings';
 import { mergeSettingsEdit } from './utils/mergeSettingsEdit';
 import { mergeShowEdit } from './utils/mergeShowEdit';
 import { bulkMailto } from './utils/social';
-import { buildOverview } from './utils/showsOverview';
+import { buildOverview, completePastShows } from './utils/showsOverview';
 import { 
   loadEncryptedShows, 
   saveEncryptedShows,
@@ -310,6 +311,9 @@ export default function App() {
   // pill instead — a retry that's already working shouldn't look like an alarm.
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // A new build is installed and waiting; the reload is offered, not taken.
+  const [updateWaiting, setUpdateWaiting] = useState(isUpdateReady);
+  useEffect(() => onUpdateReady(setUpdateWaiting), []);
   // Where the user's work currently is. Drives the always-visible status pill.
   const [syncState, setSyncState] = useState<SyncState>('saved');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
@@ -336,6 +340,12 @@ export default function App() {
     }
   });
   const dataLoaded = useRef(false);
+  // The same fact as a render input: whether this session's account has been
+  // read successfully at least once. The ref is for the save path; this is
+  // for deciding what to show.
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  // Bumped to try the initial load again once the browser is back online.
+  const [loadRetryTick, setLoadRetryTick] = useState(0);
   // Rows the last load couldn't decrypt, held as ciphertext so every save can
   // write them back untouched. Never rendered — only carried.
   const unreadableRowsRef = useRef<EncryptedShowRow[]>([]);
@@ -537,15 +547,10 @@ export default function App() {
         // Recover against the actual saved version first. Automatically marking
         // a past show completed before comparing hashes looks like a concurrent
         // server edit and can create a false recovered copy during a reload.
-        // Auto-correct: a show still marked 'upcoming' whose date has passed
-        // should be 'completed'. Only touch 'upcoming' — leave 'in-progress'
-        // and 'cancelled' alone since those are intentional manual states.
-        const today = new Date().toISOString().split('T')[0];
-        const initialShows = recoveredShows.map((show) =>
-          show.status === 'upcoming' && show.date && show.date < today
-            ? { ...show, status: 'completed' as const }
-            : show
-        );
+        // Auto-correct: a show still marked 'upcoming' whose night has passed
+        // should be 'completed'. By local calendar day — a UTC day here marked
+        // tonight's show completed to anyone reloading after 8pm in New York.
+        const initialShows = completePastShows(recoveredShows);
 
         // Link legacy snapshots only after recovery has compared the actual
         // saved rows. The Rolodex then supplies every live comic profile.
@@ -559,6 +564,7 @@ export default function App() {
         setShows(shared.shows);
         setSettings(sharedSettings);
         dataLoaded.current = true;
+        setSettingsLoaded(true);
         if (pendingSettings || sharedSettings !== recoveredSettings) saveSettings(sharedSettings);
         setLoadError(null);
       } catch (error) {
@@ -578,9 +584,11 @@ export default function App() {
     // render but closes over nothing mutable except `session`, which is this
     // effect's only dependency — so the copy this run calls always agrees with
     // the session it ran for. Listing it would re-run the whole load on every
-    // render instead, which is a refetch per keystroke.
+    // render instead, which is a refetch per keystroke. The retry tick only
+    // moves while the account has not loaded yet, so it never refetches over
+    // work in progress.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [session, loadRetryTick]);
 
   // Always points at the latest shows so an in-flight save can re-persist any
   // edits that landed while it was running.
@@ -650,6 +658,9 @@ export default function App() {
     function onOnline() {
       retryDelayRef.current = 5000;
       setSaveRetryTick((t) => t + 1);
+      // A launch with no signal never got the account at all; fetch it now
+      // rather than leaving an empty list behind the error notice.
+      if (!dataLoaded.current) setLoadRetryTick((t) => t + 1);
     }
     // Losing signal isn't a failure — say so plainly rather than waiting for a
     // request to time out and reporting it as an error.
@@ -828,6 +839,11 @@ export default function App() {
   async function beginSession(username: string, password: string) {
     const creds = credentialsFrom(username, password);
     await saveSession(creds);
+    // Loading before the session, in the same render: the load effect only
+    // flips the skeleton on after the first paint with a session, and that
+    // paint showed onboarding — which then unmounted for the skeleton and came
+    // back at step one, with whatever a producer had clicked or typed gone.
+    setLoadingData(true);
     setSession(creds);
   }
 
@@ -903,7 +919,11 @@ export default function App() {
       setAuthError(
         error instanceof ServerNotConfiguredError
           ? "The server isn't connected to the database yet. Check the deployment's environment variables."
-          : 'Failed to sign in. Please try again.',
+          // "Try again" is the one thing that does not help here, and the
+          // password may well have been right.
+          : (error as ApiError).status === 429
+            ? 'Too many attempts. Wait a few minutes, then try again.'
+            : 'Failed to sign in. Please try again.',
       );
     } finally {
       setAuthLoading(false);
@@ -926,6 +946,8 @@ export default function App() {
         );
       } else if (message === 'ACCOUNT_EXISTS') {
         setAuthError('Account already exists. Please sign in.');
+      } else if ((error as ApiError).status === 429) {
+        setAuthError('Too many attempts. Wait a few minutes, then try again.');
       } else {
         setAuthError('Failed to create account. Please try again.');
       }
@@ -943,6 +965,7 @@ export default function App() {
     setSession(null);
     clearSession();
     dataLoaded.current = false;
+    setSettingsLoaded(false);
     setShows([]);
     setSettings(DEFAULT_SETTINGS);
     setView('list');
@@ -985,7 +1008,9 @@ export default function App() {
   }
 
   async function handleCompleteOnboarding(data: { brandName: string; showTypes: string[] }) {
-    if (!session) return;
+    // Never onto an account that has not been read: the merge below would
+    // start from the defaults and save them over whatever is really there.
+    if (!session || !dataLoaded.current) return;
     const savingSession = session;
     setOnboardingSaving(true);
     // Merge onto whatever loaded for this account so we never clobber existing data.
@@ -1784,7 +1809,12 @@ export default function App() {
             </div>
           </div>
         </div>
-      ) : !settings.onboarded ? (
+      ) : !settings.onboarded && settingsLoaded ? (
+        // Only once the account has actually loaded. Before, a launch that
+        // could not reach the server left the defaults in place — and their
+        // "not onboarded" walked a producer with a year of shows through the
+        // welcome questions, whose Finish then saved those defaults over the
+        // real account. The shows page carries the load error instead.
         <Onboarding
           username={session.username}
           onComplete={handleCompleteOnboarding}
@@ -1841,6 +1871,23 @@ export default function App() {
               </div>
             )}
             {localBackupFailed && <div className="system-notice" role="alert">This browser could not store a backup. Keep this page open and download a backup of your work.</div>}
+            {/* Offered, never taken: this row is hidden with the rest of the
+                rail while Run Show is open, so a deploy can no longer restart
+                the board mid-show. Everything is saved as usual either way. */}
+            {updateWaiting && (
+              <div className="system-notice" role="status">
+                <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />
+                <div className="system-notice__body">
+                  <span className="system-notice__text">A new version of the app is ready.</span>
+                  <span className="system-notice__reassurance">
+                    Reload whenever suits you — between shows, not during one. Your work is saved as usual.
+                  </span>
+                </div>
+                <button className="btn btn--sm btn--primary" onClick={applyUpdate}>
+                  Reload
+                </button>
+              </div>
+            )}
             {saveError && (
               <div className="system-notice" role="alert">
                 <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />

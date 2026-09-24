@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildOverview, whenLabel, daysUntil, showsOnDay, showReadiness } from './showsOverview';
+import { buildOverview, whenLabel, daysUntil, showsOnDay, showReadiness, completePastShows } from './showsOverview';
 import type { Show } from '../types';
 
 const TODAY = new Date(2026, 7, 14); // Fri 14 Aug 2026, local midnight
@@ -203,5 +203,32 @@ describe('showReadiness', () => {
     const lines = showReadiness(show({ performers: [withMusic, without], schedule: [cue] }));
     expect(lines.map((l) => l.key)).toEqual(['lineup', 'schedule']);
     expect(lines.every((l) => l.ready)).toBe(true);
+  });
+});
+
+describe('completePastShows', () => {
+  it('marks an upcoming show completed the morning after, and leaves the rest alone', () => {
+    const shows = [
+      show({ id: 'past', date: '2026-08-13' }),
+      show({ id: 'tonight', date: '2026-08-14' }),
+      show({ id: 'cancelled', date: '2026-08-01', status: 'cancelled' }),
+      show({ id: 'live', date: '2026-08-01', status: 'in-progress' }),
+      show({ id: 'undated', date: '' }),
+    ];
+    const result = completePastShows(shows, TODAY);
+    expect(result.map((s) => s.status)).toEqual(['completed', 'upcoming', 'cancelled', 'in-progress', 'upcoming']);
+  });
+
+  it('keeps tonight upcoming late in the evening, when UTC has already moved on', () => {
+    // 11pm local on show night. In any timezone west of Greenwich this is
+    // already tomorrow in UTC, which is what used to complete the show.
+    const lateTonight = new Date(2026, 7, 14, 23, 0);
+    const result = completePastShows([show({ id: 'tonight', date: '2026-08-14' })], lateTonight);
+    expect(result[0].status).toBe('upcoming');
+  });
+
+  it('returns the same array when nothing needs completing', () => {
+    const shows = [show({ id: 'tonight', date: '2026-08-14' })];
+    expect(completePastShows(shows, TODAY)).toBe(shows);
   });
 });

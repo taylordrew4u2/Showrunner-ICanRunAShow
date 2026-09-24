@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { createShow, gotoTab, signUpAndOnboard } from './support/app';
+import { createShow, daysFromNow, gotoTab, signUpAndOnboard } from './support/app';
 
 /**
  * A list of one is not a list. The panel at the top of the Shows page already
@@ -54,7 +54,7 @@ test.describe('the shows list', () => {
     await signUpAndOnboard(page);
     await createShow(page, 'Basement Comedy Hour');
     await gotoTab(page, 'Shows');
-    await createShow(page, 'Tuesday Open Mic', '2026-09-22');
+    await createShow(page, 'Tuesday Open Mic', daysFromNow(12));
     await gotoTab(page, 'Shows');
 
     await expect(page.locator('.shows-list__heading')).toBeVisible();

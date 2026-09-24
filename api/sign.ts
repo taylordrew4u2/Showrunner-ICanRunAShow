@@ -23,6 +23,7 @@
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { exceedsSize, handleError, json, readJson, tooLarge } from './_lib/http';
+import { signTokenOwnership, upsertSignRequest } from './_lib/tokenOwnership';
 
 // Request metadata is small, but signatures and profile submissions can also
 // contain a resized headshot. Allow room for its data URL and encryption
@@ -90,6 +91,10 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // ── Producer writes ────────────────────────────────────────────────────
+    // Authenticated, and scoped to the account that made the request. The
+    // signer holds the token by construction, so "has the token and an
+    // account" must not be enough to revoke or replace it — see
+    // _lib/tokenOwnership.
     const userId = await authorize(req);
     if (!userId) return json({ error: 'unauthorized' }, 401);
 
@@ -99,19 +104,14 @@ export default async function handler(req: Request): Promise<Response> {
         return json({ error: 'bad_request' }, 400);
       }
       if (exceedsSize(payload, MAX_PAYLOAD_BYTES)) return tooLarge();
-      // Deliberately does not clear `signature` / `signed_at`: re-sending the
-      // same token must never quietly erase an agreement someone already made.
-      await db.execute({
-        sql: `INSERT INTO sign_request (token, payload) VALUES (?, ?)
-              ON CONFLICT(token) DO UPDATE SET payload = excluded.payload`,
-        args: [token, payload],
-      });
+      if (!(await upsertSignRequest(db, token, userId, payload))) return json({ error: 'forbidden' }, 403);
       return json({ ok: true });
     }
 
     if (req.method === 'DELETE') {
       const token = new URL(req.url).searchParams.get('token');
       if (badToken(token)) return json({ error: 'bad_request' }, 400);
+      if ((await signTokenOwnership(db, token as string, userId)) === 'other') return json({ error: 'forbidden' }, 403);
       await db.execute({ sql: `DELETE FROM sign_request WHERE token = ?`, args: [token as string] });
       await db.execute({ sql: `DELETE FROM sign_doc WHERE token = ?`, args: [token as string] });
       return json({ ok: true });
