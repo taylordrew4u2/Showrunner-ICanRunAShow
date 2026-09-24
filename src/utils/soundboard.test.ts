@@ -31,6 +31,12 @@ describe('resolveCuePerformer', () => {
     expect(resolveCuePerformer(undefined, roster)).toBeNull();
     expect(resolveCuePerformer(cue({ performerId: 'nope' }), roster)).toBeNull();
   });
+
+  it('still finds someone by name when the link on the cue has gone stale', () => {
+    // Removed from the lineup and booked again: a fresh slot id, the same
+    // person, and a cue that still names them.
+    expect(resolveCuePerformer(cue({ performerId: 'old-slot', performer: 'Ada Cole' }), roster)?.id).toBe('p1');
+  });
 });
 
 describe('cuePerformerName', () => {

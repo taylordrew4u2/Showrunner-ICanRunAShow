@@ -8,7 +8,7 @@ import { Icon } from '../Icon';
 import { ShowTimeline } from '../ShowTimeline';
 import { withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
 import { useConfirm } from '../useConfirm';
-import { fillCueDurations, isUntimed } from '../../utils/showTiming';
+import { clockGap, fillCueDurations, isUntimed, parseClockToMinutes } from '../../utils/showTiming';
 import { cueAudioPatch, runtimeLabel } from '../../utils/scheduleEditing';
 import { canDeriveTimes, timesFromLengths } from '../../utils/scheduleTemplates';
 import { scheduleSpan } from '../../utils/sectionSummary';
@@ -62,19 +62,6 @@ interface ScheduleSectionProps {
 
 type ScheduleMode = 'choose' | 'build';
 
-function timeToMinutes(time: string): number | null {
-  if (!time) return null;
-  const m = time.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
-  if (!m) return null;
-  let h = parseInt(m[1], 10);
-  const mins = m[2] ? parseInt(m[2], 10) : 0;
-  const meridiem = m[3]?.toLowerCase();
-  if (meridiem === 'pm' && h < 12) h += 12;
-  if (meridiem === 'am' && h === 12) h = 0;
-  if (h > 23 || mins > 59) return null;
-  return h * 60 + mins;
-}
-
 function formatMinutes(total: number): string {
   if (total >= 60) {
     const h = Math.floor(total / 60);
@@ -87,10 +74,10 @@ function formatMinutes(total: number): string {
 function durationLabel(items: ScheduleItem[], idx: number): string | null {
   const explicit = items[idx]?.durationMin;
   if (explicit && explicit > 0) return formatMinutes(explicit);
-  const cur = timeToMinutes(items[idx]?.time || '');
-  const next = timeToMinutes(items[idx + 1]?.time || '');
-  if (cur != null && next != null && next > cur) return formatMinutes(next - cur);
-  return null;
+  // The same gap Run Show will count down, midnight wrap included — the
+  // badge on the row and the clock on the night must not disagree.
+  const gap = clockGap(parseClockToMinutes(items[idx]?.time), parseClockToMinutes(items[idx + 1]?.time));
+  return gap != null ? formatMinutes(gap) : null;
 }
 
 function cueMusicLabelFor(item: ScheduleItem, performers: Performer[]): string | null {
