@@ -42,9 +42,24 @@ describe('usageCount', () => {
     expect(usageCount(track(), shows)).toBe(1);
   });
 
-  it('ignores songs uploaded straight into a show', () => {
+  it('counts a show that holds the same audio without the library id on it', () => {
+    // A song row can lose its library id and keep the reference; the file is
+    // still what that show plays.
     const shows = [show('a', [{ id: 's1', title: 'x', artist: '', music: 'media:abc#2' }])];
-    expect(usageCount(track(), shows)).toBe(0);
+    expect(usageCount(track(), shows)).toBe(1);
+  });
+
+  it('counts a cue that picked the track from the song list', () => {
+    // The cue picker copies the audio reference onto the cue with no library
+    // id anywhere on the show. Tidying the library used to delete it.
+    const withCue = { ...show('a', []), schedule: [{ id: 'c1', time: '', description: 'Walk-on', music: 'media:abc#2' }] };
+    expect(usageCount(track(), [withCue])).toBe(1);
+    expect(canDeleteMedia(track(), [withCue])).toBe(false);
+  });
+
+  it('counts a walk-on set from the same file', () => {
+    const withWalkOn = { ...show('a', []), performers: [{ id: 'p1', name: 'Ada', walkOnMusic: 'media:abc#2' }] };
+    expect(canDeleteMedia(track(), [withWalkOn])).toBe(false);
   });
 
   it('survives a show with no djSongs array', () => {

@@ -8,11 +8,24 @@
 // handler.
 import type { DJSong, MusicTrack, Show } from '../types';
 
-/** How many shows currently use a library track. */
+/**
+ * How many shows currently use a library track.
+ *
+ * By the audio, not only by the library id. A cue that picked the track from
+ * the song list holds its media reference with no library id on it, as does
+ * a walk-on set from the same file — and counting only explicit adds let the
+ * library delete audio a cue was about to play. Rows the library fills in by
+ * itself are a view, not a reference, so a show that never touched the track
+ * does not count.
+ */
 export function usageCount(track: MusicTrack, shows: Show[]): number {
-  return shows.filter((show) =>
-    (show.djSongs ?? []).some((song) => song.libraryId === track.id),
-  ).length;
+  return shows.filter((show) => showUsesTrack(show, track)).length;
+}
+
+function showUsesTrack(show: Show, track: MusicTrack): boolean {
+  if ((show.djSongs ?? []).some((song) => song.libraryId === track.id || song.music === track.music)) return true;
+  if ((show.schedule ?? []).some((cue) => cue.music === track.music)) return true;
+  return [...(show.performers ?? []), ...(show.artists ?? [])].some((person) => person.walkOnMusic === track.music);
 }
 
 /**
