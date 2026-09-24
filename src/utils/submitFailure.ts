@@ -22,7 +22,7 @@ export function submitFailureMessage(err: unknown, opts: { hasPhoto?: boolean } 
   switch (status) {
     case 413:
       return opts.hasPhoto
-        ? 'Even shrunk down, this was too large to send. Remove the photo and sign without it — the photo is optional, the agreement is not.'
+        ? 'Even shrunk down, this was too large to send. Choose a smaller headshot and try again. A headshot is required, and your answers are still here.'
         : 'This is too large to send. Shorten the longest answer, then try again. Your answers are still here.';
     case 409:
       return 'This link has already been used, or it was withdrawn and replaced. Trying again will not change that — ask whoever sent it for a fresh link.';

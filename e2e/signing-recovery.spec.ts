@@ -55,16 +55,25 @@ function signingState() {
   });
 }
 
-async function completeDetails(page: Page) {
+async function addHeadshot(page: Page) {
+  await page.locator('.signing__photo-pick input[type=file]').setInputFiles({
+    name: 'headshot.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGNY5dJBEmIY1TCqYfhqAAD2lHYQsNIY7AAAAABJRU5ErkJggg==', 'base64'),
+  });
+  await expect(page.locator('.signing__photo-preview')).toBeVisible();
+}
+
+async function completeDetails(page: Page, withPhoto = true) {
   await page.getByLabel('Your name', { exact: true }).fill('Nadia Okonjo');
   await page.getByLabel('Email', { exact: true }).fill('nadia@example.com');
   await page.getByLabel('Introduction').fill('Please welcome Nadia.');
   await page.getByLabel('Signature', { exact: true }).fill('Nadia Okonjo');
   await page.locator('.signing__agree input').check();
+  if (withPhoto) await addHeadshot(page);
 }
 
 test.describe('contract signing recovery', () => {
-  test('blank submit explains every missing detail and leads to one-click signing without a photo', async ({ page, context }, testInfo) => {
+  test('signing requires a headshot even when all text details are complete', async ({ page, context }, testInfo) => {
     const state = signingState();
     await installFakeApi(context, state);
     let submissions = 0;
@@ -93,7 +102,13 @@ test.describe('contract signing recovery', () => {
     await expect(page.getByLabel('Email', { exact: true })).toBeFocused();
     expect(submissions).toBe(0);
 
-    await completeDetails(page);
+    await completeDetails(page, false);
+    await submit.click();
+    await expect(missing).toContainText('Headshot');
+    expect(submissions).toBe(0);
+    await missing.getByRole('button', { name: 'Go to first missing field' }).click();
+    await expect(page.locator('#signer-headshot')).toBeFocused();
+    await addHeadshot(page);
     await submit.click();
     await expect(page.getByRole('heading', { name: 'Signed', exact: true })).toBeVisible();
     expect(submissions).toBe(1);
@@ -103,7 +118,7 @@ test.describe('contract signing recovery', () => {
       { label: 'Email', value: 'nadia@example.com' },
       { label: 'Introduction', value: 'Please welcome Nadia.' },
     ]);
-    expect(record.headshot).toBeUndefined();
+    expect(record.headshot).toMatch(/^data:image\//);
   });
 
   for (const failingPath of ['/api/sign', '/api/sign-doc']) {
@@ -261,15 +276,16 @@ test.describe('contract signing recovery', () => {
     await expect(page.getByRole('button', { name: 'Agree and sign', exact: true })).toHaveCount(0);
   });
 
-  test('a rejected headshot is reduced then omitted while the original signature and answers are submitted', async ({ page, context }) => {
+  test('a rejected headshot never sends a photo-free signature and preserves answers for retry', async ({ page, context }) => {
     const state = signingState();
     await installFakeApi(context, state);
     const attempts: SignatureRecord[] = [];
+    let rejectPhoto = true;
     await context.route('**/api/sign', async (route) => {
       if (route.request().method() !== 'POST') return route.fallback();
       const record = decryptWithKey<SignatureRecord>(route.request().postDataJSON().signature as string, key);
       attempts.push(record);
-      if (record.headshot) {
+      if (rejectPhoto) {
         return route.fulfill({ status: 413, contentType: 'application/json', body: '{"error":"payload_too_large"}' });
       }
       return route.fallback();
@@ -292,11 +308,12 @@ test.describe('contract signing recovery', () => {
     });
     await expect(page.locator('.signing__photo-preview')).toBeVisible();
     await page.getByRole('button', { name: 'Agree and sign', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Signed', exact: true })).toBeVisible();
-    expect(attempts.length).toBe(3);
+    await expect(page.getByRole('dialog', { name: 'Your signature has not been submitted yet' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Signed', exact: true })).toHaveCount(0);
+    expect(attempts.length).toBe(2);
     expect(attempts[0].headshot).toBeTruthy();
     expect(attempts[1].headshot!.length).toBeLessThan(attempts[0].headshot!.length);
-    expect(attempts[2].headshot).toBeUndefined();
+    expect(attempts.every(record => !!record.headshot)).toBe(true);
     expect(new Set(attempts.map(record => record.signedAt)).size).toBe(1);
     for (const record of attempts) {
       expect(record.typedName).toBe('Nadia Okonjo');
@@ -306,8 +323,15 @@ test.describe('contract signing recovery', () => {
         { label: 'Introduction', value: 'Please welcome Nadia.' },
       ]);
     }
-    await expect(page.getByRole('status')).toContainText('photo was too large');
-    expect(state.sign[token].signedAt).not.toBeNull();
+    expect(state.sign[token].signedAt).toBeNull();
+    await page.getByRole('button', { name: 'Back to form' }).click();
+    await expect(page.getByLabel('Signature', { exact: true })).toHaveValue('Nadia Okonjo');
+    await expect(page.locator('.signing__photo-preview')).toBeVisible();
+    rejectPhoto = false;
+    await addHeadshot(page);
+    await page.getByRole('button', { name: 'Agree and sign', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Signed', exact: true })).toBeVisible();
+    expect(decryptWithKey<SignatureRecord>(state.sign[token].signature!, key).headshot).toBeTruthy();
   });
 
   test('an unreadable conflict status stays pending until the server confirms the signature', async ({ page, context }) => {
@@ -369,7 +393,26 @@ test.describe('contract signing recovery', () => {
     expect(submissions).toBe(1);
   });
 
-  test('a photo still processing offers an explicit way to sign without it', async ({ page, context }) => {
+  test('a legacy queued signature without a photo returns to the form', async ({ page, context }) => {
+    const state = signingState();
+    await installFakeApi(context, state);
+    await context.addInitScript(({ storageKey, signature }) => {
+      localStorage.setItem(storageKey, JSON.stringify({ signature, savedAt: Date.now() }));
+    }, { storageKey: pendingStorageKey, signature: encryptWithKey({
+      typedName: 'Nadia Okonjo', documentHash: 'old-hash', signedAt: '2026-09-15T12:00:00Z',
+    }, key) });
+    let submissions = 0;
+    context.on('request', request => {
+      if (new URL(request.url()).pathname === '/api/sign' && request.method() === 'POST') submissions++;
+    });
+    await page.goto(signingPath);
+    await expect(page.getByRole('button', { name: 'Agree and sign', exact: true })).toBeVisible();
+    expect(submissions).toBe(0);
+    expect(state.sign[token].signedAt).toBeNull();
+    expect(await page.evaluate(storageKey => localStorage.getItem(storageKey), pendingStorageKey)).toBeNull();
+  });
+
+  test('a photo still processing blocks signing without a bypass', async ({ page, context }) => {
     const state = signingState();
     await installFakeApi(context, state);
     await page.goto(signingPath);
@@ -388,7 +431,7 @@ test.describe('contract signing recovery', () => {
     await page.locator('.signing__photo-pick input[type=file]').setInputFiles({
       name: 'headshot.png',
       mimeType: 'image/png',
-      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1n8AAAAASUVORK5CYII=', 'base64'),
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGNY5dJBEmIY1TCqYfhqAAD2lHYQsNIY7AAAAABJRU5ErkJggg==', 'base64'),
     });
     await expect(page.locator('.signing__photo-pick')).toContainText('Adding');
     await page.getByRole('button', { name: 'Agree and sign', exact: true }).click();
@@ -399,9 +442,8 @@ test.describe('contract signing recovery', () => {
     await expect(photoDialog).toHaveCount(0);
     await expect(page.getByLabel('Signature', { exact: true })).toHaveValue('Nadia Okonjo');
     await page.getByRole('button', { name: 'Agree and sign', exact: true }).click();
-    await photoDialog.getByRole('button', { name: 'Sign without photo', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Signed', exact: true })).toBeVisible();
-    expect(submissions).toBe(1);
-    expect(decryptWithKey<SignatureRecord>(state.sign[token].signature!, key).headshot).toBeUndefined();
+    await expect(photoDialog.getByRole('button', { name: 'Sign without photo', exact: true })).toHaveCount(0);
+    expect(submissions).toBe(0);
+    expect(state.sign[token].signedAt).toBeNull();
   });
 });

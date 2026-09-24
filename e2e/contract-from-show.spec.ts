@@ -167,7 +167,11 @@ test.describe('a contract sent from inside a show', () => {
     await late.getByLabel('Instagram or main social').fill('@nadiaokonjo');
     await late.locator('.signing__field--signature input').fill('Nadia Okonjo');
     await late.locator('.signing__agree input').check();
-    // Optional headshots never add a second submission step.
+    await late.locator('.signing__photo-pick input[type=file]').setInputFiles({
+      name: 'headshot.png', mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGNY5dJBEmIY1TCqYfhqAAD2lHYQsNIY7AAAAABJRU5ErkJggg==', 'base64'),
+    });
+    await expect(late.locator('.signing__photo-preview')).toBeVisible();
     await late.locator('.signing__cta').click();
 
     // Signed, because it was. Not an error telling them to try again.
@@ -240,6 +244,11 @@ test.describe('a contract sent from inside a show', () => {
       attempts++;
       await route.abort('internetdisconnected');
     });
+    await basement.locator('.signing__photo-pick input[type=file]').setInputFiles({
+      name: 'headshot.png', mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGNY5dJBEmIY1TCqYfhqAAD2lHYQsNIY7AAAAABJRU5ErkJggg==', 'base64'),
+    });
+    await expect(basement.locator('.signing__photo-preview')).toBeVisible();
     await basement.locator('.signing__cta').click();
 
     await expect(basement.getByRole('heading', { name: 'Sending your signature', exact: true })).toBeVisible();

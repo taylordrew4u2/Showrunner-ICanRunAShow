@@ -87,8 +87,6 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  /** Set when the contract was signed but the headshot would not fit at all. */
-  const [photoDropped, setPhotoDropped] = useState(false);
   /** Set when the headshot had to be made smaller to fit. */
   const [photoShrunk, setPhotoShrunk] = useState(false);
   /**
@@ -135,7 +133,10 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
         } else if (held) {
           try {
             const record = decryptWithKey<SignatureRecord>(held.signature, signKey);
-            if (!record?.typedName || !record.documentHash) throw new Error('Invalid saved signature');
+            if (!record?.typedName || !record.documentHash || !record.headshot?.startsWith('data:image/')) {
+              throw new Error('A saved signature needs a headshot before delivery');
+            }
+            setHeadshot(record.headshot);
             setSigned(record);
             setPendingSaved(true);
             setPending(held.signature);
@@ -211,21 +212,21 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
         if (status === 413) {
           const record = decryptWithKey<SignatureRecord>(pending, signKey);
           if (record.headshot) {
-            // Preserve the signature and answers while reducing only its
-            // optional photo. The second 413 drops it and sends the agreement.
+            // Retry with a smaller photo, but never send the agreement without it.
             const smaller = !photoShrunk
               ? await shrinkDataUrl(record.headshot, HEADSHOT_FALLBACK_DIMS.at(-1)!).catch(() => null)
               : null;
             if (stopped) return;
-            record.headshot = smaller || undefined;
-            setPhotoShrunk(!!smaller);
-            setPhotoDropped(!smaller);
-            setHeadshot(smaller);
-            const replacement = encryptWithKey(record, signKey);
-            setPendingSaved(savePendingSignature(token, replacement));
-            setSigned(record);
-            setPending(replacement);
-            return;
+            if (smaller) {
+              record.headshot = smaller;
+              setPhotoShrunk(true);
+              setHeadshot(smaller);
+              const replacement = encryptWithKey(record, signKey);
+              setPendingSaved(savePendingSignature(token, replacement));
+              setSigned(record);
+              setPending(replacement);
+              return;
+            }
           }
         }
         if (isRetryableSignatureError(err) || (status === 409 && verificationFailed)) {
@@ -235,7 +236,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           clearPendingSignature(token);
           setPending(null);
           setPhase('ready');
-          setError(submitFailureMessage(err, { hasPhoto: false }));
+          setError(submitFailureMessage(err, { hasPhoto: true }));
           setNotice('submit');
         }
       } finally {
@@ -272,6 +273,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
     ...(signerName.trim() ? [] : [{ label: 'Your name', id: 'signer-name' }]),
     ...(payload.fields ?? []).filter(f => f.required && !(values[f.id] ?? '').trim())
       .map(clarifyIntroductionCredits).map(f => ({ label: f.label, id: `signer-field-${f.id}` })),
+    ...(headshot ? [] : [{ label: 'Headshot', id: 'signer-headshot' }]),
     ...(typedName.trim() ? [] : [{ label: 'Your signature', id: 'signer-signature' }]),
     ...(agreed ? [] : [{ label: 'Tick the agreement checkbox', id: 'signer-agreed' }]),
   ] : [];
@@ -316,6 +318,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       });
       if (!dataUrl.startsWith('data:image/')) throw new Error('not an image');
       setHeadshot(dataUrl);
+      setPhotoShrunk(false);
     } catch {
       setPhotoError(photoFailureMessage(file));
     } finally {
@@ -323,10 +326,10 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
     }
   }
 
-  function handleSign(withoutPhoto = false) {
+  function handleSign() {
     if (busyRef.current || pending) return;
+    if (photoBusy) { setNotice('photo'); return; }
     if (missingDetails.length) { setNotice('missing'); return; }
-    if (photoBusy && !withoutPhoto) { setNotice('photo'); return; }
     if (!signKey || !docUrl || !payload || !documentReady || phase !== 'ready') {
       setError('The contract is still opening. Use Try again above if it does not finish. Your answers are kept.');
       setNotice('submit');
@@ -336,7 +339,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
     try {
       const { record, signature } = prepareSignature(
         signKey, typedName.trim(), docUrl,
-        collectFieldAnswers(payload.fields, values), withoutPhoto ? undefined : headshot ?? undefined, signerName.trim(),
+        collectFieldAnswers(payload.fields, values), headshot ?? undefined, signerName.trim(),
       );
       // Save before the first network attempt, including if the tab closes
       // while the server is receiving the upload.
@@ -484,11 +487,6 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
               {pending ? 'It is still sending.' : 'Nothing is outstanding.'}
             </p>
           )}
-          {photoDropped && (
-            <p className="signing__note" role="status">
-              Your photo was too large to send, so it was left off. {pending ? 'Your agreement is still sending.' : 'Your agreement is signed.'}
-            </p>
-          )}
           <p className="signing__note">
             {pending
               ? `${payload.fromName} will see this as soon as it sends.`
@@ -542,14 +540,12 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             </label>
           ))}
 
-          {/* The flyer needs a face, and this is the one moment the performer
-              is already filling something in for you. Optional, because a
-              missing photo must never be why a contract goes unsigned. */}
+          {/* The headshot and signature must be delivered together. */}
           <div className="signing__field signing__photo">
             <span>
               Headshot{' '}
               <em className="signing__optional">
-                {headshot ? 'used on the flyer' : 'optional, used on the flyer'}
+                required, used on the flyer
               </em>
             </span>
             <div className="signing__photo-row">
@@ -561,7 +557,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
                 </span>
               )}
               <div className="signing__photo-actions">
-                <label className="btn btn--secondary btn--sm signing__photo-pick">
+                <label id="signer-headshot" tabIndex={0} className="btn btn--secondary btn--sm signing__photo-pick">
                   {photoBusy ? 'Adding…' : headshot ? 'Choose a different one' : 'Add a photo'}
                   <input
                     type="file"
@@ -649,9 +645,8 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             <ul>{missingDetails.map(field => <li key={field.id}>{field.label}</li>)}</ul>
             <button className="btn btn--primary" onClick={focusMissing}>Go to first missing field</button>
           </> : notice === 'photo' ? <>
-            <p>Your photo is still being added. Wait for its preview, or send your agreement without the optional photo.</p>
+            <p>Your headshot is required. Wait for its preview before signing.</p>
             <button className="btn btn--primary" onClick={() => setNotice(null)}>Wait for photo</button>
-            <button className="btn btn--secondary" onClick={() => handleSign(true)}>Sign without photo</button>
           </> : <>
             <p role="alert">{error}</p>
             <button className="btn btn--primary" onClick={() => setNotice(null)}>Back to form</button>
