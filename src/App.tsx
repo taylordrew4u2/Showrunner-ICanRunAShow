@@ -7,6 +7,7 @@ import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, Sch
 import { DEFAULT_SETTINGS, MAX_DELETED_SHOW_IDS } from './types';
 import { generateId } from './utils/id';
 import { ServerNotConfiguredError, type ApiError } from './utils/api';
+import { applyUpdate, isUpdateReady, onUpdateReady } from './utils/appUpdate';
 import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
@@ -310,6 +311,9 @@ export default function App() {
   // pill instead — a retry that's already working shouldn't look like an alarm.
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // A new build is installed and waiting; the reload is offered, not taken.
+  const [updateWaiting, setUpdateWaiting] = useState(isUpdateReady);
+  useEffect(() => onUpdateReady(setUpdateWaiting), []);
   // Where the user's work currently is. Drives the always-visible status pill.
   const [syncState, setSyncState] = useState<SyncState>('saved');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
@@ -1867,6 +1871,23 @@ export default function App() {
               </div>
             )}
             {localBackupFailed && <div className="system-notice" role="alert">This browser could not store a backup. Keep this page open and download a backup of your work.</div>}
+            {/* Offered, never taken: this row is hidden with the rest of the
+                rail while Run Show is open, so a deploy can no longer restart
+                the board mid-show. Everything is saved as usual either way. */}
+            {updateWaiting && (
+              <div className="system-notice" role="status">
+                <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />
+                <div className="system-notice__body">
+                  <span className="system-notice__text">A new version of the app is ready.</span>
+                  <span className="system-notice__reassurance">
+                    Reload whenever suits you — between shows, not during one. Your work is saved as usual.
+                  </span>
+                </div>
+                <button className="btn btn--sm btn--primary" onClick={applyUpdate}>
+                  Reload
+                </button>
+              </div>
+            )}
             {saveError && (
               <div className="system-notice" role="alert">
                 <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />

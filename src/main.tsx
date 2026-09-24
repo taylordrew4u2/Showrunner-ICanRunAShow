@@ -8,11 +8,20 @@ import App from './App.tsx'
 import './design.css'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { applyColorScheme, loadColorScheme } from './utils/theme'
+import { updateReady } from './utils/appUpdate'
 
 // Apply the saved color scheme before the first paint to avoid a flash.
 applyColorScheme(loadColorScheme())
 
-registerSW({ immediate: true })
+// A new version waits until asked for (see utils/appUpdate): taking over on
+// its own reloaded the page whenever the download happened to finish, and on
+// venue wifi that was mid-show.
+const updateServiceWorker = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    updateReady(() => { void updateServiceWorker(true) })
+  },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

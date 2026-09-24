@@ -202,7 +202,11 @@ export function RunShow({
     function containFocus(event: KeyboardEvent) {
       if (event.key !== 'Tab' || !root) return;
       // Confirmations own focus while open; keep Tab inside the top dialog.
-      const scope = root.querySelector<HTMLElement>('[role="dialog"]') ?? root;
+      // Looked up on the document: the confirmation is portalled to the body,
+      // outside this root, and searching the root found nothing and threw a
+      // keyboard operator out of "End the show?" onto the board behind it.
+      const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]');
+      const scope = dialogs[dialogs.length - 1] ?? root;
       const controls = [...scope.querySelectorAll<HTMLElement>(
         'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
       )].filter((el) => el.getClientRects().length > 0 && !el.closest('[inert]'));
@@ -225,6 +229,16 @@ export function RunShow({
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0); // within current cue
   const [showElapsed, setShowElapsed] = useState(0); // whole show, real wall time
+  // Where the two clocks were started from, in wall time, while running. The
+  // seconds on screen are read off these rather than counted in ticks: a
+  // phone that takes a call or is put in a pocket stops running timers, and
+  // every tick it missed was a second the show lost. Read on every tick and
+  // again the moment the page is visible, so time away is accounted for.
+  const cueStartedAtRef = useRef<number | null>(null);
+  const showStartedAtRef = useRef<number | null>(null);
+  // Bumped when the cue clock is put back to zero without the cue changing,
+  // so the audience's clock is told; it otherwise counts on from the old value.
+  const [cueResets, setCueResets] = useState(0);
   const [adjust, setAdjust] = useState<Record<number, number>>({});
   const [muted, setMuted] = useState(false);
   // The button whose track is playing right now — the board's only audio state.
@@ -345,29 +359,56 @@ export function RunShow({
     setRunning((r) => !r);
   }
 
-  // Tick the clocks while running.
+  // Read the clocks while running: on a timer, and whenever the page comes
+  // back into view, since the timer will not have run while it was hidden.
   useEffect(() => {
-    if (!running) return;
-    const t = window.setInterval(() => {
-      setElapsed((e) => e + 1);
-      setShowElapsed((e) => e + 1);
-    }, 1000);
-    return () => window.clearInterval(t);
+    if (!running) {
+      cueStartedAtRef.current = null;
+      showStartedAtRef.current = null;
+      return;
+    }
+    const now = Date.now();
+    cueStartedAtRef.current = now - elapsed * 1000;
+    showStartedAtRef.current = now - showElapsed * 1000;
+    function read() {
+      const at = Date.now();
+      if (cueStartedAtRef.current != null) setElapsed(Math.floor((at - cueStartedAtRef.current) / 1000));
+      if (showStartedAtRef.current != null) setShowElapsed(Math.floor((at - showStartedAtRef.current) / 1000));
+    }
+    const t = window.setInterval(read, 1000);
+    function onVisible() {
+      if (document.visibilityState === 'visible') read();
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+    // The elapsed values are the point to resume from; they only need reading
+    // when the clock starts, not on every second it then produces.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running]);
+
+  /** Put the cue clock back to zero, from now if it is running. */
+  function rewindCue() {
+    if (cueStartedAtRef.current != null) cueStartedAtRef.current = Date.now();
+    setElapsed(0);
+  }
 
   // Auto-advance to the next cue when this segment's timer reaches zero.
   useEffect(() => {
     if (!running || isLast) return;
     if (elapsed >= totalSec) {
       setIdx((i) => Math.min(schedule.length - 1, i + 1));
-      setElapsed(0);
+      rewindCue();
     }
   }, [running, elapsed, totalSec, isLast, schedule.length]);
 
   function goTo(target: number) {
     const t = Math.max(0, Math.min(schedule.length - 1, target));
     setIdx(t);
-    setElapsed(0);
+    rewindCue();
+    if (t === idx) setCueResets((n) => n + 1);
   }
   function goNext() {
     if (!isLast) goTo(idx + 1);
@@ -376,7 +417,8 @@ export function RunShow({
     if (idx > 0) goTo(idx - 1);
   }
   function resetCueTimer() {
-    setElapsed(0);
+    rewindCue();
+    setCueResets((n) => n + 1);
   }
   function adjustTime(delta: number) {
     setAdjust((a) => ({ ...a, [idx]: (a[idx] ?? 0) + delta }));
@@ -393,8 +435,14 @@ export function RunShow({
     });
     if (!ok) return;
     setIdx(0);
+    // Both clocks from now, whether or not the show was already running —
+    // a running clock keeps its start, and would have counted the old show.
+    const now = Date.now();
+    if (cueStartedAtRef.current != null) cueStartedAtRef.current = now;
+    if (showStartedAtRef.current != null) showStartedAtRef.current = now;
     setElapsed(0);
     setShowElapsed(0);
+    setCueResets((n) => n + 1);
     setAdjust({});
     audioEngine.init();
     setRunning(true);
@@ -696,9 +744,10 @@ export function RunShow({
     if (session) publishLiveView(viewToken, payload, session).catch(() => { /* swallow */ });
     // playingKey is in the deps on purpose: when the viewer is carrying the
     // sound, a press has to reach it immediately rather than waiting for the
-    // next cue change.
+    // next cue change. cueResets likewise: a cue put back to zero changes
+    // none of the others, and the room's clock would count on from before.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewToken, idx, running, totalSec, showName, playingKey, viewerAudio]);
+  }, [viewToken, idx, running, totalSec, showName, playingKey, viewerAudio, cueResets]);
 
   // On Run Show close, mark the live view ended so viewers see the final state.
   useEffect(() => () => {
