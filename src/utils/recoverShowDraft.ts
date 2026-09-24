@@ -21,7 +21,9 @@ function newer(local: Show, remote: Show): Show {
 export function recoverShowDraft(draft: Show[], server: Show[], baseline: Record<string, string> = {}): Show[] {
   if (!Array.isArray(draft)) return server;
   const result = new Map(server.map(s => [s.id, s]));
+  const held = new Set<string>();
   for (const value of draft) {
+    if (value && typeof value.id === 'string') held.add(value.id);
     const local = healShow(value);
     if (!local) continue;
     const localHash = hash(local);
@@ -41,6 +43,18 @@ export function recoverShowDraft(draft: Show[], server: Show[], baseline: Record
       const id = `${local.id}-recovered-${localHash.slice(0, 16)}`;
       if (!result.has(id)) result.set(id, { ...local, id, name: `${local.name} (recovered edits)` });
     }
+  }
+  // A show this device loaded and no longer holds was deleted here: the held
+  // copy is the whole list as it stood when it was written. Starting from the
+  // server's list quietly put every such show back, so a delete made in the
+  // basement — offline, or backgrounded inside the save's debounce — un-happened
+  // on the next launch, while the trash still held its copy. Honour it only
+  // while the server has exactly what this device loaded; an edit made elsewhere
+  // since is a conflict, and there the edit wins over the deletion.
+  for (const [id, base] of Object.entries(baseline)) {
+    if (held.has(id)) continue;
+    const remote = result.get(id);
+    if (remote && hash(remote) === base) result.delete(id);
   }
   return [...result.values()];
 }

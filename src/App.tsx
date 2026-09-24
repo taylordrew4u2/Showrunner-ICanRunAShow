@@ -336,6 +336,12 @@ export default function App() {
     }
   });
   const dataLoaded = useRef(false);
+  // The same fact as a render input: whether this session's account has been
+  // read successfully at least once. The ref is for the save path; this is
+  // for deciding what to show.
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  // Bumped to try the initial load again once the browser is back online.
+  const [loadRetryTick, setLoadRetryTick] = useState(0);
   // Rows the last load couldn't decrypt, held as ciphertext so every save can
   // write them back untouched. Never rendered — only carried.
   const unreadableRowsRef = useRef<EncryptedShowRow[]>([]);
@@ -554,6 +560,7 @@ export default function App() {
         setShows(shared.shows);
         setSettings(sharedSettings);
         dataLoaded.current = true;
+        setSettingsLoaded(true);
         if (pendingSettings || sharedSettings !== recoveredSettings) saveSettings(sharedSettings);
         setLoadError(null);
       } catch (error) {
@@ -573,9 +580,11 @@ export default function App() {
     // render but closes over nothing mutable except `session`, which is this
     // effect's only dependency — so the copy this run calls always agrees with
     // the session it ran for. Listing it would re-run the whole load on every
-    // render instead, which is a refetch per keystroke.
+    // render instead, which is a refetch per keystroke. The retry tick only
+    // moves while the account has not loaded yet, so it never refetches over
+    // work in progress.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [session, loadRetryTick]);
 
   // Always points at the latest shows so an in-flight save can re-persist any
   // edits that landed while it was running.
@@ -645,6 +654,9 @@ export default function App() {
     function onOnline() {
       retryDelayRef.current = 5000;
       setSaveRetryTick((t) => t + 1);
+      // A launch with no signal never got the account at all; fetch it now
+      // rather than leaving an empty list behind the error notice.
+      if (!dataLoaded.current) setLoadRetryTick((t) => t + 1);
     }
     // Losing signal isn't a failure — say so plainly rather than waiting for a
     // request to time out and reporting it as an error.
@@ -943,6 +955,7 @@ export default function App() {
     setSession(null);
     clearSession();
     dataLoaded.current = false;
+    setSettingsLoaded(false);
     setShows([]);
     setSettings(DEFAULT_SETTINGS);
     setView('list');
@@ -985,7 +998,9 @@ export default function App() {
   }
 
   async function handleCompleteOnboarding(data: { brandName: string; showTypes: string[] }) {
-    if (!session) return;
+    // Never onto an account that has not been read: the merge below would
+    // start from the defaults and save them over whatever is really there.
+    if (!session || !dataLoaded.current) return;
     const savingSession = session;
     setOnboardingSaving(true);
     // Merge onto whatever loaded for this account so we never clobber existing data.
@@ -1784,7 +1799,12 @@ export default function App() {
             </div>
           </div>
         </div>
-      ) : !settings.onboarded ? (
+      ) : !settings.onboarded && settingsLoaded ? (
+        // Only once the account has actually loaded. Before, a launch that
+        // could not reach the server left the defaults in place — and their
+        // "not onboarded" walked a producer with a year of shows through the
+        // welcome questions, whose Finish then saved those defaults over the
+        // real account. The shows page carries the load error instead.
         <Onboarding
           username={session.username}
           onComplete={handleCompleteOnboarding}
