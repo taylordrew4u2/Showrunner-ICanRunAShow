@@ -167,6 +167,7 @@ I Can Run A Show handles the full workflow in a single application:
 - Public read-only viewer URL with live on-stage / up-next state
 
 **Paperwork**
+- File already-signed PDFs under Venue contracts or Producer contracts, then download them anytime from the Contracts page. Files use the encrypted media store; no signature request is needed.
 - Upload a contract, send it to anyone in the Rolodex, and watch the list go from waiting to signed
 - The signer needs no account: they open a link, read the PDF, type their name and agree — and the server never holds a key that could read any of it
 - Every signature records the typed name, the timestamp, and a SHA-256 of the exact bytes shown, so the copy on file can be shown to be the copy agreed to
