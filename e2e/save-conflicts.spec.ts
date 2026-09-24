@@ -67,6 +67,63 @@ test('an unsaved new show survives a failed request and a reload', async ({ page
   await expect(page.locator('.dash-next__name')).toHaveText('Held show');
 });
 
+test('a show deleted while the save was failing stays deleted after a reload', async ({ page, context }) => {
+  // Delete in the basement, put the phone away, open it again with signal.
+  // The held copy is the list without the show and the server still has the
+  // version this device loaded — and the next launch used to put it straight
+  // back, next to its own copy in the trash.
+  const state = emptyState();
+  await installFakeApi(context, state);
+  await signUpAndOnboard(page);
+  await createShow(page, 'Keeps');
+  await gotoTab(page, 'Shows');
+  await createShow(page, 'Goes');
+  await gotoTab(page, 'Shows');
+  await expect.poll(() => state.shows.length).toBe(2);
+  await expect(page.locator('.sync-status--saved')).toBeVisible();
+  await page.route('**/api/shows', route => route.request().method() === 'PUT'
+    ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"unavailable"}' })
+    : route.fallback());
+  // From the show's own page: the card's delete control is a desktop
+  // affordance, and a phone is where this deletion is most likely made.
+  await page.locator('.show-card').filter({ hasText: 'Goes' }).getByRole('button', { name: /Open Goes/ }).click();
+  await expect(page.getByRole('heading', { name: 'Goes', level: 1 })).toBeVisible();
+  await page.locator('button[aria-label="More"], .more-menu__trigger').first().click();
+  await page.getByText('Delete show', { exact: true }).click();
+  await page.locator('.confirm-dialog__actions button:has-text("Delete")').click();
+  await gotoTab(page, 'Shows');
+  await expect(page.locator('.dash-next__name')).toHaveText('Keeps');
+  await expect(page.locator('.sync-status--retrying')).toBeVisible();
+  expect(state.shows).toHaveLength(2);
+  await page.unroute('**/api/shows');
+  page.on('dialog', dialog => dialog.accept());
+  await page.reload();
+  await expect.poll(() => state.shows.length).toBe(1);
+  await expect(page.locator('.dash-next__name')).toHaveText('Keeps');
+  await expect(page.locator('.show-card')).toHaveCount(0);
+});
+
+test('a launch that cannot reach the account shows the error, not the welcome questions', async ({ page, context }) => {
+  // With no signal the defaults were all the app had, and their "not
+  // onboarded" walked a producer with real shows through the first-run
+  // questions — whose Finish then saved those defaults over the account.
+  const state = emptyState();
+  await installFakeApi(context, state);
+  await signUpAndOnboard(page);
+  await createShow(page, 'Already here');
+  await expect.poll(() => state.shows.length).toBe(1);
+  await page.route('**/api/shows', route => route.request().method() === 'GET'
+    ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"unavailable"}' })
+    : route.fallback());
+  await page.reload();
+  await expect(page.getByRole('alert')).toContainText("Couldn't load your shows");
+  await expect(page.getByRole('button', { name: 'Get started' })).toHaveCount(0);
+  // Signal returns: the account is fetched without a hand refresh.
+  await page.unroute('**/api/shows');
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(page.locator('.dash-next__name')).toHaveText('Already here');
+});
+
 test('storage exhaustion is visible rather than a promise of a safe local copy', async ({ page, context }) => {
   await installFakeApi(context, emptyState());
   await signUpAndOnboard(page);

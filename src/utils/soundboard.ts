@@ -53,13 +53,20 @@ function initialOf(name: string): string {
  * Who's on stage for a cue: the linked performer record, else an exact name
  * match on the free-text field. Deliberately strict — a guess here would put
  * the wrong face on a button.
+ *
+ * A link that points at nobody falls back to the name rather than to nobody.
+ * Slot ids go stale in ordinary use — someone removed and booked again gets a
+ * fresh one — and a cue that still names them should still find them.
  */
 export function resolveCuePerformer(
   cue: ScheduleItem | undefined,
   performers: Performer[],
 ): Performer | null {
   if (!cue) return null;
-  if (cue.performerId) return performers.find((p) => p.id === cue.performerId) ?? null;
+  if (cue.performerId) {
+    const linked = performers.find((p) => p.id === cue.performerId);
+    if (linked) return linked;
+  }
   const name = (cue.performer ?? '').trim().toLowerCase();
   if (!name) return null;
   return performers.find((p) => p.name.trim().toLowerCase() === name) ?? null;

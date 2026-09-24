@@ -27,6 +27,12 @@ export async function completeOnboarding(page: Page): Promise<void> {
   await page.waitForSelector(`.app-main, ${ADVANCE}`, { timeout: 30_000 });
 
   for (let step = 0; step < 14; step++) {
+    // Between steps the page may briefly show neither: the skeleton while the
+    // account loads sits between sign-up and onboarding. A count taken in that
+    // gap read as "no more steps" and left the walk on the welcome screen.
+    await expect
+      .poll(async () => (await nav.isVisible().catch(() => false)) || (await page.locator(ADVANCE).count()) > 0)
+      .toBe(true);
     if (await nav.isVisible().catch(() => false)) break;
     const advance = page.locator(ADVANCE);
     if ((await advance.count()) === 0) break;
@@ -48,8 +54,29 @@ export async function signUpAndOnboard(page: Page): Promise<void> {
   await completeOnboarding(page);
 }
 
-/** Create a show and land on its page. Blocks default to lineup + schedule. */
-export async function createShow(page: Page, name: string, date = '2026-09-20'): Promise<void> {
+/**
+ * A calendar date `days` from today, as the `YYYY-MM-DD` a date input takes.
+ *
+ * Local time, not UTC: the app reads a show's date as a local calendar day,
+ * and a fixture built from `toISOString()` would name tomorrow to a test
+ * running in the evening on a US machine.
+ */
+export function daysFromNow(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/**
+ * Create a show and land on its page. Blocks default to lineup + schedule.
+ *
+ * The date is relative to today on purpose. A fixed date was fine until the
+ * calendar caught up with it: the Shows page leads with the next show still
+ * ahead, and three specs about that panel failed the morning after the
+ * fixture's date had passed.
+ */
+export async function createShow(page: Page, name: string, date = daysFromNow(10)): Promise<void> {
   await page.locator('button').filter({ hasText: /New Show/i }).first().click();
   await page.getByPlaceholder('Show name').fill(name);
   await page.locator('input[type=date]').fill(date);

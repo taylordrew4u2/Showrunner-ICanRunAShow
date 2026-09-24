@@ -11,7 +11,8 @@ import { Icon } from '../Icon';
 import type { SignerStatus } from '../../utils/contracts';
 
 interface PerformersSectionProps {
-  initialPerformerId?: string;
+  /** A request to open one profile. `seq` makes the same face tappable twice. */
+  openProfile?: { id: string; seq: number };
   performers: Performer[];
   potentialComics?: PotentialComic[];
   showName?: string;
@@ -32,7 +33,7 @@ interface PerformersSectionProps {
 }
 
 export function PerformersSection({
-  initialPerformerId,
+  openProfile,
   performers,
   potentialComics = [],
   showName,
@@ -47,7 +48,14 @@ export function PerformersSection({
   const [name, setName] = useState('');
   const [instagram, setInstagram] = useState('');
   const [email, setEmail] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(initialPerformerId ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(openProfile?.id ?? null);
+  // Each tap on a face is a new request, even for the profile already open.
+  // Answered during render, the way React adjusts state to a changed prop.
+  const [answeredRequest, setAnsweredRequest] = useState(openProfile?.seq);
+  if (openProfile && openProfile.seq !== answeredRequest) {
+    setAnsweredRequest(openProfile.seq);
+    setSelectedId(openProfile.id);
+  }
   const [showRolodex, setShowRolodex] = useState(false);
   /**
    * Whether the add-a-performer form is showing.

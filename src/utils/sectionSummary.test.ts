@@ -74,6 +74,15 @@ describe('scheduleSpan', () => {
   it('has nothing to say about an empty running order', () => {
     expect(scheduleSpan([])).toBeNull();
   });
+
+  it('reads a generated order in minutes from the top, not as a show at midnight', () => {
+    const schedule = [
+      cue({ time: '0:00', description: 'Doors' }),
+      cue({ time: '0:30', description: 'Host' }),
+      cue({ time: '1:05', description: 'Headliner' }),
+    ];
+    expect(scheduleSpan(schedule)).toBe('Doors 0:00 → Headliner 1:05');
+  });
 });
 
 describe('scheduleSummary', () => {

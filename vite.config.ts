@@ -36,7 +36,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt', not 'autoUpdate': an automatic update reloads every open
+      // tab the moment it lands, and it lands whenever the download finishes
+      // — which on venue wifi is mid-show. The app offers the reload instead.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icons/*.png', 'brand/*.svg'],
       manifest: {
         name: 'I Can Run A Show',

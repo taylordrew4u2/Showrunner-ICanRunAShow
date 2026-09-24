@@ -20,6 +20,7 @@
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson, tooLarge } from './_lib/http';
+import { signTokenOwnership } from './_lib/tokenOwnership';
 
 // Matches the client's slice size before encryption; a 1400px headshot is
 // one chunk. Four is headroom, not an invitation.
@@ -68,6 +69,8 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // ── Producer reads and tidies ──────────────────────────────────────────
+    // The producer who made the link, not any account that has seen it: the
+    // performer holds the token, and their photo is for the one who asked.
     const userId = await authorize(req);
     if (!userId) return json({ error: 'unauthorized' }, 401);
 
@@ -76,6 +79,7 @@ export default async function handler(req: Request): Promise<Response> {
       const token = url.searchParams.get('token');
       const seq = Number(url.searchParams.get('seq'));
       if (badToken(token) || !Number.isInteger(seq) || seq < 0) return json({ error: 'bad_request' }, 400);
+      if ((await signTokenOwnership(db, token as string, userId)) === 'other') return json({ error: 'forbidden' }, 403);
       const result = await db.execute({
         sql: `SELECT data, total FROM profile_photo WHERE token = ? AND seq = ?`,
         args: [token as string, seq],
@@ -87,6 +91,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (req.method === 'DELETE') {
       const token = new URL(req.url).searchParams.get('token');
       if (badToken(token)) return json({ error: 'bad_request' }, 400);
+      if ((await signTokenOwnership(db, token as string, userId)) === 'other') return json({ error: 'forbidden' }, 403);
       await db.execute({ sql: `DELETE FROM profile_photo WHERE token = ?`, args: [token as string] });
       return json({ ok: true });
     }

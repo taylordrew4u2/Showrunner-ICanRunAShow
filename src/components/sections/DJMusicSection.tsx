@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import type { DJSong, MusicTrack, Show } from '../../types';
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
-import { deleteMedia, uploadMedia } from '../../utils/mediaStore';
+import { uploadMedia } from '../../utils/mediaStore';
 import {
   isAutoLibrarySong,
   SEARCH_LIST_FROM,
   showDJSongs,
   songFromTrack,
-  songOwnsItsMedia,
   trackMatches,
 } from '../../utils/musicLibrary';
 import { exportDJListToPDF } from '../../utils/pdfExport';
@@ -114,8 +113,10 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
       return;
     }
 
+    // The audio is not deleted here. A cue can play this song's upload under
+    // its own reference, and a duplicated show carries the same one; the
+    // app's update path frees a file only once nothing anywhere holds it.
     if (await confirm(`Delete "${song.title}"? This cannot be undone.`)) {
-      if (songOwnsItsMedia(song)) deleteMedia(song.music!);
       onUpdate({ djSongs: ownRef.current.filter((s) => s.id !== id) });
     }
   }
@@ -192,9 +193,9 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
       const ref = await uploadMedia(file);
       // Uploading over a library track detaches this song from the library —
       // the audio is now this show's own, and the shared reference it used to
-      // point at stays untouched for everyone else.
-      const replacingOwnMedia = songOwnsItsMedia(song);
-      const previous = song.music;
+      // point at stays untouched for everyone else. An upload this song owned
+      // is likewise left to the app's update path, which frees it only once
+      // no cue or other show still plays it.
       const audio = { music: ref, musicName: file.name, libraryId: undefined };
       if (isAutoLibrarySong(song)) {
         // The row was the library's; giving it this show's own file makes it
@@ -210,7 +211,6 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
           djSongs: ownRef.current.map((s) => (s.id === song.id ? { ...s, ...audio } : s)),
         });
       }
-      if (previous && replacingOwnMedia) deleteMedia(previous);
       setStatus(song.id, null);
     } catch {
       setStatus(song.id, 'Could not upload that audio file. Check your connection and try again.');
@@ -224,7 +224,6 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
       ? `Remove the library track from "${song.title}"? The track stays in your Music library.`
       : `Remove the uploaded audio for "${song.title}"?`;
     if (!(await confirm({ message: question, confirmLabel: 'Remove' }))) return;
-    if (songOwnsItsMedia(song)) deleteMedia(song.music);
     onUpdate({
       djSongs: ownRef.current.map((s) =>
         s.id === song.id ? { ...s, music: undefined, musicName: undefined, libraryId: undefined } : s,

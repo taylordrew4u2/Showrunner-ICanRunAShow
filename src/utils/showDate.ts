@@ -4,6 +4,7 @@
 // `new Date(str)` treats them as UTC midnight, which shifts the displayed
 // day backwards in western timezones — so parse the parts manually and
 // build a local date instead.
+import { parseClockToMinutes } from './showTiming';
 
 export function parseShowDate(value: string | undefined | null): Date | null {
   if (!value) return null;
@@ -13,6 +14,25 @@ export function parseShowDate(value: string | undefined | null): Date | null {
   }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
+ * The moment a show starts, as an ISO timestamp for a machine on another
+ * clock — the public viewer, which counts down to it.
+ *
+ * Built from the parts rather than glued together: `"2026-09-24T8:00 PM"`
+ * is not a date to `new Date`, so the room's screen said "Time TBA" for a show
+ * that had one, and a bare `"2026-09-24"` reads as UTC midnight, which in New
+ * York is the evening before. Undefined when there is no date, or the time
+ * will not parse — the viewer then shows nothing rather than something wrong.
+ */
+export function showStartISO(date: string | undefined, time: string | undefined): string | undefined {
+  const day = parseShowDate(date);
+  if (!day) return undefined;
+  const minutes = parseClockToMinutes(time);
+  if (minutes === null) return undefined;
+  day.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return day.toISOString();
 }
 
 /** Local-timezone 'YYYY-MM-DD' key for grouping shows by day. */

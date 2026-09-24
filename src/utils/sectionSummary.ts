@@ -1,6 +1,6 @@
 import type { ScheduleItem, StaffMember, Vendor } from '../types';
-import { baseDurations } from './showTiming';
-import { formatShowTime } from './showDate';
+import { baseDurations, parseClockToMinutes } from './showTiming';
+import { timeLabelFor } from './elapsed';
 
 /**
  * One-line summaries of what's inside a collapsed section.
@@ -42,9 +42,13 @@ export function formatRuntime(totalSeconds: number): string | null {
  */
 export function scheduleSpan(schedule: ScheduleItem[]): string | null {
   if (schedule.length === 0) return null;
+  // The way this sheet already writes its times: a generated order counts up
+  // from zero, and "0:00" read as a clock put the doors at 12:00 AM.
+  const label = timeLabelFor(schedule);
   const end = (cue: ScheduleItem | undefined): string | null => {
     if (!cue) return null;
-    const time = formatShowTime(cue.time);
+    const minutes = parseClockToMinutes(cue.time);
+    const time = minutes === null ? cue.time?.trim() || null : label(minutes);
     const name = cue.description?.trim();
     if (!time) return name || null;
     return name ? `${name} ${time}` : time;

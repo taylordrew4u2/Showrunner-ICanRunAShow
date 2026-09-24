@@ -16,11 +16,14 @@
 //   GET    ?token=…&id=…&seq=…              → { data, total } (public)
 //   DELETE ?token=…                         → drop every chunk for a show (authed)
 //
-// Writes require a login so a stranger with the token can't push audio into
-// someone's show; reads are open, because that's the point of a viewer link.
+// Writes require a login, and the login has to be the account that published
+// the token's live state (see /api/live) — the token is in every audience
+// member's hands and accounts are free, so "has both" is not the producer.
+// Reads are open, because that's the point of a viewer link.
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, tooLarge } from './_lib/http';
+import { liveTokenOwnership } from './_lib/tokenOwnership';
 
 // Matches /api/media: the client slices at ~1.5M chars before encryption.
 const MAX_CHUNK_CHARS = 3_500_000;
@@ -75,6 +78,7 @@ export default async function handler(req: Request): Promise<Response> {
         return json({ error: 'bad_request' }, 400);
       }
       if (data.length > MAX_CHUNK_CHARS) return tooLarge();
+      if ((await liveTokenOwnership(db, token, userId)) === 'other') return json({ error: 'forbidden' }, 403);
 
       // Only count distinct tracks on the first chunk — the later chunks of a
       // track already under way must never trip the cap half-uploaded.
@@ -100,6 +104,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (req.method === 'DELETE') {
       const token = new URL(req.url).searchParams.get('token');
       if (!token) return json({ error: 'bad_request' }, 400);
+      if ((await liveTokenOwnership(db, token, userId)) === 'other') return json({ error: 'forbidden' }, 403);
       await db.execute({ sql: `DELETE FROM live_media WHERE token = ?`, args: [token] });
       return json({ ok: true });
     }

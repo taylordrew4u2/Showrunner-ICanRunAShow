@@ -62,6 +62,16 @@ describe('baseDurations', () => {
     expect(out[0]).toBe(20 * 60);
   });
 
+  it('follows a late show across midnight instead of giving the last cue five minutes', () => {
+    const out = baseDurations([cue({ time: '11:45 PM' }), cue({ time: '12:15 AM' })]);
+    expect(out[0]).toBe(30 * 60);
+  });
+
+  it('does not read two cues at the same time, or a gap longer than a night, as a length', () => {
+    expect(baseDurations([cue({ time: '8:00 PM' }), cue({ time: '8:00 PM' })])[0]).toBe(DEFAULT_CUE_SECONDS);
+    expect(baseDurations([cue({ time: '8:00 PM' }), cue({ time: '9:00 AM' })])[0]).toBe(DEFAULT_CUE_SECONDS);
+  });
+
   it('uses a duration parsed from the description', () => {
     expect(baseDurations([cue({ description: 'Break (2 min)' })])[0]).toBe(120);
   });

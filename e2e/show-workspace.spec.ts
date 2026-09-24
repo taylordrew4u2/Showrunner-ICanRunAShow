@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { createShow, gotoTab, openSection, signUpAndOnboard } from './support/app';
+import { createShow, daysFromNow, gotoTab, openSection, signUpAndOnboard } from './support/app';
 
 test('every show has the workspace with private notes and working planning tools', async ({page, context}, testInfo) => {
   if (testInfo.project.name === 'desktop') await page.setViewportSize({width:1440,height:1000});
   await page.emulateMedia({reducedMotion:'reduce'});
   await installFakeApi(context, emptyState());
   await signUpAndOnboard(page);
-  await createShow(page, 'Bad Decisions', '2026-09-24');
+  await createShow(page, 'Bad Decisions', daysFromNow(3));
   await expect(page.getByRole('navigation', {name:'Show sections'})).toBeVisible();
   for (const name of ['Mona Sable', 'Dev Okonjo', 'Renata Cruz']) {
     await page.getByLabel('Performer name', {exact:true}).fill(name);

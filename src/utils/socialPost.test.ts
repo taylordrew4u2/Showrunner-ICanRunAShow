@@ -6,7 +6,7 @@ function show(overrides: Partial<Show> = {}): Show {
   return {
     id: 's1',
     name: 'Basement Hour',
-    date: 'Thu 12 Mar',
+    date: '2026-03-12',
     time: '20:00',
     location: '14 Wharf St',
     venueName: 'The Cellar',
@@ -112,7 +112,8 @@ describe('buildSocialPost', () => {
     expect(post.text).toBe(
       [
         'BASEMENT HOUR',
-        'Thu 12 Mar · 20:00',
+        // In words, as the cards print it — never the stored "2026-03-12 · 20:00".
+        `${new Date(2026, 2, 12).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${new Date(2000, 0, 1, 20, 0).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`,
         'The Cellar, 14 Wharf St',
         '',
         'Renata Cruz @renatadoesbits',

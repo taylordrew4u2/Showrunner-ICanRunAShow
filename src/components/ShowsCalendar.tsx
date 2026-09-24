@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Show } from '../types';
 import { parseShowDate, toDateKey, formatShowTime } from '../utils/showDate';
+import { parseClockToMinutes } from '../utils/showTiming';
 import './ShowsCalendar.css';
 
 interface ShowsCalendarProps {
@@ -38,7 +39,9 @@ export function ShowsCalendar({ shows, onSelectShow }: ShowsCalendarProps) {
       else map.set(key, [show]);
     }
     for (const list of map.values()) {
-      list.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      // By the clock, not the text: "10:00 PM" sorts before "7:30 PM" as a
+      // string. A show with no time yet goes last, after the ones that have one.
+      list.sort((a, b) => (parseClockToMinutes(a.time) ?? Infinity) - (parseClockToMinutes(b.time) ?? Infinity));
     }
     return { showsByDay: map, undatedShows: undated };
   }, [shows]);

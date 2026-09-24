@@ -260,9 +260,15 @@ async function captureContracts(page, context) {
   if (MOCK_API) await installFakeApi(signerContext, MOCK_STATE);
   const signer = await signerContext.newPage();
   await signer.goto(links[0]);
-  await signer.getByRole('textbox', { name: 'Your full name', exact: true }).waitFor();
-  await signer.getByRole('textbox', { name: 'Your full name', exact: true }).fill('Maya Reyes');
-  await signer.getByRole('textbox', { name: 'Email', exact: true }).fill('maya@example.com');
+  // The name arrives prefilled from what the producer filed; the details the
+  // contract asks for and the signature itself are the signer's to type.
+  await signer.locator('.signing__field--name input').waitFor();
+  await signer.locator('.signing__field--name input').fill('Maya Reyes');
+  for (const [label, value] of [['Email', 'maya@example.com'], ['Instagram or main social', '@mayareyes']]) {
+    const field = signer.getByLabel(label, { exact: true });
+    if (await field.count()) await field.first().fill(value);
+  }
+  await signer.locator('.signing__field--signature input').fill('Maya Reyes');
   await signer.locator('.signing__agree input').check();
   await signer.locator('.signing__cta').click();
   const done = signer.locator('.signing__panel--done');
@@ -281,6 +287,9 @@ async function captureContracts(page, context) {
   await page.locator('.more-item', { hasText: 'Contracts' }).click();
   await page.locator('.contracts__item').first().click();
   await page.locator('.contracts__row').first().waitFor();
+  // The signature is fetched and decrypted after the page paints; a shot taken
+  // on the first row shows both still waiting, which is not the point.
+  await page.getByText('1 of 2 signed').first().waitFor();
   await shot(page, 'contracts');
 }
 
@@ -325,7 +334,7 @@ async function captureShowScreens(page) {
   await shot(page, 'performer-profile');
   // Back out of the profile, and wait for the show page before moving on —
   // the profile covers the show's own back button while it is open.
-  await page.getByRole('button', { name: '← Back' }).first().click();
+  await page.locator('.perf-profile__back').first().click();
   await page.locator('.show-detail__stats, .accordion-section').first().waitFor();
   await page.waitForTimeout(300);
 }

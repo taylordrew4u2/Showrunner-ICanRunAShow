@@ -68,6 +68,27 @@ export function whenLabel(date: Date, today: Date): string {
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+/**
+ * Mark every upcoming show whose night has passed as completed.
+ *
+ * Only 'upcoming' is touched: in-progress and cancelled are things a producer
+ * chose. The comparison is by local calendar day, the same day the date input
+ * wrote and the cards print — a show tonight is still tonight at 8pm in New
+ * York even though it is already tomorrow in UTC. Returns the same array when
+ * nothing changes, so a caller can tell a real change from a no-op.
+ */
+export function completePastShows(shows: Show[], today: Date = new Date()): Show[] {
+  let changed = false;
+  const next = shows.map((show) => {
+    if (show.status !== 'upcoming') return show;
+    const date = parseShowDate(show.date);
+    if (!date || daysUntil(date, today) >= 0) return show;
+    changed = true;
+    return { ...show, status: 'completed' as const };
+  });
+  return changed ? next : shows;
+}
+
 /** A show still ahead of us: not finished, not called off, and dated today or later. */
 function isAhead(show: Show, today: Date): boolean {
   if (show.status === 'completed' || show.status === 'cancelled') return false;

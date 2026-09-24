@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { describeKey, explainFailure, keyFromEvent } from '../utils/stageRemote';
 import type { AppSettings, Producer } from '../types';
 import { SHOW_TYPES } from '../types';
@@ -114,8 +114,26 @@ export function Settings({
   const totalSpent = (settings.expenses || []).reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
   const remaining = (settings.brandBudget || 0) - totalSpent;
 
+  // What the page was last handed, so an incoming change can be told apart
+  // from the page's own unsaved edits.
+  const handedRef = useRef(initialSettings);
   useEffect(() => {
-    setSettings(initialSettings);
+    const handed = handedRef.current;
+    handedRef.current = initialSettings;
+    // Take the new settings, but carry the draft's edits over them. Restoring
+    // a show from the trash on this very page hands in new settings, and
+    // replacing the draft with them threw away a brand name half-typed and a
+    // remote just paired, with the dock that said "Unsaved changes" vanishing
+    // rather than explaining.
+    setSettings((draft) => {
+      const next: AppSettings = { ...initialSettings };
+      for (const key of Object.keys(draft) as (keyof AppSettings)[]) {
+        if (JSON.stringify(draft[key]) !== JSON.stringify(handed[key])) {
+          (next as unknown as Record<string, unknown>)[key] = draft[key];
+        }
+      }
+      return next;
+    });
   }, [initialSettings]);
 
   useEffect(() => {
@@ -181,9 +199,28 @@ export function Settings({
   // nothing worth putting a button in front of the reader for.
   const dirty = JSON.stringify(settings) !== JSON.stringify(initialSettings);
 
+  /**
+   * Leave the page — after one question, if something here is unsaved.
+   * Nothing on this page saves itself, so Back and Log out used to walk off
+   * with a brand name typed and a remote paired and no word about either.
+   */
+  async function leave(go: () => void) {
+    if (dirty) {
+      const ok = await confirm({
+        title: 'Leave without saving?',
+        message: 'The changes on this page have not been saved. Leave now and they are gone.',
+        confirmLabel: 'Leave',
+        cancelLabel: 'Stay',
+        danger: false,
+      });
+      if (!ok) return;
+    }
+    go();
+  }
+
   return (
     <div className={`settings${dirty ? ' settings--dirty' : ''}`}>
-      <PageHeader title="Settings" onBack={onBack} backLabel="Shows" />
+      <PageHeader title="Settings" onBack={() => { void leave(onBack); }} backLabel="Shows" />
 
       {onColorSchemeChange && (
         <div className="settings__card">
@@ -730,7 +767,7 @@ export function Settings({
         </p>
         <div className="settings__account-actions">
           {onLogout && (
-            <button className="btn btn--ghost" onClick={onLogout}>
+            <button className="btn btn--ghost" onClick={() => { void leave(onLogout); }}>
               Log out
             </button>
           )}

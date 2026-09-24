@@ -33,6 +33,7 @@ import {
   fillRolodexFromSignatures,
   profileChanges,
   profileFromAnswers,
+  signatureVisitPatch,
   type ProfileChange,
 } from '../utils/signatureImport';
 import { fileSignedHeadshots } from '../utils/signedHeadshots';
@@ -145,17 +146,15 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
       // Then the answers. Gaps only — a field the producer has already filled
       // in is never overwritten by a form, so a conflict is still theirs to
       // settle in the offer below.
-      const patch: Partial<AppSettings> = { ...(filed ?? {}) };
       const filledComics = fillRolodexFromSignatures(
-        patch.signatureRequests ?? next,
-        patch.potentialComics ?? settings.potentialComics ?? [],
+        filed?.signatureRequests ?? next,
+        filed?.potentialComics ?? settings.potentialComics ?? [],
         rolodexKey,
         generateId,
       );
-      if (filledComics) patch.potentialComics = filledComics;
 
-      if (Object.keys(patch).length > 0) onUpdateSettings({ ...settings, ...patch });
-      else if (updated) onUpdateSettings({ ...settings, signatureRequests: updated });
+      const patch = signatureVisitPatch(updated, filed, filledComics);
+      if (patch) onUpdateSettings({ ...settings, ...patch });
     })();
     return () => { cancelled = true; };
     // Deliberately on mount only: re-running on every settings write would
