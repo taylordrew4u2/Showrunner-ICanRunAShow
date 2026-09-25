@@ -6,9 +6,27 @@ import {
   nextPlaybackAction,
   readViewerKeyFromHash,
   splitIntoChunks,
+  trimSlice,
   viewerUrl,
   type ViewerPlayback,
 } from './viewerAudio';
+
+describe('the slice of a trimmed walk-on the room hears', () => {
+  it('is the same slice the operator set, on the board and through the viewer', () => {
+    // Trimmed to the drop at 0:42–1:10: the PA plays 28 seconds from 0:42,
+    // not the whole song from the top.
+    expect(trimSlice({ startSec: 42, endSec: 70 })).toEqual({ offsetSec: 42, durationSec: 28 });
+    expect(trimSlice({ startSec: 42 })).toEqual({ offsetSec: 42, durationSec: undefined });
+    expect(trimSlice({ endSec: 30 })).toEqual({ offsetSec: undefined, durationSec: 30 });
+  });
+
+  it('plays the whole file when there is no trim, or a half-finished one', () => {
+    expect(trimSlice({})).toEqual({ offsetSec: undefined, durationSec: undefined });
+    // An out-point before the in-point would schedule a stop in the past.
+    expect(trimSlice({ startSec: 42, endSec: 10 })).toEqual({ offsetSec: 42, durationSec: undefined });
+    expect(trimSlice({ startSec: 0, endSec: 0 })).toEqual({ offsetSec: undefined, durationSec: undefined });
+  });
+});
 
 function cue(key: string | null): ViewerPlayback {
   return { key, atMs: 1_000, fadeInMs: 0, fadeOutMs: 350 };

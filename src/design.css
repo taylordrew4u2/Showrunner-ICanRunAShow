@@ -96,7 +96,7 @@
      scrolling main pins relative to its content box, so padding here pushed
      the show page's Run Show bar 92px below where it belongs. See App.css. */
   .app-main { padding-top: 0; }
-  .app-main::before { height: 92px; }
+  .app-main::before { height: calc(92px + var(--status-notices, 0px)); }
   .status-rail { padding-left: 0; }
   .status-rail__pill-row { align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
   .navigation-toggle {

@@ -2,7 +2,7 @@ import CryptoJS from "crypto-js";
 import type { Show, AppSettings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 import { encryptWithKey, decryptWithKeys, deriveUserId, hashPassword } from "./encryption";
-import type { SessionCredentials } from "./session-vault";
+import { normalizeUsername, type SessionCredentials } from "./session-vault";
 import { api, type ApiError } from "./api";
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from "./trash";
 import { describeLargestMedia } from "./showSize";
@@ -32,10 +32,6 @@ export class PayloadTooLargeError extends Error {
 // JSON envelope eat into it). Media is embedded as base64 inside the encrypted
 // blob, so a couple of uploaded files can push a save over this on their own.
 const MAX_SAVE_BYTES = 4_300_000;
-
-function normalizeUsername(username: string): string {
-  return username.trim().toLowerCase();
-}
 
 function getUserId(username: string): string {
   return deriveUserId(normalizeUsername(username));
@@ -498,6 +494,12 @@ export interface Snapshot {
   at: string;
   /** Rows in a shows snapshot; absent for settings. */
   count?: number;
+  /**
+   * A settings copy a device could not save — its edits were made over a
+   * version another device had since replaced — kept aside rather than
+   * applied. Never pruned, so the producer can find it whenever they look.
+   */
+  parked?: boolean;
 }
 
 /** Every earlier save of either kind, newest first. */
@@ -505,11 +507,11 @@ export async function listSnapshots(creds: SessionCredentials): Promise<Snapshot
   const a = auth(creds);
   const [shows, settings] = await Promise.all([
     api.get<{ snapshots: { at: string; count: number }[] }>("/api/shows?history=1", a),
-    api.get<{ snapshots: { at: string }[] }>("/api/settings?history=1", a),
+    api.get<{ snapshots: { at: string; parked?: boolean }[] }>("/api/settings?history=1", a),
   ]);
   const all: Snapshot[] = [
     ...shows.snapshots.map((s) => ({ kind: "shows" as const, at: s.at, count: s.count })),
-    ...settings.snapshots.map((s) => ({ kind: "settings" as const, at: s.at })),
+    ...settings.snapshots.map((s) => ({ kind: "settings" as const, at: s.at, parked: !!s.parked })),
   ];
   return all.sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
 }

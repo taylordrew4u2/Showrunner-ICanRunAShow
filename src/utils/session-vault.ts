@@ -79,6 +79,16 @@ export function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
 }
 
+/**
+ * Whether a stored name belongs to the account signing in. The account is the
+ * same whichever way the keyboard capitalised the name, and an entry an
+ * earlier build filed under the name as typed still has to be found — so the
+ * comparison is on the normalised name on both sides.
+ */
+export function sameAccount(stored: unknown, username: string): boolean {
+  return typeof stored === 'string' && normalizeUsername(stored) === normalizeUsername(username);
+}
+
 /** Everything derivable from a password, computed once so it need not be kept. */
 export function credentialsFrom(username: string, password: string): SessionCredentials {
   const { key, legacyKey } = deriveSessionKeys(password);

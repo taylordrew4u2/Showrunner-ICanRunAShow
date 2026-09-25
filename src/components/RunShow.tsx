@@ -27,6 +27,7 @@ import { getMediaCredentials } from '../utils/mediaStore';
 import {
   ensureViewerKey,
   publishTrack,
+  trimSlice,
   unpublishAll,
   type ViewerTrack,
 } from '../utils/viewerAudio';
@@ -325,6 +326,10 @@ export function RunShow({
   const [fade, setFade] = useState<FadeSettings>(loadFadeSettings);
   // How many tracks are decoded and will start on the press with no wait.
   const [readyCount, setReadyCount] = useState(0);
+  // Whether the up-front decode is still working through the board. Once it
+  // has finished, a count short of the total is the memory budget, not a
+  // stall, and the line under the pads must not say "Loading".
+  const [preloading, setPreloading] = useState(false);
   // Publishing the board's audio to the viewer, so the machine wired to the PA
   // plays the walk-ons instead of this device. Off unless the operator asks:
   // it re-uploads every track, and it makes the show's music readable by
@@ -548,6 +553,7 @@ export function RunShow({
     const recount = () => setReadyCount(sources.filter((s) => audioEngine.isReady(s)).length);
     recount();
     const queue = [...sources];
+    setPreloading(queue.length > 0);
     const worker = async () => {
       while (!cancelled) {
         const src = queue.shift();
@@ -556,7 +562,9 @@ export function RunShow({
         if (!cancelled) recount();
       }
     };
-    void Promise.all(Array.from({ length: PRELOAD_CONCURRENCY }, worker));
+    void Promise.all(Array.from({ length: PRELOAD_CONCURRENCY }, worker)).then(() => {
+      if (!cancelled) setPreloading(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -599,7 +607,7 @@ export function RunShow({
     setPlayingKey(track.key);
     setAuditioning(true);
     audioEngine
-      .play(track.src, { fadeInMs: fade.fadeInMs, fadeOutMs: fade.fadeOutMs, offsetSec: trimOf(track).offsetSec })
+      .play(track.src, { fadeInMs: fade.fadeInMs, fadeOutMs: fade.fadeOutMs, offsetSec: trimSlice(track).offsetSec })
       .then((result) => {
         if (result === 'started' || result === 'superseded') return;
         cancelAudition();
@@ -615,20 +623,6 @@ export function RunShow({
       audioEngine.stop({ fadeMs: fade.fadeOutMs });
       setPlayingKey((k) => (k === track.key ? null : k));
     }, fade.fadeInMs + AUDITION_HOLD_MS);
-  }
-
-  /**
-   * The slice of a track a press should play.
-   *
-   * A walk-on is rarely the top of the file — it's the drop or the chorus, and
-   * a producer who trimmed it wants that and nothing else. An out-point before
-   * the in-point is treated as no out-point rather than a negative duration,
-   * which would schedule a stop in the past and cut the track dead.
-   */
-  function trimOf(track: SoundboardTrack): { offsetSec?: number; durationSec?: number } {
-    const start = track.startSec && track.startSec > 0 ? track.startSec : undefined;
-    const end = track.endSec && track.endSec > (start ?? 0) ? track.endSec : undefined;
-    return { offsetSec: start, durationSec: end ? end - (start ?? 0) : undefined };
   }
 
   function toggleTrack(track: SoundboardTrack) {
@@ -660,7 +654,9 @@ export function RunShow({
       .play(track.src, {
         fadeInMs: fade.fadeInMs,
         fadeOutMs: fade.fadeOutMs,
-        ...trimOf(track),
+        // The one trim rule, shared with the viewer screen so the room hears
+        // the same cut this device does.
+        ...trimSlice(track),
         onEnded: () => setPlayingKey((k) => (k === track.key ? null : k)),
       })
       .then((result) => {
@@ -723,7 +719,15 @@ export function RunShow({
         // piling up a second copy of every track under the token.
         const mediaId = `t-${track.key.replace(/[^a-zA-Z0-9]/g, '-')}`.slice(0, 60);
         const total = await publishTrack(viewToken, key, track.src, mediaId, creds);
-        published.push({ key: track.key, mediaId, total });
+        // The trim travels with the track: the viewer plays the same slice
+        // this board would, not the whole file from the top.
+        published.push({
+          key: track.key,
+          mediaId,
+          total,
+          startSec: track.startSec || undefined,
+          endSec: track.endSec || undefined,
+        });
         setPublishDone((n) => n + 1);
       }
       setViewerAudio(published);
@@ -759,11 +763,15 @@ export function RunShow({
     audioEngine.setMuted(muted);
   }, [muted]);
 
-  // Stop on unmount — including an audition still waiting to fade itself out.
+  // Stop on unmount — including an audition still waiting to fade itself out —
+  // and let the decoded tracks go. A bill's worth of PCM is hundreds of
+  // megabytes, and kept past the show it was the memory the next show in the
+  // same session started from. The engine makes a fresh context on the next
+  // open and unlocks it on the first press.
   useEffect(
     () => () => {
       if (auditionTimer.current !== null) window.clearTimeout(auditionTimer.current);
-      audioEngine.stopNow();
+      audioEngine.dispose();
     },
     [],
   );
@@ -1077,9 +1085,13 @@ export function RunShow({
             ) : trackCount > 0 && readyCount < trackCount ? (
               // Until a track is decoded, its first press has to wait on the
               // download. Saying so beats an operator wondering why the one
-              // button they tried was slow when the rest are instant.
+              // button they tried was slow when the rest are instant. On a
+              // big bill the count settles short of the total on purpose —
+              // the rest would not fit in a phone's memory — and that is not
+              // "loading", so the word goes once the decode has finished.
               <span className="rs-board__now-text">
-                Loading tracks — {readyCount} of {trackCount} ready to play instantly.
+                {preloading ? 'Loading tracks — ' : ''}
+                {readyCount} of {trackCount} ready to play instantly; the rest load on the press.
               </span>
             ) : (
               <span className="rs-board__now-text">

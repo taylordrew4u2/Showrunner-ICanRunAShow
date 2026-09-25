@@ -379,15 +379,10 @@ export interface SigningView {
  * allowed through so the page can offer a retry instead of declaring it gone.
  */
 export async function fetchSigningRequest(token: string, key: string): Promise<SigningView | null> {
-  let res: { payload: string; signature: string | null };
-  try {
-    res = await api.get<typeof res>(
-      `/api/sign?token=${encodeURIComponent(token)}`,
-    );
-  } catch (err) {
-    if ((err as ApiError).status === 404) return null;
-    throw err;
-  }
+  const res = await api.getOrNull<{ payload: string; signature: string | null }>(
+    `/api/sign?token=${encodeURIComponent(token)}`,
+  );
+  if (!res) return null;
   try {
     const payload = decryptWithKey<SigningPayload>(res.payload, key);
     if (!payload || typeof payload.contractName !== 'string') return null;
@@ -410,15 +405,10 @@ export async function fetchSigningDocument(
   if (!Number.isInteger(total) || total < 1 || total > 64) return null;
   const parts: string[] = [];
   for (let seq = 0; seq < total; seq++) {
-    let res: { data: string; total?: number };
-    try {
-      res = await api.get<typeof res>(
-        `/api/sign-doc?token=${encodeURIComponent(token)}&seq=${seq}`,
-      );
-    } catch (err) {
-      if ((err as ApiError).status === 404) return null;
-      throw err;
-    }
+    const res = await api.getOrNull<{ data: string; total?: number }>(
+      `/api/sign-doc?token=${encodeURIComponent(token)}&seq=${seq}`,
+    );
+    if (!res) return null;
     try {
       if (res.total !== undefined && res.total !== total) return null;
       const part = decryptWithKey<unknown>(res.data, key);

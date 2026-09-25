@@ -652,6 +652,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                   type="text"
                   value={manualName}
                   placeholder="Type a name"
+                  aria-label="Signer's name"
                   onChange={(e) => setManualName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleSend(manualName); }}
                 />

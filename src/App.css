@@ -47,7 +47,11 @@
      two things have to agree on it: the padding that keeps content out from
      under it, and the offset a sticky header parks at. They were the same
      number written twice, which is the kind of pair that quietly drifts. */
-  --status-band: 44px;
+  --status-band-base: 44px;
+  /* Plus whatever the rail's notices take. The app measures the rail and
+     writes --status-notices on <html> (see utils/statusBand.ts); with no
+     notice on screen it is 0px and the band is the base. */
+  --status-band: calc(var(--status-band-base) + var(--status-notices, 0px));
   /* The page's side padding. A sticky header has to bleed back out through it
      to reach the window edges, so it needs to be readable rather than a
      literal repeated at every use site. */
@@ -338,7 +342,7 @@ html {
 /* Mobile Responsive Styles */
 @media (max-width: 768px) {
   :root {
-    --status-band: 40px;
+    --status-band-base: 40px;
     --page-gutter: 12px;
   }
 
@@ -1156,7 +1160,7 @@ html {
   .app-main {
     padding-inline: var(--space-3);
     /* Clears the status band (see the base .app-main rule). */
-    padding-top: calc(env(safe-area-inset-top) + 40px);
+    padding-top: calc(env(safe-area-inset-top) + var(--status-band));
     padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 12px);
   }
 
@@ -3725,7 +3729,8 @@ body:has([aria-modal='true']) .status-rail {
   .app-main::before {
     content: '';
     display: block;
-    height: var(--space-16);
+    /* Plus the notices, the same as the band on a phone. */
+    height: calc(var(--space-16) + var(--status-notices, 0px));
   }
 
   /* ── Sidebar ────────────────────────────────────────────────────────── */

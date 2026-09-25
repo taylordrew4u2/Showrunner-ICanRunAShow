@@ -162,12 +162,18 @@ export interface ProfileView {
   submitted: ProfileSubmission | null;
 }
 
-/** Open a link: what is being asked, and whether it has already been answered. */
+/**
+ * Open a link: what is being asked, and whether it has already been answered.
+ *
+ * Null only for a link that is not there or cannot be read. A request that
+ * died on venue wifi is let through, as the signing page's is, so the page
+ * can offer another go — it used to read as "withdrawn", and the performer
+ * would tell the producer a perfectly good link was dead.
+ */
 export async function fetchProfileRequest(token: string, key: string): Promise<ProfileView | null> {
+  const res = await api.getOrNull<{ payload: string; signature: string | null }>(`/api/sign?token=${encodeURIComponent(token)}`);
+  if (!res) return null;
   try {
-    const res = await api.get<{ payload: string; signature: string | null }>(
-      `/api/sign?token=${encodeURIComponent(token)}`,
-    );
     const payload = decryptWithKey<ProfilePayload>(res.payload, key);
     // A wrong key decrypts to nothing rather than throwing, and a contract's
     // payload under the right key is still not a profile — check both.
