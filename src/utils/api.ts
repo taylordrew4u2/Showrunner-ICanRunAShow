@@ -136,6 +136,20 @@ export async function withNetworkRetry<T>(send: () => Promise<T>, attempts = 3):
 
 export const api = {
   get: <T>(path: string, opts?: Opts) => request<T>('GET', path, opts),
+  /**
+   * A GET whose 404 means "gone" rather than "failed": null for that, and
+   * every other error still thrown. A signing or profile link that has been
+   * withdrawn is a different thing from one that could not be reached, and
+   * the page has to say which — the one rule for every link the app hands out.
+   */
+  getOrNull: async <T>(path: string, opts?: Opts): Promise<T | null> => {
+    try {
+      return await api.get<T>(path, opts);
+    } catch (err) {
+      if ((err as ApiError).status === 404) return null;
+      throw err;
+    }
+  },
   post: <T>(path: string, body: unknown, opts?: Opts) => request<T>('POST', path, { ...opts, body }),
   put: <T>(path: string, body: unknown, opts?: Opts) => request<T>('PUT', path, { ...opts, body }),
   patch: <T>(path: string, body: unknown, opts?: Opts) => request<T>('PATCH', path, { ...opts, body }),

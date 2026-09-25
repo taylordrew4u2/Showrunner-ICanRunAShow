@@ -12,11 +12,27 @@ test('an older tab cannot erase a newly saved show', async ({ page, context }) =
   await createShow(page, 'Newly saved show');
   await expect.poll(() => state.shows.length).toBe(1);
   const firstId = state.shows[0].id;
+  // What the old tab sends. The server's rows say what it ended up with; this
+  // says how — a whole-list replace would have erased the first show, and
+  // this is the request that would have carried it.
+  const writes: { id: string; expectedHash: string | null }[][] = [];
+  oldTab.on('request', (request) => {
+    if (request.method() === 'PUT' && new URL(request.url()).pathname === '/api/shows') {
+      writes.push((request.postDataJSON() as { changes: typeof writes[number] }).changes);
+    }
+  });
   // The old tab still holds the empty list it loaded earlier.
   await createShow(oldTab, 'Show from older tab');
   await expect.poll(() => state.shows.some(s => s.id !== firstId)).toBe(true);
   expect(state.shows.some(s => s.id === firstId)).toBe(true);
   expect(state.shows).toHaveLength(2);
+  // Only the rows it changed, each against the version it loaded: its own new
+  // show, against nothing. The show it never saw is never named, so nothing
+  // it sends can touch it.
+  expect(writes.length).toBeGreaterThan(0);
+  for (const changes of writes) expect(changes.map(c => c.id)).not.toContain(firstId);
+  expect(writes[0]).toHaveLength(1);
+  expect(writes[0][0].expectedHash).toBeNull();
   await page.reload();
   await expect(page.locator('.show-card')).toHaveCount(2);
   await oldTab.close();
@@ -101,6 +117,47 @@ test('a show deleted while the save was failing stays deleted after a reload', a
   await expect.poll(() => state.shows.length).toBe(1);
   await expect(page.locator('.dash-next__name')).toHaveText('Keeps');
   await expect(page.locator('.show-card')).toHaveCount(0);
+});
+
+test('losing the signal says Offline, keeps the edit here, and saves it when the signal is back', async ({ page, context }) => {
+  // A basement, mid-edit. Nothing is lost and nothing is reported as an
+  // error: the pill says where the work is, and the save goes through on its
+  // own once there is a connection again.
+  const state = emptyState();
+  await installFakeApi(context, state);
+  await signUpAndOnboard(page);
+  await createShow(page, 'Basement night');
+  await expect.poll(() => state.shows.length).toBe(1);
+  await expect(page.locator('.sync-status--saved')).toBeVisible();
+  const saved = state.shows[0].encryptedData;
+
+  // Playwright's offline emulation flips navigator.onLine and fires the
+  // event; this route makes sure no request gets through while it lasts,
+  // which is what a basement does.
+  let offline = true;
+  await page.route('**/api/**', route => (offline ? route.abort('internetdisconnected') : route.fallback()));
+  await context.setOffline(true);
+  await expect(page.locator('.sync-status--offline')).toBeVisible();
+
+  await openSection(page, 'Schedule');
+  const build = page.locator('.schedule-choice__option').filter({ hasText: 'Build Your Own' });
+  if (await build.count()) await build.first().click();
+  await page.locator('input[aria-label="Description"]').fill('Doors open');
+  await page.locator('button[aria-label="Add cue"]').click();
+  await expect(page.locator('.cue-list')).toContainText('Doors open');
+  // Still offline, still not an error, and held on this device meanwhile.
+  await expect(page.locator('.sync-status--offline')).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() =>
+    Object.keys(localStorage).filter(k => k.startsWith('showrunner:pendingShows')).map(k => localStorage.getItem(k)).join(''),
+  )).toContain('Doors open');
+  expect(state.shows[0].encryptedData).toBe(saved);
+
+  offline = false;
+  await context.setOffline(false);
+  await expect(page.locator('.sync-status--saved')).toBeVisible();
+  await expect.poll(() => state.shows[0].encryptedData).not.toBe(saved);
+  expect(state.shows).toHaveLength(1);
 });
 
 test('a launch that cannot reach the account shows the error, not the welcome questions', async ({ page, context }) => {

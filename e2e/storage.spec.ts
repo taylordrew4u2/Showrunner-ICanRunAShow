@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { gotoTab, signUpAndOnboard } from './support/app';
+import { gotoTab, signUp, signUpAndOnboard } from './support/app';
 
 test.describe('storage', () => {
   test('the sweep clears an orphan and leaves everything in use alone', async ({ page, context }) => {
@@ -38,8 +38,14 @@ test.describe('storage', () => {
       route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"boom"}' }),
     );
 
-    await signUpAndOnboard(page).catch(() => {});
-    await gotoTab(page, 'Settings').catch(() => {});
+    // No onboarding to walk: a launch that could not load the account shows
+    // the shows page with the error on it, not the first-run questions.
+    await signUp(page);
+    await expect(page.getByRole('alert')).toContainText("Couldn't load your shows");
+    await gotoTab(page, 'Settings');
+    await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+    // The sweep's whole section is withheld, not just its button.
+    await expect(page.locator('summary:has-text("Unused files")')).toHaveCount(0);
     await expect(page.locator('button:has-text("Find unused files")')).toHaveCount(0);
   });
 });

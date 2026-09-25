@@ -1,5 +1,35 @@
 import { describe, it, expect } from 'vitest';
-import { splitIntoChunks, parseMediaRef, isMediaRef } from './mediaStore';
+import { createUrlCache, splitIntoChunks, parseMediaRef, isMediaRef } from './mediaStore';
+
+describe('the resolved tracks a page keeps in memory', () => {
+  it('lets the longest-unused track go once the budget is full, and keeps what is in use', () => {
+    const cache = createUrlCache(10);
+    cache.set('media:a#1', 'aaaa');
+    cache.set('media:b#1', 'bbbb');
+    // The first track is played again, so it is the second that can be spared.
+    expect(cache.get('media:a#1')).toBe('aaaa');
+    cache.set('media:c#1', 'cccc');
+    expect(cache.get('media:b#1')).toBeUndefined();
+    expect(cache.get('media:a#1')).toBe('aaaa');
+    expect(cache.get('media:c#1')).toBe('cccc');
+  });
+
+  it('still keeps a single track bigger than the whole budget', () => {
+    const cache = createUrlCache(3);
+    cache.set('media:big#4', 'x'.repeat(20));
+    expect(cache.get('media:big#4')).toHaveLength(20);
+    expect(cache.size).toBe(1);
+  });
+
+  it('replaces a track resolved twice without counting it twice', () => {
+    const cache = createUrlCache(10);
+    cache.set('media:a#1', 'aaaaaa');
+    cache.set('media:a#1', 'aaaa');
+    cache.set('media:b#1', 'bbbbbb');
+    expect(cache.get('media:a#1')).toBe('aaaa');
+    expect(cache.get('media:b#1')).toBe('bbbbbb');
+  });
+});
 
 describe('splitIntoChunks', () => {
   it('splits into fixed-size slices that rejoin losslessly', () => {

@@ -6,6 +6,7 @@ import { api, withNetworkRetry } from './api';
 import { encryptWithKey, decryptWithKey } from './encryption';
 import type { SessionCredentials } from './session-vault';
 import { readFileAsDataURL } from './media';
+import { createBudgetedCache } from './budgetedCache';
 
 /** Reference format stored in show/settings fields: `media:<uuid>#<chunkCount>` */
 const REF_PREFIX = 'media:';
@@ -114,8 +115,27 @@ export async function uploadMedia(file: File): Promise<string> {
   return ref;
 }
 
+/**
+ * How many characters of resolved data URLs are kept in memory.
+ *
+ * A resolved track is its whole file as base64 — four to five million
+ * characters for a walk-on, twice that in memory — and the cache used to keep
+ * every one for the life of the page, on top of the PCM the audio engine
+ * holds. A full bill was tens of megabytes that never went away. Thirty-two
+ * million characters is half a dozen whole songs, kept oldest-use-first so
+ * the ones a page is actually showing or playing stay; anything past that is
+ * fetched again when it is next needed. Soft: a single file bigger than the
+ * budget is still kept.
+ */
+export const URL_CACHE_BUDGET_CHARS = 32_000_000;
+
+/** Resolved data URLs, weighed by length. Shares its rule with the audio engine. */
+export function createUrlCache(budgetChars = URL_CACHE_BUDGET_CHARS) {
+  return createBudgetedCache<string>((value) => value.length, budgetChars);
+}
+
 // Resolved data URLs, keyed by reference. In-memory only.
-const urlCache = new Map<string, string>();
+const urlCache = createUrlCache();
 // De-dupe concurrent resolutions of the same reference.
 const inFlight = new Map<string, Promise<string | null>>();
 

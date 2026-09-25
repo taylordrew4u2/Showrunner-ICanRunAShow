@@ -19,6 +19,7 @@
 
 import { dataUrlToBytes } from './media';
 import { isMediaRef, resolveMediaUrl } from './mediaStore';
+import { createBudgetedCache } from './budgetedCache';
 
 type CtxCtor = typeof AudioContext;
 
@@ -113,12 +114,16 @@ class AudioEngine {
   private master: GainNode | null = null;
   private current: Playing | null = null;
   /**
-   * Decoded tracks, oldest use first: a hit is re-inserted at the end, so the
-   * front is the track that has gone longest without a press or a preload —
-   * the one to let go of when a press needs room. See BUFFER_BUDGET_BYTES.
+   * Decoded tracks, oldest use first: the front is the track that has gone
+   * longest without a press or a preload — the one to let go of when a press
+   * needs room. See BUFFER_BUDGET_BYTES.
    */
-  private buffers = new Map<string, AudioBuffer>();
-  private bufferedBytes = 0;
+  private buffers = createBudgetedCache<AudioBuffer>(bufferBytes, BUFFER_BUDGET_BYTES);
+  /**
+   * Context time the last fade-out ends. A closing board waits for it: the
+   * fade End Show promises is on this context, and closing early cuts it dead.
+   */
+  private drainUntil = 0;
   private muted = false;
   /**
    * Bumped on every play() and stop(). A play() that awaits a decode and comes
@@ -175,7 +180,7 @@ class AudioEngine {
    */
   async preload(src: string): Promise<void> {
     if (!this.ctx) return;
-    if (!this.buffers.has(src) && !this.pending.has(src) && this.bufferedBytes >= BUFFER_BUDGET_BYTES) return;
+    if (!this.buffers.has(src) && !this.pending.has(src) && this.buffers.held >= BUFFER_BUDGET_BYTES) return;
     await this.getBuffer(src, 'if-room');
   }
 
@@ -293,18 +298,33 @@ class AudioEngine {
     g.cancelScheduledValues(now);
     g.setValueAtTime(currentVal, now);
     g.linearRampToValueAtTime(0, now + fadeS);
-    try { playing.source.stop(now + fadeS + 0.05); } catch { /* ignore */ }
+    const stopAt = now + fadeS + 0.05;
+    this.drainUntil = Math.max(this.drainUntil, stopAt);
+    try { playing.source.stop(stopAt); } catch { /* ignore */ }
   }
 
+  /**
+   * Let everything go: playback, the context and every decoded track. Called
+   * when Run Show closes, so a show's worth of PCM is not carried into the
+   * next one. init() makes a fresh context on the next open.
+   */
   dispose(): void {
     this.stopNow();
-    if (this.ctx) {
-      this.ctx.close().catch(() => {});
+    const ctx = this.ctx;
+    if (ctx) {
+      // A fade-out still running — End Show fades and then closes the board
+      // in the same breath — is left to finish before the context goes.
+      // Everything else is let go of now.
+      const waitMs = Math.max(0, (this.drainUntil - ctx.currentTime) * 1000);
+      const close = () => ctx.close().catch(() => {});
+      if (waitMs > 0) setTimeout(close, waitMs);
+      else close();
       this.ctx = null;
     }
+    this.drainUntil = 0;
     this.master = null;
     this.buffers.clear();
-    this.bufferedBytes = 0;
+    this.loadFailures.clear();
   }
 
   /** Decoded and ready to start on the next press with no wait. */
@@ -339,22 +359,17 @@ class AudioEngine {
    * fit the budget; decoding ahead keeps the track only while there's room.
    */
   private retain(src: string, buf: AudioBuffer, retain: Retain): void {
+    // A decode that lands after dispose() has nowhere to go: the context it
+    // was decoded for is closed, and filing it would keep it for good.
+    if (!this.ctx) return;
     if (this.buffers.has(src)) {
-      this.buffers.delete(src);
-      this.buffers.set(src, buf);
+      this.buffers.touch(src);
       return;
     }
-    if (retain === 'if-room' && this.bufferedBytes >= BUFFER_BUDGET_BYTES) return;
-    this.buffers.set(src, buf);
-    this.bufferedBytes += bufferBytes(buf);
-    if (retain !== 'always') return;
-    for (const [oldSrc, old] of this.buffers) {
-      if (this.bufferedBytes <= BUFFER_BUDGET_BYTES || oldSrc === src) break;
-      // The buffer is only dropped from the cache: a source node already
-      // playing it holds its own reference and runs to the end regardless.
-      this.buffers.delete(oldSrc);
-      this.bufferedBytes -= bufferBytes(old);
-    }
+    if (retain === 'if-room' && this.buffers.held >= BUFFER_BUDGET_BYTES) return;
+    // A buffer evicted here is only dropped from the cache: a source node
+    // already playing it holds its own reference and runs to the end.
+    this.buffers.set(src, buf, retain === 'always');
   }
 
   private async loadBuffer(src: string): Promise<AudioBuffer | null> {

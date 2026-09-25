@@ -59,6 +59,10 @@ function snapshotLabel(at: string): string {
 }
 
 function snapshotWhat(snapshot: Snapshot): string {
+  // Said as what it is: not a save, but edits a device could not save. Read
+  // as one more version it would be passed over as the one that "saved
+  // anyway", and its edits — the only copy — never looked for.
+  if (snapshot.kind === 'settings' && snapshot.parked) return 'Rolodex, contracts and settings — unsaved edits from one device';
   if (snapshot.kind === 'settings') return 'Rolodex, contracts and settings';
   const n = snapshot.count ?? 0;
   return `${n} show${n === 1 ? '' : 's'}`;
@@ -353,12 +357,14 @@ export function Settings({
                   value={newProducerName}
                   onChange={(e) => setNewProducerName(e.target.value)}
                   placeholder="Producer name"
+                  aria-label="Producer name"
                 />
                 <input
                   className="section-field__input settings__producer-input"
                   value={newProducerRole}
                   onChange={(e) => setNewProducerRole(e.target.value)}
                   placeholder="Role (e.g., Executive Producer)"
+                  aria-label="Producer role"
                 />
                 <button className="btn btn--secondary settings__producer-add-btn" onClick={addProducer}>
                   Add

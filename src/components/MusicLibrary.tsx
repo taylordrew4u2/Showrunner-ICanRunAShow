@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MusicTrack, Show } from '../types';
+import type { DeletedItem, MusicTrack, Show } from '../types';
 import { generateId } from '../utils/id';
 import { audioUploadSizeError, pickFile } from '../utils/media';
 import { deleteMedia, uploadMedia } from '../utils/mediaStore';
@@ -16,6 +16,8 @@ interface MusicLibraryProps {
   tracks: MusicTrack[];
   /** Every show, so a track can report (and protect) the shows using it. */
   shows: Show[];
+  /** Deleted shows that can still be restored — their audio is protected too. */
+  trash?: DeletedItem[];
   onChange: (tracks: MusicTrack[]) => void;
   onBack: () => void;
 }
@@ -27,7 +29,7 @@ interface MusicLibraryProps {
  * again for every show that wanted it — same file, same wait, stored twice.
  * Here it goes up once and any show adds it from the list.
  */
-export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryProps) {
+export function MusicLibrary({ tracks, shows, trash, onChange, onBack }: MusicLibraryProps) {
   const { confirm, confirmDialog } = useConfirm();
   const preview = useTrackPreview();
   const [status, setStatus] = useState<string>('');
@@ -116,7 +118,8 @@ export function MusicLibrary({ tracks, shows, onChange, onBack }: MusicLibraryPr
       : `Remove "${track.title}" from the library? The audio is deleted and this cannot be undone.`;
     if (!(await confirm({ message: warning, confirmLabel: 'Remove' }))) return;
 
-    if (canDeleteMedia(track, shows)) deleteMedia(track.music);
+    // A show in the trash can come back, and has to come back with its audio.
+    if (canDeleteMedia(track, shows, trash)) deleteMedia(track.music);
     onChange(tracksRef.current.filter((t) => t.id !== track.id));
     setStatus('');
   }

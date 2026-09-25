@@ -50,6 +50,27 @@ it('recovers a draft an older build filed under the typed name, and lets go of i
   expect(storage.getItem('shows:Taylor:old-tab')).toBeNull();
 });
 
+it('lets go of a superseded draft only once it is kept elsewhere, and only those bytes', () => {
+  // Two tabs each held an unsent settings edit. The newer one is recovered;
+  // the older is parked on the account and then, and only then, discarded.
+  const storage = memoryStorage();
+  const older = createPendingStore(() => storage, 'a'); older.write('settings', 'user', { rolodex: ['old tab'] });
+  const newer = createPendingStore(() => storage, 'b'); newer.write('settings', 'user', { rolodex: ['new tab'] });
+  const drafts = newer.list('settings', 'user');
+  expect(drafts.map(d => d.data)).toEqual([{ rolodex: ['old tab'] }, { rolodex: ['new tab'] }]);
+
+  // The old tab wrote again in the meantime: that draft is not the one that
+  // was parked, so it stays.
+  const superseded = drafts[0];
+  older.write('settings', 'user', { rolodex: ['old tab, edited again'] });
+  newer.discard(superseded);
+  const held = () => newer.list<{ rolodex: string[] }>('settings', 'user').map(d => d.data.rolodex[0]).sort();
+  expect(held()).toEqual(['new tab', 'old tab, edited again']);
+
+  newer.discard(newer.list('settings', 'user').find(d => d.key.endsWith(':a'))!);
+  expect(held()).toEqual(['new tab']);
+});
+
 it('recovers legacy and multiple-tab drafts and acknowledges only captured versions', () => {
   const storage = memoryStorage();
   storage.setItem('shows', JSON.stringify({ username: 'user', data: ['legacy'], at: 1 }));

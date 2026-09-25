@@ -86,4 +86,36 @@ describe('the printed runsheet', () => {
     expect(th).toContain('print-color-adjust: exact');
     expect(th).toContain('-webkit-print-color-adjust: exact');
   });
+
+  it('still prints in the iOS shell, where window.open returns null', () => {
+    // Capacitor hands every window.open to the system and returns null, so
+    // the sheet is printed from a hidden frame in this document instead —
+    // and the frame is gone again once the print dialog closes.
+    let written = '';
+    const listeners: Record<string, () => void> = {};
+    const frameWindow = {
+      focus: vi.fn(),
+      print: vi.fn(),
+      addEventListener: (name: string, fn: () => void) => { listeners[name] = fn; },
+    };
+    const frame = {
+      style: { cssText: '' },
+      setAttribute: () => {},
+      contentDocument: { open: () => {}, write: (html: string) => { written += html; }, close: () => {} },
+      contentWindow: frameWindow,
+      remove: vi.fn(),
+    };
+    const appended: unknown[] = [];
+    vi.stubGlobal('window', { open: () => null });
+    vi.stubGlobal('document', { createElement: () => frame, body: { appendChild: (el: unknown) => appended.push(el) } });
+
+    exportShowToPDF(show, settings);
+    expect(appended).toEqual([frame]);
+    expect(written).toContain('Late Night Laughs');
+    vi.advanceTimersByTime(300);
+    expect(frameWindow.print).toHaveBeenCalledOnce();
+    expect(frame.remove).not.toHaveBeenCalled();
+    listeners.afterprint();
+    expect(frame.remove).toHaveBeenCalledOnce();
+  });
 });

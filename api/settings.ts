@@ -1,6 +1,7 @@
 // /api/settings — a single encrypted settings blob per user.
 //   GET                      → load (headers: x-user-id, x-auth)
-//   GET ?history=1           → { snapshots: [{ at }] } — every kept earlier save
+//   GET ?history=1           → { snapshots: [{ at, parked }] } — every kept earlier save;
+//                              parked marks a device's unsaved copy kept aside
 //   GET ?at=<backed_up_at>   → { encryptedData } of that earlier save
 //   PUT { encryptedData }    → save; the previous blob is kept as a snapshot
 //   PUT { encryptedData, park: true } → keep as a snapshot only, live row untouched
@@ -21,10 +22,10 @@ export default async function handler(req: Request): Promise<Response> {
       const url = new URL(req.url);
       if (url.searchParams.get('history')) {
         const result = await db.execute({
-          sql: `SELECT backed_up_at FROM user_settings_backup WHERE user_id = ? ORDER BY backed_up_at DESC`,
+          sql: `SELECT backed_up_at, parked FROM user_settings_backup WHERE user_id = ? ORDER BY backed_up_at DESC`,
           args: [userId],
         });
-        return json({ snapshots: result.rows.map((row) => ({ at: String(row[0]) })) });
+        return json({ snapshots: result.rows.map((row) => ({ at: String(row[0]), parked: Number(row[1]) === 1 })) });
       }
       const at = url.searchParams.get('at');
       if (at) {

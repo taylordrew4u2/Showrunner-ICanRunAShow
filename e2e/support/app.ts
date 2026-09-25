@@ -8,11 +8,29 @@ import { expect, type Page } from '@playwright/test';
  * way to seed a logged-in session from outside the browser.
  */
 
+/** The password every spec's producer signs up with. */
+export const PASSWORD = 'correct horse battery staple';
+
+/**
+ * Create the account, the way a producer does on their first visit.
+ *
+ * The screen opens on Sign In, and the fake server — like the real one —
+ * refuses a login for an account that was never made. So this is a sign-up:
+ * over to Create Account, then the button that actually creates it.
+ */
 export async function signUp(page: Page, username = 'producer'): Promise<void> {
   await page.goto('/');
+  await page.getByRole('button', { name: 'New here? Create Account' }).click();
   await page.getByPlaceholder('Enter username').fill(username);
-  await page.getByPlaceholder('Enter your password').fill('correct horse battery staple');
-  await page.locator('.login__button').first().click();
+  await page.getByPlaceholder('Enter your password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Create Account', exact: true }).click();
+}
+
+/** Sign in to an account that already exists, from the screen the app opens on. */
+export async function signIn(page: Page, username: string, password: string): Promise<void> {
+  await page.getByPlaceholder('Enter username').fill(username);
+  await page.getByPlaceholder('Enter your password').fill(password);
+  await page.getByRole('button', { name: 'Sign In', exact: true }).click();
 }
 
 /** Walk the first-run questions, choosing a show type where one is required. */

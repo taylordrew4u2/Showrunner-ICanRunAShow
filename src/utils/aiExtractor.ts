@@ -11,6 +11,7 @@
 
 import type { ScheduleItem } from "../types";
 import { generateId } from "./id";
+import { BundledWasmFactory } from "./pdfPages";
 import { borrowMeridiem, minutesBetweenClock, parseDurationSeconds } from "./showTiming";
 
 /** A whole positive number of minutes, or undefined. Anything a source can
@@ -98,7 +99,14 @@ async function extractTextFromPDF(file: File): Promise<string> {
   ).toString();
 
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdf = await pdfjsLib.getDocument({
+    data: arrayBuffer,
+    // A scanned schedule is one JPEG 2000 image per page, and pdf.js decodes
+    // those only through a decoder it has to ask the page for — see
+    // pdfPages.ts. Without this, such a page reads as no text at all.
+    WasmFactory: BundledWasmFactory,
+    useWorkerFetch: false,
+  }).promise;
   let fullText = "";
 
   for (let i = 1; i <= pdf.numPages; i++) {

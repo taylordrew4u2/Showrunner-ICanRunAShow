@@ -1350,8 +1350,9 @@ export function ShowDetail({
               </p>
             )}
 
-            <label className="section-field__label" style={{ marginTop: 14 }}>Pre-show note (optional)</label>
+            <label className="section-field__label" htmlFor="pre-show-note" style={{ marginTop: 14 }}>Pre-show note (optional)</label>
             <textarea
+              id="pre-show-note"
               className="section-field__input"
               rows={4}
               value={viewerNoteDraft}

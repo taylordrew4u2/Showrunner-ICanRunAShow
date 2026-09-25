@@ -47,7 +47,13 @@ test('every show has the workspace with private notes and working planning tools
     const bar = document.querySelector('.show-detail__topbar')!.getBoundingClientRect();
     const body = document.querySelector('.show-workspace__body')!.getBoundingClientRect();
     const tabs = document.querySelector('.show-workspace__sidebar')!.getBoundingClientRect();
-    const band = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--status-band'));
+    // The band is a calc() of the base and whatever notices the rail holds,
+    // so it is measured through an element sized by it rather than parsed.
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;height:var(--status-band)';
+    document.body.append(probe);
+    const band = Math.round(probe.getBoundingClientRect().height);
+    probe.remove();
     return { barTop: Math.round(bar.top), band, barLeft: Math.round(bar.left), bodyLeft: Math.round(body.left),
       barRight: Math.round(bar.right), bodyRight: Math.round(body.right), tabsBottom: Math.round(tabs.bottom),
       docScrollable: document.documentElement.scrollHeight > innerHeight };
