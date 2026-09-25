@@ -12,6 +12,8 @@ import {
   isRetryableSignatureError,
   newContractField,
   prefillFromShow,
+  prepareSignature,
+  DAY_OF_CANCELLATION_RULE,
   readSignKeyFromHash,
   requestsForContract,
   requestMatchesSigner,
@@ -690,5 +692,23 @@ describe('contracts follow shared comic identity', () => {
     expect(signerStatus([original], 'Ada Cole')).toBe('none');
     expect(requestMatchesSigner(original, 'Ada Cole', 'ada-two')).toBe(false);
     expect(requestMatchesSigner(req({ signerName: ' ADA  COLE ' }), 'Ada Cole', 'ada-two')).toBe(true);
+  });
+});
+
+describe('the day-of cancellation rule', () => {
+  it('goes on the record in the words the signer ticked, and stays off older links', () => {
+    const doc = 'data:application/pdf;base64,AAAA';
+    const withRule = prepareSignature('k', 'Nadia Okonjo', doc, [], undefined, undefined, DAY_OF_CANCELLATION_RULE.body);
+    expect(withRule.record.cancellationRuleAcknowledged).toBe(DAY_OF_CANCELLATION_RULE.body);
+    // A link sent before the rule existed never showed it, so the record
+    // cannot claim it was agreed to.
+    const before = prepareSignature('k', 'Nadia Okonjo', doc);
+    expect(before.record.cancellationRuleAcknowledged).toBeUndefined();
+  });
+
+  it('is firm about the consequence and kind about the reason', () => {
+    expect(DAY_OF_CANCELLATION_RULE.body).toContain("won't be able to book you on future lineups");
+    expect(DAY_OF_CANCELLATION_RULE.body).toMatch(/Illness, emergencies/);
+    expect(DAY_OF_CANCELLATION_RULE.acknowledgement).toMatch(/future lineups/);
   });
 });

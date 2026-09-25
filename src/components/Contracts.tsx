@@ -806,6 +806,11 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                         ? `Signed ${fmtDate(r.signed.signedAt)} · ${shortHash(r.signed.documentHash)}`
                         : `Sent ${fmtDate(r.sentAt)}`}
                     </span>
+                    {r.signed?.cancellationRuleAcknowledged && (
+                      <span className="contracts__row-rule" title={r.signed.cancellationRuleAcknowledged}>
+                        Day-of cancellation rule acknowledged
+                      </span>
+                    )}
                     {r.signed?.fields?.length ? (
                       <dl className="contracts__answers">
                         {r.signed.fields.map((f) => (

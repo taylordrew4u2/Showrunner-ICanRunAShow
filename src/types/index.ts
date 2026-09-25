@@ -358,6 +358,13 @@ export interface SignatureRecord {
    * per-request encryption as the rest of what they told you.
    */
   headshot?: string;
+  /**
+   * The day-of cancellation rule, in the words they ticked. Kept as text
+   * rather than a flag for the same reason `fields` keeps labels: the rule's
+   * wording may change later, and the record has to say what this person
+   * actually agreed to. Absent on signatures from before the rule existed.
+   */
+  cancellationRuleAcknowledged?: string;
   /** Hash of the exact bytes the signer was shown, so the copy can be proved. */
   documentHash: string;
   userAgent?: string;

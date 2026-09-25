@@ -28,6 +28,7 @@ import {
   sendSignature,
   isRetryableSignatureError,
   type SigningPayload,
+  DAY_OF_CANCELLATION_RULE,
 } from '../utils/contracts';
 import { renderPdfPages, type RenderedPage } from '../utils/pdfPages';
 import { clearSignerDraft, loadSignerDraft, saveSignerDraft } from '../utils/signerDraft';
@@ -82,6 +83,9 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   // scramble what a signer typed.
   const [values, setValues] = useState<Record<string, string>>({});
   const [agreed, setAgreed] = useState(false);
+  // The day-of cancellation rule, ticked on its own. One box for "I agree to
+  // the document" cannot also carry a rule the document does not contain.
+  const [ruleAgreed, setRuleAgreed] = useState(false);
   // The headshot, already downscaled, as a data URL. Held here rather than as
   // a File so the preview and what gets sent are provably the same bytes.
   const [headshot, setHeadshot] = useState<string | null>(null);
@@ -121,6 +125,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
         setSignerName(draft?.signerName ?? view.payload.signerName);
         setTypedName(draft?.typedName ?? '');
         setAgreed(draft?.agreed ?? false);
+        setRuleAgreed(draft?.ruleAgreed ?? false);
         setValues({ ...view.payload.prefill, ...draft?.values });
         const held = loadPendingSignature(token);
         let resumed = false;
@@ -266,8 +271,8 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
    */
   useEffect(() => {
     if (phase !== 'ready') return;
-    saveSignerDraft(token, { signerName, typedName, values, agreed });
-  }, [token, signerName, typedName, values, agreed, phase]);
+    saveSignerDraft(token, { signerName, typedName, values, agreed, ruleAgreed });
+  }, [token, signerName, typedName, values, agreed, ruleAgreed, phase]);
 
   const missingDetails = payload ? [
     ...(signerName.trim() ? [] : [{ label: 'Your name', id: 'signer-name' }]),
@@ -275,6 +280,8 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       .map(clarifyIntroductionCredits).map(f => ({ label: f.label, id: `signer-field-${f.id}` })),
     ...(headshot ? [] : [{ label: 'Headshot', id: 'signer-headshot' }]),
     ...(typedName.trim() ? [] : [{ label: 'Your signature', id: 'signer-signature' }]),
+    ...(payload.cancellationRule && !ruleAgreed
+      ? [{ label: 'Tick the day-of cancellation rule', id: 'signer-rule-agreed' }] : []),
     ...(agreed ? [] : [{ label: 'Tick the agreement checkbox', id: 'signer-agreed' }]),
   ] : [];
   const stillNeeded = missingDetails.map(field => field.label);
@@ -340,6 +347,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
       const { record, signature } = prepareSignature(
         signKey, typedName.trim(), docUrl,
         collectFieldAnswers(payload.fields, values), headshot ?? undefined, signerName.trim(),
+        payload.cancellationRule,
       );
       // Save before the first network attempt, including if the tab closes
       // while the server is receiving the upload.
@@ -467,6 +475,9 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           <p className="signing__done-line">
             {signed.typedName} · {new Date(signed.signedAt).toLocaleString()}
           </p>
+          {signed.cancellationRuleAcknowledged && (
+            <p className="signing__done-rule">Day-of cancellation rule acknowledged.</p>
+          )}
           {signed.fields && signed.fields.length > 0 && (
             <dl className="signing__answers">
               {signed.fields.map((f) => (
@@ -601,6 +612,26 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
               placeholder="Type your full name to sign"
             />
           </label>
+
+          {/* The house rule, stated here in the producer's own words rather
+              than left to the PDF, and ticked on its own so nobody can say
+              they never saw it. Only on links that carry it. */}
+          {payload.cancellationRule && (
+            <aside className="signing__rule" aria-labelledby="signing-rule-title">
+              <h3 id="signing-rule-title">{DAY_OF_CANCELLATION_RULE.title}</h3>
+              <p>{payload.cancellationRule}</p>
+              <label className="signing__agree signing__rule-agree">
+                <input
+                  id="signer-rule-agreed"
+                  aria-invalid={notice === 'missing' && !ruleAgreed}
+                  type="checkbox"
+                  checked={ruleAgreed}
+                  onChange={(e) => setRuleAgreed(e.target.checked)}
+                />
+                <span>{DAY_OF_CANCELLATION_RULE.acknowledgement}</span>
+              </label>
+            </aside>
+          )}
 
           <label className="signing__agree">
             <input
