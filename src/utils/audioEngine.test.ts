@@ -99,6 +99,26 @@ describe('keeping decoded tracks within what a phone tab can hold', () => {
     expect([1, 2, 3, 4].map((n) => audioEngine.isReady(track(n)))).toEqual([false, false, false, false]);
   });
 
+  it('lets a fade-out that End Show just started finish before the board closes its audio', async () => {
+    // End Show fades the walk-on and closes Run Show in the same breath. The
+    // dialog promised a fade, so the context that is playing it has to
+    // outlive the board by the length of the fade.
+    vi.useFakeTimers();
+    const close = vi.spyOn(FakeAudioContext.prototype, 'close');
+    try {
+      expect(await audioEngine.play(track(1))).toBe('started');
+      audioEngine.stop({ fadeMs: 1500 });
+      audioEngine.dispose();
+      expect(close).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1400);
+      expect(close).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(200);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not keep a track whose decode lands after the board has closed', async () => {
     // Run Show closes while the preload is still working: the decode that
     // finishes a moment later has no board to be ready for.

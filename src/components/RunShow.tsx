@@ -607,7 +607,7 @@ export function RunShow({
     setPlayingKey(track.key);
     setAuditioning(true);
     audioEngine
-      .play(track.src, { fadeInMs: fade.fadeInMs, fadeOutMs: fade.fadeOutMs, offsetSec: trimOf(track).offsetSec })
+      .play(track.src, { fadeInMs: fade.fadeInMs, fadeOutMs: fade.fadeOutMs, offsetSec: trimSlice(track).offsetSec })
       .then((result) => {
         if (result === 'started' || result === 'superseded') return;
         cancelAudition();
@@ -623,14 +623,6 @@ export function RunShow({
       audioEngine.stop({ fadeMs: fade.fadeOutMs });
       setPlayingKey((k) => (k === track.key ? null : k));
     }, fade.fadeInMs + AUDITION_HOLD_MS);
-  }
-
-  /**
-   * The slice of a track a press should play — the one rule, shared with the
-   * viewer screen so the room hears the same cut this device does.
-   */
-  function trimOf(track: SoundboardTrack): { offsetSec?: number; durationSec?: number } {
-    return trimSlice(track);
   }
 
   function toggleTrack(track: SoundboardTrack) {
@@ -662,7 +654,9 @@ export function RunShow({
       .play(track.src, {
         fadeInMs: fade.fadeInMs,
         fadeOutMs: fade.fadeOutMs,
-        ...trimOf(track),
+        // The one trim rule, shared with the viewer screen so the room hears
+        // the same cut this device does.
+        ...trimSlice(track),
         onEnded: () => setPlayingKey((k) => (k === track.key ? null : k)),
       })
       .then((result) => {
@@ -731,8 +725,8 @@ export function RunShow({
           key: track.key,
           mediaId,
           total,
-          ...(track.startSec ? { startSec: track.startSec } : {}),
-          ...(track.endSec ? { endSec: track.endSec } : {}),
+          startSec: track.startSec || undefined,
+          endSec: track.endSec || undefined,
         });
         setPublishDone((n) => n + 1);
       }

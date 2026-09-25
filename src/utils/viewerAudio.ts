@@ -28,6 +28,7 @@ import { api } from './api';
 import { decryptWithKey, encryptWithKey } from './encryption';
 import { resolveMediaUrl } from './mediaStore';
 import type { SessionCredentials } from './session-vault';
+import { trimmedLength } from './trim';
 
 /** Slice size of the plaintext data URL per chunk — matches the media store. */
 const SLICE_CHARS = 1_500_000;
@@ -49,18 +50,19 @@ export interface ViewerTrack {
  * The slice of a track a press should play, as the engine takes it.
  *
  * A walk-on is rarely the top of the file — it's the drop or the chorus, and
- * a producer who trimmed it wants that and nothing else. An out-point before
- * the in-point is treated as no out-point rather than a negative duration,
- * which would schedule a stop in the past and cut the track dead.
+ * a producer who trimmed it wants that and nothing else. The in/out rule is
+ * trimmedLength's, so a half-finished edit plays something rather than a
+ * stop scheduled in the past.
  *
  * One rule for both ends of the wire: the operator's own device and the
  * screen wired to the PA used to disagree, because only the board applied it,
  * and the room heard the whole song from the top.
  */
 export function trimSlice(track: { startSec?: number; endSec?: number }): { offsetSec?: number; durationSec?: number } {
-  const start = track.startSec && track.startSec > 0 ? track.startSec : undefined;
-  const end = track.endSec && track.endSec > (start ?? 0) ? track.endSec : undefined;
-  return { offsetSec: start, durationSec: end ? end - (start ?? 0) : undefined };
+  return {
+    offsetSec: track.startSec && track.startSec > 0 ? track.startSec : undefined,
+    durationSec: trimmedLength(track.startSec, track.endSec) ?? undefined,
+  };
 }
 
 /** Which track the board wants the viewer playing, and how it should come in. */

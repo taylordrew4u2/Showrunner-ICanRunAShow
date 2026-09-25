@@ -11,9 +11,8 @@ describe('the page making room under the status rail', () => {
     expect(noticesHeight(264, 40, 47)).toBe(177);
   });
 
-  it('adds nothing while the rail is only the pill, or hidden behind a dialog', () => {
+  it('adds nothing while the rail is only the pill', () => {
     expect(noticesHeight(40, 40, 0)).toBe(0);
-    expect(noticesHeight(0, 0, 0)).toBe(0);
     expect(noticesHeight(0, 40, 47)).toBe(0);
   });
 
@@ -43,6 +42,14 @@ describe('the page making room under the status rail', () => {
 
     const stop = watchStatusRail(rail, root);
     expect(set.get(NOTICES_PROPERTY)).toBe('177px');
+
+    // A confirm dialog hides the rail. The notice is still behind it, so
+    // the page must not jump up under the dialog and back down after.
+    railHeight = 0;
+    onResize!();
+    expect(set.get(NOTICES_PROPERTY)).toBe('177px');
+    railHeight = 217;
+    onResize!();
 
     // The producer dismisses the notice.
     railHeight = 40;

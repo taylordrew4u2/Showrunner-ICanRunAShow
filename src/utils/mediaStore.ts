@@ -6,6 +6,7 @@ import { api, withNetworkRetry } from './api';
 import { encryptWithKey, decryptWithKey } from './encryption';
 import type { SessionCredentials } from './session-vault';
 import { readFileAsDataURL } from './media';
+import { createBudgetedCache } from './budgetedCache';
 
 /** Reference format stored in show/settings fields: `media:<uuid>#<chunkCount>` */
 const REF_PREFIX = 'media:';
@@ -128,42 +129,9 @@ export async function uploadMedia(file: File): Promise<string> {
  */
 export const URL_CACHE_BUDGET_CHARS = 32_000_000;
 
-/** A map of strings that lets its longest-unused entries go past a budget. */
+/** Resolved data URLs, weighed by length. Shares its rule with the audio engine. */
 export function createUrlCache(budgetChars = URL_CACHE_BUDGET_CHARS) {
-  const entries = new Map<string, string>();
-  let held = 0;
-  return {
-    get size() {
-      return entries.size;
-    },
-    get(key: string): string | undefined {
-      const value = entries.get(key);
-      if (value === undefined) return undefined;
-      // A hit moves to the fresh end, so the front is the entry that has gone
-      // longest without being asked for.
-      entries.delete(key);
-      entries.set(key, value);
-      return value;
-    },
-    set(key: string, value: string): void {
-      const old = entries.get(key);
-      if (old !== undefined) {
-        held -= old.length;
-        entries.delete(key);
-      }
-      entries.set(key, value);
-      held += value.length;
-      for (const [oldKey, oldValue] of entries) {
-        if (held <= budgetChars || oldKey === key) break;
-        entries.delete(oldKey);
-        held -= oldValue.length;
-      }
-    },
-    clear(): void {
-      entries.clear();
-      held = 0;
-    },
-  };
+  return createBudgetedCache<string>((value) => value.length, budgetChars);
 }
 
 // Resolved data URLs, keyed by reference. In-memory only.

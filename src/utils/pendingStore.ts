@@ -1,4 +1,4 @@
-import { normalizeUsername } from './session-vault';
+import { normalizeUsername, sameAccount } from './session-vault';
 
 export interface Pending<T> { data: T; at: number; metadata?: { settingsHash?: string | null; showHashes?: Record<string, string> } }
 
@@ -13,7 +13,6 @@ export function createPendingStore(storage: () => Storage, writer: string) {
   function list<T>(key: string, username: string): Array<Pending<T> & { key: string; raw: string }> {
     try {
       const store = storage();
-      const account = normalizeUsername(username);
       const result = [];
       for (let i = 0; i < store.length; i++) {
         const name = store.key(i)!;
@@ -23,7 +22,7 @@ export function createPendingStore(storage: () => Storage, writer: string) {
         const raw = store.getItem(name)!;
         try {
           const value = JSON.parse(raw);
-          if (typeof value.username === 'string' && normalizeUsername(value.username) === account && 'data' in value) result.push({ data: value.data, at: value.at ?? 0, key: name, raw, metadata: value.metadata });
+          if (sameAccount(value.username, username) && 'data' in value) result.push({ data: value.data, at: value.at ?? 0, key: name, raw, metadata: value.metadata });
         } catch { /* Keep damaged entries; never delete an unreadable draft. */ }
       }
       return result.sort((a, b) => a.at - b.at);
@@ -36,8 +35,9 @@ export function createPendingStore(storage: () => Storage, writer: string) {
       claimed.set(scope(key, username), new Map(entries.map(e => [e.key, e.raw])));
       return entries;
     },
-    read<T>(key: string, username: string): Pending<T> | null {
-      const entries = list<T>(key, username);
+    // The newest draft. A caller that has already listed them passes the list
+    // in, so a launch does not parse every draft on the device twice.
+    read<T>(key: string, username: string, entries = list<T>(key, username)): Pending<T> | null {
       const latest = entries.at(-1);
       if (!latest) return null;
       claimed.set(scope(key, username), new Map([[latest.key, latest.raw]]));

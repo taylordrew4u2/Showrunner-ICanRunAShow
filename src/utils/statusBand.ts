@@ -16,8 +16,7 @@ export const NOTICES_PROPERTY = '--status-notices';
 
 /**
  * How much of the rail is notices: everything above the pill row, less the
- * safe-area padding the page already allows for on its own. Never negative —
- * a rail hidden behind a dialog measures zero and must not pull the page up.
+ * safe-area padding the page already allows for on its own. Never negative.
  */
 export function noticesHeight(railHeight: number, pillRowHeight: number, safeAreaTop: number): number {
   return Math.max(0, Math.round(railHeight - pillRowHeight - safeAreaTop));
@@ -29,10 +28,16 @@ export function noticesHeight(railHeight: number, pillRowHeight: number, safeAre
  */
 export function watchStatusRail(rail: HTMLElement, root: HTMLElement = document.documentElement): () => void {
   const measure = () => {
+    const railHeight = rail.getBoundingClientRect().height;
+    // The rail is hidden while a dialog is open. That is not the notice
+    // going away — it is still there behind the dialog and back the moment
+    // it closes — so the band keeps its last size rather than the page
+    // jumping up under the dialog and back down after it.
+    if (railHeight === 0) return;
     const pill = rail.querySelector<HTMLElement>('.status-rail__pill-row');
     const inset = parseFloat(getComputedStyle(rail).paddingTop) || 0;
     const notices = noticesHeight(
-      rail.getBoundingClientRect().height,
+      railHeight,
       pill?.getBoundingClientRect().height ?? 0,
       inset,
     );

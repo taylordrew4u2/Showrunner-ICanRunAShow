@@ -27,9 +27,8 @@ export async function pruneSnapshots(db: Pick<Client, 'execute'> & { batch: Tran
   // A parked row is not a copy of a save but a device's only copy of work
   // that never saved (see parkSettingsSnapshot). It is neither pruned nor
   // counted toward what is kept — a dozen ordinary saves must not be able to
-  // flush it, and it must not take one of the twelve slots from them. Only the
-  // settings table has the column; shows are never parked.
-  const notParked = table === 'user_settings_backup' ? 'AND parked = 0' : '';
+  // flush it, and it must not take one of the twelve slots from them.
+  const notParked = 'AND parked = 0';
   // The recent-snapshots exception applies to the age rule too. Without it, a
   // producer who works through January and does not open the app again until
   // mid-February loses every January snapshot on their first save that day —
@@ -119,10 +118,9 @@ export async function parkSettingsSnapshot(
             VALUES (?, ?, datetime('now', ?), 1)`,
       args: [userId, encryptedData, `+${offset} seconds`],
     });
-    if (result.rowsAffected > 0) {
-      await pruneSnapshots(db, 'user_settings_backup', userId);
-      return true;
-    }
+    // Nothing to prune: a parked row is outside retention, so adding one
+    // changes nothing about what the ordinary saves keep.
+    if (result.rowsAffected > 0) return true;
   }
   return false;
 }

@@ -287,7 +287,6 @@ export async function installFakeApi(ctx, state) {
             .toISOString().slice(0, 19).replace('T', ' ');
           if (state.settingsSnapshots.some((s) => s.at === at)) continue;
           state.settingsSnapshots.push({ at, encryptedData: body.encryptedData, parked: true });
-          state.settingsSnapshots = pruneSnapshots(state.settingsSnapshots);
           return ok({ ok: true });
         }
         return err(503, 'not_stored');

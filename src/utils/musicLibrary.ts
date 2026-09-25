@@ -43,8 +43,7 @@ function showUsesTrack(show: Show, track: MusicTrack): boolean {
  * shows; it only has a say in whether the audio goes.
  */
 export function canDeleteMedia(track: MusicTrack, shows: Show[], trash: DeletedItem[] = []): boolean {
-  const trashed = trash.map((item) => item.data).filter((show): show is Show => !!show);
-  return usageCount(track, [...shows, ...trashed]) === 0;
+  return usageCount(track, [...shows, ...trash.map((item) => item.data)]) === 0;
 }
 
 /**

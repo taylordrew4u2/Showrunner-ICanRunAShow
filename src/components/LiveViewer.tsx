@@ -66,6 +66,8 @@ export interface TrackLoader {
   sync(manifest: ViewerTrack[]): void;
   has(key: string): boolean;
   urlOf(key: string): string | undefined;
+  /** The track as the board last published it — its trim, above all. */
+  trackOf(key: string): ViewerTrack | undefined;
   /** The board cued a track this screen does not have: worth one more go now. */
   want(key: string): void;
   /** The connection is back: every missing track gets a fresh run of attempts. */
@@ -145,6 +147,7 @@ export function createTrackLoader(
     },
     has: (key) => ready.has(key),
     urlOf: (key) => ready.get(key)?.url,
+    trackOf: (key) => wanted.find((t) => t.key === key),
     want(key) {
       // Only a track that has run out of attempts; one mid-backoff keeps its
       // spacing, or every poll's repeat of the cue would hammer the server.
@@ -270,22 +273,17 @@ export function LiveViewer({ token }: LiveViewerProps) {
       audioEngine.stop({ fadeMs: playback.fadeOutMs });
     } else if (next.action === 'play') {
       playingRef.current = next.key;
-      // The producer's trim, from the manifest: a walk-on cut to its drop
-      // used to play whole through the PA while the operator's own device
-      // played the slice.
-      const published = payload?.audio?.find((t) => t.key === next.key);
+      // The producer's trim, as the loader last synced it: a walk-on cut to
+      // its drop used to play whole through the PA while the operator's own
+      // device played the slice.
       audioEngine
         .play(tracks.urlOf(next.key)!, {
           fadeInMs: playback.fadeInMs,
           fadeOutMs: playback.fadeOutMs,
-          ...trimSlice(published ?? {}),
+          ...trimSlice(tracks.trackOf(next.key) ?? {}),
         })
         .catch(() => {});
     }
-    // payload.audio is read at play time rather than listed: it arrives with
-    // the same poll as the playback instruction, and listing it would re-run
-    // this on every poll.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [soundOn, viewerKey, payload?.playback]);
 
   // Never leave a track running on a screen nobody is looking at.

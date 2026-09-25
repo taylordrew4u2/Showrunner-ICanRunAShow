@@ -49,6 +49,7 @@ import {
   saveSession,
   clearSession,
   normalizeUsername,
+  sameAccount,
 } from './utils/session-vault';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
@@ -187,15 +188,6 @@ const PENDING_SETTINGS_KEY = 'showrunner:pendingSettings';
 // download kept the other from ever being nudged to make their own.
 const LAST_EXPORT_KEY = 'showrunner:lastExport';
 
-/**
- * Whether a stored entry belongs to the account signing in. The account is
- * the same whichever way the keyboard capitalised the name, and an entry an
- * earlier build filed under the name as typed still has to be found — so the
- * comparison is on the normalised name on both sides.
- */
-function sameAccount(stored: unknown, username: string): boolean {
-  return typeof stored === 'string' && normalizeUsername(stored) === normalizeUsername(username);
-}
 
 function readLastExport(username: string): string | null {
   try {
@@ -555,19 +547,35 @@ export default function App() {
         // be backed up at all. Each is parked on the account first and let go
         // of this browser only once it is there.
         const settingsDrafts = pendingStore.list<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
-        for (const draft of settingsDrafts.slice(0, -1)) {
-          void parkSettingsSnapshot(draft.data, currentSession)
-            .then(() => {
+        const parkOlderDrafts = () => {
+          // Every page load is a new slot, so a save that kept failing across
+          // reloads leaves the same edits in several of them. One copy on the
+          // account is the record; a draft that says nothing the newest — or
+          // one already parked — does not is simply let go of.
+          const newestDraft = settingsDrafts.at(-1);
+          const parkedBlobs = new Set(newestDraft ? [JSON.stringify(newestDraft.data)] : []);
+          for (const draft of settingsDrafts.slice(0, -1)) {
+            const blob = JSON.stringify(draft.data);
+            if (parkedBlobs.has(blob)) {
               pendingStore.discard(draft);
-              if (activeSessionRef.current !== currentSession) return;
-              setRecoveryNotice("Edits made in another tab couldn't be saved. Those edits are kept under Earlier versions in Settings.");
-            })
-            .catch((err) => console.error('Failed to park an older settings draft:', err));
-        }
+              continue;
+            }
+            parkedBlobs.add(blob);
+            void parkSettingsSnapshot(draft.data, currentSession)
+              .then(() => {
+                pendingStore.discard(draft);
+                if (activeSessionRef.current !== currentSession) return;
+                // The notice about this device's own superseded edits, below,
+                // matters more; this one only fills an empty slot.
+                setRecoveryNotice((notice) => notice ?? "Edits made in another tab couldn't be saved. Those edits are kept under Earlier versions in Settings.");
+              })
+              .catch((err) => console.error('Failed to park an older settings draft:', err));
+          }
+        };
         // Pending backups bypass loadEncryptedSettings, so run them through the
         // same healing (trash media stripping, oversized-audio removal) —
         // otherwise a poisoned backup keeps the account unsavable forever.
-        const heldSettings = readPending<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
+        const heldSettings = readPending<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username, settingsDrafts);
         const healedHeldSettings = heldSettings
           ? stripLegacySettingsMedia(healSettings(heldSettings.data))
           : null;
@@ -635,6 +643,10 @@ export default function App() {
         setSettingsLoaded(true);
         if (pendingSettings || sharedSettings !== recoveredSettings) saveSettings(sharedSettings);
         setLoadError(null);
+        // Encrypting a settings blob is main-thread work, and nothing above
+        // waits on these copies — so they are made once the shows are on
+        // screen rather than in front of them.
+        if (settingsDrafts.length > 1) window.setTimeout(parkOlderDrafts, 0);
       } catch (error) {
         if (cancelled) return;
         console.error('Failed to load shows:', error);
@@ -2519,10 +2531,14 @@ export default function App() {
                   onFound={(updated) => {
                     // Merge by token rather than replace: `updated` is the list
                     // as it stood when the check began, and a link made since
-                    // then is not in it.
+                    // then is not in it. Merged into the settings as they are
+                    // now, not as they were when the check began: a request
+                    // withdrawn while the check ran is gone from the current
+                    // list, and rebuilding from the old one put it back.
+                    const current = latestSettingsRef.current;
                     const found = new Map(updated.filter(r => r.submitted).map(r => [r.token, r]));
-                    const merged = (settings.profileRequests ?? []).map(r => found.get(r.token) ?? r);
-                    const updatedSettings = { ...settings, profileRequests: merged };
+                    const merged = (current.profileRequests ?? []).map(r => found.get(r.token) ?? r);
+                    const updatedSettings = { ...current, profileRequests: merged };
                     setSettings(updatedSettings);
                     saveSettings(updatedSettings);
                   }}

@@ -62,18 +62,14 @@ export function openPrintable(html: string): void {
     frame.remove();
     return;
   }
-  let removed = false;
-  const remove = () => {
-    if (removed) return;
-    removed = true;
-    frame.remove();
-  };
-  // Gone once the print dialog closes; and gone anyway after a minute, for
-  // the browsers that never say.
-  win.addEventListener("afterprint", remove);
+  const remove = () => frame.remove();
   doc.open();
   doc.write(html);
   doc.close();
+  // Gone once the print dialog closes; and gone anyway after a minute, for
+  // the browsers that never say. Listened for only now: opening the document
+  // above replaces it and drops every listener on its window with it.
+  win.addEventListener("afterprint", remove);
   setTimeout(() => {
     try {
       win.focus();
