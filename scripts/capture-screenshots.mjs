@@ -269,7 +269,8 @@ async function captureContracts(page, context) {
     if (await field.count()) await field.first().fill(value);
   }
   await signer.locator('.signing__field--signature input').fill('Maya Reyes');
-  await signer.locator('.signing__agree input').check();
+  await signer.locator('.signing__rule-agree input').check();
+  await signer.locator('.signing__agree:not(.signing__rule-agree) input').check();
   await signer.locator('.signing__cta').click();
   const done = signer.locator('.signing__panel--done');
   await done.waitFor();

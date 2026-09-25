@@ -129,13 +129,15 @@ test.describe('a contract sent from inside a show', () => {
     await expect(typed.locator('.signing__title')).toBeVisible();
     await typed.getByLabel('Email').fill('nadia@example.com');
     await typed.locator('.signing__field--signature input').fill('Nadia Okonjo');
-    await typed.locator('.signing__agree input').check();
+    await typed.locator('.signing__rule-agree input').check();
+    await typed.locator('.signing__agree:not(.signing__rule-agree) input').check();
 
     await typed.reload();
     await expect(typed.locator('.signing__title')).toBeVisible();
     await expect(typed.getByLabel('Email')).toHaveValue('nadia@example.com');
     await expect(typed.locator('.signing__field--signature input')).toHaveValue('Nadia Okonjo');
-    await expect(typed.locator('.signing__agree input')).toBeChecked();
+    await expect(typed.locator('.signing__rule-agree input')).toBeChecked();
+    await expect(typed.locator('.signing__agree:not(.signing__rule-agree) input')).toBeChecked();
     // And the show's own answers are still there underneath.
     await expect(typed.getByLabel('Show date')).toHaveValue(/October 3, 2026/);
     await reload.close();
@@ -166,7 +168,8 @@ test.describe('a contract sent from inside a show', () => {
     await late.getByLabel('Email').fill('nadia@example.com');
     await late.getByLabel('Instagram or main social').fill('@nadiaokonjo');
     await late.locator('.signing__field--signature input').fill('Nadia Okonjo');
-    await late.locator('.signing__agree input').check();
+    await late.locator('.signing__rule-agree input').check();
+    await late.locator('.signing__agree:not(.signing__rule-agree) input').check();
     await late.locator('.signing__photo-pick input[type=file]').setInputFiles({
       name: 'headshot.png', mimeType: 'image/png',
       buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGNY5dJBEmIY1TCqYfhqAAD2lHYQsNIY7AAAAABJRU5ErkJggg==', 'base64'),
@@ -235,7 +238,8 @@ test.describe('a contract sent from inside a show', () => {
     await basement.getByLabel('Email').fill('dev@example.com');
     await basement.getByLabel('Instagram or main social').fill('@devmarchetti');
     await basement.locator('.signing__field--signature input').fill('Dev Marchetti');
-    await basement.locator('.signing__agree input').check();
+    await basement.locator('.signing__rule-agree input').check();
+    await basement.locator('.signing__agree:not(.signing__rule-agree) input').check();
 
     // Now the connection dies — every attempt, for as long as it is down.
     let attempts = 0;
@@ -346,7 +350,8 @@ test.describe('a contract sent from inside a show', () => {
     await withPhoto.getByLabel('Email').fill('priya@example.com');
     await withPhoto.getByLabel('Instagram or main social').fill('@priyaraghunathan');
     await withPhoto.locator('.signing__field--signature input').fill('Priya Raghunathan');
-    await withPhoto.locator('.signing__agree input').check();
+    await withPhoto.locator('.signing__rule-agree input').check();
+    await withPhoto.locator('.signing__agree:not(.signing__rule-agree) input').check();
     await withPhoto.locator('.signing__cta').click();
 
     // Signed, with a photo that was made to fit — not refused, not dropped.

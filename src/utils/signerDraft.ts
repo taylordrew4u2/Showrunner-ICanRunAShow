@@ -32,6 +32,8 @@ export interface SignerDraft {
   /** Answers keyed by field id, as the page holds them. */
   values?: Record<string, string>;
   agreed?: boolean;
+  /** The day-of cancellation rule, ticked. */
+  ruleAgreed?: boolean;
 }
 
 /** Keep what they have typed so far. Silent on failure — this is a courtesy. */
@@ -64,6 +66,7 @@ export function loadSignerDraft(token: string): SignerDraft | null {
             )
           : undefined,
       agreed: draft.agreed === true,
+      ruleAgreed: draft.ruleAgreed === true,
     };
   } catch {
     return null;

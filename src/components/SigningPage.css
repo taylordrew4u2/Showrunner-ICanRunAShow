@@ -215,6 +215,44 @@
   accent-color: var(--primary);
 }
 
+/* The house rule sits apart from the document's own agreement line: a box
+   of its own, so it reads as something the producer is saying to them and
+   not as one more line of legal text to tick past. */
+.signing__rule {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-md);
+  background: var(--surface-2, var(--surface));
+}
+
+.signing__rule h3 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.signing__rule p {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.signing__rule-agree {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.signing__done-rule {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-md);
+  color: var(--text-muted);
+}
+
 .signing__cta {
   width: 100%;
   min-height: 52px;
