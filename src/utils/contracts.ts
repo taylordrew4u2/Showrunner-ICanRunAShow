@@ -27,6 +27,30 @@ import type { SessionCredentials } from './session-vault';
 // enormous.
 const SLICE_CHARS = 1_500_000;
 
+/**
+ * The one house rule every performer agrees to alongside the contract.
+ *
+ * A day-of drop-out for a better-paying room is the thing that sinks a
+ * small show: the flyer is out, the running order is built around them, and
+ * there is no time to fill the spot. The rule is stated on the signing page
+ * itself, in the producer's voice, and acknowledged separately from the
+ * document — so nobody can say it was buried on page four. Warm on purpose:
+ * this is written to someone the producer wants to work with again.
+ */
+export const DAY_OF_CANCELLATION_RULE = {
+  title: 'One thing before you sign',
+  body:
+    "Once you're on the lineup we build the show around you: your name goes on the flyer, " +
+    "the running order is set with you in it, and people buy tickets to see the bill we announce. " +
+    "So we ask for one firm commitment. If you cancel on the day of the show because you took " +
+    "another booking, or a different show came up, we won't be able to book you on future lineups. " +
+    "Illness, emergencies and the things nobody can plan for are a different matter, and we'll " +
+    "always work with you on those. If anything might clash with this date, tell us now, before " +
+    "you sign, and we'll sort it out together.",
+  acknowledgement:
+    "I understand: if I cancel on the day of the show for another booking or show, I won't be booked on future lineups.",
+};
+
 /** What the signer is shown, encrypted under the request key. */
 export interface SigningPayload {
   contractName: string;
@@ -45,6 +69,12 @@ export interface SigningPayload {
    * in and can correct them; nothing here is locked.
    */
   prefill?: Record<string, string>;
+  /**
+   * The day-of cancellation rule as worded when the link was made — carried
+   * with the request so the signer sees, and the record keeps, the exact
+   * text they agreed to. Absent on links sent before the rule existed.
+   */
+  cancellationRule?: string;
 }
 
 /** What is known about the booking a contract is being sent for. */
@@ -298,6 +328,7 @@ export async function sendForSignature(
       const filled = prefillFromShow(fields, show);
       return Object.keys(filled).length ? filled : undefined;
     })(),
+    cancellationRule: DAY_OF_CANCELLATION_RULE.body,
   };
   await api.put('/api/sign', { token, payload: encryptWithKey(payload, key) }, auth);
 
@@ -438,17 +469,11 @@ export async function submitSignature(
   fields: { label: string; value: string }[] = [],
   headshot?: string,
   signerName?: string,
+  cancellationRule?: string,
 ): Promise<SignatureRecord> {
-  const record: SignatureRecord = {
-    signedAt: new Date().toISOString(),
-    typedName: typedName.trim(),
-    signerName: signerName?.trim() || undefined,
-    fields: fields.length ? fields : undefined,
-    headshot: headshot || undefined,
-    documentHash: documentHash(documentDataUrl),
-    userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent.slice(0, 200),
-  };
-  const signature = encryptWithKey(record, key);
+  const { record, signature } = prepareSignature(
+    key, typedName, documentDataUrl, fields, headshot, signerName, cancellationRule,
+  );
   await sendSignature(token, signature);
   return record;
 }
@@ -469,6 +494,7 @@ export function prepareSignature(
   fields: { label: string; value: string }[] = [],
   headshot?: string,
   signerName?: string,
+  cancellationRule?: string,
 ): { record: SignatureRecord; signature: string } {
   const record: SignatureRecord = {
     signedAt: new Date().toISOString(),
@@ -476,6 +502,7 @@ export function prepareSignature(
     signerName: signerName?.trim() || undefined,
     fields: fields.length ? fields : undefined,
     headshot: headshot || undefined,
+    cancellationRuleAcknowledged: cancellationRule || undefined,
     documentHash: documentHash(documentDataUrl),
     userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent.slice(0, 200),
   };

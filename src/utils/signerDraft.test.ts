@@ -24,6 +24,7 @@ describe('what a signer has typed', () => {
       typedName: 'N. Okonjo',
       values: { email: 'nadia@example.com', credits: 'Two festivals and a late-night set' },
       agreed: true,
+      ruleAgreed: true,
     });
 
     expect(loadSignerDraft('tok')).toEqual({
@@ -31,6 +32,7 @@ describe('what a signer has typed', () => {
       typedName: 'N. Okonjo',
       values: { email: 'nadia@example.com', credits: 'Two festivals and a late-night set' },
       agreed: true,
+      ruleAgreed: true,
     });
   });
 
@@ -76,6 +78,7 @@ describe('what a signer has typed', () => {
       typedName: undefined,
       values: undefined,
       agreed: false,
+      ruleAgreed: false,
     });
   });
 

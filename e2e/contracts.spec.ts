@@ -202,14 +202,25 @@ test.describe('contracts', () => {
     // handle to tag them by are the ones it insists on.
     await signer.getByLabel('Email').fill('nadia@example.com');
     await signer.getByLabel('Instagram or main social').fill('@nadiaokonjo');
-    await signer.locator('.signing__agree input').check();
+    await signer.locator('.signing__agree:not(.signing__rule-agree) input').check();
     // Everything else answered, and it still will not sign until they sign it.
     await expect(signer.locator('.signing__cta')).toBeEnabled();
 
     await signer.locator('.signing__field--signature input').fill('Nadia Okonjo');
     await expect(signer.locator('.signing__cta')).toBeEnabled();
+
+    // The day-of rule is said plainly on the page, not buried in the PDF, and
+    // agreeing to the document is not agreeing to it: it has its own tick,
+    // and the signature waits for it.
+    const rule = signer.locator('.signing__rule');
+    await expect(rule).toContainText("we won't be able to book you on future lineups");
+    await signer.locator('.signing__cta').click();
+    await expect(signer.locator('.signing__hint')).toContainText('Tick the day-of cancellation rule');
+    await signer.getByRole('button', { name: 'Go to first missing field' }).click();
+    await signer.locator('.signing__rule-agree input').check();
     await signer.locator('.signing__cta').click();
     await expect(signer.getByRole('heading', {name:'Signed',exact:true})).toBeVisible();
+    await expect(signer.locator('.signing__done-rule')).toHaveText('Day-of cancellation rule acknowledged.');
     await expect(signer.locator('.signing__page')).toHaveCount(2);
     await assertStacked();
 
@@ -225,6 +236,9 @@ test.describe('contracts', () => {
     await gotoTab(page, 'More');
     await page.locator('.more-item').filter({ hasText: 'Contracts' }).click();
     await expect(page.locator('.contracts__item-meta')).toContainText('1 of 1 signed');
+    // With the rule on the record, so a day-of drop-out is not a he-said-she-said.
+    await page.locator('.contracts__item').first().click();
+    await expect(page.locator('.contracts__row-rule')).toContainText('Day-of cancellation rule acknowledged');
 
     // And the headshot is on their profile, with nothing pressed. A face that
     // needs a button is a face the producer does not have when they are
