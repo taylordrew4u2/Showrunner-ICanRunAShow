@@ -54,6 +54,15 @@ export function createPendingStore(storage: () => Storage, writer: string) {
         return true;
       } catch { return false; }
     },
+    // Let go of one draft on its own, once it is kept somewhere else — parked
+    // on the account, say. Only those exact bytes: a tab that has since
+    // written a newer draft into the same slot keeps it.
+    discard(entry: { key: string; raw: string }): void {
+      try {
+        const store = storage();
+        if (store.getItem(entry.key) === entry.raw) store.removeItem(entry.key);
+      } catch { /* Keeping a redundant copy is safe. */ }
+    },
     // Capture before the request, then acknowledge precisely those bytes.
     capture(key: string, username: string): () => void {
       const entries = new Map(claimed.get(scope(key, username)) ?? []);

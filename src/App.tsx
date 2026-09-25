@@ -2,6 +2,7 @@ import { BrandMark } from './components/BrandMark';
 import { recoverShowDraft } from './utils/recoverShowDraft';
 import { showBaselineHashes, settingsBaselineHash } from './utils/secure-storage';
 import { createPendingStore } from './utils/pendingStore';
+import { watchStatusRail } from './utils/statusBand';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, ScheduleTemplateItem } from './types';
 import { DEFAULT_SETTINGS, MAX_DELETED_SHOW_IDS } from './types';
@@ -47,6 +48,7 @@ import {
   loadSession,
   saveSession,
   clearSession,
+  normalizeUsername,
 } from './utils/session-vault';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
@@ -61,6 +63,7 @@ import {
   profileLinkStatus,
   profileUrl,
   refreshProfiles,
+  revokeProfileLink,
   fetchProfilePhoto,
   deleteProfilePhoto,
 } from './utils/profileLink';
@@ -184,6 +187,16 @@ const PENDING_SETTINGS_KEY = 'showrunner:pendingSettings';
 // download kept the other from ever being nudged to make their own.
 const LAST_EXPORT_KEY = 'showrunner:lastExport';
 
+/**
+ * Whether a stored entry belongs to the account signing in. The account is
+ * the same whichever way the keyboard capitalised the name, and an entry an
+ * earlier build filed under the name as typed still has to be found — so the
+ * comparison is on the normalised name on both sides.
+ */
+function sameAccount(stored: unknown, username: string): boolean {
+  return typeof stored === 'string' && normalizeUsername(stored) === normalizeUsername(username);
+}
+
 function readLastExport(username: string): string | null {
   try {
     const raw = localStorage.getItem(LAST_EXPORT_KEY);
@@ -191,8 +204,8 @@ function readLastExport(username: string): string | null {
     // Written before the account was recorded with it. Whose it was cannot be
     // known now, so it stands until the next download replaces it.
     if (!raw.startsWith('{')) return raw;
-    const parsed = JSON.parse(raw) as { username: string; at: string };
-    return parsed.username === username && typeof parsed.at === 'string' ? parsed.at : null;
+    const parsed = JSON.parse(raw) as { username?: unknown; at?: unknown };
+    return sameAccount(parsed.username, username) && typeof parsed.at === 'string' ? parsed.at : null;
   } catch {
     return null;
   }
@@ -200,7 +213,7 @@ function readLastExport(username: string): string | null {
 
 function writeLastExport(username: string, at: string): void {
   try {
-    localStorage.setItem(LAST_EXPORT_KEY, JSON.stringify({ username, at }));
+    localStorage.setItem(LAST_EXPORT_KEY, JSON.stringify({ username: normalizeUsername(username), at }));
   } catch {
     /* ignore */
   }
@@ -214,8 +227,8 @@ function readLastSync(username: string): number | null {
   try {
     const raw = localStorage.getItem(LAST_SYNC_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { username: string; at: number };
-    return parsed.username === username && typeof parsed.at === 'number' ? parsed.at : null;
+    const parsed = JSON.parse(raw) as { username?: unknown; at?: unknown };
+    return sameAccount(parsed.username, username) && typeof parsed.at === 'number' ? parsed.at : null;
   } catch {
     return null;
   }
@@ -223,7 +236,7 @@ function readLastSync(username: string): number | null {
 
 function writeLastSync(username: string, at: number): void {
   try {
-    localStorage.setItem(LAST_SYNC_KEY, JSON.stringify({ username, at }));
+    localStorage.setItem(LAST_SYNC_KEY, JSON.stringify({ username: normalizeUsername(username), at }));
   } catch {
     /* ignore */
   }
@@ -533,6 +546,24 @@ export default function App() {
               .filter((s): s is Show => s !== null)
               .map((s) => stripLegacyShowMedia(s))
           : null;
+        // Every settings draft on this browser, oldest first. Only the newest
+        // is recovered — settings are one blob, and two drafts cannot both be
+        // it — but the older ones are another tab's, or an earlier session's,
+        // unsaved Rolodex and contracts. They used to be neither recovered
+        // nor removed: dropped from recovery, and left in storage forever,
+        // each a full settings blob, until the quota went and nothing could
+        // be backed up at all. Each is parked on the account first and let go
+        // of this browser only once it is there.
+        const settingsDrafts = pendingStore.list<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
+        for (const draft of settingsDrafts.slice(0, -1)) {
+          void parkSettingsSnapshot(draft.data, currentSession)
+            .then(() => {
+              pendingStore.discard(draft);
+              if (activeSessionRef.current !== currentSession) return;
+              setRecoveryNotice("Edits made in another tab couldn't be saved. Those edits are kept under Earlier versions in Settings.");
+            })
+            .catch((err) => console.error('Failed to park an older settings draft:', err));
+        }
         // Pending backups bypass loadEncryptedSettings, so run them through the
         // same healing (trash media stripping, oversized-audio removal) —
         // otherwise a poisoned backup keeps the account unsavable forever.
@@ -679,6 +710,16 @@ export default function App() {
 
   const showSaveConflictRef = useRef(false);
   const settingsSaveFailedRef = useRef(false);
+
+  // The rail is fixed over the page, and a notice in it is a couple of hundred
+  // pixels on a phone that used to land on the show's Back control, Run Show
+  // and the workspace tabs. Measured here and handed to the stylesheet, so
+  // the page's band grows with it. A ref callback rather than an effect: the
+  // rail only exists once the account has loaded, and comes and goes with it.
+  const statusRailRef = useCallback((rail: HTMLDivElement | null) => {
+    if (!rail) return;
+    return watchStatusRail(rail);
+  }, []);
 
   // Records a confirmed round-trip to the server. Everything the status pill
   // claims about "saved" traces back to this being called.
@@ -1576,6 +1617,44 @@ export default function App() {
     }
   }
 
+  /** The link still out asking this person, as filed, if there is one. */
+  function waitingProfileRequest(comic: PotentialComic) {
+    return (settings.profileRequests ?? []).find(r => r.contactId === comic.id && !r.submitted);
+  }
+
+  /**
+   * Take a link back before it is answered.
+   *
+   * The only way out of "Asked for details" used to be the answer arriving.
+   * A link sent to the wrong number, or never sent at all, kept the ask off
+   * the row for good. Withdrawing stops the link working and drops just that
+   * one request — answered replies stay where they are — so the ask comes
+   * back and a fresh link can be made.
+   */
+  async function handleWithdrawDetails(comic: PotentialComic) {
+    if (!session) return;
+    const request = waitingProfileRequest(comic);
+    if (!request) return;
+    setLinkErrorFor(null);
+    try {
+      await revokeProfileLink(request, session);
+    } catch {
+      // Still out asking: a link the server did not retire is a link that
+      // still works, and the row must not pretend otherwise.
+      setLinkErrorFor(comic.id);
+      setLinkError('That link could not be withdrawn. Check your connection and try again.');
+      return;
+    }
+    const current = latestSettingsRef.current;
+    const updatedSettings = {
+      ...current,
+      profileRequests: (current.profileRequests ?? []).filter(r => r.token !== request.token),
+    };
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
+    setFreshLink(link => (link?.contactId === comic.id ? null : link));
+  }
+
   /**
    * What an answered link would change on its person's profile.
    *
@@ -1943,7 +2022,7 @@ export default function App() {
         <div className="app">
           {/* Everything that reports on the state of your data, in one stack:
               problems that need you first, then the always-on sync pill. */}
-          <div className="status-rail">
+          <div className="status-rail" ref={statusRailRef}>
             {/* Some rows came back but wouldn't decrypt on this device. Say so
                 plainly — a short list with no explanation reads as lost data,
                 and these shows are neither lost nor at risk: they're carried
@@ -2272,6 +2351,7 @@ export default function App() {
               <MusicLibrary
                 tracks={settings.musicLibrary ?? []}
                 shows={shows}
+                trash={settings.trash ?? []}
                 onChange={handleUpdateMusicLibrary}
                 onBack={handleBack}
               />
@@ -2478,6 +2558,7 @@ export default function App() {
                     value={newComicName}
                     onChange={(e) => setNewComicName(e.target.value)}
                     placeholder={`${rolodexTerm.singular} name`}
+                    aria-label={`${rolodexTerm.singular} name`}
                   />
                   {/* Only once there is a name to attach them to. A second
                       full-width box for optional notes sat above the list
@@ -2489,6 +2570,7 @@ export default function App() {
                       value={newComicNotes}
                       onChange={(e) => setNewComicNotes(e.target.value)}
                       placeholder="Notes (style, contact, socials, etc.)"
+                      aria-label="Notes"
                     />
                   )}
                   <button
@@ -2520,6 +2602,8 @@ export default function App() {
                           linkUrl={freshLink?.contactId === comic.id ? freshLink.url : undefined}
                           linkBusy={linkBusyFor === comic.id}
                           onRequestDetails={() => void handleRequestDetails(comic)}
+                          request={waitingProfileRequest(comic)}
+                          onWithdraw={() => handleWithdrawDetails(comic)}
                           pending={pending?.changes}
                           onImport={() => void handleImportProfile(comic)}
                           pendingPhoto={pending?.photo}

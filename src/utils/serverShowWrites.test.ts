@@ -14,7 +14,8 @@ beforeEach(async () => {
   await db.executeMultiple(`
     CREATE TABLE user_settings (user_id TEXT PRIMARY KEY, encrypted_data TEXT, updated_at TEXT);
     CREATE TABLE user_settings_backup (user_id TEXT, encrypted_data TEXT,
-      backed_up_at TEXT DEFAULT (datetime('now')), PRIMARY KEY(user_id, backed_up_at));
+      backed_up_at TEXT DEFAULT (datetime('now')), parked INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY(user_id, backed_up_at));
     CREATE TABLE user_shows (id TEXT PRIMARY KEY, user_id TEXT, encrypted_data TEXT, updated_at TEXT);
     CREATE TABLE user_shows_backup (id TEXT, user_id TEXT, encrypted_data TEXT,
       backed_up_at TEXT DEFAULT (datetime('now')), PRIMARY KEY(id, backed_up_at));

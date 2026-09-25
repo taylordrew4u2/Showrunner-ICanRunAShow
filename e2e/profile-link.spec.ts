@@ -29,9 +29,9 @@ test.describe('a self-serve profile link', () => {
     await row.locator('button').filter({ hasText: /^Ask for details$/ }).click();
     const url = await row.locator('.rolodex__link-url').inputValue();
     expect(url).toMatch(/\/details\?t=.+#k=.+/);
-    await expect(row).toContainText('Asked for details').catch(() => {
-      // The "asked" pill is hidden while the fresh link is shown; either is fine.
-    });
+    // The "asked" pill gives way to the link while the link is fresh on the
+    // row — saying both would be saying the same thing twice.
+    await expect(row.getByText('Asked for details')).toHaveCount(0);
 
     // The performer opens it — same browser context, so the fake API applies,
     // but a fresh page with none of the producer's session.

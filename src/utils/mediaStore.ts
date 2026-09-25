@@ -114,8 +114,60 @@ export async function uploadMedia(file: File): Promise<string> {
   return ref;
 }
 
+/**
+ * How many characters of resolved data URLs are kept in memory.
+ *
+ * A resolved track is its whole file as base64 — four to five million
+ * characters for a walk-on, twice that in memory — and the cache used to keep
+ * every one for the life of the page, on top of the PCM the audio engine
+ * holds. A full bill was tens of megabytes that never went away. Thirty-two
+ * million characters is half a dozen whole songs, kept oldest-use-first so
+ * the ones a page is actually showing or playing stay; anything past that is
+ * fetched again when it is next needed. Soft: a single file bigger than the
+ * budget is still kept.
+ */
+export const URL_CACHE_BUDGET_CHARS = 32_000_000;
+
+/** A map of strings that lets its longest-unused entries go past a budget. */
+export function createUrlCache(budgetChars = URL_CACHE_BUDGET_CHARS) {
+  const entries = new Map<string, string>();
+  let held = 0;
+  return {
+    get size() {
+      return entries.size;
+    },
+    get(key: string): string | undefined {
+      const value = entries.get(key);
+      if (value === undefined) return undefined;
+      // A hit moves to the fresh end, so the front is the entry that has gone
+      // longest without being asked for.
+      entries.delete(key);
+      entries.set(key, value);
+      return value;
+    },
+    set(key: string, value: string): void {
+      const old = entries.get(key);
+      if (old !== undefined) {
+        held -= old.length;
+        entries.delete(key);
+      }
+      entries.set(key, value);
+      held += value.length;
+      for (const [oldKey, oldValue] of entries) {
+        if (held <= budgetChars || oldKey === key) break;
+        entries.delete(oldKey);
+        held -= oldValue.length;
+      }
+    },
+    clear(): void {
+      entries.clear();
+      held = 0;
+    },
+  };
+}
+
 // Resolved data URLs, keyed by reference. In-memory only.
-const urlCache = new Map<string, string>();
+const urlCache = createUrlCache();
 // De-dupe concurrent resolutions of the same reference.
 const inFlight = new Map<string, Promise<string | null>>();
 

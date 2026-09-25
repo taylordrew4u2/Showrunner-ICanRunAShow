@@ -72,10 +72,14 @@ const DDL: string[] = [
   // The settings blob carries the Rolodex, the contracts and every signed
   // record, and used to be overwritten in place with no copy kept anywhere.
   // Snapshotted on every save now, same as shows — see _lib/snapshots.ts.
+  // `parked` marks a row that is a device's only copy of unsaved work rather
+  // than a copy of a save — see parkSettingsSnapshot. Retention leaves those
+  // alone; an ordinary run of saves must not be able to flush one.
   `CREATE TABLE IF NOT EXISTS user_settings_backup (
      user_id        TEXT NOT NULL,
      encrypted_data TEXT NOT NULL,
      backed_up_at   TEXT NOT NULL DEFAULT (datetime('now')),
+     parked         INTEGER NOT NULL DEFAULT 0,
      PRIMARY KEY (user_id, backed_up_at)
    )`,
   // `user_id` is who may publish to this token. The token itself is handed to
@@ -162,6 +166,8 @@ const MIGRATIONS: string[] = [
   // producer's account was recorded on them are claimed by the next
   // authenticated write to the token. See api/_lib/tokenOwnership.ts.
   `ALTER TABLE sign_request ADD COLUMN user_id TEXT`,
+  // Parked copies were ordinary rows before, and were pruned like them.
+  `ALTER TABLE user_settings_backup ADD COLUMN parked INTEGER NOT NULL DEFAULT 0`,
 ];
 
 async function runMigrations(db: Client): Promise<void> {

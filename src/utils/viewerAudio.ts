@@ -40,6 +40,27 @@ export interface ViewerTrack {
   mediaId: string;
   /** Chunk count. */
   total: number;
+  /** The slice the board plays, if the track was trimmed — see trimSlice. */
+  startSec?: number;
+  endSec?: number;
+}
+
+/**
+ * The slice of a track a press should play, as the engine takes it.
+ *
+ * A walk-on is rarely the top of the file — it's the drop or the chorus, and
+ * a producer who trimmed it wants that and nothing else. An out-point before
+ * the in-point is treated as no out-point rather than a negative duration,
+ * which would schedule a stop in the past and cut the track dead.
+ *
+ * One rule for both ends of the wire: the operator's own device and the
+ * screen wired to the PA used to disagree, because only the board applied it,
+ * and the room heard the whole song from the top.
+ */
+export function trimSlice(track: { startSec?: number; endSec?: number }): { offsetSec?: number; durationSec?: number } {
+  const start = track.startSec && track.startSec > 0 ? track.startSec : undefined;
+  const end = track.endSec && track.endSec > (start ?? 0) ? track.endSec : undefined;
+  return { offsetSec: start, durationSec: end ? end - (start ?? 0) : undefined };
 }
 
 /** Which track the board wants the viewer playing, and how it should come in. */

@@ -77,6 +77,20 @@ describe('opening a link as the performer', () => {
     expect(await fetchProfileRequest('tok', key)).toBeNull();
   });
 
+  it('does not report a link as withdrawn when the request merely failed', async () => {
+    // Venue wifi: the GET times out. That says nothing about the link, and
+    // the page has to be able to try again rather than send the performer
+    // back to the producer for a fresh one.
+    const dropped = Object.assign(new Error('Request timed out'), {});
+    vi.spyOn(api, 'get').mockRejectedValue(dropped);
+    await expect(fetchProfileRequest('tok', 'key-0123456789abcdef')).rejects.toBe(dropped);
+
+    // A link that is genuinely gone is still nothing.
+    const gone = Object.assign(new Error('not_found'), { status: 404 });
+    vi.spyOn(api, 'get').mockRejectedValue(gone);
+    expect(await fetchProfileRequest('tok', 'key-0123456789abcdef')).toBeNull();
+  });
+
   it('shows what was already sent, so a reopened link is not a blank form', async () => {
     const key = 'key-0123456789abcdef';
     vi.spyOn(api, 'get').mockResolvedValue({

@@ -264,12 +264,14 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Song title"
+          aria-label="Song title"
         />
         <input
           className="section-field__input"
           value={artist}
           onChange={(e) => setArtist(e.target.value)}
           placeholder="Artist name"
+          aria-label="Artist name"
         />
         <input
           className="section-field__input"
@@ -277,6 +279,7 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
           onChange={(e) => setNotes(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSong())}
           placeholder="Notes (e.g. play at 9pm)"
+          aria-label="Notes"
         />
         <button className="btn btn--primary btn--sm" onClick={addSong}>Add</button>
       </div>
@@ -352,9 +355,9 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
             <div className="section-list-item__body">
               {editId === s.id ? (
                 <div className="section-edit-row">
-                  <input className="section-field__input" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" />
-                  <input className="section-field__input" value={editArtist} onChange={(e) => setEditArtist(e.target.value)} placeholder="Artist" />
-                  <input className="section-field__input" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Notes" />
+                  <input className="section-field__input" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" aria-label="Song title" />
+                  <input className="section-field__input" value={editArtist} onChange={(e) => setEditArtist(e.target.value)} placeholder="Artist" aria-label="Artist name" />
+                  <input className="section-field__input" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Notes" aria-label="Notes" />
                   <button className="btn btn--primary btn--sm" onClick={saveEdit}>Save</button>
                   <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>Cancel</button>
                 </div>

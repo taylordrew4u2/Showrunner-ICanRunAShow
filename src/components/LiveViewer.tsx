@@ -7,6 +7,7 @@ import {
   fetchViewerTrack,
   nextPlaybackAction,
   readViewerKeyFromHash,
+  trimSlice,
   type ViewerTrack,
 } from '../utils/viewerAudio';
 
@@ -269,13 +270,22 @@ export function LiveViewer({ token }: LiveViewerProps) {
       audioEngine.stop({ fadeMs: playback.fadeOutMs });
     } else if (next.action === 'play') {
       playingRef.current = next.key;
+      // The producer's trim, from the manifest: a walk-on cut to its drop
+      // used to play whole through the PA while the operator's own device
+      // played the slice.
+      const published = payload?.audio?.find((t) => t.key === next.key);
       audioEngine
         .play(tracks.urlOf(next.key)!, {
           fadeInMs: playback.fadeInMs,
           fadeOutMs: playback.fadeOutMs,
+          ...trimSlice(published ?? {}),
         })
         .catch(() => {});
     }
+    // payload.audio is read at play time rather than listed: it arrives with
+    // the same poll as the playback instruction, and listing it would re-run
+    // this on every poll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [soundOn, viewerKey, payload?.playback]);
 
   // Never leave a track running on a screen nobody is looking at.

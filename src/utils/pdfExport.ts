@@ -29,6 +29,63 @@ function formatCurrency(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
 
+/** How long a print sheet gets before its hidden frame is tidied away regardless. */
+const PRINT_FRAME_LIFETIME_MS = 60_000;
+
+/**
+ * Put a printable page in front of the producer.
+ *
+ * A new tab where the browser gives one. The iOS shell never does: Capacitor
+ * answers every window.open by handing the URL to the system and returning
+ * null, so a blank tab for the runsheet is null and the export button did
+ * nothing at all — no sheet, no error. A popup blocker on a desktop does the
+ * same. Either way the page is printed from here instead: a hidden frame in
+ * this document, printed, then removed so nothing is left behind.
+ */
+export function openPrintable(html: string): void {
+  const printWindow = window.open("", "_blank");
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 300);
+    return;
+  }
+
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.setAttribute("title", "Print preview");
+  frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  document.body.appendChild(frame);
+  const doc = frame.contentDocument;
+  const win = frame.contentWindow;
+  if (!doc || !win) {
+    frame.remove();
+    return;
+  }
+  let removed = false;
+  const remove = () => {
+    if (removed) return;
+    removed = true;
+    frame.remove();
+  };
+  // Gone once the print dialog closes; and gone anyway after a minute, for
+  // the browsers that never say.
+  win.addEventListener("afterprint", remove);
+  doc.open();
+  doc.write(html);
+  doc.close();
+  setTimeout(() => {
+    try {
+      win.focus();
+      win.print();
+    } catch {
+      remove();
+      return;
+    }
+    setTimeout(remove, PRINT_FRAME_LIFETIME_MS);
+  }, 300);
+}
+
 /**
  * A printable page of intro cards, one per act, in the order the host will
  * read them. Empty bill, no page — a blank sheet headed "Intro cards" is worse
@@ -366,12 +423,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
 </body>
 </html>`;
 
-  const printWindow = window.open("", "_blank");
-  if (printWindow) {
-    printWindow.document.write(html);
-    printWindow.document.close();
-    setTimeout(() => printWindow.print(), 300);
-  }
+  openPrintable(html);
 }
 
 export function exportDJListToPDF(show: Show, library: MusicTrack[] = []): void {
@@ -412,10 +464,5 @@ export function exportDJListToPDF(show: Show, library: MusicTrack[] = []): void 
 </body>
 </html>`;
 
-  const printWindow = window.open("", "_blank");
-  if (printWindow) {
-    printWindow.document.write(html);
-    printWindow.document.close();
-    setTimeout(() => printWindow.print(), 300);
-  }
+  openPrintable(html);
 }

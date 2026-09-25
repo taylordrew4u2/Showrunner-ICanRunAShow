@@ -24,6 +24,12 @@ export const KEEP_DAYS = 30;
  * dropped together, which is what makes a shows snapshot restorable as a set.
  */
 export async function pruneSnapshots(db: Pick<Client, 'execute'> & { batch: Transaction['batch'] }, table: string, userId: string): Promise<void> {
+  // A parked row is not a copy of a save but a device's only copy of work
+  // that never saved (see parkSettingsSnapshot). It is neither pruned nor
+  // counted toward what is kept — a dozen ordinary saves must not be able to
+  // flush it, and it must not take one of the twelve slots from them. Only the
+  // settings table has the column; shows are never parked.
+  const notParked = table === 'user_settings_backup' ? 'AND parked = 0' : '';
   // The recent-snapshots exception applies to the age rule too. Without it, a
   // producer who works through January and does not open the app again until
   // mid-February loses every January snapshot on their first save that day —
@@ -32,25 +38,25 @@ export async function pruneSnapshots(db: Pick<Client, 'execute'> & { batch: Tran
   // mean regardless of age.
   const keepRecent = `backed_up_at IN (
       SELECT DISTINCT backed_up_at FROM ${table}
-      WHERE user_id = ? ORDER BY backed_up_at DESC LIMIT ${KEEP_RECENT}
+      WHERE user_id = ? ${notParked} ORDER BY backed_up_at DESC LIMIT ${KEEP_RECENT}
     )`;
   const keepDaily = `backed_up_at IN (
       SELECT MIN(backed_up_at) FROM ${table}
-      WHERE user_id = ? GROUP BY date(backed_up_at)
+      WHERE user_id = ? ${notParked} GROUP BY date(backed_up_at)
     )`;
 
   await db.batch(
     [
       {
         sql: `DELETE FROM ${table}
-              WHERE user_id = ?
+              WHERE user_id = ? ${notParked}
                 AND backed_up_at < datetime('now', '-${KEEP_DAYS} days')
                 AND NOT ${keepRecent}`,
         args: [userId, userId],
       },
       {
         sql: `DELETE FROM ${table}
-              WHERE user_id = ?
+              WHERE user_id = ? ${notParked}
                 AND NOT ${keepRecent}
                 AND NOT ${keepDaily}`,
         args: [userId, userId, userId],
@@ -104,9 +110,13 @@ export async function parkSettingsSnapshot(
   // exactly what parking exists to prevent. Try the next second instead, and
   // say so if it still will not land.
   for (let offset = 0; offset < 5; offset++) {
+    // Marked parked: this row is the only copy of that device's unsaved work,
+    // and retention leaves it alone — see pruneSnapshots. An ordinary snapshot
+    // is a copy of a save that the next save copies again; this one nothing
+    // will ever write a second time.
     const result = await db.execute({
-      sql: `INSERT OR IGNORE INTO user_settings_backup (user_id, encrypted_data, backed_up_at)
-            VALUES (?, ?, datetime('now', ?))`,
+      sql: `INSERT OR IGNORE INTO user_settings_backup (user_id, encrypted_data, backed_up_at, parked)
+            VALUES (?, ?, datetime('now', ?), 1)`,
       args: [userId, encryptedData, `+${offset} seconds`],
     });
     if (result.rowsAffected > 0) {

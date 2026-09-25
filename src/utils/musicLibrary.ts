@@ -6,7 +6,7 @@
 // is pointing at it. Getting this wrong silently kills playback in unrelated
 // shows, so the rule lives here with tests rather than inline in a click
 // handler.
-import type { DJSong, MusicTrack, Show } from '../types';
+import type { DeletedItem, DJSong, MusicTrack, Show } from '../types';
 
 /**
  * How many shows currently use a library track.
@@ -35,9 +35,16 @@ function showUsesTrack(show: Show, track: MusicTrack): boolean {
  * library but the media stays, so that show keeps playing — losing a track
  * mid-show because it was tidied out of a library weeks earlier is not a
  * trade worth making for some storage.
+ *
+ * A show in the trash counts as a show. It can be restored — that is what the
+ * trash is for — and a restored show whose walk-on was deleted while it was
+ * in there comes back with a soundboard button that plays nothing. The trash
+ * is not offered to the on-screen "In N shows" count, which is about live
+ * shows; it only has a say in whether the audio goes.
  */
-export function canDeleteMedia(track: MusicTrack, shows: Show[]): boolean {
-  return usageCount(track, shows) === 0;
+export function canDeleteMedia(track: MusicTrack, shows: Show[], trash: DeletedItem[] = []): boolean {
+  const trashed = trash.map((item) => item.data).filter((show): show is Show => !!show);
+  return usageCount(track, [...shows, ...trashed]) === 0;
 }
 
 /**

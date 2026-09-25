@@ -45,9 +45,14 @@ test.describe('critical path', () => {
     await expect(page.locator('.run-show')).toBeVisible();
 
     const originalViewport = page.viewportSize()!;
+    // Prev, the timer control and Next. Pinned before measuring: a transport
+    // that rendered its labels some other way would match nothing, and a loop
+    // over nothing checks nothing.
+    const labels = page.locator('.rs-transport button span');
+    await expect(labels).toHaveCount(3);
     for (const width of [320, 360, 375, 390, 430, 768, 1280]) {
       await page.setViewportSize({ width, height: 844 });
-      for (const label of await page.locator('.rs-transport button span').all()) {
+      for (const label of await labels.all()) {
         const fits = await label.evaluate((el) => {
           const text = el.getBoundingClientRect();
           const button = el.closest('button')!.getBoundingClientRect();

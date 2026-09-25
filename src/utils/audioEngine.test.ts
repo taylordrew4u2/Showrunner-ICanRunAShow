@@ -98,4 +98,14 @@ describe('keeping decoded tracks within what a phone tab can hold', () => {
     expect([5, 6, 7, 8].map((n) => audioEngine.isReady(track(n)))).toEqual([true, true, true, true]);
     expect([1, 2, 3, 4].map((n) => audioEngine.isReady(track(n)))).toEqual([false, false, false, false]);
   });
+
+  it('does not keep a track whose decode lands after the board has closed', async () => {
+    // Run Show closes while the preload is still working: the decode that
+    // finishes a moment later has no board to be ready for.
+    const late = audioEngine.preload(track(1));
+    audioEngine.dispose();
+    await late;
+    audioEngine.init();
+    expect(audioEngine.isReady(track(1))).toBe(false);
+  });
 });

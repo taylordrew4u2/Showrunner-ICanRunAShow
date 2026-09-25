@@ -296,6 +296,11 @@ class AudioEngine {
     try { playing.source.stop(now + fadeS + 0.05); } catch { /* ignore */ }
   }
 
+  /**
+   * Let everything go: playback, the context and every decoded track. Called
+   * when Run Show closes, so a show's worth of PCM is not carried into the
+   * next one. init() makes a fresh context on the next open.
+   */
   dispose(): void {
     this.stopNow();
     if (this.ctx) {
@@ -305,6 +310,7 @@ class AudioEngine {
     this.master = null;
     this.buffers.clear();
     this.bufferedBytes = 0;
+    this.loadFailures.clear();
   }
 
   /** Decoded and ready to start on the next press with no wait. */
@@ -339,6 +345,9 @@ class AudioEngine {
    * fit the budget; decoding ahead keeps the track only while there's room.
    */
   private retain(src: string, buf: AudioBuffer, retain: Retain): void {
+    // A decode that lands after dispose() has nowhere to go: the context it
+    // was decoded for is closed, and filing it would keep it for good.
+    if (!this.ctx) return;
     if (this.buffers.has(src)) {
       this.buffers.delete(src);
       this.buffers.set(src, buf);

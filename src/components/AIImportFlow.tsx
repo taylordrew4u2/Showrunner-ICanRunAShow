@@ -302,6 +302,7 @@ export function AIImportFlow({
               ref={fileInputRef}
               type="file"
               onChange={handleFilePicked}
+              aria-label="Schedule file"
               style={{ display: 'none' }}
             />
           </>
@@ -317,6 +318,7 @@ export function AIImportFlow({
               className="import-paste"
               value={pasted}
               onChange={(e) => setPasted(e.target.value)}
+              aria-label="Pasted schedule"
             />
             <button
               className="btn btn--primary btn--block"

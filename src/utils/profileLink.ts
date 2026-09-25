@@ -1,6 +1,6 @@
 import { INTRODUCTION_CREDITS_LABEL, INTRODUCTION_CREDITS_PLACEHOLDER } from './introductionCredits';
 import type { ContractField, ProfileRequest, ProfileSubmission } from '../types';
-import { api, SUBMIT_TIMEOUT_MS, withNetworkRetry } from './api';
+import { api, SUBMIT_TIMEOUT_MS, withNetworkRetry, type ApiError } from './api';
 import { generateSignKey, generateSignToken, splitIntoChunks } from './contracts';
 import { decryptWithKey, encryptWithKey } from './encryption';
 import { sharedLinkPath } from './sharedLink';
@@ -162,12 +162,23 @@ export interface ProfileView {
   submitted: ProfileSubmission | null;
 }
 
-/** Open a link: what is being asked, and whether it has already been answered. */
+/**
+ * Open a link: what is being asked, and whether it has already been answered.
+ *
+ * Null only for a link that is not there or cannot be read. A request that
+ * died on venue wifi is let through, as the signing page's is, so the page
+ * can offer another go — it used to read as "withdrawn", and the performer
+ * would tell the producer a perfectly good link was dead.
+ */
 export async function fetchProfileRequest(token: string, key: string): Promise<ProfileView | null> {
+  let res: { payload: string; signature: string | null };
   try {
-    const res = await api.get<{ payload: string; signature: string | null }>(
-      `/api/sign?token=${encodeURIComponent(token)}`,
-    );
+    res = await api.get<typeof res>(`/api/sign?token=${encodeURIComponent(token)}`);
+  } catch (err) {
+    if ((err as ApiError).status === 404) return null;
+    throw err;
+  }
+  try {
     const payload = decryptWithKey<ProfilePayload>(res.payload, key);
     // A wrong key decrypts to nothing rather than throwing, and a contract's
     // payload under the right key is still not a profile — check both.

@@ -80,6 +80,17 @@ describe('canDeleteMedia', () => {
     expect(canDeleteMedia(track(), [show('a', [])])).toBe(true);
     expect(canDeleteMedia(track(), [])).toBe(true);
   });
+
+  it('does not delete audio a show in the trash still plays', () => {
+    // Show A trimmed the track for one night, which copied the row into the
+    // show, then was deleted to the trash. Restoring it has to bring the
+    // walk-on back too, so the trash has a say in whether the file goes.
+    const trashed = show('a', [{ id: 's1', title: 'x', artist: '', libraryId: 't1', music: 'media:abc#2', startSec: 42 }]);
+    const trash = [{ id: 'trash-1', type: 'show' as const, data: trashed, deletedAt: '' }];
+    expect(canDeleteMedia(track(), [], trash)).toBe(false);
+    // The live count is still about live shows: the row says "Not in any show".
+    expect(usageCount(track(), [])).toBe(0);
+  });
 });
 
 describe('availableTracks', () => {

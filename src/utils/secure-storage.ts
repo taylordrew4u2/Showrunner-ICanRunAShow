@@ -498,6 +498,12 @@ export interface Snapshot {
   at: string;
   /** Rows in a shows snapshot; absent for settings. */
   count?: number;
+  /**
+   * A settings copy a device could not save — its edits were made over a
+   * version another device had since replaced — kept aside rather than
+   * applied. Never pruned, so the producer can find it whenever they look.
+   */
+  parked?: boolean;
 }
 
 /** Every earlier save of either kind, newest first. */
@@ -505,11 +511,11 @@ export async function listSnapshots(creds: SessionCredentials): Promise<Snapshot
   const a = auth(creds);
   const [shows, settings] = await Promise.all([
     api.get<{ snapshots: { at: string; count: number }[] }>("/api/shows?history=1", a),
-    api.get<{ snapshots: { at: string }[] }>("/api/settings?history=1", a),
+    api.get<{ snapshots: { at: string; parked?: boolean }[] }>("/api/settings?history=1", a),
   ]);
   const all: Snapshot[] = [
     ...shows.snapshots.map((s) => ({ kind: "shows" as const, at: s.at, count: s.count })),
-    ...settings.snapshots.map((s) => ({ kind: "settings" as const, at: s.at })),
+    ...settings.snapshots.map((s) => ({ kind: "settings" as const, at: s.at, ...(s.parked ? { parked: true } : {}) })),
   ];
   return all.sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
 }
