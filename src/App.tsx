@@ -13,7 +13,7 @@ import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/the
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
 import { expandOriginFrom } from './utils/expandOrigin';
-import { getComicProfilePatch, reconcileRolodexProfiles, resolvePerformerComic, syncShowsWithRolodex, type RolodexSyncOptions } from './utils/rolodex';
+import { getComicProfilePatch, reconcileRolodexProfiles, resolvePerformerComic, slotReassigned, syncShowsWithRolodex, type RolodexSyncOptions } from './utils/rolodex';
 import { normalizeComicSettings } from './utils/sharedComicSettings';
 import { mergeSettingsEdit } from './utils/mergeSettingsEdit';
 import { mergeShowEdit } from './utils/mergeShowEdit';
@@ -1832,6 +1832,12 @@ export default function App() {
         if (!old || !currentPeople.has(person.id)) continue;
         const comic = resolvePerformerComic(old, comics);
         if (!comic) continue;
+        // A different name typed over the slot, and the drawer dropped the
+        // link on the producer's say-so: a re-booking, not a rename. The old
+        // entry keeps its name and its photo; reconciling below files the
+        // new name on its own. Written back as a patch, this renamed the
+        // entry and wiped its headshot. See reassignSlot.
+        if (old.comicId && !person.comicId && slotReassigned(old, person)) continue;
         const patch = getComicProfilePatch(old, person);
         if (Object.hasOwn(patch, 'photo') && patch.photo === undefined) clearedPhotos.add(comic.id);
         if (Object.keys(patch).length) {

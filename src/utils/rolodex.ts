@@ -28,6 +28,38 @@ export function getComicProfilePatch(before: ComicProfile, after: ComicProfile):
   ) as Partial<ComicProfile>;
 }
 
+/**
+ * Whether an edit to a booked slot typed a different person over it.
+ *
+ * A name edit on a linked slot used to be written back to the Rolodex as a
+ * rename, so retyping "Alex Rivera" over Sam Okafor's slot renamed Sam's
+ * entry to Alex — and Alex's booking, flyer and soundboard pad all wore
+ * Sam's headshot, socials and credits. The new name is the tell: a fix to
+ * the spelling keeps the same key, and a different key is a different act.
+ */
+export function slotReassigned(before: Pick<Performer, 'name'>, after: Pick<Performer, 'name'>): boolean {
+  const from = rolodexKey(before.name ?? '');
+  const to = rolodexKey(after.name ?? '');
+  return !!from && !!to && from !== to;
+}
+
+/**
+ * The slot as a fresh booking of whoever was just named, keeping only what
+ * the producer typed into it. The link to the old entry goes, and so does
+ * every profile field the slot merely inherited from that entry — the
+ * headshot above all. A field the edit changed at the same time is theirs
+ * and stays. Reconciling the show afterwards files the new name in the
+ * Rolodex, or links it to the entry already there.
+ */
+export function reassignSlot<T extends Performer>(slot: T, previous: ComicProfile): T {
+  const cleared: Partial<ComicProfile> = {};
+  for (const field of COMIC_PROFILE_FIELDS) {
+    if (field === 'name') continue;
+    if (Object.is(slot[field], previous[field])) cleared[field] = undefined;
+  }
+  return { ...slot, ...cleared, comicId: undefined };
+}
+
 /** A linked performer keeps their identity when saved back to the Rolodex. */
 export function performerToComic(performer: Performer): PotentialComic {
   return {

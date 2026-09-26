@@ -209,7 +209,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
           </div>
 
           <div className="perf-profile__actions">
-            <button className="btn btn--primary" onClick={handleSave} disabled={!dirty}>
+            <button className="btn btn--primary" onClick={() => handleSave()} disabled={!dirty}>
               Save Changes
             </button>
             <button
