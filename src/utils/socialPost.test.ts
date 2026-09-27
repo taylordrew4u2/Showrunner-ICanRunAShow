@@ -128,6 +128,29 @@ describe('buildSocialPost', () => {
     expect(post.untagged).toEqual(['Dev Okonjo']);
   });
 
+  it('always names the host, who is on the bill but not in the performer list', () => {
+    const post = buildSocialPost(show({
+      host: 'Jo Park',
+      performers: [{ id: 'p1', name: 'Renata Cruz', socialMedia: '@renatadoesbits' }],
+    }));
+    const lines = post.text.split('\n');
+    expect(lines[3]).toBe('Hosted by Jo Park');
+    // Before the bill, so the host reads as the host and not as the last act on.
+    expect(lines.indexOf('Hosted by Jo Park')).toBeLessThan(lines.indexOf('Renata Cruz @renatadoesbits'));
+  });
+
+  it('takes the host from the hosts list when the host field is empty, with their handle if they perform too', () => {
+    const post = buildSocialPost(show({
+      hosts: [
+        { id: 'h1', name: 'Dev Okonjo', isHosting: true },
+        { id: 'h2', name: 'Someone Else', isHosting: false },
+      ],
+      performers: [{ id: 'p1', name: 'Dev Okonjo', socialMedia: '@devokonjo' }],
+    }));
+    expect(post.text).toContain('Hosted by Dev Okonjo @devokonjo');
+    expect(post.text).not.toContain('Someone Else');
+  });
+
   it('leaves out the ticket line when there is no link to give', () => {
     const post = buildSocialPost(show());
 

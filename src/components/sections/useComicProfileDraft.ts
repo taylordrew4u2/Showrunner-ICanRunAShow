@@ -40,11 +40,16 @@ export function useComicProfileDraft<T extends Profile>(profile: T, onChange: (u
     return updated;
   }
 
-  function save() {
+  /**
+   * Write the edits through. `finish` sees the whole profile as it is about
+   * to be saved and may reshape it — one write, so nothing downstream ever
+   * sees the edits without the reshaping.
+   */
+  function save(finish?: (next: T) => T) {
     const patch = Object.fromEntries(Object.entries(values).map(([field, value]) => [
       field, value?.trim() || (field === 'name' ? latest.current.name : undefined),
     ])) as Partial<T>;
-    const updated = update(patch);
+    const updated = update(finish ? finish({ ...latest.current, ...patch }) : patch);
     setEdits({ id: profile.id, values: {} });
     return updated;
   }
