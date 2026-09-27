@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   addPerformersToRolodex,
+  reassignSlot,
+  slotReassigned,
   comicToPerformer,
   comicToArtist,
   getComicProfilePatch,
@@ -371,5 +373,30 @@ describe('shared Rolodex identities', () => {
     expect(Object.hasOwn(clear, 'comicId')).toBe(false);
     expect(Object.hasOwn(clear, 'id')).toBe(false);
     expect(performerToComic(before).id).toBe('ada');
+  });
+});
+
+describe('typing a different name over a booked slot', () => {
+  const sam = { id: 'sam', name: 'Sam Okafor', photo: 'media:sam', socialMedia: '@samokafor', credits: 'Sam credits' };
+
+  it('is a different act, not a rename of the one on file', () => {
+    expect(slotReassigned({ name: 'Sam Okafor' }, { name: 'Alex Rivera' })).toBe(true);
+    // Fixing the spelling or the spacing is still Sam.
+    expect(slotReassigned({ name: 'sam okafor' }, { name: 'Sam  Okafor ' })).toBe(false);
+    expect(slotReassigned({ name: 'Sam Okafor' }, { name: '' })).toBe(false);
+  });
+
+  it('takes the old act\'s headshot and profile off the slot, and keeps what the edit typed', () => {
+    const slot = performer({
+      id: 'slot', comicId: 'sam', name: 'Alex Rivera',
+      photo: 'media:sam', socialMedia: '@alexrivera', credits: 'Sam credits',
+    });
+    const rebooked = reassignSlot(slot, sam);
+    // Sam's photo and credits came with the link and go with it; the handle
+    // was typed for Alex in the same edit and is Alex's.
+    expect(rebooked).toMatchObject({ id: 'slot', name: 'Alex Rivera', socialMedia: '@alexrivera' });
+    expect(rebooked.comicId).toBeUndefined();
+    expect(rebooked.photo).toBeUndefined();
+    expect(rebooked.credits).toBeUndefined();
   });
 });

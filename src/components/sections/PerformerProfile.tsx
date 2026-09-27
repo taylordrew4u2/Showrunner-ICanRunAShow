@@ -7,7 +7,7 @@ import { Icon } from '../Icon';
 import { TrimControls } from '../TrimControls';
 import { useMediaUrl } from '../../utils/useMediaUrl';
 import { socialLink } from '../../utils/social';
-import { performerToComic } from '../../utils/rolodex';
+import { performerToComic, reassignSlot, slotReassigned } from '../../utils/rolodex';
 import './PerformerProfile.css';
 import { useConfirm } from '../useConfirm';
 import { useComicProfileDraft } from './useComicProfileDraft';
@@ -150,6 +150,36 @@ export function PerformerProfile({ performer, onBack, backLabel = 'Performers', 
   const [savedToRolodex, setSavedToRolodex] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [audioDrag, setAudioDrag] = useState(false);
+
+  /**
+   * Save, asking first when a different name has been typed over a booked
+   * act. Saved as a rename, that put the new name on the old act's Rolodex
+   * entry, and the new act went on the flyer and the soundboard wearing the
+   * old one's headshot. Only the producer knows which they meant, so they
+   * are asked: the same person under a new name keeps everything; a
+   * different act starts this spot clean and leaves the old entry alone.
+   */
+  async function saveProfile() {
+    const typed = draft.name.trim();
+    if (performer.comicId && typed && slotReassigned(performer, { name: typed })) {
+      const different = await confirm({
+        title: 'Same person, or someone else?',
+        message:
+          `You changed the name from ${performer.name} to ${typed}. If it's the same person, ` +
+          `their Rolodex entry is renamed and keeps its headshot and details. If it's a different act, ` +
+          `${performer.name} stays as they are in the Rolodex and this spot is booked fresh for ${typed}, ` +
+          `without ${performer.name}'s photo.`,
+        confirmLabel: 'Different act',
+        cancelLabel: 'Same person',
+        danger: false,
+      });
+      if (different) {
+        handleSave((next) => reassignSlot(next, performer));
+        return;
+      }
+    }
+    handleSave();
+  }
   // Resolves `media:` store references to a playable URL (passthrough otherwise).
   const walkOnUrl = useMediaUrl(performer.walkOnMusic);
 
@@ -348,7 +378,7 @@ export function PerformerProfile({ performer, onBack, backLabel = 'Performers', 
             {/* Always here. Locking a performer used to hide this button
                 outright, so the way to stop yourself editing a booking was
                 also the way to lose an edit you had already typed. */}
-            <button className="btn btn--primary" onClick={handleSave} disabled={!dirty}>
+            <button className="btn btn--primary" onClick={() => void saveProfile()} disabled={!dirty}>
               Save Changes
             </button>
             {/* Gone once they are filed, on every screen that shows a profile:

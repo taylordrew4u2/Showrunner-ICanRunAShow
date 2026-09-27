@@ -43,6 +43,20 @@ export function toHandle(input: string | undefined): string | null {
   return `@${cleaned}`;
 }
 
+/** "Hosted by …", with the host's handle when they are also on the bill. */
+export function hostLine(show: Show): string | null {
+  const named = show.host?.trim();
+  const hosting = (show.hosts ?? []).filter((h) => h.isHosting && h.name.trim()).map((h) => h.name.trim());
+  const names = named ? [named] : hosting;
+  if (names.length === 0) return null;
+  const withHandle = names.map((name) => {
+    const onBill = billedFrom(show).find((p) => p.name.trim().toLowerCase() === name.toLowerCase());
+    const handle = toHandle(onBill?.socialMedia);
+    return handle ? `${name} ${handle}` : name;
+  });
+  return `Hosted by ${withHandle.join(' & ')}`;
+}
+
 function billedFrom(show: Show): Billed[] {
   const performers: Billed[] = show.performers.map((person) => ({
     id: person.id,
@@ -97,6 +111,13 @@ export function buildSocialPost(show: Show): SocialPost {
   const when = [dateText, formatShowTime(show.time)].filter(Boolean).join(' · ');
   if (when) lines.push(when);
   if (where) lines.push(where);
+
+  // The host is on the bill too, and was the one name the post kept leaving
+  // out: they are not in the performer list, and the caption was built from
+  // that alone. The free-text host field wins; otherwise whoever is marked
+  // hosting on the hosts list.
+  const host = hostLine(show);
+  if (host) lines.push(host);
 
   const billed = billedFrom(show);
   if (billed.length > 0) {

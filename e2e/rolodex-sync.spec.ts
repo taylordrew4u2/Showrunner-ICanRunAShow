@@ -110,6 +110,9 @@ test('a Rolodex comic keeps the same complete profile in every show, after edits
     await profile.getByLabel(label, { exact: true }).fill(renamedFields[label]);
   }
   await profile.getByRole('button', { name: 'Save Changes', exact: true }).click();
+  // A new name over a booked act is a question, not a guess: the same person
+  // under a new stage name keeps everything, and that is what this is.
+  await page.locator('.confirm-dialog__actions button:has-text("Same person")').click();
   await expectProfile(profile, renamedFields, originalPhoto);
   await profile.locator('.perf-profile__back').click();
 
@@ -176,4 +179,32 @@ test('a Rolodex comic keeps the same complete profile in every show, after edits
     await profile.locator('.perf-profile__back').click();
   }
   expect(state.mediaDeletes).toEqual([]);
+
+  // ── A different act typed over the slot ────────────────────────────────
+  //
+  // Mona drops out and Alex takes the spot; the producer retypes the name on
+  // the booking. Saved as a rename, that put "Alex Rivera" on Mona's Rolodex
+  // entry, and Alex went on the flyer wearing Mona's face. Told it is a
+  // different act, the spot starts clean and Mona is left as she was.
+  await openShow(page, 'First Shared Show');
+  profile = await openShowProfile(page, 'Mona Sol');
+  await profile.getByLabel('Name', { exact: true }).fill('Alex Rivera');
+  await profile.getByRole('button', { name: 'Save Changes', exact: true }).click();
+  await page.locator('.confirm-dialog__actions button:has-text("Different act")').click();
+  await expect(profile.getByLabel('Name', { exact: true })).toHaveValue('Alex Rivera');
+  await expect(profile.locator('.headshot__image')).toHaveCount(0);
+  await expect(profile.getByLabel('Instagram / Social', { exact: true })).toHaveValue('');
+  await profile.locator('.perf-profile__back').click();
+
+  await gotoTab(page, 'Rolodex');
+  await expect(page.locator('.rolodex__item')).toHaveCount(2);
+  const mona = page.locator('.rolodex__item').filter({ hasText: 'Mona Sol' });
+  await expect(mona.locator('.rolodex__photo')).toHaveAttribute('src', replacementPhoto);
+  const alex = page.locator('.rolodex__item').filter({ hasText: 'Alex Rivera' });
+  await expect(alex.locator('.rolodex__photo')).toHaveCount(0);
+  // Mona's other booking is untouched: still her, still her face.
+  await openShow(page, 'Second Shared Show');
+  profile = await openShowProfile(page, 'Mona Sol');
+  await expectProfile(profile, finalFields, replacementPhoto);
+  await profile.locator('.perf-profile__back').click();
 });

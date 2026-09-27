@@ -34,6 +34,9 @@ test.describe('post copy', () => {
 
     await openSection(page, 'Basic Info');
     await page.getByLabel('Venue Name').fill('The Cellar');
+    // The host is on the bill too, and the post used to leave them out.
+    await page.locator('#show-host-input').fill('Jo Park');
+    await page.locator('#show-host-input').blur();
 
     // Copy and email must remain available without expanding the lineup editor.
     await page.getByRole('navigation', {name:'Show sections'}).getByRole('button', {name:'Overview', exact:true}).click();
@@ -55,6 +58,7 @@ test.describe('post copy', () => {
     await expect(caption).toBeVisible();
     await expect(caption).toHaveValue(/BASEMENT COMEDY HOUR/);
     await expect(caption).toHaveValue(/The Cellar/);
+    await expect(caption).toHaveValue(/Hosted by Jo Park/);
     await expect(caption).toHaveValue(/Mona Sable @monasable/);
 
     // The person with nothing saved is named, not silently left off.
