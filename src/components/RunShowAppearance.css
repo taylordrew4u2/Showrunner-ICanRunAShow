@@ -14,7 +14,7 @@
   --text: #f3f6fc;
   --text-muted: #a6b3c7;
   --text-soft: #a6b3c7;
-  background: var(--show-backdrop, #0b1120);
+  background: var(--show-backdrop, #0e0f11);
   color: var(--text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color-scheme: dark;
@@ -22,7 +22,7 @@
 
 .run-show .run-show__bar {
   padding: calc(12px + env(safe-area-inset-top)) 24px 12px;
-  background: var(--show-backdrop, #0b1120);
+  background: var(--show-backdrop, #0e0f11);
   border-color: var(--rs-panel-border);
 }
 
@@ -39,7 +39,7 @@
 .run-show .run-show__finish,
 .run-show .run-show__close {
   min-height: 44px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   border: 1px solid var(--rs-panel-border);
   color: var(--rs-dim);
@@ -66,7 +66,7 @@
 
 .run-show .rs-panel {
   padding: 24px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--rs-panel);
   border-color: var(--rs-panel-border);
   box-shadow: none;
@@ -86,7 +86,7 @@
   padding: 20px;
   gap: 20px;
   border: 1px solid var(--rs-deck-edge);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--rs-deck);
   box-shadow: none;
 }
@@ -98,7 +98,7 @@
 .run-show .rs-music-card__play {
   min-height: 44px;
   padding: 12px 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border-color: #2d6bd2;
   background: #2d6bd2;
   color: #fff;
@@ -109,9 +109,9 @@
 
 .run-show .rs-fade,
 .run-show .rs-console__levels {
-  background: var(--show-backdrop, #0b1120);
+  background: var(--show-backdrop, #0e0f11);
   border: 1px solid var(--rs-panel-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: none;
 }
 .run-show .rs-fade { padding: 14px; gap: 10px; margin-bottom: 16px; }
@@ -127,7 +127,7 @@
 .run-show .rs-fade .rs-chip {
   min-height: 36px;
   padding: 7px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border-color: var(--rs-deck-edge);
   background: transparent;
   color: var(--rs-dim);
@@ -214,13 +214,13 @@
 .run-show .rs-pad__sub { color: var(--rs-dim); font-size: .6875rem; }
 .run-show .rs-pad__sub--auto { opacity: 1; }
 .run-show .rs-pad__kind,
-.run-show .rs-pad__state { background: #111827; color: var(--text); border-color: var(--rs-deck-edge); }
+.run-show .rs-pad__state { background: #0e0f11; color: var(--text); border-color: var(--rs-deck-edge); }
 .run-show .rs-pad--playing .rs-pad__face { border-color: var(--rs-green); box-shadow: 0 0 0 2px rgb(74 222 128 / 20%); }
 .run-show .rs-pad--playing .rs-pad__label { color: var(--rs-green); }
 .run-show .rs-pad--playing .rs-pad__state { background: var(--rs-green); border-color: var(--rs-green); color: #052e16; }
 .run-show .rs-pad--loading .rs-pad__face { border-color: var(--rs-amber); box-shadow: 0 0 0 2px rgb(251 191 36 / 20%); }
 .run-show .rs-pad--loading .rs-pad__label { color: var(--rs-amber); }
-.run-show .rs-pad--loading .rs-pad__state { background: #111827; border-color: var(--rs-amber); color: var(--rs-amber); }
+.run-show .rs-pad--loading .rs-pad__state { background: #0e0f11; border-color: var(--rs-amber); color: var(--rs-amber); }
 
 .run-show .rs-clock { padding: 28px 24px; }
 .run-show .rs-clock__head { font-size: .6875rem; letter-spacing: .06em; }
@@ -234,16 +234,16 @@
 .run-show .rs-progress__bar--over { background: var(--rs-red); }
 .run-show .rs-transport { margin-top: 20px; gap: 8px; }
 .run-show .rs-transport .rs-btn { min-height: 44px; padding: 12px 8px; font-size: .8125rem; }
-.run-show .rs-btn { background: var(--rs-deck); border-color: var(--rs-deck-edge); border-radius: 8px; color: var(--text); font-weight: 600; }
+.run-show .rs-btn { background: var(--rs-deck); border-color: var(--rs-deck-edge); border-radius: var(--radius-md); color: var(--text); font-weight: 600; }
 .run-show .rs-btn:hover:not(:disabled) { background: #2a3850; }
 .run-show .rs-btn--start,
-.run-show .rs-btn--start:hover:not(:disabled) { background: #f3f6fc; border-color: #f3f6fc; color: #0b1120; filter: none; }
+.run-show .rs-btn--start:hover:not(:disabled) { background: #f3f6fc; border-color: #f3f6fc; color: #0e0f11; filter: none; }
 .run-show .rs-btn--pause { background: #3d321b; border-color: #9c7b2d; color: var(--rs-amber); }
 .run-show .rs-btn--pause:hover:not(:disabled) { background: #514322; }
 .run-show .rs-nudge { margin-top: 12px; }
 
 .run-show .rs-lineup__list { margin-top: 16px; gap: 6px; }
-.run-show .rs-lineup__row { padding: 12px 10px; gap: 10px; border-radius: 8px; background: transparent; color: var(--rs-dim); }
+.run-show .rs-lineup__row { padding: 12px 10px; gap: 10px; border-radius: var(--radius-md); background: transparent; color: var(--rs-dim); }
 .run-show .rs-lineup__row:hover { background: rgb(255 255 255 / 4%); }
 .run-show .rs-lineup__row--current { background: rgb(66 133 244 / 12%); border-color: var(--rs-blue); color: var(--text); }
 .run-show .rs-lineup__row--done { opacity: 1; }
