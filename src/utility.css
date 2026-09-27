@@ -1,0 +1,174 @@
+/* ── Utility look ───────────────────────────────────────────────────────
+   The app is a tool run from a laptop at the side of a stage or a phone in
+   a basement, and it had been dressed like a landing page: navy-tinted
+   surfaces, 14–22px card corners, pill buttons, 40px negatively tracked
+   headlines, and phone type blown up to 20px. None of that helps anybody
+   find the next cue faster.
+
+   This layer is loaded last (see main.tsx) so it restyles by token and by a
+   handful of overrides, rather than rewriting forty component sheets:
+   neutral greys instead of blue-tinted ones, near-square corners, hairline
+   borders with no shadows, modest headings, tabular figures, and small
+   monospaced section labels. Behaviour, layout and tap targets are
+   untouched; the 44px finger minimum on touch screens still applies. */
+
+:root {
+  --bg: #f4f4f5;
+  --backdrop: #e7e7ea;
+  --surface: #ffffff;
+  --surface-strong: #efeff1;
+  --text: #121316;
+  --text-muted: #50535a;
+  --text-soft: #5c5f66;
+  --border: #d9d9de;
+  --border-strong: #a3a6ad;
+  --primary-soft: #eaf0fb;
+  --primary-soft-border: #b3c6ea;
+  --header-bg: #f4f4f5;
+  --segment-track: #e4e4e7;
+  --segment-chip: #ffffff;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 10px 28px rgba(0, 0, 0, 0.16);
+  --shadow-drawer: -1px 0 0 var(--border);
+
+  /* A tool's corners: enough to not look like a spreadsheet cell, never
+     enough to look like a button in a marketing hero. */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 5px;
+  --radius-xl: 6px;
+  --radius-2xl: 8px;
+}
+
+[data-theme="dark"] {
+  --bg: #111214;
+  --backdrop: #0b0c0d;
+  --surface: #18191c;
+  --surface-strong: #202226;
+  --text: #ececee;
+  --text-muted: #a4a7ad;
+  --text-soft: #92959c;
+  --border: #2d2f34;
+  --border-strong: #4a4d54;
+  --primary-soft: #1a2436;
+  --primary-soft-border: #34507e;
+  --header-bg: #111214;
+  --segment-track: #111214;
+  --segment-chip: #2d2f34;
+  --shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* Phones were scaled to 19–20px root type so labels would read; at that size
+   a screen holds three rows of anything. 17px keeps small labels readable
+   and gets the density of a tool back. Inputs stay at the 16px floor that
+   stops iOS zooming (index.css). */
+@media (max-width: 768px) {
+  html { font-size: 17px; }
+}
+
+body {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Headings: one weight step down and no negative tracking. The tight,
+   heavy display style is what made every screen feel like a poster. */
+#root :is(h1, h2, h3, h4) { letter-spacing: normal; }
+.page-header__title,
+.show-detail__title,
+.show-workspace__body .show-detail__title {
+  font-size: var(--text-2xl);
+  font-weight: 650;
+  letter-spacing: normal;
+  line-height: 1.2;
+}
+@media (min-width: 900px) {
+  .page-header__title { font-size: var(--text-3xl); font-weight: 650; }
+}
+.dash-next__name { font-size: var(--text-xl); font-weight: 650; letter-spacing: normal; }
+.show-card__title { font-weight: 600; letter-spacing: normal; }
+.landing__headline { font-weight: 650; letter-spacing: -0.01em; line-height: 1.1; }
+.login__title { letter-spacing: normal; }
+
+/* Section labels read as instrument labels: small, monospaced, uppercase. */
+.dash-panel__title,
+.shows-list__heading-text,
+.run-of-show__label,
+.settings__section-title {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.dash-panel--next .dash-panel__title { letter-spacing: 0.06em; }
+
+/* Cards and panels: flat, one hairline, no glow. */
+.dash-panel--next,
+.show-card,
+.accordion-section,
+.login__container {
+  box-shadow: none;
+}
+
+/* Pills become tags. Circles (dots, avatars, soundboard pads) keep their
+   shape; only the rounded-rectangle chips square up. */
+.pill,
+.sync-status__pill,
+.show-detail__status,
+.accordion-section__count,
+.contracts__badge,
+.more-item__badge,
+.music-list__tag,
+.onboarding__chip,
+.settings__chip,
+.cue__perf,
+.icon-btn--ghost,
+.icon-btn--primary {
+  border-radius: var(--radius-sm);
+}
+
+/* Buttons: the same size, one weight lighter, square-ish. */
+.btn { font-weight: 600; letter-spacing: normal; }
+
+/* Navigation: an active item is marked by a rule, not a blob of colour. */
+@media (min-width: 900px) {
+  .bottom-nav__item--active { background: var(--surface-strong); box-shadow: inset 2px 0 0 var(--primary); }
+}
+
+/* The show's section switcher is a row of tabs, not a row of buttons: the
+   open section is underlined, and nothing fills with colour. */
+.show-workspace__sidebar nav button[aria-expanded="true"] {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+.show-workspace__sidebar button:hover { background: var(--surface-strong); }
+.show-workspace .accordion-section__icon { background: transparent; color: var(--text-muted); }
+
+/* Run Show stays dark on purpose (a lit screen at the side of a stage), but
+   the dark was navy. Neutral charcoal, so the only colours on it are the
+   ones that mean something: the running clock's amber and red. */
+.run-show.run-show {
+  --rs-panel: var(--show-surface, #17181b);
+  --rs-panel-border: rgb(255 255 255 / 9%);
+  --rs-deck: var(--show-surface-strong, #1f2024);
+  --rs-deck-edge: rgb(255 255 255 / 14%);
+  --rs-dim: #a4a7ad;
+  --text: #ececee;
+  --text-muted: #a4a7ad;
+  --text-soft: #a4a7ad;
+  background: var(--show-backdrop, #0e0f11);
+}
+
+/* The night's timeline: blocks are outlined boxes on a grey fill, with the
+   longest one ruled in the accent, instead of a strip of tinted blue. */
+.timeline__seg { border-color: var(--border-strong); }
+.timeline__seg-fill,
+.timeline__seg--longest .timeline__seg-fill { background: var(--surface-strong); }
