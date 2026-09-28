@@ -91,7 +91,6 @@ body {
 }
 .dash-next__name { font-size: var(--text-xl); font-weight: 650; letter-spacing: normal; }
 .show-card__title { font-weight: 600; letter-spacing: normal; }
-.landing__headline { font-weight: 650; letter-spacing: -0.01em; line-height: 1.1; }
 .login__title { letter-spacing: normal; }
 
 /* Section labels read as instrument labels: small, monospaced, uppercase. */
@@ -172,3 +171,30 @@ body {
 .timeline__seg { border-color: var(--border-strong); }
 .timeline__seg-fill,
 .timeline__seg--longest .timeline__seg-fill { background: var(--surface-strong); }
+
+/* The sign-in screen was the last poster in the building: a 72px two-colour
+   headline and a floating card. It is now the same tool as everything behind
+   it — a plain title, the workflow as a numbered list with rules, and a flat
+   form panel — so signing in doesn't feel like arriving somewhere else. */
+.landing__center { gap: 64px; }
+.landing__wordmark { margin-bottom: 28px; }
+.landing__wordmark-text { font-size: var(--text-md); font-weight: 600; }
+.landing__headline {
+  font-size: var(--text-4xl);
+  font-weight: 650;
+  letter-spacing: normal;
+  line-height: 1.2;
+  margin-bottom: 12px;
+}
+.landing__headline em { color: inherit; }
+.landing__lede { font-size: var(--text-base); line-height: 1.55; color: var(--text-muted); }
+.landing__steps { gap: 0; margin-top: 28px; border-top: 1px solid var(--border); }
+.landing__steps li { gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.landing__steps span { color: var(--text-muted); }
+.login__container,
+[data-theme="dark"] .login__container { box-shadow: none; }
+.login__title { font-size: var(--text-lg); font-weight: 650; }
+.login__button { font-weight: 600; }
+@media (max-width: 768px) {
+  .landing__headline { font-size: var(--text-3xl); }
+}
