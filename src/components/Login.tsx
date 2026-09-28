@@ -62,7 +62,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
           <span className="landing__wordmark-text">I Can Run A Show</span>
         </div>
 
-        <h1 className="landing__headline">Make it a<br /><em>great night.</em></h1>
+        <h1 className="landing__headline">Make it a <em>great night.</em></h1>
         <p className="landing__lede">
           Build the lineup, import the schedule, and run the night.
           Your whole production, in one place.
