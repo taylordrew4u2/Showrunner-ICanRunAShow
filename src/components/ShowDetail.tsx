@@ -5,6 +5,7 @@ import { comicToPerformer } from '../utils/rolodex';
 import { SceneList } from './SceneList';
 import { Icon, type IconName } from './Icon';
 import { MoreMenu, type MoreMenuItem } from './MoreMenu';
+import { ShowFlyer } from './ShowFlyer';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { PerformersSection } from './sections/PerformersSection';
 import { PerformerContracts } from './sections/PerformerContracts';
@@ -1062,29 +1063,10 @@ export function ShowDetail({
         </div>
       </div>
 
-      <div className={`show-workspace__columns${scheduleSection ? '' : ' show-workspace__columns--without-schedule'}`}>
-      {scheduleSection && <aside className="show-workspace__running" aria-label="Running order">
-        <div className="show-workspace__running-head">
-          <h2>{detailDate?.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) || 'Show day'}</h2>
-          <p>Running order</p>
-        </div>
-        {renderSection(scheduleSection)}
-        {!expandedSections.has('schedule') && <>
-        {show.schedule.length > 0 && <ShowTimeline schedule={show.schedule} showTime={show.time} />}
-        {show.schedule.length ? <ol>
-          {show.schedule.map((cue, index) => <li key={cue.id}>
-            <span className="show-workspace__cue-number">{String(index + 1).padStart(2, '0')}</span>
-            <button onClick={() => jumpToSection('schedule')}>
-              <time>{cue.time || `Cue ${index + 1}`}</time>
-              <strong>{cue.description || 'Untitled cue'}</strong>
-              {cue.performer && <span>{cue.performer}</span>}
-              {cue.durationMin != null && <small>{cue.durationMin} min</small>}
-            </button>
-          </li>)}
-        </ol> : <div className="show-workspace__running-empty"><Icon name="schedule" size={28} /><h3>Plan the night</h3><p>Add cues or build a running order from your lineup.</p></div>}
-        <button className="btn btn--primary" onClick={() => jumpToSection('schedule')}>{show.schedule.length ? 'Edit schedule' : 'Build schedule'}</button>
-        </>}
-      </aside>}
+      {/* The lineup comes first — it is what a producer opens a show to look
+          at. The flyer and the running order sit beside it on a laptop and
+          below it on a phone. */}
+      <div className="show-workspace__columns">
       <div className="show-detail__sections-accordion">
       {/* Host — one row, not two.
           The name field and a "Pick someone…" select used to sit side by side,
@@ -1165,6 +1147,31 @@ export function ShowDetail({
         </section>
 
         {visibleSections.filter(section => section.key !== 'schedule').map(renderSection)}
+      </div>
+      <div className="show-workspace__side">
+      <ShowFlyer showName={show.name} flyer={show.flyer} onChange={(flyer) => handleUpdate({ flyer })} />
+      {scheduleSection && <aside className="show-workspace__running" aria-label="Running order">
+        <div className="show-workspace__running-head">
+          <h2>{detailDate?.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) || 'Show day'}</h2>
+          <p>Running order</p>
+        </div>
+        {renderSection(scheduleSection)}
+        {!expandedSections.has('schedule') && <>
+        {show.schedule.length > 0 && <ShowTimeline schedule={show.schedule} showTime={show.time} />}
+        {show.schedule.length ? <ol>
+          {show.schedule.map((cue, index) => <li key={cue.id}>
+            <span className="show-workspace__cue-number">{String(index + 1).padStart(2, '0')}</span>
+            <button onClick={() => jumpToSection('schedule')}>
+              <time>{cue.time || `Cue ${index + 1}`}</time>
+              <strong>{cue.description || 'Untitled cue'}</strong>
+              {cue.performer && <span>{cue.performer}</span>}
+              {cue.durationMin != null && <small>{cue.durationMin} min</small>}
+            </button>
+          </li>)}
+        </ol> : <div className="show-workspace__running-empty"><Icon name="schedule" size={28} /><h3>Plan the night</h3><p>Add cues or build a running order from your lineup.</p></div>}
+        <button className="btn btn--primary" onClick={() => jumpToSection('schedule')}>{show.schedule.length ? 'Edit schedule' : 'Build schedule'}</button>
+        </>}
+      </aside>}
       </div>
 
 

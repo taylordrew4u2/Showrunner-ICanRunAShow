@@ -20,17 +20,24 @@ function scrub(obj: unknown, keys: string[]): void {
   for (const k of keys) delete (obj as LegacyRecord)[k];
 }
 
-/** Drop a photo field unless it's a media-store reference. */
-function scrubEmbeddedPhoto(obj: unknown): void {
+/** Drop an image field unless it's a media-store reference. */
+function scrubEmbeddedImage(obj: unknown, key: 'photo' | 'flyer'): void {
   if (!obj || typeof obj !== 'object') return;
   const rec = obj as LegacyRecord;
-  if (typeof rec.photo === 'string' && isMediaRef(rec.photo)) return;
-  delete rec.photo;
+  if (typeof rec[key] === 'string' && isMediaRef(rec[key])) return;
+  delete rec[key];
+}
+
+function scrubEmbeddedPhoto(obj: unknown): void {
+  scrubEmbeddedImage(obj, 'photo');
 }
 
 /** Remove legacy embedded media (photos, videos, files) from a show in place. */
 export function stripLegacyShowMedia(show: Show): Show {
-  scrub(show, ['flyer', 'scheduleImage', 'artistFlashImage', 'artistScheduleImage', 'files']);
+  scrub(show, ['scheduleImage', 'artistFlashImage', 'artistScheduleImage', 'files']);
+  // A flyer is back as an upload, stored as a reference; only the old
+  // embedded base64 kind is thrown away.
+  scrubEmbeddedImage(show, 'flyer');
   for (const p of show.performers || []) {
     scrub(p, ['photos', 'video']);
     scrubEmbeddedPhoto(p);
