@@ -198,3 +198,37 @@ body {
 @media (max-width: 768px) {
   .landing__headline { font-size: var(--text-3xl); }
 }
+
+/* The desktop menu was a second sidebar dropped over the page: the logo and
+   name again under the bar that already shows them, 48px rows spaced 6px
+   apart, and a card that ran into the page with nothing to separate it.
+   Now it is a menu: tucked under its button, rows at menu height, the open
+   page marked with a rule, and the page dimmed behind it so it reads as
+   something on top that a click outside will close. */
+@media (min-width: 900px) {
+  .bottom-nav:popover-open {
+    width: 220px;
+    padding: 4px;
+    border-color: var(--border-strong);
+  }
+  .bottom-nav:popover-open::backdrop { background: rgb(0 0 0 / 28%); }
+  .bottom-nav:popover-open .bottom-nav__brand { display: none; }
+  .bottom-nav:popover-open .bottom-nav__items { padding: 0; gap: 0; }
+  .bottom-nav:popover-open .bottom-nav__item {
+    min-height: 40px;
+    padding: 0 12px;
+    gap: 12px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-md);
+    font-weight: 500;
+    color: var(--text);
+  }
+  .bottom-nav:popover-open .bottom-nav__item-icon { color: var(--text-muted); opacity: 1; }
+  .bottom-nav:popover-open .bottom-nav__item--active {
+    background: var(--surface-strong);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: inset 2px 0 0 var(--primary);
+  }
+  .bottom-nav:popover-open .bottom-nav__item--active .bottom-nav__item-icon { color: var(--primary-text); }
+}
