@@ -59,6 +59,13 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These screensho
   <sub><b>Desktop workspace</b> — the next show and its readiness checks, with navigation tucked into the hamburger menu</sub>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/desktop-show.png" width="100%" alt="A show on desktop: the performers first, with the show's flyer beside them" />
+</p>
+<p align="center">
+  <sub><b>A show on desktop</b> — the lineup comes first, with the night's flyer and running order beside it</sub>
+</p>
+
 <details>
 <summary>Desktop menu, light theme, and sign-in</summary>
 
