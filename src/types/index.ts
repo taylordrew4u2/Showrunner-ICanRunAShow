@@ -249,6 +249,12 @@ export interface Show {
   venueName: string;
   status: ShowStatus;
   ticketLink?: string;
+  /**
+   * The night's flyer (media store reference). Kept on the show rather than
+   * made from it: producers design flyers elsewhere and needed somewhere to
+   * keep the finished one next to the lineup it advertises.
+   */
+  flyer?: string;
   performers: Performer[];
   artists: Artist[];
   schedule: ScheduleItem[];

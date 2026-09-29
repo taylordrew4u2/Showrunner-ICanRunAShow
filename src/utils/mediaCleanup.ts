@@ -31,6 +31,7 @@ function push(into: Set<string>, value?: string): void {
 /** Every media reference a show points at, whether or not it is shared. */
 export function showMediaRefs(show: Show): string[] {
   const refs = new Set<string>();
+  push(refs, show.flyer);
   for (const p of show.performers ?? []) {
     push(refs, p.photo);
     push(refs, p.walkOnMusic);
