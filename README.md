@@ -50,10 +50,10 @@
 
 ## Screenshots
 
-Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These screenshots show the blue design, desktop hamburger navigation, and phone bottom bar. They are captured from the local production build with sample data using `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)).
+Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These screenshots show the utility design (neutral greys, flat panels, small corners), the desktop hamburger menu, and the phone bottom bar. They are captured from the local production build with sample data using `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)).
 
 <p align="center">
-  <img src="docs/screenshots/desktop-shows.png" width="100%" alt="Blue desktop dashboard with the sidebar hidden behind a hamburger menu" />
+  <img src="docs/screenshots/desktop-shows.png" width="100%" alt="Desktop dashboard with the navigation tucked behind a hamburger menu" />
 </p>
 <p align="center">
   <sub><b>Desktop workspace</b> — the next show and its readiness checks, with navigation tucked into the hamburger menu</sub>
@@ -64,8 +64,8 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These screensho
 
 <p align="center">
   <img src="docs/screenshots/desktop-menu.png" width="100%" alt="Desktop hamburger menu open with Shows, Rolodex, Music, More, and Settings" />
-  <img src="docs/screenshots/desktop-light.png" width="100%" alt="Desktop dashboard in the light theme with the selected blue accent" />
-  <img src="docs/screenshots/sign-in.png" width="100%" alt="New sign-in design with the app logo, show workflow, and account form" />
+  <img src="docs/screenshots/desktop-light.png" width="100%" alt="Desktop dashboard in the light theme" />
+  <img src="docs/screenshots/sign-in.png" width="100%" alt="Sign-in screen with the app name, the show workflow, and the account form" />
 </p>
 
 </details>
@@ -83,7 +83,7 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These screensho
   <img src="docs/screenshots/schedule.png" width="32%" alt="Run-of-show builder" />
 </p>
 <p align="center">
-  <sub><b>Shows dashboard</b> — what's next and what still needs doing &nbsp;·&nbsp; <b>Show detail</b> — the section accordion &nbsp;·&nbsp; <b>Run-of-show</b> — build the cue list (or import it from a photo, PDF, or text)</sub>
+  <sub><b>Shows dashboard</b> — what's next and what still needs doing &nbsp;·&nbsp; <b>Show detail</b> — opens on the performers; flyer and running order alongside &nbsp;·&nbsp; <b>Run-of-show</b> — build the cue list (or import it from a photo, PDF, or text)</sub>
 </p>
 
 <p align="center">
@@ -101,7 +101,7 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These screensho
   <img src="docs/screenshots/contracts.png" width="32%" alt="Contracts — who has signed and who has not" />
 </p>
 <p align="center">
-  <sub><b>Run Show</b> — the clock, the soundboard, and the lineup &nbsp;·&nbsp; <b>More</b> — the between-shows pages, off a five-tab bar &nbsp;·&nbsp; <b>Contracts</b> — one signed, one still waiting, each with the hash of the document agreed to</sub>
+  <sub><b>Run Show</b> — the clock, the soundboard, and the lineup &nbsp;·&nbsp; <b>More</b> — the between-shows pages, off a five-tab bar &nbsp;·&nbsp; <b>Contracts</b> — one signed, one still waiting, each with the hash of the document agreed to and the day-of cancellation rule acknowledged</sub>
 </p>
 
 <p align="center">
@@ -145,15 +145,19 @@ I Can Run A Show handles the full workflow in a single application:
 - Show-type-aware wording — the Rolodex adapts to what you book (Comic Rolodex, Queen Rolodex, Artist Rolodex, …), with an editable override in Settings
 - Selectable color schemes — Light and Dark; the choice persists across visits and applies app-wide, including the public viewer page
 - Per-show customizable sections — hide the sections you don't use
+- A utility look — neutral greys, flat hairline panels, small corners and tabular figures, so the app reads as a tool at the side of a stage rather than a landing page
 
 **Show building**
 - Multiple shows with status tracking (upcoming, in-progress, completed, cancelled)
+- A show opens on its performers: the lineup is the first thing on the page, with the running order beside it on a laptop and below it on a phone
 - Per-show lineup with performer profiles: headshot, social media, email, credits, walk-on track, and video link
+- A flyer on every show — upload, view full size, download, replace or remove; stored encrypted like headshots and never removed by the storage sweep while a show uses it
 - Headshots are resized in the browser and stored encrypted in the media store — the photo becomes the face on that performer's Run Show button
 - Clickable contacts — social handles link straight to the profile (bare handles resolve to Instagram); one tap to email a performer
 - "Email all performers" — opens your mail app with the lineup BCC'd and a pre-filled confirmation, for quick booking confirmations
 - Global performer rolodex — save a performer once, reuse across shows; edits sync to all matching performers
 - Vendors, staff, host, expenses, and per-section deadlines on each show
+- Post copy — the show's details, the host, the bill and everyone's handles composed into a caption and copied to the clipboard (nothing is posted for you)
 
 **Schedule import**
 - Schedule import from a photo, a PDF, or pasted text — all read on the device: PDF.js for PDFs, Tesseract.js OCR for photos, then a line parser that picks out times, performers and durations
@@ -171,6 +175,7 @@ I Can Run A Show handles the full workflow in a single application:
 - Upload a contract, send it to anyone in the Rolodex, and watch the list go from waiting to signed
 - The signer needs no account: they open a link, read the PDF, type their name and agree — and the server never holds a key that could read any of it
 - Every signature records the typed name, the timestamp, and a SHA-256 of the exact bytes shown, so the copy on file can be shown to be the copy agreed to
+- A day-of cancellation rule the signer must acknowledge: cancelling on the day for another booking means they won't be booked again. Worded kindly, and recorded with the signature
 
 **Running it from the stage**
 - The operator is usually on the bill too. A Bluetooth clicker paired to the laptop starts and stops the music from anywhere in the room, with no network of any kind involved
