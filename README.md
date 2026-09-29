@@ -59,6 +59,13 @@ Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These screensho
   <sub><b>Desktop workspace</b> — the next show and its readiness checks, with navigation tucked into the hamburger menu</sub>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/desktop-show.png" width="100%" alt="A show on desktop: the performers first, with the show's flyer beside them" />
+</p>
+<p align="center">
+  <sub><b>A show on desktop</b> — the lineup comes first, with the night's flyer and running order beside it</sub>
+</p>
+
 <details>
 <summary>Desktop menu, light theme, and sign-in</summary>
 
@@ -321,9 +328,9 @@ npm run build
 ### Tests
 
 ```bash
-npm test                # 439 unit tests (Vitest)
+npm test                # 1,026 unit tests (Vitest)
 npm run e2e:install     # once: download the Chromium build Playwright pins
-npm run e2e             # 14 end-to-end tests (desktop + phone)
+npm run e2e             # 58 end-to-end tests, run on desktop and phone (116 runs)
 ```
 
 The end-to-end suite builds and serves the app itself, so there is no dev
@@ -388,7 +395,7 @@ See [docs/IOS.md](docs/IOS.md) for signing, running on a device, and App Store n
 
 ## Technical Decisions
 
-**No CSS framework.** Every component is styled with hand-written CSS using a comprehensive design token system. Tokens cover type scale (`--text-*`), spacing (`--space-*`), z-index layers (`--z-*`), transition timing (`--duration-*`, `--ease-*`), and a radius scale (`--radius-xs` → `--radius-full`). The palette is a neutral grey base with a single crimson accent — the greys are neutral rather than warm so the crimson is the only colour with a voice. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer link — are just a `data-theme` swap.
+**No CSS framework.** Every component is styled with hand-written CSS using a comprehensive design token system. Tokens cover type scale (`--text-*`), spacing (`--space-*`), z-index layers (`--z-*`), transition timing (`--duration-*`, `--ease-*`), and a radius scale (`--radius-xs` → `--radius-full`). The palette is a booker's: warm paper and graphite neutrals with a single deep ink-blue accent, the colours of a ledger and a signed contract. The look is a utility one — flat hairline panels, small corners, tabular figures and monospaced section labels — layered last in `src/utility.css`, so it restyles by token rather than by rewriting every component sheet. The whole UI themes from a single set of CSS custom properties, so Light/Dark schemes — applied app-wide and on the public viewer link — are just a `data-theme` swap.
 
 **Phone-first, and a phone layout on a phone.** One set of components serves every width; the shape changes rather than the code. A show is a *card* where two can sit side by side and each is genuinely its own object, and a *row in an inset grouped list* on a phone, where only one fits per line and the framing was saying nothing — one rounded container, hairlines between rows, a title, a line of detail, a disclosure chevron. At 900px the bottom navigation becomes a sidebar. The rule throughout: chrome that earns its space at one width is not automatically worth it at another.
 
@@ -434,9 +441,9 @@ The original `vercel.json` rewrite used a negative-lookahead pattern that didn't
 
 ## Testing
 
-**439 unit tests** (Vitest) cover the pure logic: schedule parsing, cue timing, performer cover-sync, the encryption round-trip, soundboard construction, media reachability, and the section defaults. `npm test`.
+**1,026 unit tests** (Vitest) cover the pure logic: schedule parsing, cue timing, performer cover-sync, the encryption round-trip, soundboard construction, media reachability (flyers included), contract signing, post copy, and the section defaults. `npm test`.
 
-**14 end-to-end tests** (Playwright) drive the built app in a real browser, across a desktop project and a phone project. `npm run e2e` — it builds, serves and tears down on its own, so there is nothing to start first.
+**58 end-to-end tests across 22 specs** (Playwright) drive the built app in a real browser, each run in a desktop project and a phone project (116 runs). `npm run e2e` — it builds, serves and tears down on its own, so there is nothing to start first.
 
 They cover what would ruin a show night, and the properties that are worth asserting rather than describing:
 
@@ -445,7 +452,9 @@ They cover what would ruin a show night, and the properties that are worth asser
 | `critical-path` | Sign up → build a show → add *and edit* a cue → open live mode; and that live mode is driveable from the keyboard alone, which is what makes a Bluetooth clicker work as a stage remote |
 | `contracts` | A signer in a **separate browser context with no session** opens a link and signs; signing twice is refused; **no request carries the fragment key** and no server-side row holds the signer's name |
 | `storage` | The sweep clears a seeded orphan while leaving files still in use; and it is not offered at all to a client whose data failed to load — the failure that would empty an account rather than a bin |
-| `navigation` | Five tabs, More leads to the paperwork and back returns there; and every label still fits its tab at 320px |
+| `navigation` | Five tabs, More leads to the paperwork and back returns there; every label still fits its tab at 320px; and the desktop hamburger menu opens, closes on Escape or a click outside, and gets out of the way |
+| `show-flyer` | Every show keeps its own flyer through a reload, a new show starts without one, and the lineup comes before the running order |
+| `contract-from-show` | A contract sent from a show's lineup is signed with the required headshot and the day-of cancellation rule acknowledged, and the signer lands back on the bill |
 
 The suite runs against an in-memory stand-in for the edge API rather than a live database. That keeps CI hermetic and secret-free, and — because the app encrypts in the browser — the client code under test is the real thing either way: key derivation, the chunked media store, and the per-request keys behind a signing link all still run. The fake reproduces the server rules that matter, including the sign-once `WHERE signed_at IS NULL`.
 
