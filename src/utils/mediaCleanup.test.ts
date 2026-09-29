@@ -22,6 +22,10 @@ describe('showMediaRefs', () => {
     expect(showMediaRefs(s).sort()).toEqual(['media:a#1', 'media:b#2']);
   });
 
+  it("claims the show's flyer, so the sweep never deletes it", () => {
+    expect(showMediaRefs(show({ flyer: 'media:f#1' }))).toEqual(['media:f#1']);
+  });
+
   it('finds audio attached to a cue', () => {
     const s = show({ schedule: [{ id: 'c', time: '', description: 'Intro', music: 'media:c#1' }] });
     expect(showMediaRefs(s)).toEqual(['media:c#1']);

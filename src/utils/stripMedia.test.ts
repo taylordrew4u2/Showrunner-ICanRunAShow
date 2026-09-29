@@ -77,6 +77,12 @@ describe('stripLegacyShowMedia', () => {
     expect(stripLegacyShowMedia(show).artists[0].photo).toBe('media:artist-photo#1');
   });
 
+  it('keeps an uploaded flyer, which lives in the media store', () => {
+    const show = legacyShow();
+    show.flyer = 'media:flyer#1';
+    expect(stripLegacyShowMedia(show).flyer).toBe('media:flyer#1');
+  });
+
   it('keeps walk-on music references and links', () => {
     const stripped = stripLegacyShowMedia(legacyShow());
     expect(stripped.performers[0].walkOnMusic).toBe('media:abc123');

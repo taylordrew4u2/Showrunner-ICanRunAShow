@@ -3408,3 +3408,19 @@ select.show-detail__status--select {
   .show-workspace .accordion-section__content { padding-inline: 14px; }
   .show-workspace__running .accordion-section__header, .show-workspace__running .accordion-section__content { padding-inline: 0; }
 }
+
+/* The lineup is the main column and comes first everywhere; the flyer and the
+   running order share the side column, which drops below it on a phone. */
+.show-workspace__side { min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+.show-workspace .show-workspace__card--performers { order: -1; }
+
+.show-flyer { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+.show-flyer__title { margin: 0; font-family: var(--font-mono); font-size: var(--text-2xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.show-flyer__preview { display: block; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-strong); cursor: zoom-in; overflow: hidden; }
+.show-flyer__preview img { display: block; width: 100%; max-height: 420px; object-fit: contain; }
+.show-flyer__drop { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: var(--tap-min, 44px); padding: 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+.show-flyer__drop:hover:not(:disabled), .show-flyer__drop--active { background: var(--surface-strong); border-color: var(--primary); }
+.show-flyer__drop:disabled { opacity: .6; cursor: progress; }
+.show-flyer__hint { font-size: var(--text-xs); color: var(--text-muted); }
+.show-flyer__error { margin: 0; font-size: var(--text-sm); color: var(--danger-text); }
+.show-flyer__actions { display: flex; gap: 8px; }
