@@ -78,7 +78,7 @@
 }
 
 /* Live mode remains dark in both themes; amber and red retain timer meaning. */
-.run-show { background: #0e0f11; --rs-deck: #1f2024; --rs-deck-edge: #2b2d32; }
+.run-show { background: #100f0e; --rs-deck: #23211f; --rs-deck-edge: #33302c; }
 .rs-btn--start, .rs-btn--start:hover:not(:disabled) { background: #4285f4; border-color: #4285f4; color: #07162c; }
 @media (max-width: 380px) {
   .shows-toolbar { flex-wrap: wrap; }

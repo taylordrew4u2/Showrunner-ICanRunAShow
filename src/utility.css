@@ -13,19 +13,29 @@
    untouched; the 44px finger minimum on touch screens still applies. */
 
 :root {
-  --bg: #f4f4f5;
-  --backdrop: #e7e7ea;
+  /* Booker palette: warm paper and graphite with one deep ink-blue accent —
+     the colours of a ledger and a signed contract, not of a consumer app. */
+  --bg: #f5f4f1;
+  --backdrop: #e9e7e2;
   --surface: #ffffff;
-  --surface-strong: #efeff1;
-  --text: #121316;
-  --text-muted: #50535a;
-  --text-soft: #5c5f66;
-  --border: #d9d9de;
-  --border-strong: #a3a6ad;
-  --primary-soft: #eaf0fb;
-  --primary-soft-border: #b3c6ea;
-  --header-bg: #f4f4f5;
-  --segment-track: #e4e4e7;
+  --surface-strong: #efede8;
+  --text: #1c1b19;
+  --text-muted: #57534e;
+  --text-soft: #615c56;
+  --border: #dcd9d2;
+  --border-strong: #a8a29e;
+  --primary: #2f4f7f;
+  --primary-pressed: #263f66;
+  --primary-bright: #5b7bab;
+  --primary-soft: #e8edf5;
+  --primary-soft-border: #b7c5dc;
+  --primary-text: #2f4f7f;
+  --on-primary: #ffffff;
+  --success: #2f7d4f;
+  --success-strong: #256440;
+  --success-text: #25603f;
+  --header-bg: #f5f4f1;
+  --segment-track: #e7e5df;
   --segment-chip: #ffffff;
 
   --shadow-sm: none;
@@ -45,20 +55,27 @@
 }
 
 [data-theme="dark"] {
-  --bg: #111214;
-  --backdrop: #0b0c0d;
-  --surface: #18191c;
-  --surface-strong: #202226;
-  --text: #ececee;
-  --text-muted: #a4a7ad;
-  --text-soft: #92959c;
-  --border: #2d2f34;
-  --border-strong: #4a4d54;
-  --primary-soft: #1a2436;
-  --primary-soft-border: #34507e;
-  --header-bg: #111214;
-  --segment-track: #111214;
-  --segment-chip: #2d2f34;
+  --bg: #141312;
+  --backdrop: #0d0c0b;
+  --surface: #1c1b19;
+  --surface-strong: #262422;
+  --text: #ecebe8;
+  --text-muted: #a8a29e;
+  --text-soft: #9a948e;
+  --border: #33302c;
+  --border-strong: #57534e;
+  --primary: #4a6fa5;
+  --primary-pressed: #5a80b8;
+  --primary-bright: #b8c9e3;
+  --primary-soft: #1d2533;
+  --primary-soft-border: #3d4f6e;
+  --primary-text: #a9bedf;
+  --on-primary: #ffffff;
+  --success: #5fb281;
+  --success-text: #8fcca6;
+  --header-bg: #141312;
+  --segment-track: #141312;
+  --segment-chip: #33302c;
   --shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.45);
   --shadow-xl: 0 10px 28px rgba(0, 0, 0, 0.5);
 }
@@ -155,15 +172,17 @@ body {
    the dark was navy. Neutral charcoal, so the only colours on it are the
    ones that mean something: the running clock's amber and red. */
 .run-show.run-show {
-  --rs-panel: var(--show-surface, #17181b);
+  --rs-blue: var(--show-accent, #4a6fa5);
+  --rs-blue-text: #a9bedf;
+  --rs-panel: var(--show-surface, #1a1917);
   --rs-panel-border: rgb(255 255 255 / 9%);
-  --rs-deck: var(--show-surface-strong, #1f2024);
+  --rs-deck: var(--show-surface-strong, #23211f);
   --rs-deck-edge: rgb(255 255 255 / 14%);
-  --rs-dim: #a4a7ad;
-  --text: #ececee;
-  --text-muted: #a4a7ad;
-  --text-soft: #a4a7ad;
-  background: var(--show-backdrop, #0e0f11);
+  --rs-dim: #a8a29e;
+  --text: #ecebe8;
+  --text-muted: #a8a29e;
+  --text-soft: #a8a29e;
+  background: var(--show-backdrop, #100f0e);
 }
 
 /* The night's timeline: blocks are outlined boxes on a grey fill, with the
@@ -232,3 +251,9 @@ body {
   }
   .bottom-nav:popover-open .bottom-nav__item--active .bottom-nav__item-icon { color: var(--primary-text); }
 }
+
+/* Run Show's controls follow the ink accent too, so the one bright thing on
+   a dark stage-side screen is the clock, not a consumer-blue button. */
+.rs-btn--start, .rs-btn--start:hover:not(:disabled) { background: #4a6fa5; border-color: #4a6fa5; color: #ffffff; }
+.run-show .rs-music-card__play:hover:not(:disabled) { background: #5a80b8; border-color: #5a80b8; }
+.run-show .rs-fade__slider:focus-visible { outline-color: #a9bedf; }
