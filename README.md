@@ -50,7 +50,7 @@
 
 ## Screenshots
 
-Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These screenshots show the utility design (neutral greys, flat panels, small corners), the desktop hamburger menu, and the phone bottom bar. They are captured from the local production build with sample data using `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)).
+Try it live at **[icanrunashow.com](https://icanrunashow.com)**. These screenshots show the booker palette (warm paper and graphite with a deep ink-blue accent, flat panels, small corners), the desktop hamburger menu, and the phone bottom bar. They are captured from the local production build with sample data using `npm run screenshots` (see [docs/screenshots/CAPTURE.md](docs/screenshots/CAPTURE.md)).
 
 <p align="center">
   <img src="docs/screenshots/desktop-shows.png" width="100%" alt="Desktop dashboard with the navigation tucked behind a hamburger menu" />

@@ -14,7 +14,7 @@
   --text: #f3f6fc;
   --text-muted: #a6b3c7;
   --text-soft: #a6b3c7;
-  background: var(--show-backdrop, #0e0f11);
+  background: var(--show-backdrop, #100f0e);
   color: var(--text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color-scheme: dark;
@@ -22,7 +22,7 @@
 
 .run-show .run-show__bar {
   padding: calc(12px + env(safe-area-inset-top)) 24px 12px;
-  background: var(--show-backdrop, #0e0f11);
+  background: var(--show-backdrop, #100f0e);
   border-color: var(--rs-panel-border);
 }
 
@@ -109,7 +109,7 @@
 
 .run-show .rs-fade,
 .run-show .rs-console__levels {
-  background: var(--show-backdrop, #0e0f11);
+  background: var(--show-backdrop, #100f0e);
   border: 1px solid var(--rs-panel-border);
   border-radius: var(--radius-lg);
   box-shadow: none;
@@ -214,13 +214,13 @@
 .run-show .rs-pad__sub { color: var(--rs-dim); font-size: .6875rem; }
 .run-show .rs-pad__sub--auto { opacity: 1; }
 .run-show .rs-pad__kind,
-.run-show .rs-pad__state { background: #0e0f11; color: var(--text); border-color: var(--rs-deck-edge); }
+.run-show .rs-pad__state { background: #100f0e; color: var(--text); border-color: var(--rs-deck-edge); }
 .run-show .rs-pad--playing .rs-pad__face { border-color: var(--rs-green); box-shadow: 0 0 0 2px rgb(74 222 128 / 20%); }
 .run-show .rs-pad--playing .rs-pad__label { color: var(--rs-green); }
 .run-show .rs-pad--playing .rs-pad__state { background: var(--rs-green); border-color: var(--rs-green); color: #052e16; }
 .run-show .rs-pad--loading .rs-pad__face { border-color: var(--rs-amber); box-shadow: 0 0 0 2px rgb(251 191 36 / 20%); }
 .run-show .rs-pad--loading .rs-pad__label { color: var(--rs-amber); }
-.run-show .rs-pad--loading .rs-pad__state { background: #0e0f11; border-color: var(--rs-amber); color: var(--rs-amber); }
+.run-show .rs-pad--loading .rs-pad__state { background: #100f0e; border-color: var(--rs-amber); color: var(--rs-amber); }
 
 .run-show .rs-clock { padding: 28px 24px; }
 .run-show .rs-clock__head { font-size: .6875rem; letter-spacing: .06em; }
@@ -237,7 +237,7 @@
 .run-show .rs-btn { background: var(--rs-deck); border-color: var(--rs-deck-edge); border-radius: var(--radius-md); color: var(--text); font-weight: 600; }
 .run-show .rs-btn:hover:not(:disabled) { background: #2a3850; }
 .run-show .rs-btn--start,
-.run-show .rs-btn--start:hover:not(:disabled) { background: #f3f6fc; border-color: #f3f6fc; color: #0e0f11; filter: none; }
+.run-show .rs-btn--start:hover:not(:disabled) { background: #f3f6fc; border-color: #f3f6fc; color: #100f0e; filter: none; }
 .run-show .rs-btn--pause { background: #3d321b; border-color: #9c7b2d; color: var(--rs-amber); }
 .run-show .rs-btn--pause:hover:not(:disabled) { background: #514322; }
 .run-show .rs-nudge { margin-top: 12px; }
