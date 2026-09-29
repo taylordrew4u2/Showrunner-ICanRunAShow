@@ -271,6 +271,21 @@ async function captureContracts(page, context) {
   await signer.locator('.signing__field--signature input').fill('Maya Reyes');
   await signer.locator('.signing__rule-agree input').check();
   await signer.locator('.signing__agree:not(.signing__rule-agree) input').check();
+  // A headshot is required before signing: it is the face on the flyer and
+  // the soundboard button, and the one detail a producer cannot type in later.
+  const face = await signer.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 300;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#6b7280';
+    context.fillRect(0, 0, 240, 300);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await signer.locator('.signing__photo-pick input[type=file]').setInputFiles({
+    name: 'headshot.png', mimeType: 'image/png', buffer: Buffer.from(face, 'base64'),
+  });
+  await signer.locator('.signing__photo-preview').waitFor();
   await signer.locator('.signing__cta').click();
   const done = signer.locator('.signing__panel--done');
   await done.waitFor();
