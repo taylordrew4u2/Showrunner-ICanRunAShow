@@ -476,6 +476,37 @@ async function captureDesktop(page) {
   await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
   await shot(page, 'desktop-light');
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // The show page as a producer sees it on a laptop: the lineup first, with
+  // the night's flyer and running order beside it.
+  await openDemoShow(page);
+  await page.locator('.show-detail').waitFor();
+  const flyer = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 800;
+    const context = canvas.getContext('2d');
+    const fill = context.createLinearGradient(0, 0, 0, 800);
+    fill.addColorStop(0, '#1f2f4a');
+    fill.addColorStop(1, '#7a2e2e');
+    context.fillStyle = fill;
+    context.fillRect(0, 0, 600, 800);
+    context.fillStyle = '#f5f4f1';
+    context.font = 'bold 68px sans-serif';
+    ['FRIDAY', 'NIGHT', 'COMEDY'].forEach((word, i) => context.fillText(word, 56, 210 + i * 84));
+    context.font = '30px sans-serif';
+    context.fillText('The Basement · Brooklyn', 56, 720);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.getByLabel('Choose flyer file', { exact: true }).setInputFiles({
+    name: 'flyer.png', mimeType: 'image/png', buffer: Buffer.from(flyer, 'base64'),
+  });
+  await page.getByRole('img', { name: /^Flyer for/ }).waitFor();
+  await page.evaluate(() => { document.querySelector('.app-main')?.scrollTo(0, 0); window.scrollTo(0, 0); });
+  await page.waitForTimeout(400);
+  await shot(page, 'desktop-show');
+  await page.locator('.show-detail__back-btn').first().click();
+  await page.locator('.shows-list').waitFor();
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.setViewportSize({ width: 430, height: 932 });
 }
 
