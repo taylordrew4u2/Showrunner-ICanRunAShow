@@ -24,7 +24,7 @@ React 19, TypeScript, Vite, Vercel, Turso (libSQL), client-side AES encryption, 
 
 ## Pricing
 
-Free to use at icanrunashow.com. No account required to view a public show.
+Open Mic plan: free forever. Producer plan: $9/month, free for everyone during early access. No credit card to sign up. Performers, signers and audience members never need an account. Features and pricing: https://icanrunashow.com/tour/
 
 ## Links
 

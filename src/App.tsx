@@ -86,15 +86,17 @@ import { orphanedRefs, showMediaRefs, sweepUnusedMedia, type SweepReport } from 
 import { deleteMedia } from './utils/mediaStore';
 import { mergePendingShows } from './utils/mergePending';
 import { duplicateShow } from './utils/duplicateShow';
+import { buildSampleShow } from './utils/sampleShow';
 import { unpublishAll } from './utils/viewerAudio';
 import { MusicLibrary } from './components/MusicLibrary';
 import { InstallPrompt } from './components/InstallPrompt';
 import { MorePage } from './components/MorePage';
+import { SeasonReport } from './components/SeasonReport';
 import { SyncStatus, type SyncState } from './components/SyncStatus';
 import { Icon } from './components/Icon';
 import './App.css';
 
-type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music' | 'contracts' | 'more';
+type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music' | 'contracts' | 'more' | 'season';
 
 /**
  * The app's destinations. Keeping this a plain list — rather than hand-written
@@ -129,7 +131,7 @@ const NAV_ITEMS: {
   {
     id: 'more',
     label: 'More',
-    views: ['more', 'contracts', 'emails', 'expenses'],
+    views: ['more', 'contracts', 'emails', 'expenses', 'season'],
     icon: 'M5 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM19 10a2 2 0 11-4 0 2 2 0 014 0z',
   },
   {
@@ -2289,11 +2291,17 @@ export default function App() {
                   <div className="empty-state">
                     <h2 className="empty-state__title">No shows yet</h2>
                     <p className="empty-state__text">
-                      Create a show to build its lineup, run-of-show, and live mode.
+                      Create a show to build its lineup, run-of-show, and live mode —
+                      or open a sample night and press Run Show to see it work.
                     </p>
-                    <button className="btn btn--primary" onClick={() => setShowForm(true)}>
-                      + New Show
-                    </button>
+                    <div className="empty-state__actions">
+                      <button className="btn btn--primary" onClick={() => setShowForm(true)}>
+                        + New Show
+                      </button>
+                      <button className="btn btn--secondary" onClick={() => handleCreateShow(buildSampleShow())}>
+                        Try a sample show
+                      </button>
+                    </div>
                   </div>
                 ) : filteredShows.length === 0 ? (
                   <div className="empty-state">
@@ -2379,6 +2387,13 @@ export default function App() {
               <MorePage
                 onBack={handleBack}
                 destinations={[
+                  {
+                    key: 'season',
+                    label: 'Season report',
+                    description: 'Audience, money and regulars across every show',
+                    icon: 'calendar',
+                    onSelect: () => setView('season'),
+                  },
                   {
                     key: 'contracts',
                     label: 'Contracts',
@@ -2512,6 +2527,15 @@ export default function App() {
                   setSettings(updated);
                   saveSettings(updated);
                 }}
+              />
+            )}
+
+            {view === 'season' && (
+              <SeasonReport
+                shows={shows}
+                brandExpenses={settings.expenses ?? []}
+                brandName={settings.brandName}
+                onBack={() => setView('more')}
               />
             )}
 
