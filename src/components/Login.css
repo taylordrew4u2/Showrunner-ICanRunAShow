@@ -54,6 +54,21 @@
   margin: 0 0 var(--space-6);
 }
 
+/* Someone who landed here from a link or a search has not decided to sign
+   up yet; the sign-in form alone gives them nothing to decide with. */
+.landing__tour {
+  display: inline-block;
+  margin-top: var(--space-4);
+  font-size: var(--text-md);
+  font-weight: 650;
+  color: var(--primary-text);
+  text-decoration: none;
+}
+
+.landing__tour:hover {
+  text-decoration: underline;
+}
+
 /* ── Auth card ────────────────────────────────────────────────────── */
 
 .login__container {
