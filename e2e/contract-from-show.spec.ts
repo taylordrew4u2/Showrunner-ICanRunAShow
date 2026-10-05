@@ -52,7 +52,7 @@ test.describe('a contract sent from inside a show', () => {
     await gotoTab(page, 'Shows');
     await page.locator('button').filter({ hasText: /New Show/i }).first().click();
     await page.getByPlaceholder('Show name').fill('Basement Comedy Hour');
-    await page.locator('input[type=date]').fill('2026-10-03');
+    await page.locator('input[type=date]').fill('2099-10-03');
     await page.getByPlaceholder('Venue name').fill('The Bell House');
     await page.getByPlaceholder(/City, address/).fill('Brooklyn');
     await page.locator('button').filter({ hasText: /^Save$/ }).last().click();
@@ -113,7 +113,7 @@ test.describe('a contract sent from inside a show', () => {
     await expect(signer.locator('.signing__title')).toBeVisible();
 
     await expect(signer.locator('.signing__field--name input')).toHaveValue('Nadia Okonjo');
-    await expect(signer.getByLabel('Show date')).toHaveValue(/October 3, 2026/);
+    await expect(signer.getByLabel('Show date')).toHaveValue(/October 3, 2099/);
     await expect(signer.getByLabel('Venue')).toHaveValue(/Bell House/);
     await signerContext.close();
 
@@ -139,7 +139,7 @@ test.describe('a contract sent from inside a show', () => {
     await expect(typed.locator('.signing__rule-agree input')).toBeChecked();
     await expect(typed.locator('.signing__agree:not(.signing__rule-agree) input')).toBeChecked();
     // And the show's own answers are still there underneath.
-    await expect(typed.getByLabel('Show date')).toHaveValue(/October 3, 2026/);
+    await expect(typed.getByLabel('Show date')).toHaveValue(/October 3, 2099/);
     await reload.close();
 
     // ── A signature that lands and loses its answer ────────────────────────
@@ -221,7 +221,7 @@ test.describe('a contract sent from inside a show', () => {
     const other = await second.newPage();
     await other.goto(fromLibrary);
     await expect(other.locator('.signing__title')).toBeVisible();
-    await expect(other.getByLabel('Show date')).toHaveValue(/October 3, 2026/);
+    await expect(other.getByLabel('Show date')).toHaveValue(/October 3, 2099/);
     await expect(other.getByLabel('Venue')).toHaveValue(/Bell House/);
     await second.close();
 
