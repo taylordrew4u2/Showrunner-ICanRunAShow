@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { gotoTab, signUpAndOnboard } from './support/app';
+import { daysFromNow, gotoTab, signUpAndOnboard } from './support/app';
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -35,6 +35,19 @@ function writeTestPdf(): string {
  * again by anybody — least of all by the performer, who does not know which
  * of the producer's venues it is.
  */
+/*
+ * Always ahead of today, rather than a fixed day that eventually passes: a
+ * past show is filed as completed and drops off the dashboard the spec opens
+ * it from further down.
+ */
+const SHOW_DATE = daysFromNow(30);
+const [year, month, day] = SHOW_DATE.split('-').map(Number);
+const SHOW_DATE_LABEL = new Date(year, month - 1, day).toLocaleDateString('en-US', {
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+});
+
 test.describe('a contract sent from inside a show', () => {
   test('arrives with the show date, the venue and their name already filled in', async ({ page, context, browser }) => {
     const state = emptyState();
@@ -52,7 +65,7 @@ test.describe('a contract sent from inside a show', () => {
     await gotoTab(page, 'Shows');
     await page.locator('button').filter({ hasText: /New Show/i }).first().click();
     await page.getByPlaceholder('Show name').fill('Basement Comedy Hour');
-    await page.locator('input[type=date]').fill('2099-10-03');
+    await page.locator('input[type=date]').fill(SHOW_DATE);
     await page.getByPlaceholder('Venue name').fill('The Bell House');
     await page.getByPlaceholder(/City, address/).fill('Brooklyn');
     await page.locator('button').filter({ hasText: /^Save$/ }).last().click();
@@ -113,7 +126,7 @@ test.describe('a contract sent from inside a show', () => {
     await expect(signer.locator('.signing__title')).toBeVisible();
 
     await expect(signer.locator('.signing__field--name input')).toHaveValue('Nadia Okonjo');
-    await expect(signer.getByLabel('Show date')).toHaveValue(/October 3, 2099/);
+    await expect(signer.getByLabel('Show date')).toHaveValue(new RegExp(SHOW_DATE_LABEL));
     await expect(signer.getByLabel('Venue')).toHaveValue(/Bell House/);
     await signerContext.close();
 
@@ -139,7 +152,7 @@ test.describe('a contract sent from inside a show', () => {
     await expect(typed.locator('.signing__rule-agree input')).toBeChecked();
     await expect(typed.locator('.signing__agree:not(.signing__rule-agree) input')).toBeChecked();
     // And the show's own answers are still there underneath.
-    await expect(typed.getByLabel('Show date')).toHaveValue(/October 3, 2099/);
+    await expect(typed.getByLabel('Show date')).toHaveValue(new RegExp(SHOW_DATE_LABEL));
     await reload.close();
 
     // ── A signature that lands and loses its answer ────────────────────────
@@ -221,7 +234,7 @@ test.describe('a contract sent from inside a show', () => {
     const other = await second.newPage();
     await other.goto(fromLibrary);
     await expect(other.locator('.signing__title')).toBeVisible();
-    await expect(other.getByLabel('Show date')).toHaveValue(/October 3, 2099/);
+    await expect(other.getByLabel('Show date')).toHaveValue(new RegExp(SHOW_DATE_LABEL));
     await expect(other.getByLabel('Venue')).toHaveValue(/Bell House/);
     await second.close();
 
