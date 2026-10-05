@@ -37,6 +37,7 @@ It is built phone-first for venue basements with bad signal: an installable PWA 
 - **Schedule import on the device.** Turn a photo, PDF, or pasted text into a running order using PDF.js, Tesseract OCR and a time-aware line parser. Nothing is uploaded.
 - **Contracts without accounts.** Send a PDF to a performer; they read and sign from a link with no login. Each signature records the typed name, timestamp, and a SHA-256 of the exact document shown.
 - **Public viewer link.** A read-only page that shows who's on stage and who's up next, updated live.
+- **Season report.** Shows, audience, net, regulars and top rooms for the year, plus a venue pitch built from those numbers and copied to the clipboard.
 - **Show admin.** Flyers, budget and expenses, staff and hosts, deadlines, PDF runsheet export, and a ready-to-paste announcement caption.
 
 Full list: [docs/FEATURES.md](docs/FEATURES.md)

@@ -10,6 +10,17 @@ The full feature list. The [README](../README.md) has the short version.
 - Per-show customizable sections: hide the sections you don't use
 - A utility look (neutral greys, flat hairline panels, small corners, tabular figures) so the app reads as a tool at the side of a stage rather than a landing page
 
+## Getting started
+
+- A sample show one tap from the empty Shows page: a timed running order from doors to the headliner, ready for Run Show, with nobody made up added to the Rolodex
+- A features and pricing page at [/tour/](https://icanrunashow.com/tour/), static so it costs the app bundle nothing
+
+## Season report
+
+- Every show added up for this year or all time: shows run, audience and the average night, performers booked, net from recaps, and brand spending
+- Your regulars and your rooms (the most-booked performers and venues) and the biggest night
+- A venue pitch composed from those numbers and copied to the clipboard (nothing is sent), leaving out anything that was never recorded
+
 ## Show building
 
 - Multiple shows with status tracking (upcoming, in-progress, completed, cancelled)
