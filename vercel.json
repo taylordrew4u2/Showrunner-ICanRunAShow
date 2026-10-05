@@ -1,11 +1,16 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/pricing", "destination": "/tour/#pricing", "permanent": false },
+    { "source": "/features", "destination": "/tour/", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/sign", "destination": "/link-sign.html" },
     { "source": "/details", "destination": "/link-profile.html" },
     { "source": "/live", "destination": "/link-view.html" },
+    { "source": "/tour", "destination": "/tour/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

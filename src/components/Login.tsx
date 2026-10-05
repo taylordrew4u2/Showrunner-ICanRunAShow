@@ -72,6 +72,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
           <li><span>02</span> Set the cues</li>
           <li><span>03</span> Run the show</li>
         </ol>
+        <a className="landing__tour" href="/tour/">See everything it does, and pricing →</a>
         </div>
 
         <div className="login__container">
@@ -148,6 +149,8 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
               the whole thing, including everything after the <code>#</code>.
             </p>
             <p className="login__legal">
+              <a href="/tour/">Features &amp; pricing</a>
+              <span aria-hidden="true"> · </span>
               <a href="/guides/">Guides</a>
               <span aria-hidden="true"> · </span>
               <a href="/privacy.html">Privacy Policy</a>

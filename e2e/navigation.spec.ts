@@ -17,6 +17,7 @@ test.describe('navigation', () => {
 
     await gotoTab(page, 'More');
     await expect(page.locator('.more-item__label')).toHaveText([
+      'Season report',
       'Contracts',
       'Email list',
       'Expenses',
@@ -24,7 +25,7 @@ test.describe('navigation', () => {
 
     // Opening a page behind More keeps More lit, and back returns there
     // rather than dumping the producer on the show list.
-    for (const row of ['Contracts', 'Email list', 'Expenses']) {
+    for (const row of ['Season report', 'Contracts', 'Email list', 'Expenses']) {
       await page.locator('.more-item').filter({ hasText: row }).click();
       await expect(page.locator('.bottom-nav__item--active')).toHaveText('More');
       await page.locator('.page-header__back').first().click();
