@@ -8,6 +8,7 @@ describe('the sample show', () => {
   it('is a week out, so it lands under upcoming', () => {
     expect(sample.date).toBe('2026-10-12');
     expect(sample.status).toBe('upcoming');
+    expect(sample.sample).toBe(true);
   });
 
   it('runs cue to cue with no gaps, from doors at 7:30 to the show at 8', () => {
@@ -23,6 +24,8 @@ describe('the sample show', () => {
 
   it('puts nobody in the lineup, so no made-up people end up in the Rolodex', () => {
     expect(sample.performers).toEqual([]);
+    // The host is free text, which the Rolodex never files.
+    expect(sample.host).toBe('Your host');
     expect(sample.artists).toEqual([]);
   });
 });

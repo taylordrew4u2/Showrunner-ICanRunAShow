@@ -6,6 +6,7 @@ import type { ScheduleItem, Show } from '../types';
 import { clockLabel } from './elapsed';
 import { DEFAULT_SECTIONS, hiddenFromSelected } from './showBlocks';
 import { generateId } from './id';
+import { toDateKey } from './showDate';
 
 export const SAMPLE_SHOW_NAME = 'Sample Show — try Run Show';
 
@@ -21,11 +22,6 @@ const RUNNING_ORDER: { what: string; who?: string; minutes: number }[] = [
   { what: 'Headliner', who: 'Headliner', minutes: 20 },
   { what: 'Host closes & thank-yous', who: 'Host', minutes: 3 },
 ];
-
-function localDateKey(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 export function buildSampleShow(today: Date = new Date()): Omit<Show, 'id' | 'createdAt' | 'updatedAt'> {
   const date = new Date(today);
@@ -47,11 +43,12 @@ export function buildSampleShow(today: Date = new Date()): Omit<Show, 'id' | 'cr
 
   return {
     name: SAMPLE_SHOW_NAME,
-    date: localDateKey(date),
+    date: toDateKey(date),
     time: '8:00 PM',
     venueName: 'The Basement',
     location: '',
     status: 'upcoming',
+    sample: true,
     performers: [],
     artists: [],
     schedule,
@@ -61,7 +58,10 @@ export function buildSampleShow(today: Date = new Date()): Omit<Show, 'id' | 'cr
     vendors: [],
     expenses: [],
     hiddenSections: hiddenFromSelected(DEFAULT_SECTIONS),
+    // Free text, like the running order's names: the host field is not
+    // filed into the Rolodex.
+    host: 'Your host',
     productionNotes:
-      'This is a sample. Press Run Show to watch the clock count each set down, then delete this show whenever you like — nothing else in your account depends on it.',
+      'This is a sample. Press Run Show to watch the clock count each set down. Upload a song in Music and it gets its own button on the soundboard. Delete this show whenever you like — nothing else in your account depends on it, and it is never counted in your Season report.',
   };
 }
