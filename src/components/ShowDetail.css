@@ -3396,6 +3396,13 @@ select.show-detail__status--select {
      thing you need from anywhere on the page. Only the bar stays. */
   .show-workspace__sidebar { padding: 10px; }
   .show-workspace__sidebar nav button { padding-inline: 10px; }
+  /* On a phone the strip runs past the edge, and a tab sliced in half at the
+     margin read as broken rather than as "there's more". A fade says scroll. */
+  .show-workspace__sidebar nav {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    padding-right: 24px;
+  }
   .show-workspace__body { --workspace-gutter: 16px; padding-bottom: 20px; }
   .show-workspace__columns { grid-template-columns: minmax(0, 1fr); }
   .show-workspace__body .show-detail__title { font-size: 1.6rem; }

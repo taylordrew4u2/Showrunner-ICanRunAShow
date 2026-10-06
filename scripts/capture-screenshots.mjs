@@ -134,7 +134,7 @@ async function seedShow(page) {
   log('seeding a demo show');
   await openNewShowForm(page);
   await page.getByPlaceholder('Show name').fill('Friday Night Comedy');
-  await page.locator('.show-form__input[type="date"]').fill(futureDate(7));
+  await page.locator('.show-form__input[type="date"]').fill(nextWeekday(5));
   await page.getByPlaceholder('e.g. 8:00 PM').fill('8:00 PM');
   await page.getByPlaceholder('Venue name').fill('The Basement');
   await page.getByPlaceholder(/City, address/).fill('Brooklyn, NY');
@@ -497,6 +497,19 @@ async function captureRunShowGif(page) {
 
   await page.keyboard.press('Escape');
   await page.locator('.show-detail').waitFor();
+}
+
+/**
+ * The next given weekday (0 = Sunday) at least four days out. The demo show is
+ * called Friday Night Comedy; a fixed seven days out put it on whatever day the
+ * script ran, and the sales page showed a Friday show on a Monday.
+ */
+function nextWeekday(weekday) {
+  const date = new Date();
+  date.setDate(date.getDate() + 4);
+  while (date.getDay() !== weekday) date.setDate(date.getDate() + 1);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function futureDate(days) {
