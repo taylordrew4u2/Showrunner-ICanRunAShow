@@ -2390,7 +2390,7 @@ export default function App() {
                   {
                     key: 'season',
                     label: 'Season report',
-                    description: 'Audience, money and regulars across every show',
+                    description: 'Audience, money and your regulars',
                     icon: 'calendar',
                     onSelect: () => setView('season'),
                   },

@@ -202,7 +202,14 @@
   text-align: center;
 }
 
+/* Spaced by a gap rather than "·" separators: with four links the row wraps
+   on a narrow card, and a separator left at the end of a line, with the last
+   link alone beneath it, looked like a typo. */
 .login__legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: var(--space-3);
   margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
   color: var(--text-soft);
