@@ -150,12 +150,9 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
             </p>
             <p className="login__legal">
               <a href="/tour/">Features &amp; pricing</a>
-              <span aria-hidden="true"> · </span>
               <a href="/guides/">Guides</a>
-              <span aria-hidden="true"> · </span>
-              <a href="/privacy.html">Privacy Policy</a>
-              <span aria-hidden="true"> · </span>
-              <a href="/terms.html">Terms of Service</a>
+              <a href="/privacy.html">Privacy</a>
+              <a href="/terms.html">Terms</a>
             </p>
           </div>
         </div>
