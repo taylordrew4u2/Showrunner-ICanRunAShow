@@ -180,7 +180,7 @@ The Producer plan is billed through Stripe Checkout and the Stripe customer port
 3. Turn on the customer portal (Stripe → Settings → Billing → Customer portal) so subscribers can change their card or cancel.
 4. In Vercel, set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET` and `APP_URL`, then redeploy. Use test-mode keys first; card `4242 4242 4242 4242` completes a test checkout.
 
-Nothing is locked to the paid plan yet (`PAID_FEATURES_LOCKED` in `src/utils/billing.ts`), so the Plan card presents Producer as supporting the app rather than as a feature unlock.
+Producer unlocks sending contracts for signature, reading a schedule off a photo or PDF, making a live audience link, the Season report, and pairing a stage remote. On the free plan each of these shows what it is and an Upgrade button in place of the control. Locks only apply once the server has Stripe keys and has confirmed the account is on the free plan; if the plan can't be checked (offline, say), nothing is locked. A lapsed plan never breaks a show in progress: links already shared, contracts already signed and a remote already paired keep working. The switch is `PAID_FEATURES_LOCKED` in `src/utils/billing.ts`. The locks are in the app, not enforced by the API.
 
 ## Testing
 

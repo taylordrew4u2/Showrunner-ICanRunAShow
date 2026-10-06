@@ -5,6 +5,8 @@ import { importScheduleFromFile, parseScheduleManually } from '../utils/aiExtrac
 import { withMatchedPerformers } from '../utils/cuePerformer';
 import { Icon } from './Icon';
 import { OnStagePicker } from './OnStagePicker';
+import { ProducerLock } from './ProducerLock';
+import { useProducerAccess } from '../utils/producerAccess';
 
 type Step = 'pick' | 'paste' | 'processing' | 'review';
 type Source = 'photo' | 'pdf' | 'paste';
@@ -51,6 +53,8 @@ export function AIImportFlow({
   onApply,
 }: AIImportFlowProps) {
   const [step, setStep] = useState<Step>('pick');
+  // Pasting a schedule stays free; reading one off a photo or PDF is Producer.
+  const { locked } = useProducerAccess();
   const [source, setSource] = useState<Source | null>(null);
   const [pasted, setPasted] = useState(
     'Doors 7:30 PM\n8:00 PM Maya welcome\n8:05 PM Devon Park\n8:20 PM June Ito\n8:35 PM Marisol — headliner\n8:55 PM Intermission / DJ\n9:05 PM closers\n9:30 PM outro',
@@ -100,6 +104,7 @@ export function AIImportFlow({
   }, [onClose]);
 
   function startWithFile(src: 'photo' | 'pdf') {
+    if (locked) return;
     setSource(src);
     setError(null);
     if (!fileInputRef.current) return;
@@ -272,6 +277,8 @@ export function AIImportFlow({
             </div>
 
             <div className="stack">
+              {locked && <ProducerLock feature="Reading a schedule from a photo or PDF" compact />}
+              {!locked && <>
               <button className="import-pick-card" onClick={() => startWithFile('photo')}>
                 <span className="import-pick-card__icon"><Icon name="camera" size={18} /></span>
                 <div className="import-pick-card__body">
@@ -288,6 +295,7 @@ export function AIImportFlow({
                 </div>
                 <Icon name="chevron-right" size={16} style={{ color: 'var(--text-soft)' }} />
               </button>
+              </>}
               <button className="import-pick-card" onClick={() => setStep('paste')}>
                 <span className="import-pick-card__icon"><Icon name="edit" size={18} /></span>
                 <div className="import-pick-card__body">

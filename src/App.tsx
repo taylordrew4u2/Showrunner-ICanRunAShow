@@ -91,7 +91,9 @@ import { unpublishAll } from './utils/viewerAudio';
 import { MusicLibrary } from './components/MusicLibrary';
 import { InstallPrompt } from './components/InstallPrompt';
 import { MorePage } from './components/MorePage';
-import { billingReturn, loadBilling, openBillingPortal, startCheckout } from './utils/billing';
+import { billingReturn, loadBilling, openBillingPortal, PAID_FEATURES_LOCKED, startCheckout, type BillingState } from './utils/billing';
+import { ProducerLock } from './components/ProducerLock';
+import { ProducerProvider, type ProducerAccess } from './utils/producerAccess';
 import { SeasonReport } from './components/SeasonReport';
 import { SyncStatus, type SyncState } from './components/SyncStatus';
 import { Icon } from './components/Icon';
@@ -407,6 +409,44 @@ export default function App() {
       returned: billingReturned,
     },
     [session, billingReturned],
+  );
+  // The plan, for deciding what's locked. Checked once per sign-in; after a
+  // checkout, a few times more, because Stripe's webhook can land a moment
+  // after the producer does and they shouldn't meet a lock they just paid off.
+  const [billingState, setBillingState] = useState<BillingState | null>(null);
+  useEffect(() => {
+    if (!session) {
+      setBillingState(null);
+      return;
+    }
+    let cancelled = false;
+    const attempts = billingReturned === 'success' ? 6 : 1;
+    (async () => {
+      for (let i = 0; i < attempts && !cancelled; i++) {
+        try {
+          const next = await loadBilling(session);
+          if (cancelled) return;
+          setBillingState(next);
+          if (next.plan === 'producer') return;
+        } catch {
+          // Unknown stays unlocked; see ProducerLock.
+        }
+        if (i < attempts - 1) await new Promise((r) => setTimeout(r, 2000));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session, billingReturned]);
+  const producerAccess = useMemo<ProducerAccess>(
+    () => ({
+      // Locked only when the server has Stripe set up and has said, in so
+      // many words, that this account is on the free plan.
+      locked: PAID_FEATURES_LOCKED && !!billingState?.configured && billingState.plan !== 'producer',
+      upgrade: async () => {
+        if (!session) return;
+        window.location.assign(await startCheckout(session));
+      },
+    }),
+    [billingState, session],
   );
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   /**
@@ -2059,6 +2099,7 @@ export default function App() {
           saving={onboardingSaving}
         />
       ) : (
+        <ProducerProvider value={producerAccess}>
         <div className="app">
           {/* Everything that reports on the state of your data, in one stack:
               problems that need you first, then the always-on sync pill. */}
@@ -2550,7 +2591,19 @@ export default function App() {
               />
             )}
 
-            {view === 'season' && (
+            {view === 'season' && producerAccess.locked && (
+              <div className="season-page">
+                <PageHeader
+                  title="Season report"
+                  subtitle="Every show added up — audience, money, your regulars and rooms, and a venue pitch ready to paste."
+                  onBack={() => setView('more')}
+                  backLabel="More"
+                />
+                <ProducerLock feature="The Season report" />
+              </div>
+            )}
+
+            {view === 'season' && !producerAccess.locked && (
               <SeasonReport
                 shows={shows}
                 brandExpenses={settings.expenses ?? []}
@@ -2783,6 +2836,7 @@ export default function App() {
           )}
 
         </div>
+        </ProducerProvider>
       )}
     </>
   );

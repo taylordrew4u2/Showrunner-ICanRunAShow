@@ -45,6 +45,8 @@ import type { SessionCredentials } from '../utils/session-vault';
 import { loadViewerKey, viewerUrl as buildViewerUrl } from '../utils/viewerAudio';
 import './ShowDetail.css';
 import { useConfirm } from './useConfirm';
+import { ProducerLock } from './ProducerLock';
+import { useProducerAccess } from '../utils/producerAccess';
 
 // Each section card wears the icon for what it holds, so the grid is scannable
 // by shape once you know the page — a wall of same-looking cards is the failure
@@ -209,6 +211,7 @@ export function ShowDetail({
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(startInRunShow);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const { locked: producerLocked } = useProducerAccess();
   const [viewerNoteDraft, setViewerNoteDraft] = useState('');
   const [viewerCopied, setViewerCopied] = useState(false);
   const [viewerCopyFailed, setViewerCopyFailed] = useState(false);
@@ -550,6 +553,9 @@ export function ShowDetail({
     let token = show.viewToken;
     let updates: Partial<Show> = { viewNote: viewerNoteDraft.trim() || undefined };
     if (!token) {
+      // A link already handed out keeps working on the free plan — the
+      // audience might be reading it tonight. Making a new one is Producer.
+      if (producerLocked) return;
       token = generateId();
       updates = { ...updates, viewToken: token };
     }
@@ -1368,10 +1374,13 @@ export function ShowDetail({
               style={{ resize: 'vertical' }}
             />
 
+            {!show.viewToken && producerLocked && <ProducerLock feature="A live link for your audience" />}
             <div className="viewer-link-modal__actions">
-              <button className="btn btn--primary" onClick={handleSaveViewer}>
-                {show.viewToken ? 'Save & publish' : 'Generate link & publish'}
-              </button>
+              {(show.viewToken || !producerLocked) && (
+                <button className="btn btn--primary" onClick={handleSaveViewer}>
+                  {show.viewToken ? 'Save & publish' : 'Generate link & publish'}
+                </button>
+              )}
               <button className="btn btn--ghost" onClick={() => setViewerOpen(false)}>Close</button>
             </div>
           </div>

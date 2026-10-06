@@ -11,6 +11,8 @@ import {
 import { uploadMedia } from '../../utils/mediaStore';
 import type { SessionCredentials } from '../../utils/session-vault';
 import { fileSignedHeadshots } from '../../utils/signedHeadshots';
+import { ProducerLock } from '../ProducerLock';
+import { useProducerAccess } from '../../utils/producerAccess';
 import './PerformerContracts.css';
 
 interface PerformerContractsProps {
@@ -54,6 +56,7 @@ export function PerformerContracts({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const { locked } = useProducerAccess();
 
   // Requests already sent to this person, whichever show they came from —
   // signing a performer agreement once is signing it.
@@ -104,7 +107,7 @@ export function PerformerContracts({
   async function send(contractId: string) {
     const contract = contracts.find((c) => c.id === contractId);
     const name = performerName.trim();
-    if (!contract || !name) return;
+    if (!contract || !name || locked) return;
     setError(null);
     setBusy(contractId);
     try {
@@ -174,7 +177,8 @@ export function PerformerContracts({
             </ul>
           )}
 
-          {unsent.length > 0 && (
+          {unsent.length > 0 && locked && <ProducerLock feature="Sending contracts for signature" compact />}
+          {unsent.length > 0 && !locked && (
             <div className="perf-contracts__send">
               {unsent.map((c) => (
                 <button
