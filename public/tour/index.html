@@ -91,7 +91,9 @@
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
     }
-    img { max-width: 100%; display: block; }
+    /* height: auto, or the height attribute (there to reserve space while the
+       image loads) wins over the CSS width and squashes every screenshot. */
+    img { max-width: 100%; height: auto; display: block; }
     a { color: var(--primary); }
     .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
 
@@ -269,7 +271,7 @@
         </p>
       </div>
       <div class="hero__shot">
-        <img src="/tour/run-show.gif" width="300" height="651" alt="Run Show live mode: the cue clock counting down while the running order advances" />
+        <img src="/tour/run-show.gif" width="300" height="650" alt="Run Show live mode: the cue clock counting down while the running order advances" />
         <div class="hero__badge"><i></i> On time · 2 acts to go</div>
       </div>
     </div>
