@@ -33,6 +33,7 @@ export function SeasonReport({ shows, brandExpenses, brandName, onBack, backLabe
   const name = brandName === DEFAULT_SETTINGS.brandName ? '' : brandName;
   const pitch = useMemo(() => seasonPitch(report, name, range), [report, name, range]);
   const year = new Date().getFullYear();
+  const hasSample = shows.some((s) => s.sample);
 
   async function copyPitch() {
     try {
@@ -90,6 +91,7 @@ export function SeasonReport({ shows, brandExpenses, brandName, onBack, backLabe
         <div className="season__empty">
           <p className="season__empty-title">No shows {range === 'year' ? `dated in ${year}` : 'yet'}.</p>
           <p>Once you’ve run a few, this page tallies the audience, the money and who you keep booking.</p>
+          {hasSample && <p>The sample show isn’t counted — it’s a demo, not a booking.</p>}
         </div>
       ) : (
         <>

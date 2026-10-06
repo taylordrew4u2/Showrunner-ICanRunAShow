@@ -58,7 +58,10 @@ export function buildSampleShow(today: Date = new Date()): Omit<Show, 'id' | 'cr
     vendors: [],
     expenses: [],
     hiddenSections: hiddenFromSelected(DEFAULT_SECTIONS),
+    // Free text, like the running order's names: the host field is not
+    // filed into the Rolodex.
+    host: 'Your host',
     productionNotes:
-      'This is a sample. Press Run Show to watch the clock count each set down, then delete this show whenever you like — nothing else in your account depends on it.',
+      'This is a sample. Press Run Show to watch the clock count each set down. Upload a song in Music and it gets its own button on the soundboard. Delete this show whenever you like — nothing else in your account depends on it, and it is never counted in your Season report.',
   };
 }

@@ -24,6 +24,8 @@ describe('the sample show', () => {
 
   it('puts nobody in the lineup, so no made-up people end up in the Rolodex', () => {
     expect(sample.performers).toEqual([]);
+    // The host is free text, which the Rolodex never files.
+    expect(sample.host).toBe('Your host');
     expect(sample.artists).toEqual([]);
   });
 });
