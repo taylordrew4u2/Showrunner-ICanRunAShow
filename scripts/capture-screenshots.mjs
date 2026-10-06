@@ -185,11 +185,54 @@ async function seedShow(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
 }
 
+/**
+ * Valid audio, silent, so the soundboard has real buttons to press. Without it
+ * every Run Show capture led with "No audio available" — the one screen the
+ * sales page is selling, showing the one thing it can't do.
+ */
+function silentWav(seconds = 30) {
+  const samples = 8000 * seconds;
+  const wav = Buffer.alloc(44 + samples * 2);
+  wav.write('RIFF'); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(8000, 24); wav.writeUInt32LE(16000, 28);
+  wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
+  wav.write('data', 36); wav.writeUInt32LE(samples * 2, 40);
+  return wav;
+}
+
+/** Put a few tracks in the Music library, which every show's soundboard reads. */
+async function seedMusic(page) {
+  log('seeding the music library');
+  await page.locator('.bottom-nav__item', { hasText: 'Music' }).click();
+  const names = ['Walk-on Bed', 'Intermission Groove', 'Play-off Sting'];
+  for (const [index, name] of names.entries()) {
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: '+ Upload track' }).first().click();
+    await (await chooser).setFiles({ name: `${name}.wav`, mimeType: 'audio/wav', buffer: silentWav() });
+    await page.locator('.music-list__item').nth(index).waitFor();
+  }
+  await page.locator('.bottom-nav__item', { hasText: 'Shows' }).click();
+  await page.locator('.shows-list').waitFor();
+  await openDemoShow(page);
+  await page.locator('.show-detail').waitFor();
+}
+
+/** Press the first soundboard button so the capture shows a track playing. */
+async function playFirstPad(page) {
+  const pad = page.locator('.rs-pad').first();
+  if (await pad.count()) {
+    await pad.click();
+    await page.locator('.rs-board__now').filter({ hasText: 'Playing:' }).waitFor({ timeout: 5000 }).catch(() => {});
+  }
+}
+
 async function captureRunShow(page) {
   await page.locator('.show-detail__run-show').click();
   await page.locator('.run-show').waitFor();
   const start = page.getByRole('button', { name: /^Start$/ });
   if (await start.count()) await start.click();
+  await playFirstPad(page);
   await page.waitForTimeout(1200); // let the timer tick
   await shot(page, 'run-show');
   await page.keyboard.press('Escape');
@@ -391,6 +434,7 @@ async function captureRunShowGif(page) {
   await page.locator('.run-show').waitFor();
   const start = page.getByRole('button', { name: /^Start$/ });
   if (await start.count()) await start.click();
+  await playFirstPad(page);
 
   // Hold on the running clock, then advance twice — the two things live mode
   // is for. A press and the frame after it land in the same beat, so the
@@ -542,6 +586,7 @@ async function main() {
     const hasShow = await page.locator('.show-card, .dash-next__name').count();
     if (!hasShow) {
       await seedShow(page);
+      await seedMusic(page);
     } else {
       log('account already has shows — capturing as-is');
       await openDemoShow(page);
