@@ -581,3 +581,49 @@
         bottom: var(--space-4);
     }
 }
+
+/* ── Plan ──────────────────────────────────────────────────────────── */
+
+.plan-card__current {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-2);
+}
+
+.plan-card__name {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.plan-card__price {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-card__perks {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: 1.6;
+}
+
+.plan-card__notice {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--primary-soft-border);
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+}
+
+.plan-card__error {
+  margin: var(--space-2) 0 0;
+  color: var(--danger-text);
+  font-size: var(--text-md);
+}

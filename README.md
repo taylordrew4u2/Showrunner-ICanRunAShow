@@ -171,6 +171,17 @@ npm run dev
 
 The Turso variables have no `VITE_` prefix, so they never reach the browser bundle. For the iOS app (macOS + Xcode): `npm run ios:sync`, then `npm run ios:open` ([docs/IOS.md](docs/IOS.md)).
 
+### Subscriptions (Stripe)
+
+The Producer plan is billed through Stripe Checkout and the Stripe customer portal. Card details only ever touch Stripe's hosted pages; the app stores the subscription status the webhook reports, keyed by the account's opaque id (usernames never go to Stripe). Without the keys below, the app runs exactly as before and the Plan card in Settings says paid plans aren't open.
+
+1. In Stripe, create a product **Producer** with a recurring **$9/month** price, and copy the price ID.
+2. Add a webhook endpoint at `https://<your domain>/api/stripe-webhook` for `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated` and `customer.subscription.deleted`, and copy its signing secret.
+3. Turn on the customer portal (Stripe → Settings → Billing → Customer portal) so subscribers can change their card or cancel.
+4. In Vercel, set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET` and `APP_URL`, then redeploy. Use test-mode keys first; card `4242 4242 4242 4242` completes a test checkout.
+
+Nothing is locked to the paid plan yet (`PAID_FEATURES_LOCKED` in `src/utils/billing.ts`), so the Plan card presents Producer as supporting the app rather than as a feature unlock.
+
 ## Testing
 
 ```bash

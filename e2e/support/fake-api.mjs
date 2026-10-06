@@ -39,6 +39,8 @@ import { createHash } from 'node:crypto';
  * @property {boolean} rejectedForeignPublish  Set when a publish from another account was refused.
  * @property {boolean} rejectedSecondSign  Set when a second signature was refused.
  * @property {string[]} mediaDeletes        Every media id the app asked to delete.
+ * @property {boolean} billingConfigured  Whether the server has Stripe keys (api/billing.ts isBillingConfigured).
+ * @property {Record<string, {status: string, customerId: string}>} billing  What Stripe's webhook last reported, by account.
  */
 
 // ── Constants copied from the routes they mirror ────────────────────────────
@@ -83,6 +85,8 @@ export function emptyState(overrides = {}) {
     rejectedSecondSign: false,
     rejectedForeignPublish: false,
     mediaDeletes: [],
+    billingConfigured: false,
+    billing: {},
     ...overrides,
   };
 }
@@ -192,6 +196,27 @@ export async function installFakeApi(ctx, state) {
     }
 
     if (path === '/api/health') return ok({ ok: true, configured: true, db: 'reachable' });
+
+    // api/billing.ts. Stripe itself is out of reach here, so checkout stands
+    // in for the whole round trip: it records the subscription the webhook
+    // would have, and sends the browser straight back as Stripe does.
+    if (path === '/api/billing') {
+      const userId = authorize();
+      if (!userId) return err(401, 'unauthorized');
+      const row = state.billing[userId];
+      const paid = ['active', 'trialing', 'past_due'].includes(row?.status);
+      if (method === 'GET') {
+        return ok({ configured: state.billingConfigured, plan: paid ? 'producer' : 'free', status: row?.status ?? null, renewsAt: null, canManage: !!row });
+      }
+      if (!state.billingConfigured) return err(501, 'billing_not_configured');
+      if (body.action === 'checkout') {
+        if (paid) return err(409, 'already_subscribed');
+        state.billing[userId] = { status: 'active', customerId: 'cus_fake' };
+        return ok({ url: '/?billing=success' });
+      }
+      if (body.action === 'portal') return row ? ok({ url: '/' }) : err(404, 'no_customer');
+      return err(400, 'bad_request');
+    }
 
     if (path === '/api/auth') {
       if (method !== 'POST') return err(405, 'method_not_allowed');

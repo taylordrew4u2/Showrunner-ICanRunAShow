@@ -3,7 +3,7 @@ import { recoverShowDraft } from './utils/recoverShowDraft';
 import { showBaselineHashes, settingsBaselineHash } from './utils/secure-storage';
 import { createPendingStore } from './utils/pendingStore';
 import { watchStatusRail } from './utils/statusBand';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, ScheduleTemplateItem } from './types';
 import { DEFAULT_SETTINGS, MAX_DELETED_SHOW_IDS } from './types';
 import { generateId } from './utils/id';
@@ -91,6 +91,7 @@ import { unpublishAll } from './utils/viewerAudio';
 import { MusicLibrary } from './components/MusicLibrary';
 import { InstallPrompt } from './components/InstallPrompt';
 import { MorePage } from './components/MorePage';
+import { billingReturn, loadBilling, openBillingPortal, startCheckout } from './utils/billing';
 import { SeasonReport } from './components/SeasonReport';
 import { SyncStatus, type SyncState } from './components/SyncStatus';
 import { Icon } from './components/Icon';
@@ -387,7 +388,26 @@ export default function App() {
   latestSettingsRef.current = settings;
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [onboardingSaving, setOnboardingSaving] = useState(false);
-  const [view, setView] = useState<View>('list');
+  // Stripe sends the producer back to /?billing=success (or cancelled). Read it
+  // once, open Settings where the plan card can say what happened, and take
+  // the marker off the address so a reload doesn't say it again.
+  const [billingReturned] = useState(() => billingReturn(window.location.search));
+  const [view, setView] = useState<View>(() => (billingReturned ? 'settings' : 'list'));
+  useEffect(() => {
+    if (!billingReturned) return;
+    window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+  }, [billingReturned]);
+  // Stable per account, so the plan card fetches once per visit rather than on
+  // every render of Settings.
+  const billingActions = useMemo(
+    () => session && {
+      load: () => loadBilling(session),
+      checkout: () => startCheckout(session),
+      portal: () => openBillingPortal(session),
+      returned: billingReturned,
+    },
+    [session, billingReturned],
+  );
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   /**
    * Set when the dashboard's Run Show button opened the show, so ShowDetail
@@ -2701,6 +2721,7 @@ export default function App() {
                 onRestoreSnapshot={handleRestoreSnapshot}
                 lastBackupAt={lastBackupAt}
                 lastSavedAt={lastSavedAt}
+                billing={billingActions ?? undefined}
               />
             )}
           </main>
