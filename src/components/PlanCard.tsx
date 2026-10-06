@@ -9,11 +9,13 @@ export interface BillingActions {
   returned?: 'success' | 'cancelled' | null;
 }
 
+// Exactly what ProducerLock holds back — keep the two lists in step.
 const PRODUCER_PERKS = [
-  'Contracts with e-signing',
-  'Schedule import from a photo or PDF',
-  'Live audience link and Season report',
-  'Bluetooth stage remote',
+  'Send contracts for e-signing',
+  'Read a schedule off a photo or PDF',
+  'A live link for your audience',
+  'The Season report and venue pitch',
+  'Pair a Bluetooth stage remote',
 ];
 
 function renewLabel(iso: string | null): string | null {

@@ -21,7 +21,7 @@ export interface BillingState {
  * them as things you only get by paying. Turn this on together with the
  * checks that hold them back, never before.
  */
-export const PAID_FEATURES_LOCKED = false;
+export const PAID_FEATURES_LOCKED = true;
 
 /** What the plan costs, as the sales page and the plan card both say it. */
 export const PRODUCER_PRICE_LABEL = '$9/month';

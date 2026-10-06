@@ -45,6 +45,8 @@ import { PageHeader } from './PageHeader';
 import { useConfirm } from './useConfirm';
 import './Contracts.css';
 import { SignedAgreements } from './SignedAgreements';
+import { ProducerLock } from './ProducerLock';
+import { useProducerAccess } from '../utils/producerAccess';
 
 /**
  * The face they sent, whether it is still the data URL on the record or has
@@ -290,6 +292,10 @@ function ImportOffer({ request, offer, saved, rolodexTerm, onDecline, onSave }: 
 
 export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows', onUpdateSettings }: ContractsProps) {
   const { confirm, confirmDialog } = useConfirm();
+  // On the free plan, signed agreements stay filed and downloadable and
+  // links already sent keep working; only adding a contract to send and
+  // sending it are Producer.
+  const { locked } = useProducerAccess();
   const fileInput = useRef<HTMLInputElement>(null);
 
   const contracts = settings.contracts ?? [];
@@ -365,7 +371,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file) return;
+    if (!file || locked) return;
     if (!isPdfFile(file)) {
       setError('Contracts need to be PDFs. Export or print your document to PDF first.');
       return;
@@ -398,7 +404,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
   }
 
   async function handleSend(name: string, email?: string, contactId?: string) {
-    if (!open) return;
+    if (!open || locked) return;
     const trimmed = name.trim();
     if (!trimmed) return;
     if (alreadyPending(requests, open.id, trimmed, contactId)) {
@@ -636,7 +642,9 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
         {error && <p className="contracts__error" role="alert">{error}</p>}
 
         <div className="contracts__send">
-          {!picking ? (
+          {locked ? (
+            <ProducerLock feature="Sending contracts for signature" />
+          ) : !picking ? (
             <button className="btn btn--primary contracts__send-btn" onClick={() => setPicking(true)}>
               Send for signature
             </button>
@@ -890,15 +898,18 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
         onBack={onBack}
         backLabel={backLabel}
         actions={
-          <button
-            className="btn btn--primary btn--sm"
-            disabled={busy === 'upload'}
-            onClick={() => fileInput.current?.click()}
-          >
-            {busy === 'upload' ? 'Adding…' : 'Add for signature'}
-          </button>
+          locked ? undefined : (
+            <button
+              className="btn btn--primary btn--sm"
+              disabled={busy === 'upload'}
+              onClick={() => fileInput.current?.click()}
+            >
+              {busy === 'upload' ? 'Adding…' : 'Add for signature'}
+            </button>
+          )
         }
       />
+      {locked && <ProducerLock feature="Sending contracts for signature" />}
       <input
         ref={fileInput}
         type="file"

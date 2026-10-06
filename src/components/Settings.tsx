@@ -8,6 +8,8 @@ import { generateId } from '../utils/id';
 import { PageHeader } from './PageHeader';
 import { Icon } from './Icon';
 import { PlanCard, type BillingActions } from './PlanCard';
+import { ProducerLock } from './ProducerLock';
+import { useProducerAccess } from '../utils/producerAccess';
 import './Settings.css';
 import { useConfirm } from './useConfirm';
 import type { Snapshot } from '../utils/secure-storage';
@@ -99,6 +101,9 @@ export function Settings({
   billing,
 }: SettingsProps) {
   const { confirm, confirmDialog } = useConfirm();
+  // A remote already paired keeps working on the free plan, so nobody's show
+  // breaks mid-set; pairing a new one is Producer.
+  const { locked: producerLocked } = useProducerAccess();
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
   // Listening for the remote's button. While true, the next keypress is the
   // remote telling us what it sends.
@@ -428,14 +433,15 @@ export function Settings({
             : 'No remote paired'}
         </p>
 
+        {producerLocked && <ProducerLock feature="Pairing a stage remote" compact />}
         <div className="settings__remote-actions">
-          <button
+          {!producerLocked && <button
             className="btn btn--secondary btn--sm"
             onClick={() => { setPairError(null); setPairing(true); }}
             disabled={pairing}
           >
             {pairing ? 'Press the button now\u2026' : settings.remoteMusicKey ? 'Pair a different one' : 'Pair a remote'}
-          </button>
+          </button>}
           {settings.remoteMusicKey && !pairing && (
             <button
               className="btn btn--ghost btn--sm"
