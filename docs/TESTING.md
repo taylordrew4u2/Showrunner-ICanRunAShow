@@ -25,7 +25,7 @@ Over 1,000 Vitest tests cover the pure logic, most of it in `src/utils/` with a 
 
 ## End-to-end tests
 
-22 Playwright specs drive the built app in a real browser. Every test runs in two projects: `desktop` (Desktop Chrome) and `phone` (iPhone 13 viewport and touch, emulated in Chromium).
+23 Playwright specs (120 tests across the two projects) drive the built app in a real browser. Every test runs in two projects: `desktop` (Desktop Chrome) and `phone` (iPhone 13 viewport and touch, emulated in Chromium).
 
 They cover what would ruin a show night, and properties worth asserting rather than describing. A selection:
 

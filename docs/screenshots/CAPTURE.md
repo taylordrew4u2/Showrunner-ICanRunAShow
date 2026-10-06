@@ -81,3 +81,7 @@ Phone screens are captured at 430×932 with `deviceScaleFactor: 2`. Desktop dash
 - **There is no viewer-link shot.** Capturing it needs the show's viewer token,
   which only exists once the live screen has published, and automating that was
   not worth the coupling. Worth adding if the flow settles.
+
+`demo.gif`, the README's hero (dashboard → show page → Run Show at 1280×800), is
+the one exception: it was recorded with Playwright against the same mock-API
+build and encoded with ffmpeg and gifsicle, outside `npm run screenshots`.
