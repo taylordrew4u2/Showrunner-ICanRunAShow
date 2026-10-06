@@ -151,6 +151,17 @@ const DDL: string[] = [
      created_at TEXT NOT NULL DEFAULT (datetime('now')),
      PRIMARY KEY (token, id, seq)
    )`,
+  // One row per account that has ever started a Stripe checkout. Stripe is
+  // the source of truth; this is the last state its webhook reported, so the
+  // app can answer "is this account paid?" without calling Stripe per request.
+  `CREATE TABLE IF NOT EXISTS subscription (
+     user_id            TEXT PRIMARY KEY,
+     customer_id        TEXT,
+     subscription_id    TEXT,
+     status             TEXT,
+     current_period_end INTEGER,
+     updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
+   )`,
 ];
 
 // Columns added after the original `users` table shipped. CREATE TABLE IF NOT

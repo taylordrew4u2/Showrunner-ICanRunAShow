@@ -7,6 +7,7 @@ import { defaultRolodexTerm } from '../utils/terminology';
 import { generateId } from '../utils/id';
 import { PageHeader } from './PageHeader';
 import { Icon } from './Icon';
+import { PlanCard, type BillingActions } from './PlanCard';
 import './Settings.css';
 import { useConfirm } from './useConfirm';
 import type { Snapshot } from '../utils/secure-storage';
@@ -42,6 +43,8 @@ interface SettingsProps {
    */
   onListSnapshots?: () => Promise<Snapshot[]>;
   onRestoreSnapshot?: (snapshot: Snapshot) => Promise<void>;
+  /** The Stripe plan card's calls, made as the signed-in account. */
+  billing?: BillingActions;
 }
 
 /** The server stamps snapshots in UTC without a zone marker. */
@@ -93,6 +96,7 @@ export function Settings({
   onSweepMedia,
   onListSnapshots,
   onRestoreSnapshot,
+  billing,
 }: SettingsProps) {
   const { confirm, confirmDialog } = useConfirm();
   const [settings, setSettings] = useState<AppSettings>(initialSettings);
@@ -759,6 +763,8 @@ export function Settings({
           </details>
         )}
       </div>
+
+      {billing && <PlanCard {...billing} />}
 
       <div className="settings__card">
         <h2 className="settings__card-title">Account</h2>
