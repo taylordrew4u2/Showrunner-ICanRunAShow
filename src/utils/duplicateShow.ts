@@ -43,5 +43,7 @@ export function duplicateShow(original: Show, options: { name?: string; date?: s
     viewToken: undefined,
     viewNote: undefined,
     recap: undefined,
+    // A copy of the sample is someone turning the demo into a real night.
+    sample: undefined,
   };
 }

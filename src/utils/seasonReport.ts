@@ -1,7 +1,8 @@
 // Roll every show up into the numbers a producer quotes when they pitch a
 // venue or decide whether a night is worth keeping. Kept out of the component
 // so the arithmetic is testable on its own, like showStats.
-import type { Expense, Performer, Show } from '../types';
+import type { Expense, Show } from '../types';
+import { rolodexKey } from './rolodex';
 import { parseShowDate } from './showDate';
 
 export type SeasonRange = 'year' | 'all';
@@ -48,12 +49,6 @@ function inRange(date: string | undefined, range: SeasonRange, year: number): bo
   return parsed !== null && parsed.getFullYear() === year;
 }
 
-// The same comic booked from the Rolodex carries a comicId; one typed in by
-// hand twice does not, and should still count as one person.
-function personKey(p: Performer): string {
-  return p.comicId || p.name.trim().toLowerCase();
-}
-
 function rank(counts: Map<string, RankedName>, limit: number): RankedName[] {
   return [...counts.values()]
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
@@ -67,7 +62,9 @@ export function buildSeasonReport(
   today: Date = new Date(),
 ): SeasonReport {
   const year = today.getFullYear();
-  const shows = allShows.filter((s) => inRange(s.date, range, year));
+  // The sample night is a demo, not a booking; quoting it to a venue would
+  // be claiming a show that never happened.
+  const shows = allShows.filter((s) => !s.sample && inRange(s.date, range, year));
   const live = shows.filter((s) => s.status !== 'cancelled');
   const completed = shows.filter((s) => s.status === 'completed');
 
@@ -87,12 +84,12 @@ export function buildSeasonReport(
     revenue += num(show.recap?.merchSales);
   }
 
-  // A cancelled show's deposit was still spent, so costs come from every show
-  // in range, not only the ones that went ahead.
-  const showCosts = shows.reduce(
-    (sum, s) => sum + (s.expenses ?? []).reduce((acc, e) => acc + num(e.cost), 0),
-    0,
-  );
+  // Costs from the nights that are over, cancelled ones included since their
+  // deposits were still spent. An upcoming night's costs wait for it to run,
+  // or a deposit paid ahead would read as a loss against income not yet earned.
+  const showCosts = shows
+    .filter((s) => s.status === 'completed' || s.status === 'cancelled')
+    .reduce((sum, s) => sum + (s.expenses ?? []).reduce((acc, e) => acc + num(e.cost), 0), 0);
 
   const brandSpending = brandExpenses
     .filter((e) => inRange(e.date, range, year))
@@ -105,7 +102,9 @@ export function buildSeasonReport(
     const seen = new Set<string>();
     for (const p of [...(show.performers ?? []), ...(show.artists ?? [])]) {
       if (!p.name?.trim()) continue;
-      const key = personKey(p);
+      // By name, the way the Rolodex matches people: the same comic booked from
+      // the Rolodex on one night and typed in by hand on another is one person.
+      const key = rolodexKey(p.name);
       if (seen.has(key)) continue;
       seen.add(key);
       bookings += 1;
@@ -117,7 +116,9 @@ export function buildSeasonReport(
 
   const venues = new Map<string, RankedName>();
   for (const show of live) {
-    const name = (show.venueName || show.location || '').trim();
+    // The venue name only: the location field is a city or street address,
+    // and "Brooklyn" is not a room.
+    const name = (show.venueName || '').trim();
     if (!name) continue;
     const key = name.toLowerCase();
     const entry = venues.get(key) ?? { name, count: 0 };
@@ -147,7 +148,11 @@ export function buildSeasonReport(
 
 export function formatMoney(value: number): string {
   const sign = value < 0 ? '-' : '';
-  return `${sign}$${Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+  const abs = Math.abs(value);
+  // Whole dollars stay whole; anything with cents shows both digits ($12.50,
+  // not $12.5), matching the PDF export.
+  const digits = Number.isInteger(abs) ? 0 : 2;
+  return `${sign}$${abs.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
 /**

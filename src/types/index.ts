@@ -287,6 +287,8 @@ export interface Show {
   todos?: TodoItem[];
   viewToken?: string; // public read-only viewer link token
   viewNote?: string; // optional note shown on the viewer page before the show starts
+  /** Made by "Try a sample show" — kept out of the Season report and the venue pitch. */
+  sample?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -80,6 +80,41 @@ describe('the season report', () => {
   });
 });
 
+describe('the season report, edge cases', () => {
+  it('leaves the sample night out, so a demo is never quoted to a venue', () => {
+    const report = buildSeasonReport([
+      show({ date: '2026-01-01', sample: true, venueName: 'The Basement', recap: { attendance: 50 } }),
+    ], [], 'year', TODAY);
+    expect(report.shows).toBe(0);
+    expect(report.topVenues).toEqual([]);
+  });
+
+  it('does not count a deposit on a night that has not happened as a loss yet', () => {
+    const report = buildSeasonReport([
+      show({ date: '2026-01-01', recap: { merchSales: 300 }, expenses: [{ id: 'a', category: 'Venue', itemName: 'Room', cost: 100 }] }),
+      show({ date: '2026-12-01', status: 'upcoming', expenses: [{ id: 'b', category: 'Venue', itemName: 'Deposit', cost: 500 }] }),
+    ], [], 'year', TODAY);
+    expect(report.showCosts).toBe(100);
+    expect(report.net).toBe(200);
+  });
+
+  it('counts a comic booked from the Rolodex once and typed in by hand once as one person', () => {
+    const report = buildSeasonReport([
+      show({ date: '2026-01-01', performers: [{ id: '1', name: 'Ada Lovelace', comicId: 'c1' }] }),
+      show({ date: '2026-02-01', performers: [{ id: '2', name: 'Ada  Lovelace' }] }),
+    ], [], 'year', TODAY);
+    expect(report.uniquePerformers).toBe(1);
+    expect(report.topPerformers[0].count).toBe(2);
+  });
+
+  it('ranks rooms by venue name, never by city', () => {
+    const report = buildSeasonReport([
+      show({ date: '2026-01-01', location: 'Brooklyn' }),
+    ], [], 'year', TODAY);
+    expect(report.topVenues).toEqual([]);
+  });
+});
+
 describe('the venue pitch', () => {
   it('leads with what is booked when nothing has run yet', () => {
     const report = buildSeasonReport([show({ date: '2026-12-01', status: 'upcoming' })], [], 'year', TODAY);
@@ -108,7 +143,8 @@ describe('the venue pitch', () => {
 
 describe('money on the report', () => {
   it('prints losses with the sign before the dollar', () => {
-    expect(formatMoney(-12.5)).toBe('-$12.5');
+    expect(formatMoney(-12.5)).toBe('-$12.50');
     expect(formatMoney(1234)).toBe('$1,234');
+    expect(formatMoney(12.5)).toBe('$12.50');
   });
 });
