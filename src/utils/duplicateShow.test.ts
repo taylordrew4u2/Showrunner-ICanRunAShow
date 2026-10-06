@@ -129,3 +129,10 @@ for (const options of [{}, { name: original.name, date: '2026-04-14' }]) {
     expect(source).toEqual(before);
   });
 }
+
+describe('duplicating the sample show', () => {
+  it('makes a real night that counts in the season report', () => {
+    const copy = duplicateShow({ ...original, sample: true } as Show);
+    expect(copy.sample).toBeUndefined();
+  });
+});

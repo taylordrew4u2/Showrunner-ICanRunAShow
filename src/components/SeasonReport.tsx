@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Expense, Show } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 import { buildSeasonReport, formatMoney, seasonPitch, type SeasonRange } from '../utils/seasonReport';
@@ -23,6 +23,10 @@ type Copied = 'none' | 'done' | 'failed';
 export function SeasonReport({ shows, brandExpenses, brandName, onBack, backLabel = 'More' }: SeasonReportProps) {
   const [range, setRange] = useState<SeasonRange>('year');
   const [copied, setCopied] = useState<Copied>('none');
+  // One reset at a time: a second press restarts the clock rather than being
+  // cut short by the first press's timer, and leaving the page cancels it.
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(resetTimer.current), []);
   const report = useMemo(() => buildSeasonReport(shows, brandExpenses, range), [shows, brandExpenses, range]);
   // The placeholder brand would make the pitch read "Show Producer has
   // produced…", which is worse than the plain "We have".
@@ -39,7 +43,8 @@ export function SeasonReport({ shows, brandExpenses, brandName, onBack, backLabe
       // the text is on the page to select by hand.
       setCopied('failed');
     }
-    setTimeout(() => setCopied('none'), 2500);
+    clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => setCopied('none'), 2500);
   }
 
   const tiles: { label: string; value: string; note?: string; tone?: 'good' | 'bad' }[] = [
@@ -103,8 +108,8 @@ export function SeasonReport({ shows, brandExpenses, brandName, onBack, backLabe
               <h2 id="season-regulars" className="season__panel-title">Your regulars</h2>
               {report.topPerformers.length ? (
                 <ol className="season__rank">
-                  {report.topPerformers.map((p) => (
-                    <li key={p.name}>
+                  {report.topPerformers.map((p, i) => (
+                    <li key={`${i}-${p.name}`}>
                       <span>{p.name}</span>
                       <span className="season__rank-count">{p.count} {p.count === 1 ? 'show' : 'shows'}</span>
                     </li>
@@ -119,8 +124,8 @@ export function SeasonReport({ shows, brandExpenses, brandName, onBack, backLabe
               <h2 id="season-rooms" className="season__panel-title">Your rooms</h2>
               {report.topVenues.length ? (
                 <ol className="season__rank">
-                  {report.topVenues.map((v) => (
-                    <li key={v.name}>
+                  {report.topVenues.map((v, i) => (
+                    <li key={`${i}-${v.name}`}>
                       <span>{v.name}</span>
                       <span className="season__rank-count">{v.count} {v.count === 1 ? 'show' : 'shows'}</span>
                     </li>
