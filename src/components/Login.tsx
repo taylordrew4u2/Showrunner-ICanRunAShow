@@ -143,11 +143,14 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
                 homepage instead, or a link broken across two lines in a text.
                 Saying so here is the difference between them asking for the
                 link again and them signing up for a producer's tool. */}
-            <p className="login__no-account">
-              Sent a link to sign or fill in? You do not need an account. Open the link
-              itself again — tap the address, not a preview card, and make sure you have
-              the whole thing, including everything after the <code>#</code>.
-            </p>
+            <details className="login__no-account">
+              <summary>Were you sent a link to sign or fill in?</summary>
+              <p>
+                You do not need an account. Open the link itself again — tap the address,
+                not a preview card, and make sure you have the whole thing, including
+                everything after the <code>#</code>.
+              </p>
+            </details>
             <p className="login__legal">
               <a href="/tour/">Features &amp; pricing</a>
               <a href="/guides/">Guides</a>

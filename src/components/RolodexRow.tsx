@@ -5,6 +5,7 @@ import { profileUrl, type ProfileLinkStatus } from '../utils/profileLink';
 import { describeChanges, type ProfileChange } from '../utils/signatureImport';
 import { useMediaUrl } from '../utils/useMediaUrl';
 import { useConfirm } from './useConfirm';
+import { avatarTint } from '../utils/avatarTint';
 
 /**
  * The address a row can put back on screen for a link still out asking.
@@ -133,7 +134,7 @@ export function RolodexRow({
         {photoUrl ? (
           <img className="rolodex__photo" src={photoUrl} alt="" />
         ) : (
-          <span className="rolodex__photo-placeholder">{comic.name.charAt(0).toUpperCase()}</span>
+          <span className="rolodex__photo-placeholder avatar-tint" style={avatarTint(comic.name)}>{comic.name.charAt(0).toUpperCase()}</span>
         )}
         <span className="rolodex__item-content">
           <span className="rolodex__name">{comic.name}</span>

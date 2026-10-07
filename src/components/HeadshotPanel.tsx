@@ -4,6 +4,7 @@ import { dataUrlToFile, imageUploadSizeError } from '../utils/media';
 import { uploadMedia } from '../utils/mediaStore';
 import { useMediaUrl } from '../utils/useMediaUrl';
 import { useConfirm } from './useConfirm';
+import { avatarTint } from '../utils/avatarTint';
 
 /** Shared by show performers and the saved comic profile. */
 export function HeadshotPanel({ name, photo, onChange }: {
@@ -75,7 +76,7 @@ export function HeadshotPanel({ name, photo, onChange }: {
     <p className="perf-profile__section-label">Headshot</p>
     {url ? <button className="headshot__preview-button" onClick={() => preview.current?.showModal()} aria-label={`View ${name}'s headshot`}>
       <img className="headshot__image" src={url} alt={`${name}'s headshot`} />
-    </button> : <div className="perf-profile__avatar-wrap"><div className="perf-profile__avatar-placeholder">{name.charAt(0).toUpperCase()}</div></div>}
+    </button> : <div className="perf-profile__avatar-wrap"><div className="perf-profile__avatar-placeholder avatar-tint" style={avatarTint(name)}>{name.charAt(0).toUpperCase()}</div></div>}
     {photo && !url && <p role="status" className="perf-profile__photo-hint">Loading headshot… If it does not appear, reopen the profile to retry.</p>}
     <input ref={input} type="file" accept="image/*" hidden aria-label="Choose headshot file" onChange={e => {
       const file = e.target.files?.[0];
