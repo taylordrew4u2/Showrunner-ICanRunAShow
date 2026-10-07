@@ -11,6 +11,22 @@ export class BillingNotConfiguredError extends Error {
   }
 }
 
+/**
+ * Stripe refused a request. Keeps Stripe's own code and message, which name
+ * the cause ("No such price… a similar object exists in test mode") and never
+ * carry the secret key, so the owner can fix the setup without server logs.
+ */
+export class StripeError extends Error {
+  readonly path: string;
+  readonly code: string | undefined;
+  constructor(path: string, code: string | undefined, message: string) {
+    super(message);
+    this.name = 'StripeError';
+    this.path = path;
+    this.code = code;
+  }
+}
+
 /** True when the server holds everything checkout needs. */
 export function isBillingConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID);
@@ -52,8 +68,8 @@ export async function stripe<T>(method: 'GET' | 'POST', path: string, params?: R
     },
     body,
   });
-  const data = (await res.json()) as T & { error?: { message?: string } };
-  if (!res.ok) throw new Error(`Stripe ${path}: ${data.error?.message ?? res.status}`);
+  const data = (await res.json()) as T & { error?: { message?: string; code?: string } };
+  if (!res.ok) throw new StripeError(path, data.error?.code, data.error?.message ?? `HTTP ${res.status}`);
   return data;
 }
 
