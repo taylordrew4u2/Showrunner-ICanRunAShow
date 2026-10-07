@@ -1,0 +1,286 @@
+/* ── Finish ───────────────────────────────────────────────────────────────
+   Loaded last (see main.tsx). utility.css stripped the app down to a flat,
+   square, grey tool; this layer keeps that density and every layout, and
+   gives it the finish of software people pay for: one confident accent,
+   surfaces with a hairline and a whisper of depth, controls that look
+   pressable, and headings with some weight. Tokens first, so every component
+   that already reads them moves together; then the handful of surfaces that
+   carry the brand (sign-in, primary buttons, cards, navigation). */
+
+:root {
+  --bg: #f6f7f9;
+  --backdrop: #eceef2;
+  --surface: #ffffff;
+  --surface-strong: #f1f3f6;
+  --text: #0e1116;
+  --text-muted: #4b5563;
+  --text-soft: #5b6472;
+  --border: #e3e6eb;
+  --border-strong: #c4c9d2;
+  --primary: #3b5bdb;
+  --primary-pressed: #3149c0;
+  --primary-bright: #748ffc;
+  --primary-soft: #eef1fd;
+  --primary-soft-border: #c5cff7;
+  --primary-text: #2f4bc4;
+  --on-primary: #ffffff;
+  --header-bg: #f6f7f9;
+  --segment-track: #eceef2;
+  --segment-chip: #ffffff;
+
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 5%);
+  --shadow-md: 0 1px 3px rgb(16 24 40 / 6%), 0 4px 12px rgb(16 24 40 / 5%);
+  --shadow-lg: 0 4px 8px rgb(16 24 40 / 5%), 0 16px 32px rgb(16 24 40 / 10%);
+  --shadow-xl: 0 8px 16px rgb(16 24 40 / 6%), 0 24px 56px rgb(16 24 40 / 14%);
+  --shadow-drawer: -16px 0 48px rgb(16 24 40 / 14%);
+  /* Cards: a hairline does the work, the shadow only lifts it off the page. */
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 4%), 0 1px 3px rgb(16 24 40 / 3%);
+  --shadow-button: 0 1px 2px rgb(16 24 40 / 12%);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--primary) 28%, transparent);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+}
+
+[data-theme="dark"] {
+  --bg: #0b0c0f;
+  --backdrop: #07080a;
+  --surface: #131519;
+  --surface-strong: #1a1d23;
+  --text: #f3f4f7;
+  --text-muted: #a1a7b4;
+  --text-soft: #8c93a1;
+  --border: #23262e;
+  --border-strong: #363a45;
+  --primary: #4263eb;
+  --primary-pressed: #5472f0;
+  --primary-bright: #91a7ff;
+  --primary-soft: #161d36;
+  --primary-soft-border: #33427e;
+  --primary-text: #a5b8ff;
+  --on-primary: #ffffff;
+  --header-bg: #0b0c0f;
+  --segment-track: #0b0c0f;
+  --segment-chip: #262a33;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 2px 8px rgb(0 0 0 / 40%);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 50%);
+  --shadow-xl: 0 16px 48px rgb(0 0 0 / 60%);
+  --shadow-drawer: -16px 0 48px rgb(0 0 0 / 55%);
+  /* On a dark ground depth comes from light on the top edge, not shadow. */
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / 4%), 0 1px 2px rgb(0 0 0 / 35%);
+  --shadow-button: inset 0 1px 0 rgb(255 255 255 / 5%), 0 1px 2px rgb(0 0 0 / 40%);
+}
+
+/* ── Type ─────────────────────────────────────────────────────────────── */
+.page-header__title,
+.show-detail__title,
+.show-workspace__body .show-detail__title {
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+@media (min-width: 900px) {
+  .page-header__title { font-size: 2rem; }
+}
+.dash-next__name { font-weight: 700; letter-spacing: -0.02em; }
+.show-card__title { letter-spacing: -0.01em; }
+.page-header__subtitle { color: var(--text-muted); }
+
+/* Section labels: small caps in the app's own face, quieter than the mono. */
+.dash-panel__title,
+.shows-list__heading-text,
+.run-of-show__label,
+.settings__section-title {
+  font-family: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+}
+.dash-panel--next .dash-panel__title { color: var(--primary-text); letter-spacing: 0.08em; }
+
+/* ── Surfaces ─────────────────────────────────────────────────────────── */
+.show-card,
+.dash-panel--next,
+.accordion-section,
+.settings__card,
+.plan-card,
+.season__panel,
+.season__tile,
+.section-card,
+.show-tile,
+.show-progress__card,
+.budget-card,
+.more-list,
+.more-menu__list,
+.empty-state,
+.contracts__list,
+.music-list__item,
+.onboarding__container,
+.install-prompt,
+.import-pick-card,
+.ai-import-entry {
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
+}
+.modal-box,
+.sheet { box-shadow: var(--shadow-xl); border-color: var(--border); }
+
+.show-card { transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease, transform var(--duration-fast) ease; }
+@media (hover: hover) {
+  .show-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+}
+.show-card__date {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  border-radius: var(--radius-md);
+}
+
+/* The next show is the one thing on the page that matters tonight. */
+.dash-panel--next {
+  border-color: var(--primary-soft-border);
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 55%),
+    var(--surface);
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────── */
+.btn { font-weight: 600; letter-spacing: -0.005em; }
+.btn--primary,
+.login__button:not(.login__button--secondary),
+.rs-music-card__play {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 86%, #fff), var(--primary));
+  border: 1px solid color-mix(in srgb, var(--primary) 82%, #000);
+  color: var(--on-primary);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%), 0 1px 2px rgb(16 24 40 / 20%),
+    0 4px 12px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.btn--primary:hover:not(:disabled),
+.login__button:not(.login__button--secondary):hover:not(:disabled),
+.rs-music-card__play:hover:not(:disabled) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 78%, #fff), color-mix(in srgb, var(--primary) 92%, #fff));
+}
+.btn--secondary,
+.login__button--secondary,
+.icon-btn {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-button);
+}
+.btn--secondary:hover:not(:disabled),
+.login__button--secondary:hover:not(:disabled) { background: var(--surface-strong); }
+
+/* One focus treatment everywhere: the accent ring, not the browser's. */
+:where(input, select, textarea):focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+.btn:focus-visible,
+.login__button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.shows-toolbar__search,
+.shows-toolbar__sort,
+.login__input { background: var(--surface); border-color: var(--border-strong); }
+.login__input { min-height: 46px; }
+
+/* Status tags round off again — soft chips rather than stamped boxes. */
+.pill,
+.sync-status__pill,
+.show-detail__status,
+.accordion-section__count,
+.contracts__badge,
+.more-item__badge,
+.music-list__tag,
+.onboarding__chip,
+.settings__chip,
+.cue__perf {
+  border-radius: var(--radius-full);
+}
+.sync-status__pill { background: var(--surface); box-shadow: var(--shadow-button); }
+
+/* ── Navigation ───────────────────────────────────────────────────────── */
+@media (max-width: 899px) {
+  .bottom-nav {
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    -webkit-backdrop-filter: saturate(160%) blur(16px);
+    backdrop-filter: saturate(160%) blur(16px);
+  }
+}
+.bottom-nav__item--active { color: var(--primary-text); }
+@media (min-width: 900px) {
+  .bottom-nav__item--active,
+  .bottom-nav:popover-open .bottom-nav__item--active {
+    background: var(--primary-soft);
+    color: var(--primary-text);
+    box-shadow: none;
+  }
+  .bottom-nav:popover-open { border-color: var(--border); box-shadow: var(--shadow-xl); padding: 6px; }
+  .bottom-nav:popover-open .bottom-nav__item { border-radius: var(--radius-md); }
+  .navigation-toggle { box-shadow: var(--shadow-button); }
+}
+.show-workspace__sidebar nav button[aria-expanded="true"] { color: var(--primary-text); }
+
+/* ── Sign-in ──────────────────────────────────────────────────────────── */
+/* A stage light: one soft cone of the accent from above, the room dark
+   around it. The form is the lit object. */
+.landing {
+  background:
+    radial-gradient(900px 520px at 22% -8%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 62%),
+    radial-gradient(700px 480px at 100% 110%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 60%),
+    var(--bg);
+}
+.landing__headline {
+  font-size: clamp(2.4rem, 4.6vw, 3.6rem);
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  line-height: 1.04;
+  margin-bottom: 18px;
+}
+.landing__headline em {
+  font-style: normal;
+  background: linear-gradient(92deg, var(--primary-text), color-mix(in srgb, var(--primary-text) 55%, #c084fc));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.landing__lede { font-size: var(--text-lg); }
+.landing__steps { border-top-color: var(--border); }
+.landing__steps li { border-bottom-color: var(--border); padding: 12px 0; font-weight: 500; }
+.landing__steps span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  font-family: inherit;
+  font-weight: 650;
+}
+.login__container,
+[data-theme="dark"] .login__container {
+  border-radius: var(--radius-2xl);
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-card), var(--shadow-xl);
+}
+.login__title { font-size: var(--text-xl); font-weight: 700; letter-spacing: -0.02em; }
+.login__button { min-height: 46px; border-radius: var(--radius-md); }
+@media (max-width: 700px) {
+  .landing__headline { font-size: 2.2rem; }
+}
+
+/* ── Run Show ─────────────────────────────────────────────────────────── */
+/* Still charcoal and still quiet; the accent matches the rest of the app. */
+.run-show.run-show { --rs-blue: var(--show-accent, #4263eb); --rs-blue-text: #a5b8ff; }
+.rs-btn--start,
+.rs-btn--start:hover:not(:disabled) { background: #4263eb; border-color: #3654d6; color: #ffffff; }
+.run-show .rs-fade__slider:focus-visible { outline-color: #a5b8ff; }
