@@ -142,6 +142,17 @@ describe('a producer subscribing', () => {
     expect(await (await post('portal')).json()).toEqual({ url: 'https://billing.stripe.com/p/session/test' });
   });
 
+  it('passes on why Stripe refused, so a mismatched key and price can be fixed without logs', async () => {
+    vi.stubEnv('STRIPE_PRICE_ID', 'price_missing');
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json(
+      { error: { code: 'resource_missing', message: "No such price: 'price_missing'; a similar object exists in test mode" } },
+      { status: 400 },
+    )));
+    const res = await post('checkout');
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ error: 'stripe_error', code: 'resource_missing', message: expect.stringContaining('test mode') });
+  });
+
   it('says so plainly when the server has no Stripe keys yet', async () => {
     vi.stubEnv('STRIPE_SECRET_KEY', '');
     expect((await plan()).configured).toBe(false);

@@ -6,7 +6,7 @@
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson } from './_lib/http';
-import { BillingNotConfiguredError, isBillingConfigured, isPaidStatus, stripe } from './_lib/stripe';
+import { BillingNotConfiguredError, isBillingConfigured, isPaidStatus, stripe, StripeError } from './_lib/stripe';
 
 interface SubscriptionRow {
   customerId: string | null;
@@ -94,6 +94,10 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: 'method_not_allowed' }, 405);
   } catch (err) {
     if (err instanceof BillingNotConfiguredError) return json({ error: 'billing_not_configured' }, 501);
+    if (err instanceof StripeError) {
+      console.error('Stripe error:', err.path, err.code, err.message);
+      return json({ error: 'stripe_error', code: err.code ?? null, message: err.message }, 502);
+    }
     return handleError(err);
   }
 }
