@@ -38,7 +38,7 @@ const sendEvent = (event: unknown, signature?: string) => {
 
 const plan = async (user = 'producer') => {
   const res = await billing(new Request('https://example.test/api/billing', { headers: { 'x-user-id': user } }));
-  return res.json() as Promise<{ plan: string; status: string | null; canManage: boolean; configured: boolean }>;
+  return res.json() as Promise<{ plan: string; founder: boolean; status: string | null; canManage: boolean; configured: boolean }>;
 };
 
 const post = (action: string, user = 'producer') =>
@@ -54,6 +54,9 @@ beforeEach(async () => {
   await connection.db.execute(`CREATE TABLE subscription (
     user_id TEXT PRIMARY KEY, customer_id TEXT, subscription_id TEXT, status TEXT,
     current_period_end INTEGER, updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  await connection.db.execute(`CREATE TABLE users (
+    id TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
   vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_x');
   vi.stubEnv('STRIPE_PRICE_ID', 'price_producer');
@@ -162,6 +165,40 @@ describe('a producer subscribing', () => {
   it('never lets one producer see another producer’s plan', async () => {
     await sendEvent({ type: 'checkout.session.completed', data: { object: { client_reference_id: 'producer', subscription: 'sub_1' } } });
     expect((await plan('someone-else')).plan).toBe('free');
+  });
+});
+
+describe('accounts from before subscriptions', () => {
+  const signedUp = (user: string, at: string) =>
+    connection.db!.execute({ sql: `INSERT INTO users (id, created_at) VALUES (?, ?)`, args: [user, at] });
+
+  it('keep every Producer feature free, without a subscription', async () => {
+    await signedUp('early', '2026-03-14 20:15:00');
+    expect(await plan('early')).toMatchObject({ plan: 'producer', founder: true, canManage: false });
+  });
+
+  it('are never sent to checkout for something they already have', async () => {
+    await signedUp('early', '2026-03-14 20:15:00');
+    expect((await post('checkout', 'early')).status).toBe(409);
+    expect(stripeCalls).toHaveLength(0);
+  });
+
+  it('stop at the moment the locks shipped: anyone after it is on the free plan', async () => {
+    await signedUp('just-before', '2026-10-06 23:31:57');
+    await signedUp('just-after', '2026-10-06 23:31:58');
+    expect((await plan('just-before')).plan).toBe('producer');
+    expect(await plan('just-after')).toMatchObject({ plan: 'free', founder: false });
+  });
+
+  it('read an ISO timestamp the same way as SQLite’s own', async () => {
+    await signedUp('iso', '2026-10-06T22:00:00.000Z');
+    expect((await plan('iso')).founder).toBe(true);
+  });
+
+  it('do not lose the plan when a founder also subscribes and then cancels', async () => {
+    await signedUp('producer', '2026-01-01 00:00:00');
+    await sendEvent({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'canceled', metadata: { user_id: 'producer' } } } });
+    expect(await plan()).toMatchObject({ plan: 'producer', founder: true });
   });
 });
 

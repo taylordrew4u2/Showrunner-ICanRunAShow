@@ -9,6 +9,8 @@ export interface BillingState {
   /** False until the server has Stripe keys; the plan card says so rather than offering a button that can't work. */
   configured: boolean;
   plan: Plan;
+  /** Signed up before subscriptions existed: every Producer feature, free, for good. */
+  founder?: boolean;
   status: string | null;
   renewsAt: string | null;
   /** Whether there's a Stripe customer to open the portal for. */
