@@ -242,13 +242,9 @@
   line-height: 1.04;
   margin-bottom: 18px;
 }
-.landing__headline em {
-  font-style: normal;
-  background: linear-gradient(92deg, var(--primary-text), color-mix(in srgb, var(--primary-text) 55%, #c084fc));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
+/* One word in the accent, set solid. A gradient fill reads as a launch page;
+   a booker is choosing a tool. */
+.landing__headline em { font-style: normal; color: var(--primary-text); }
 .landing__lede { font-size: var(--text-lg); }
 .landing__steps { border-top-color: var(--border); }
 .landing__steps li { border-bottom-color: var(--border); padding: 12px 0; font-weight: 500; }
@@ -280,7 +276,91 @@
 
 /* ── Run Show ─────────────────────────────────────────────────────────── */
 /* Still charcoal and still quiet; the accent matches the rest of the app. */
-.run-show.run-show { --rs-blue: var(--show-accent, #4263eb); --rs-blue-text: #a5b8ff; }
+.run-show.run-show.run-show { --rs-blue: var(--show-accent, #4263eb); --rs-blue-text: #a5b8ff; }
+/* RunShowAppearance.css arrives with the lazily loaded Run Show chunk, after
+   this file, so these carry one more class to stay ahead of it. */
+.run-show.run-show .rs-music-card__play {
+  border-color: #3654d6;
+  background: linear-gradient(180deg, #5b78ee, #4263eb);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%), 0 4px 14px rgb(66 99 235 / 35%);
+}
+.run-show.run-show .rs-music-card__play:hover:not(:disabled) { background: linear-gradient(180deg, #6a86f2, #5472f0); border-color: #3654d6; }
 .rs-btn--start,
 .rs-btn--start:hover:not(:disabled) { background: #4263eb; border-color: #3654d6; color: #ffffff; }
 .run-show .rs-fade__slider:focus-visible { outline-color: #a5b8ff; }
+
+/* ── Wordmark ─────────────────────────────────────────────────────────── */
+/* The name set as a mark rather than a sentence: tracked capitals beside the
+   logo, the way an established name sits on a letterhead. */
+.landing__wordmark-text,
+.mobile-brand > span,
+.show-workspace__brand span,
+.bottom-nav__brand-text {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+@media (max-width: 899px) {
+  .mobile-brand > span { font-size: 0.68rem; }
+}
+
+/* ── Letter avatars ───────────────────────────────────────────────────── */
+/* Each person gets their own hue (utils/avatarTint.ts). */
+.avatar-tint.avatar-tint {
+  background: hsl(var(--avatar-hue, 225) 70% 93%);
+  color: hsl(var(--avatar-hue, 225) 55% 32%);
+  border-color: transparent;
+}
+[data-theme="dark"] .avatar-tint.avatar-tint {
+  background: hsl(var(--avatar-hue, 225) 38% 20%);
+  color: hsl(var(--avatar-hue, 225) 85% 82%);
+}
+
+/* ── Run Show faders ──────────────────────────────────────────────────── */
+/* Readouts in the app's face rather than a terminal's, and faders that look
+   like hardware: a recessed slot, a filled rail and a capped thumb. */
+.run-show.run-show .rs-console__levels-title,
+.run-show.run-show .rs-fader__value {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+.run-show.run-show .rs-fader__label { font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; }
+.run-show.run-show .rs-console__levels {
+  background: linear-gradient(180deg, rgb(255 255 255 / 3%), rgb(0 0 0 / 18%));
+  border: 1px solid rgb(255 255 255 / 7%);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+}
+.run-show.run-show .rs-fade__slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4263eb, #748ffc);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 45%);
+}
+.run-show.run-show .rs-fade__slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4263eb, #748ffc);
+}
+.run-show.run-show .rs-fade__slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 30px;
+  margin-top: -12px;
+  border-radius: 5px;
+  border: 1px solid #c9ced8;
+  background: linear-gradient(90deg, #f3f4f7 0 46%, #8c93a1 46% 54%, #f3f4f7 54%);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 55%);
+}
+.run-show.run-show .rs-fade__slider::-moz-range-thumb {
+  width: 16px;
+  height: 30px;
+  border-radius: 5px;
+  border: 1px solid #c9ced8;
+  background: linear-gradient(90deg, #f3f4f7 0 46%, #8c93a1 46% 54%, #f3f4f7 54%);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 55%);
+}

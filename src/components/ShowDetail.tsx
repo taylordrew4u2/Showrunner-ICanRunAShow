@@ -47,6 +47,7 @@ import './ShowDetail.css';
 import { useConfirm } from './useConfirm';
 import { ProducerLock } from './ProducerLock';
 import { useProducerAccess } from '../utils/producerAccess';
+import { avatarTint } from '../utils/avatarTint';
 
 // Each section card wears the icon for what it holds, so the grid is scannable
 // by shape once you know the page — a wall of same-looking cards is the failure
@@ -118,7 +119,7 @@ const STATUS_LABELS: Record<ShowStatus, string> = {
 function LineupPreview({ performer, onOpen }: { performer: Performer; onOpen: () => void }) {
   const photo = useMediaUrl(performer.photo);
   return <button className="show-workspace__person" onClick={onOpen} aria-label={`Open ${performer.name}'s profile`}>
-    {photo ? <img src={photo} alt="" /> : <span className="show-workspace__initial">{performer.name.charAt(0).toUpperCase()}</span>}
+    {photo ? <img src={photo} alt="" /> : <span className="show-workspace__initial avatar-tint" style={avatarTint(performer.name)}>{performer.name.charAt(0).toUpperCase()}</span>}
     <span><strong>{performer.name}</strong>{performer.socialMedia && <small>{performer.socialMedia}</small>}{performer.walkOnMusicName && <small>{performer.walkOnMusicName}</small>}{!performer.socialMedia && !performer.walkOnMusicName && <small>Edit profile & headshot</small>}</span>
     <Icon name="edit" size={15} />
   </button>;

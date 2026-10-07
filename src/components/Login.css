@@ -236,6 +236,21 @@
   text-align: center;
 }
 
+/* Folded away: the people who need it are told where to look, and everyone
+   else signing in doesn't read a troubleshooting note on the front door. */
+.login__no-account summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 550;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--border-strong);
+}
+.login__no-account summary::-webkit-details-marker { display: none; }
+.login__no-account summary:hover { color: var(--text); }
+.login__no-account p { margin: var(--space-2) 0 0; }
+
 .login__no-account code {
   font-family: var(--font-mono);
 }

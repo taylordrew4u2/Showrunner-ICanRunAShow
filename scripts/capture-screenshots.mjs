@@ -616,15 +616,24 @@ async function main() {
     await page.locator('.show-detail__back-btn').first().click();
     await page.locator('.shows-list').waitFor();
     if (MOCK_API) {
-      // A second, unbooked night makes both dashboard states visible.
-      await openNewShowForm(page);
-      await page.getByPlaceholder('Show name').fill('After Hours Open Mic');
-      await page.locator('.show-form__input[type="date"]').fill(futureDate(14));
-      await page.getByPlaceholder('e.g. 8:00 PM').fill('7:00 PM');
-      await page.getByPlaceholder('Venue name').fill('The Back Room');
-      await page.locator('.show-form').getByRole('button', { name: 'Save' }).click();
-      await page.locator('.show-detail').waitFor();
-      await page.locator('.bottom-nav__item', { hasText: 'Shows' }).click();
+      // More nights still being booked: both dashboard states are visible, and
+      // the calendar reads like a producer's month rather than a test account.
+      const upcoming = [
+        ['After Hours Open Mic', 14, '7:00 PM', 'The Back Room'],
+        ['Sunday Drag Brunch', 17, '12:30 PM', 'Velvet Lounge'],
+        ['Late Night Variety Hour', 24, '10:00 PM', 'The Basement'],
+      ];
+      for (const [name, days, time, venue] of upcoming) {
+        await openNewShowForm(page);
+        await page.getByPlaceholder('Show name').fill(name);
+        await page.locator('.show-form__input[type="date"]').fill(futureDate(days));
+        await page.getByPlaceholder('e.g. 8:00 PM').fill(time);
+        await page.getByPlaceholder('Venue name').fill(venue);
+        await page.locator('.show-form').getByRole('button', { name: 'Save' }).click();
+        await page.locator('.show-detail').waitFor();
+        await page.locator('.bottom-nav__item', { hasText: 'Shows' }).click();
+        await page.locator('.shows-list').waitFor();
+      }
     }
     await shot(page, 'shows');
     await captureDesktop(page);
