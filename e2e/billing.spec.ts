@@ -67,6 +67,26 @@ test.describe('Producer features on the free plan', () => {
     await expect(page.locator('.producer-lock')).toHaveCount(0);
   });
 
+  test('an account from before subscriptions keeps every feature free, and is never asked to pay', async ({ page, context }) => {
+    await installFakeApi(context, emptyState({ billingConfigured: true, founders: true }));
+    await signUpAndOnboard(page);
+
+    await gotoTab(page, 'Settings');
+    const card = page.locator('.plan-card');
+    await expect(card).toContainText('Founding member');
+    await expect(card).toContainText('every Producer feature is yours free');
+    await expect(card.getByRole('button', { name: /Upgrade/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Pair a remote' })).toBeVisible();
+
+    await gotoTab(page, 'More');
+    await page.locator('.more-item').filter({ hasText: 'Contracts' }).click();
+    await expect(page.getByRole('button', { name: 'Add for signature' })).toBeVisible();
+    await page.locator('.page-header__back').first().click();
+    await page.locator('.more-item').filter({ hasText: 'Season report' }).click();
+    await expect(page.getByRole('heading', { name: 'Season report', level: 1 })).toBeVisible();
+    await expect(page.locator('.producer-lock')).toHaveCount(0);
+  });
+
   test('a producer whose plan cannot be checked keeps every feature', async ({ page, context }) => {
     // No Stripe on the server: nothing is locked, as before billing existed.
     await installFakeApi(context, emptyState());

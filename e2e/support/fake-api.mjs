@@ -41,6 +41,7 @@ import { createHash } from 'node:crypto';
  * @property {string[]} mediaDeletes        Every media id the app asked to delete.
  * @property {boolean} billingConfigured  Whether the server has Stripe keys (api/billing.ts isBillingConfigured).
  * @property {Record<string, {status: string, customerId: string}>} billing  What Stripe's webhook last reported, by account.
+ * @property {boolean} founders  Every account counts as made before subscriptions (api/billing.ts isFoundingMember).
  */
 
 // ── Constants copied from the routes they mirror ────────────────────────────
@@ -87,6 +88,7 @@ export function emptyState(overrides = {}) {
     mediaDeletes: [],
     billingConfigured: false,
     billing: {},
+    founders: false,
     ...overrides,
   };
 }
@@ -205,11 +207,13 @@ export async function installFakeApi(ctx, state) {
       if (!userId) return err(401, 'unauthorized');
       const row = state.billing[userId];
       const paid = ['active', 'trialing', 'past_due'].includes(row?.status);
+      const founder = state.founders;
       if (method === 'GET') {
-        return ok({ configured: state.billingConfigured, plan: paid ? 'producer' : 'free', status: row?.status ?? null, renewsAt: null, canManage: !!row });
+        return ok({ configured: state.billingConfigured, plan: founder || paid ? 'producer' : 'free', founder, status: row?.status ?? null, renewsAt: null, canManage: !!row });
       }
       if (!state.billingConfigured) return err(501, 'billing_not_configured');
       if (body.action === 'checkout') {
+        if (founder) return err(409, 'founding_member');
         if (paid) return err(409, 'already_subscribed');
         state.billing[userId] = { status: 'active', customerId: 'cus_fake' };
         return ok({ url: '/?billing=success' });

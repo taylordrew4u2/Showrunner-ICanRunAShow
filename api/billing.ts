@@ -1,5 +1,5 @@
 // /api/billing — the signed-in producer's plan, and the way into Stripe.
-//   GET                          → { configured, plan, status, renewsAt }
+//   GET                          → { configured, plan, founder, status, renewsAt, canManage }
 //   POST { action: 'checkout' }  → { url } of a Stripe Checkout page for the Producer plan
 //   POST { action: 'portal' }    → { url } of the Stripe customer portal (change card, cancel)
 // Card details never touch this server: both URLs are Stripe-hosted pages.
@@ -31,6 +31,27 @@ async function loadRow(userId: string): Promise<SubscriptionRow | null> {
   };
 }
 
+/**
+ * When the Producer features started being held back (the lock shipped in
+ * #317), in the users table's own UTC "YYYY-MM-DD HH:MM:SS" form. Accounts
+ * made before it were promised a free app and keep every feature without
+ * paying: they are founding members, on the Producer plan for good.
+ */
+export const SUBSCRIPTIONS_STARTED_AT = '2026-10-06 23:31:58';
+
+export function isFoundingMember(createdAt: string | null): boolean {
+  if (!createdAt) return false;
+  // SQLite writes a space between date and time; tolerate the ISO "T" too so
+  // a row written another way can't sort after the cutoff by accident.
+  return createdAt.replace('T', ' ').slice(0, 19) < SUBSCRIPTIONS_STARTED_AT;
+}
+
+async function loadCreatedAt(userId: string): Promise<string | null> {
+  const result = await getDb().execute({ sql: `SELECT created_at FROM users WHERE id = ?`, args: [userId] });
+  const value = result.rows[0]?.[0];
+  return value != null ? String(value) : null;
+}
+
 // Where Stripe sends the producer back to. APP_URL pins it in production so a
 // request arriving through some other hostname can't redirect a paying
 // customer somewhere else; previews fall back to the URL they were reached on.
@@ -44,11 +65,13 @@ export default async function handler(req: Request): Promise<Response> {
     const userId = await authorize(req);
     if (!userId) return json({ error: 'unauthorized' }, 401);
     const row = await loadRow(userId);
+    const founder = isFoundingMember(await loadCreatedAt(userId));
 
     if (req.method === 'GET') {
       return json({
         configured: isBillingConfigured(),
-        plan: isPaidStatus(row?.status) ? 'producer' : 'free',
+        plan: founder || isPaidStatus(row?.status) ? 'producer' : 'free',
+        founder,
         status: row?.status ?? null,
         renewsAt: row?.periodEnd ? new Date(row.periodEnd * 1000).toISOString() : null,
         canManage: Boolean(row?.customerId),
@@ -61,6 +84,7 @@ export default async function handler(req: Request): Promise<Response> {
       const origin = appOrigin(req);
 
       if (action === 'checkout') {
+        if (founder) return json({ error: 'founding_member' }, 409);
         if (isPaidStatus(row?.status)) return json({ error: 'already_subscribed' }, 409);
         const session = await stripe<{ url: string }>('POST', '/checkout/sessions', {
           mode: 'subscription',

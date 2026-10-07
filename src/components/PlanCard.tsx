@@ -71,7 +71,8 @@ export function PlanCard({ load, checkout, portal, returned }: BillingActions) {
     }
   }
 
-  const paid = state?.plan === 'producer';
+  const founder = state?.founder === true;
+  const paid = state?.plan === 'producer' && !founder;
   const renews = renewLabel(state?.renewsAt ?? null);
 
   return (
@@ -92,7 +93,20 @@ export function PlanCard({ load, checkout, portal, returned }: BillingActions) {
         <p className="settings__hint">Couldn’t check your plan right now. Everything you have keeps working.</p>
       )}
 
-      {state && (
+      {state && founder && (
+        <>
+          <p className="plan-card__current">
+            <span className="plan-card__name">Producer</span>
+            <span className="plan-card__price">Founding member</span>
+          </p>
+          <p className="settings__hint">
+            You were here before paid plans, so every Producer feature is yours free — for good.
+            Thank you for being early.
+          </p>
+        </>
+      )}
+
+      {state && !founder && (
         <>
           <p className="plan-card__current">
             <span className="plan-card__name">{paid ? 'Producer' : 'Open Mic'}</span>
