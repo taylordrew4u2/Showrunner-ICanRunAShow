@@ -41,7 +41,9 @@ export type IconName =
   | 'alert'
   | 'cloud'
   | 'dollar'
-  | 'mail';
+  | 'mail'
+  | 'external'
+  | 'user';
 
 interface IconProps {
   name: IconName;
@@ -343,6 +345,21 @@ export function Icon({ name, size = 20, className, style, ...rest }: IconProps) 
         <svg {...common}>
           <rect x="3" y="5" width="18" height="14" rx="2" />
           <path d="m3 7 9 6 9-6" />
+        </svg>
+      );
+    case 'external':
+      return (
+        <svg {...common}>
+          <path d="M15 3h6v6" />
+          <path d="M10 14 21 3" />
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        </svg>
+      );
+    case 'user':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M20 21a8 8 0 0 0-16 0" />
         </svg>
       );
     case 'dollar':

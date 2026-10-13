@@ -1,6 +1,7 @@
 import { clarifyIntroductionCredits } from '../utils/introductionCredits';
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal';
+import { Icon } from './Icon';
 import { decryptWithKey, encryptWithKey } from '../utils/encryption';
 import type { ApiError } from '../utils/api';
 import {
@@ -473,7 +474,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           )}
           {pending && <button className="btn btn--secondary" onClick={() => retryDeliveryRef.current?.()}>Retry now</button>}
           <p className="signing__done-line">
-            {signed.typedName} · {new Date(signed.signedAt).toLocaleString()}
+            {signed.typedName} · {new Date(signed.signedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
           </p>
           {signed.cancellationRuleAcknowledged && (
             <p className="signing__done-rule">Day-of cancellation rule acknowledged.</p>
@@ -564,7 +565,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
                 <img className="signing__photo-preview" src={headshot} alt="Your headshot" />
               ) : (
                 <span className="signing__photo-empty" aria-hidden="true">
-                  ☺
+                  <Icon name="user" size={24} />
                 </span>
               )}
               <div className="signing__photo-actions">

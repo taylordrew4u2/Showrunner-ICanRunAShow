@@ -1,3 +1,4 @@
+import { Icon } from '../Icon';
 import type { Show } from '../../types';
 import { normaliseShowTime } from '../../utils/readShowStart';
 
@@ -73,7 +74,7 @@ export function BasicInfoSection({ show, onChange }: BasicInfoSectionProps) {
             rel="noopener noreferrer"
             className="section-field__link"
           >
-            🔗 Open ticket page
+            <Icon name="external" size={14} /> Open ticket page
           </a>
         )}
       </label>

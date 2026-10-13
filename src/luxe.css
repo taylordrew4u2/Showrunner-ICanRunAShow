@@ -460,12 +460,12 @@
 .login__button:not(.login__button--secondary),
 .show-detail__run-show,
 .signing__cta {
-  font-size: 0.72rem;
+  font-size: var(--text-sm);
   font-weight: 600;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.btn--primary.btn--sm { font-size: var(--text-2xs); letter-spacing: 0.12em; }
+.btn--primary.btn--sm { font-size: var(--text-xs); letter-spacing: 0.1em; }
 
 /* The show page's Run Show is the primary action under another name. */
 .show-detail__run-show {
@@ -1003,8 +1003,7 @@
   font-weight: 500;
   line-height: 1;
 }
-/* Performers on the soundboard are names on the bill, as on the show page;
-   the track under each is set like a song title in a programme. */
+/* Performers on the soundboard are names on the bill, as on the show page. */
 .run-show.run-show .rs-pad__label {
   font-family: var(--font-serif);
   font-size: 1.2rem;
@@ -1012,11 +1011,14 @@
   line-height: 1.15;
   letter-spacing: 0;
 }
+/* The track under the name is read at arm's length in a dark room, so it
+   is set in upright Inter at a readable size, not a hairline italic. */
 .run-show.run-show .rs-pad__sub:not(.rs-pad__sub--auto) {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 0.98rem;
+  font-family: inherit;
+  font-style: normal;
+  font-size: var(--text-xs);
   font-weight: 500;
+  color: var(--rs-dim);
 }
 /* Playing: an ivory ring and the green badge. The name stays ivory; the
    badge carries the state. */
@@ -1150,3 +1152,42 @@
 }
 .contracts__mark--signed { border-color: var(--success); }
 .contracts__fields { margin: var(--space-5) 0 var(--space-6); }
+
+/* ── Second review round ──────────────────────────────────────────────── */
+/* "Signed" is the word on the letterhead, in ink, not a success toast. */
+.signing__panel--done h2 { color: var(--text); }
+
+/* A disabled add-cue button stays outlined with dimmed text, like every
+   other disabled action, instead of a greyed-out solid block. */
+.quick-add__btn:disabled {
+  opacity: 1;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-soft);
+}
+
+/* The schedule's stacked cards sit the same distance apart. */
+.schedule-summary,
+.timeline,
+.show-workspace__running .timeline,
+.quick-add { margin-bottom: var(--space-3); }
+
+/* On a laptop both columns of the show page start on the same line. */
+.show-workspace .show-detail__sections-accordion { margin-top: 0; }
+
+/* The flyer's frame fits the flyer: no band of a lighter grey either side
+   of a portrait image. */
+.show-flyer__preview { width: fit-content; max-width: 100%; background: transparent; }
+.show-flyer__preview img { width: auto; max-width: 100%; }
+
+/* A section label beside its Edit button sits on the button's centre line. */
+.contracts__fields-head .contracts__section-label { margin: 0; }
+
+/* Mute and Stop music are a pair, so they stand the same height (and Mute
+   clears the 44px tap size with it). */
+.run-show.run-show .rs-board__actions { align-items: stretch; }
+
+/* Line icons in place of pictographs: they sit on the text's centre line. */
+.section-field__link,
+.section-mass-message .btn { gap: 6px; }
+.signing__photo-empty svg { display: block; }
