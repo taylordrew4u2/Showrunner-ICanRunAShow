@@ -245,6 +245,8 @@ async function captureRunShow(page) {
   // Down to the end of the performers' bank and no further: the phone screen
   // ended halfway through the second row of performers, slicing their names.
   await page.setViewportSize({ width: 430, height: 1400 });
+  // Pressing the pad scrolled the board; the shot starts at the top of it.
+  await page.locator('.run-show__scroll').evaluate((el) => el.scrollTo(0, 0));
   await page.waitForTimeout(1200); // let the timer tick
   const bank = await page.locator('.rs-bank').first().boundingBox();
   const path = `${OUT_DIR}/run-show.png`;
