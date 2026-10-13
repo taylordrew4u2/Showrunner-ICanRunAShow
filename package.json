@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@capacitor/core": "^8.4.2",
-    "@capacitor/ios": "^8.4.2",
+    "@capacitor/ios": "^8.4.3",
     "@libsql/client": "^0.17.0",
     "crypto-js": "^4.2.0",
     "pdfjs-dist": "5.5.207",
