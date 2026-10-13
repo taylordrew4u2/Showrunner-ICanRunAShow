@@ -215,7 +215,7 @@
 .run-show .rs-pad__sub--auto { opacity: 1; }
 .run-show .rs-pad__kind,
 .run-show .rs-pad__state { background: #100f0e; color: var(--text); border-color: var(--rs-deck-edge); }
-.run-show .rs-pad--playing .rs-pad__face { border-color: var(--rs-green); box-shadow: 0 0 0 2px rgb(74 222 128 / 20%); }
+.run-show .rs-pad--playing .rs-pad__face { border-color: var(--rs-green); box-shadow: none; }
 .run-show .rs-pad--playing .rs-pad__label { color: var(--rs-green); }
 .run-show .rs-pad--playing .rs-pad__state { background: var(--rs-green); border-color: var(--rs-green); color: #052e16; }
 .run-show .rs-pad--loading .rs-pad__face { border-color: var(--rs-amber); box-shadow: 0 0 0 2px rgb(251 191 36 / 20%); }

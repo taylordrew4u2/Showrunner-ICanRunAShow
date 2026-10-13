@@ -6,18 +6,44 @@
   <title>Privacy Policy — I Can Run A Show</title>
   <meta name="description" content="Privacy policy for I Can Run A Show — what data we collect and how it's encrypted." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0d0c0b" media="(prefers-color-scheme: dark)" />
   <link rel="canonical" href="https://icanrunashow.com/privacy.html" />
   <style>
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 350 800; font-display: swap; src: url('/fonts/inter-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Cormorant Garamond'; font-style: normal; font-weight: 300 700; font-display: swap; src: url('/fonts/cormorant-garamond-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 300 700; font-display: swap; src: url('/fonts/cormorant-garamond-latin-italic.woff2') format('woff2'); }
+    /* The app's house style: ivory paper and ink (black lacquer and ivory
+       after dark), a Garamond for headings, Inter to read. */
+    :root {
+      --serif: 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
+      --bg: #f5f3ee; --surface: #fbfaf7; --text: #141413; --body: #2b2a27; --muted: #55524c;
+      --border: #e1ddd4; --border-strong: #b8b3a9;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d0c0b; --surface: #151413; --text: #f2efe9; --body: #d9d5cd; --muted: #b3aea6;
+        --border: #2a2725; --border-strong: #46423d;
+      }
+    }
     * { box-sizing: border-box; margin: 0; }
-    body { font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif; background: #f6f7f9; color: #0e1116; line-height: 1.65; }
-    main { max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
-    h1 { font-size: 1.9rem; letter-spacing: -0.02em; margin-bottom: 6px; }
-    .updated { color: #4b5563; font-size: 0.9rem; margin-bottom: 36px; }
-    h2 { font-size: 1.15rem; margin: 32px 0 10px; }
-    p, li { color: #333; font-size: 0.97rem; }
+    body { font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+    ::selection { background: var(--text); color: var(--bg); }
+    main { max-width: 720px; margin: 0 auto; padding: 56px 20px 96px; }
+    h1 { font-family: var(--serif); font-size: clamp(2.4rem, 6vw, 3.4rem); font-weight: 500; letter-spacing: -0.01em; line-height: 1.04; }
+    h2 { font-family: var(--serif); font-size: 1.7rem; font-weight: 600; line-height: 1.15; margin: 40px 0 10px; }
+    p, li { color: var(--body); font-size: 0.98rem; }
+    a { color: var(--text); text-decoration-thickness: 1px; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+    a:hover { text-decoration-color: var(--text); }
+    :focus-visible { outline: 1px solid var(--text); outline-offset: 3px; }
+    /* The way back reads as a link: sentence case, ink, underlined, and a
+       target tall enough to hit. */
+    .home { display: inline-block; margin: -12px 22px 28px 0; padding: 12px 0; font-size: 0.9rem; font-weight: 500; letter-spacing: 0.01em; color: var(--text); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--border-strong); text-underline-offset: 4px; }
+    .home:hover { text-decoration-color: var(--text); }
+    h1 { margin-bottom: 8px; }
+    .updated { color: var(--muted); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 40px; }
+    h2 { font-size: 1.55rem; margin: 36px 0 10px; }
     ul { padding-left: 22px; margin: 8px 0; }
-    a { color: #3b5bdb; text-underline-offset: 3px; }
-    .home { display: inline-block; margin-bottom: 28px; font-weight: 600; font-size: 0.9rem; text-decoration: none; }
   </style>
 </head>
 <body>
@@ -26,16 +52,16 @@
   <h1>Privacy Policy</h1>
   <p class="updated">Last updated: July 29, 2026</p>
 
-  <p>I Can Run A Show ("the Service", available at icanrunashow.com) is a live-show management tool for comedians, promoters, and variety-show producers. This policy explains what information the Service handles and how.</p>
+  <p>I Can Run A Show (“the Service”, available at icanrunashow.com) is a live-show management tool for comedians, promoters, and variety-show producers. This policy explains what information the Service handles and how.</p>
 
   <h2>Information we collect</h2>
   <ul>
     <li><strong>Account information:</strong> a username and a password. We never store your password in readable form — the server keeps only a slow-hashed credential.</li>
     <li><strong>Your show data:</strong> shows, lineups, schedules, contacts, and files you add are <strong>encrypted on your device</strong> with a key derived from your password before they are sent to our servers. We cannot read this data. If you lose your password, we cannot recover it.</li>
-    <li><strong>Local storage:</strong> the app stores your session, display preferences, and temporary backups of unsaved edits in your browser's local storage so the app works reliably, including offline.</li>
+    <li><strong>Local storage:</strong> the app stores your session, display preferences, and temporary backups of unsaved edits in your browser’s local storage so the app works reliably, including offline.</li>
   </ul>
 
-  <h2>What we don't do</h2>
+  <h2>What we don’t do</h2>
   <ul>
     <li>We do not sell your personal information.</li>
     <li>We do not read the contents of your encrypted show data.</li>

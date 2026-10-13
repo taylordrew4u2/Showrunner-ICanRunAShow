@@ -107,7 +107,7 @@ for (const remoteKey of ['F18', ' ']) {
     await run.getByRole('button', { name: 'Stop music', exact: true }).click();
     await run.locator('.rs-pad').filter({ hasText: 'Other music' }).click();
     await run.getByRole('button', { name: 'Stop music', exact: true }).click();
-    await run.getByRole('button', { name: '▶ Hear it', exact: true }).click();
+    await run.getByRole('button', { name: 'Hear it', exact: true }).click();
     await expect(run.locator('.rs-music-card__track')).toHaveText('Test music');
     await run.getByRole('button', { name: 'Stop music', exact: true }).click();
     await expect(run.locator('.rs-music-card__track')).toHaveText('Other music');

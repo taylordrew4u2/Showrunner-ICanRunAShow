@@ -96,7 +96,7 @@ import { ProducerLock } from './components/ProducerLock';
 import { ProducerProvider, type ProducerAccess } from './utils/producerAccess';
 import { SeasonReport } from './components/SeasonReport';
 import { SyncStatus, type SyncState } from './components/SyncStatus';
-import { Icon } from './components/Icon';
+import { Icon, type IconName } from './components/Icon';
 import './App.css';
 
 type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music' | 'contracts' | 'more' | 'season';
@@ -111,37 +111,38 @@ const NAV_ITEMS: {
   label: string;
   /** Which views light this tab up. A show's detail page still counts as Shows. */
   views: View[];
-  icon: string;
+  /** Drawn from the same stroked set as every in-page icon. */
+  icon: IconName;
 }[] = [
   {
     id: 'list',
     label: 'Shows',
     views: ['list', 'detail'],
-    icon: 'M2 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1zm0 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1zm0 5a1 1 0 011-1h8a1 1 0 010 2H3a1 1 0 01-1-1z',
+    icon: 'list',
   },
   {
     id: 'rolodex',
     label: 'Rolodex',
     views: ['rolodex'],
-    icon: 'M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z',
+    icon: 'users',
   },
   {
     id: 'music',
     label: 'Music',
     views: ['music'],
-    icon: 'M18 3a1 1 0 00-1.196-.98l-8 1.6A1 1 0 008 4.6v6.735A3.5 3.5 0 1010 14V8.42l6-1.2v3.115A3.5 3.5 0 1018 13V3z',
+    icon: 'music',
   },
   {
     id: 'more',
     label: 'More',
     views: ['more', 'contracts', 'emails', 'expenses', 'season'],
-    icon: 'M5 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM19 10a2 2 0 11-4 0 2 2 0 014 0z',
+    icon: 'more',
   },
   {
     id: 'settings',
     label: 'Settings',
     views: ['settings'],
-    icon: 'M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z',
+    icon: 'settings',
   },
 ];
 
@@ -2325,7 +2326,7 @@ export default function App() {
                         aria-label="List view"
                         title="List view"
                       >
-                        <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" aria-hidden="true"><path d="M2 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1zm0 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1zm0 5a1 1 0 011-1h14a1 1 0 010 2H3a1 1 0 01-1-1z"/></svg>
+                        <Icon name="list" size={18} />
                       </button>
                       <button
                         className={`shows-toolbar__view-btn${showsView === 'calendar' ? ' shows-toolbar__view-btn--active' : ''}`}
@@ -2334,7 +2335,7 @@ export default function App() {
                         aria-label="Calendar view"
                         title="Calendar view"
                       >
-                        <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" aria-hidden="true"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/></svg>
+                        <Icon name="calendar" size={18} />
                       </button>
                     </div>
                   </div>
@@ -2816,9 +2817,7 @@ export default function App() {
                       }
                     }}
                   >
-                    <svg className="bottom-nav__item-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" clipRule="evenodd" d={item.icon} />
-                    </svg>
+                    <Icon name={item.icon} size={20} className="bottom-nav__item-icon" />
                     <span>{item.label}</span>
                   </button>
                 );

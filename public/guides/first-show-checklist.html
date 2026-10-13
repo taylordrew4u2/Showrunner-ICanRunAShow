@@ -3,43 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The First-Time Producer's Checklist — I Can Run A Show</title>
+  <title>The First-Time Producer’s Checklist — I Can Run A Show</title>
   <meta name="description" content="Producing your first comedy, drag, or variety show: venue deals, lineup, promotion, door plan, tech, and the details nobody warns you about." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0d0c0b" media="(prefers-color-scheme: dark)" />
   <link rel="canonical" href="https://icanrunashow.com/guides/first-show-checklist.html" />
   <style>
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 350 800; font-display: swap; src: url('/fonts/inter-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Cormorant Garamond'; font-style: normal; font-weight: 300 700; font-display: swap; src: url('/fonts/cormorant-garamond-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 300 700; font-display: swap; src: url('/fonts/cormorant-garamond-latin-italic.woff2') format('woff2'); }
+    /* The app's house style: ivory paper and ink (black lacquer and ivory
+       after dark), a Garamond for headings, Inter to read. */
+    :root {
+      --serif: 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
+      --bg: #f5f3ee; --surface: #fbfaf7; --text: #141413; --body: #2b2a27; --muted: #55524c;
+      --border: #e1ddd4; --border-strong: #b8b3a9;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d0c0b; --surface: #151413; --text: #f2efe9; --body: #d9d5cd; --muted: #b3aea6;
+        --border: #2a2725; --border-strong: #46423d;
+      }
+    }
     * { box-sizing: border-box; margin: 0; }
-    body { font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif; background: #f6f7f9; color: #0e1116; line-height: 1.7; }
-    main { max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
-    h1 { font-size: 1.7rem; letter-spacing: -0.02em; margin-bottom: 24px; line-height: 1.25; }
-    h2 { font-size: 1.2rem; margin: 32px 0 10px; }
-    p, li { color: #333; font-size: 0.97rem; margin-bottom: 12px; }
-    ul, ol { padding-left: 22px; margin: 8px 0 16px; }
+    body { font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+    ::selection { background: var(--text); color: var(--bg); }
+    main { max-width: 720px; margin: 0 auto; padding: 56px 20px 96px; }
+    h1 { font-family: var(--serif); font-size: clamp(2.4rem, 6vw, 3.4rem); font-weight: 500; letter-spacing: -0.01em; line-height: 1.04; }
+    h2 { font-family: var(--serif); font-size: 1.7rem; font-weight: 600; line-height: 1.15; margin: 40px 0 10px; }
+    p, li { color: var(--body); font-size: 0.98rem; }
+    a { color: var(--text); text-decoration-thickness: 1px; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+    a:hover { text-decoration-color: var(--text); }
+    :focus-visible { outline: 1px solid var(--text); outline-offset: 3px; }
+    /* The way back reads as a link: sentence case, ink, underlined, and a
+       target tall enough to hit. */
+    .home { display: inline-block; margin: -12px 22px 28px 0; padding: 12px 0; font-size: 0.9rem; font-weight: 500; letter-spacing: 0.01em; color: var(--text); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--border-strong); text-underline-offset: 4px; }
+    .home:hover { text-decoration-color: var(--text); }
+    h1 { margin-bottom: 28px; }
+    p, li { margin-bottom: 12px; }
+    ul, ol { padding-left: 22px; margin: 8px 0 18px; }
     li { margin-bottom: 6px; }
-    a { color: #3b5bdb; text-underline-offset: 3px; }
-    .home { display: inline-block; margin-bottom: 28px; font-weight: 600; font-size: 0.9rem; text-decoration: none; }
-    .cta { background: #fff; border: 1px solid #e3e6eb; border-radius: 12px; box-shadow: 0 1px 2px rgb(16 24 40 / 4%), 0 1px 3px rgb(16 24 40 / 3%); padding: 16px 18px; margin-top: 36px; }
+    strong { color: var(--text); }
+    .cta { background: var(--surface); border: 1px solid var(--border); border-top: 2px solid var(--text); border-radius: 0 0 2px 2px; padding: 20px 22px; margin-top: 44px; }
+    .cta p:last-child { margin-bottom: 0; }
   </style>
 </head>
 <body>
 <main>
   <a class="home" href="/guides/">&larr; All guides</a>
-  <h1>The first-time producer's checklist</h1>
+  <h1>The first-time producer’s checklist</h1>
 
-  <p>Producing a show is a hundred small jobs wearing a trench coat. None of them are hard; the failure mode is forgetting one until 7:45pm on show night. Here's the full list, in the order you'll need it.</p>
+  <p>Producing a show is a hundred small jobs wearing a trench coat. None of them are hard; the failure mode is forgetting one until 7:45pm on show night. Here’s the full list, in the order you’ll need it.</p>
 
   <h2>4–6 weeks out: the deal</h2>
   <ul>
     <li><strong>Venue agreement in writing</strong> — even a text thread counts. Date, load-in time, what you pay (rental, bar minimum, or door split), who runs sound, and what happens if you cancel.</li>
-    <li><strong>Know your break-even.</strong> If the room costs $200 and tickets are $15, you need 14 paying humans before you earn a dollar. Decide now whether that's realistic.</li>
-    <li><strong>Pick the date defensively.</strong> Check for competing shows, holidays, and the venue's own calendar.</li>
+    <li><strong>Know your break-even.</strong> If the room costs $200 and tickets are $15, you need 14 paying humans before you earn a dollar. Decide now whether that’s realistic.</li>
+    <li><strong>Pick the date defensively.</strong> Check for competing shows, holidays, and the venue’s own calendar.</li>
   </ul>
 
   <h2>3–4 weeks out: the lineup</h2>
   <ul>
-    <li><strong>Book more than you need, confirm in writing.</strong> Someone will drop. A one-line message with date, set length, and pay (or "unpaid showcase" — say it plainly) prevents 90% of booking drama.</li>
-    <li><strong>Collect assets when you book</strong> — photo, credits, socials, walk-on music. You'll want them for promo and the run-of-show, and they're painful to chase later.</li>
-    <li><strong>Choose your host deliberately.</strong> The host does more for your show's pace than any single act. Energy, crowd work, and the discipline to keep things moving matter more than raw fame.</li>
+    <li><strong>Book more than you need, confirm in writing.</strong> Someone will drop. A one-line message with date, set length, and pay (or “unpaid showcase” — say it plainly) prevents 90% of booking drama.</li>
+    <li><strong>Collect assets when you book</strong> — photo, credits, socials, walk-on music. You’ll want them for promo and the run-of-show, and they’re painful to chase later.</li>
+    <li><strong>Choose your host deliberately.</strong> The host does more for your show’s pace than any single act. Energy, crowd work, and the discipline to keep things moving matter more than raw fame.</li>
   </ul>
 
   <h2>2–3 weeks out: promotion</h2>
@@ -60,15 +88,15 @@
   <h2>Show night: the things nobody warns you about</h2>
   <ul>
     <li>Eat before doors. You will not eat after doors.</li>
-    <li>The show starts when you start it — a firm 8:07 beats a mushy "waiting for a few more people" 8:20 that teaches your audience your start time is a suggestion.</li>
-    <li>Count the room at intermission, not at the end. That's your real attendance number for negotiating the next date.</li>
+    <li>The show starts when you start it — a firm 8:07 beats a mushy “waiting for a few more people” 8:20 that teaches your audience your start time is a suggestion.</li>
+    <li>Count the room at intermission, not at the end. That’s your real attendance number for negotiating the next date.</li>
     <li>Pay performers the night of, in person, however small the amount. Reputation compounds.</li>
   </ul>
 
   <h2>The day after</h2>
   <ul>
-    <li>Post a recap while it's warm — tag everyone.</li>
-    <li>Write down what broke: late start, no change at the door, a set that ran long. That note is next month's checklist.</li>
+    <li>Post a recap while it’s warm — tag everyone.</li>
+    <li>Write down what broke: late start, no change at the door, a set that ran long. That note is next month’s checklist.</li>
     <li>Book the next date while the venue still likes you.</li>
   </ul>
 

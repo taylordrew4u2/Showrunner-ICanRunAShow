@@ -1038,7 +1038,9 @@ export function RunShow({
                     : 'Upload some audio first'
                 }
               >
-                {auditioning ? '■ Stop test' : '▶ Hear it'}
+                {auditioning
+                  ? <><Icon name="stop" size={14} />Stop test</>
+                  : <><Icon name="play" size={14} />Hear it</>}
               </button>
             </div>
             {/* The sliders say "0.00s"; this says what that means. An operator

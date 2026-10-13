@@ -89,7 +89,7 @@ async function signInOrUp(page) {
 
   await page.getByPlaceholder('Enter username').fill(USER);
   await page.getByPlaceholder('Enter your password').fill(PASS);
-  await page.getByRole('button', { name: /^Sign In$/ }).click();
+  await page.getByRole('button', { name: /^Sign in$/ }).click();
 
   // Wait for whichever screen sign-in lands on. A race between three
   // `waitFor`s settles as soon as any one of them does, which was reporting
@@ -103,10 +103,10 @@ async function signInOrUp(page) {
 
   if (!(await inApp.count()) && !(await onboarding.count())) {
     log('account not found — creating it');
-    await page.getByRole('button', { name: /New here\? Create Account/ }).click();
+    await page.getByRole('button', { name: /New here\? Create an account/ }).click();
     await page.getByPlaceholder('Enter username').fill(USER);
     await page.getByPlaceholder('Enter your password').fill(PASS);
-    await page.getByRole('button', { name: /^Create Account$/ }).click();
+    await page.getByRole('button', { name: /^Create account$/ }).click();
     await onboarding.waitFor({ timeout: 10000 }).catch(() => {});
   }
 
@@ -316,13 +316,50 @@ async function captureContracts(page, context) {
   await signer.locator('.signing__agree:not(.signing__rule-agree) input').check();
   // A headshot is required before signing: it is the face on the flyer and
   // the soundboard button, and the one detail a producer cannot type in later.
+  // Drawn in the house's own inks rather than a flat grey square, which on
+  // the soundboard read as a photo that had failed to load: a cameo
+  // silhouette, ink on a warm paper. It faces left, so the play badge on a
+  // soundboard pad sits over the shoulder rather than the profile.
   const face = await signer.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 240;
     canvas.height = 300;
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#6b7280';
-    context.fillRect(0, 0, 240, 300);
+    const c = canvas.getContext('2d');
+    c.translate(240, 0);
+    c.scale(-1, 1);
+    const light = c.createRadialGradient(150, 70, 10, 120, 150, 230);
+    light.addColorStop(0, '#c9c4bb');
+    light.addColorStop(1, '#9a958d');
+    c.fillStyle = light;
+    c.fillRect(0, 0, 240, 300);
+    c.fillStyle = '#2a2725';
+    c.translate(6, 16);
+    c.scale(0.95, 0.95);
+    c.beginPath();
+    c.moveTo(82, 214);
+    c.bezierCurveTo(80, 200, 60, 186, 50, 160); // nape
+    c.bezierCurveTo(40, 130, 44, 84, 74, 58); // back of the head
+    c.bezierCurveTo(96, 40, 140, 34, 162, 52); // crown
+    c.bezierCurveTo(176, 64, 182, 84, 180, 104); // forehead
+    c.lineTo(181, 112);
+    c.bezierCurveTo(179, 118, 178, 120, 180, 126); // bridge
+    c.bezierCurveTo(186, 136, 194, 146, 196, 152); // nose
+    c.bezierCurveTo(196, 157, 188, 159, 182, 159);
+    c.bezierCurveTo(182, 163, 184, 166, 184, 170); // lips
+    c.bezierCurveTo(182, 173, 179, 175, 179, 176);
+    c.bezierCurveTo(182, 178, 183, 182, 181, 185);
+    c.bezierCurveTo(178, 189, 176, 190, 176, 192); // chin
+    c.bezierCurveTo(180, 198, 178, 208, 168, 213);
+    c.bezierCurveTo(158, 217, 146, 214, 140, 218); // jaw
+    c.bezierCurveTo(138, 230, 142, 246, 152, 254); // throat
+    c.bezierCurveTo(180, 266, 222, 274, 260, 292); // shoulders
+    c.lineTo(260, 320);
+    c.lineTo(-20, 320);
+    c.lineTo(-20, 284);
+    c.bezierCurveTo(30, 258, 70, 250, 80, 236);
+    c.bezierCurveTo(84, 228, 84, 220, 82, 214);
+    c.closePath();
+    c.fill();
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await signer.locator('.signing__photo-pick input[type=file]').setInputFiles({
@@ -537,21 +574,40 @@ async function captureDesktop(page) {
   // the night's flyer and running order beside it.
   await openDemoShow(page);
   await page.locator('.show-detail').waitFor();
-  const flyer = await page.evaluate(() => {
+  // The demo flyer is set in the house style, not a stock template: a black
+  // field, an ivory rule across its head, the name in the Garamond the app
+  // uses for names, and the room in tracked Inter capitals.
+  const flyer = await page.evaluate(async () => {
+    await Promise.all([
+      document.fonts.load('500 68px "Cormorant Garamond"'),
+      document.fonts.load('italic 500 68px "Cormorant Garamond"'),
+      document.fonts.load('600 20px "Inter"'),
+    ]);
     const canvas = document.createElement('canvas');
     canvas.width = 600;
     canvas.height = 800;
-    const context = canvas.getContext('2d');
-    const fill = context.createLinearGradient(0, 0, 0, 800);
-    fill.addColorStop(0, '#1f2f4a');
-    fill.addColorStop(1, '#7a2e2e');
-    context.fillStyle = fill;
-    context.fillRect(0, 0, 600, 800);
-    context.fillStyle = '#f5f4f1';
-    context.font = 'bold 68px sans-serif';
-    ['FRIDAY', 'NIGHT', 'COMEDY'].forEach((word, i) => context.fillText(word, 56, 210 + i * 84));
-    context.font = '30px sans-serif';
-    context.fillText('The Basement · Brooklyn', 56, 720);
+    const c = canvas.getContext('2d');
+    c.fillStyle = '#0d0c0b';
+    c.fillRect(0, 0, 600, 800);
+    c.fillStyle = '#f2efe9';
+    c.fillRect(56, 64, 488, 2);
+    c.font = '600 17px "Inter"';
+    c.letterSpacing = '4px';
+    c.fillStyle = '#b3aea6';
+    c.fillText('FRIDAYS AT EIGHT', 56, 104);
+    c.letterSpacing = '0px';
+    c.fillStyle = '#f2efe9';
+    c.font = '500 112px "Cormorant Garamond"';
+    c.fillText('Friday', 50, 330);
+    c.fillText('Night', 50, 440);
+    c.font = 'italic 500 112px "Cormorant Garamond"';
+    c.fillText('Comedy', 50, 550);
+    c.fillStyle = 'rgb(242 239 233 / 28%)';
+    c.fillRect(56, 680, 488, 1);
+    c.fillStyle = '#f2efe9';
+    c.font = '600 19px "Inter"';
+    c.letterSpacing = '5px';
+    c.fillText('THE BASEMENT · BROOKLYN', 56, 728);
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await page.getByLabel('Choose flyer file', { exact: true }).setInputFiles({

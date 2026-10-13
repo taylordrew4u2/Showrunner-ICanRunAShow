@@ -128,7 +128,7 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                 className="perf-profile__input"
                 value={credits}
                 onChange={e => { setCredits(e.target.value); mark(); }}
-                placeholder="Credits the host should mention when bringing them onstage"
+                placeholder="What the host says to bring them up"
               />
             </div>
           </div>

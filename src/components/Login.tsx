@@ -120,7 +120,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
             )}
 
             <button className="login__button" type="submit" disabled={loading}>
-              {loading ? 'Please wait…' : mode === 'signup' ? 'Create Account' : 'Sign In'}
+              {loading ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
             </button>
 
             <button
@@ -132,7 +132,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
                 setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
               }}
             >
-              {mode === 'signup' ? 'Already have an account? Sign In' : "New here? Create Account"}
+              {mode === 'signup' ? 'Already have an account? Sign in' : 'New here? Create an account'}
             </button>
           </form>
 

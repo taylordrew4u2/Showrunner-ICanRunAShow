@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 
 export type IconName =
+  | 'list'
   | 'calendar'
   | 'schedule'
   | 'clock'
@@ -66,6 +67,12 @@ export function Icon({ name, size = 20, className, style, ...rest }: IconProps) 
   };
 
   switch (name) {
+    case 'list':
+      return (
+        <svg {...common}>
+          <path d="M4 6h16M4 12h16M4 18h11" />
+        </svg>
+      );
     case 'calendar':
       return (
         <svg {...common}>

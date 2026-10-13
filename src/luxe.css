@@ -1,0 +1,1152 @@
+/* ── Agency ───────────────────────────────────────────────────────────────
+   The final layer, loaded after polish.css (see main.tsx). This app is used
+   by people who book headliners into good rooms, and it should look like the
+   desk they book from: ink and ivory, a Garamond for names, Inter for
+   everything you read at speed, hairline rules where other software uses
+   shadows and glows, and almost no colour at all. The only colours left on
+   screen are the ones that mean something — a show that is live (green), a
+   timer running over (red), a warning (amber).
+
+   Three rules hold the system together:
+   1. Names are Garamond. A show, a performer, a signer, a track — anything
+      you would print on a bill. Every control and every data value is Inter.
+   2. Only a solid primary speaks in tracked capitals (SIGN IN, RUN SHOW,
+      STOP MUSIC). Every other button and toggle is sentence case.
+   3. One "featured" signal: a straight 2px rule across the head of the card
+      that matters most on the page — ivory on black, ink on paper.
+
+   Tokens first, so the forty component sheets that already read them move
+   together; then the handful of surfaces that carry the brand. Layout, tap
+   targets and behaviour are untouched. */
+
+:root {
+  --font-serif: 'Cormorant Garamond', 'Cormorant', Garamond, 'Times New Roman', serif;
+
+  /* Ivory paper, ink type. */
+  --bg: #f5f3ee;
+  --backdrop: #ebe8e1;
+  --surface: #fbfaf7;
+  --surface-strong: #efece6;
+  --text: #141413;
+  --text-muted: #55524c;
+  --text-soft: #67635c;
+  --border: #e1ddd4;
+  --border-strong: #b8b3a9;
+  /* An input's edge has to be findable (3:1 against the paper). */
+  --rule-input: #8a857c;
+  /* The one "this is the card that matters" signal. */
+  --rule-feature: 2px solid var(--text);
+
+  --primary: #141413;
+  --primary-pressed: #34322f;
+  --primary-bright: #55524c;
+  --primary-soft: #ebe8e1;
+  --primary-soft-border: #c9c4b9;
+  --primary-text: #141413;
+  --on-primary: #f5f3ee;
+  --info-text: #3d3a36;
+  --info-soft: rgb(20 20 19 / 5%);
+  --header-bg: #f5f3ee;
+  --segment-track: #ebe8e1;
+  --segment-chip: #fbfaf7;
+
+  /* No shadows on anything that sits on the page. Overlays keep a soft,
+     colourless one so a sheet still reads as on top. */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-card: none;
+  --shadow-button: none;
+  --shadow-lg: 0 0 0 1px var(--border), 0 12px 32px rgb(20 20 19 / 8%);
+  --shadow-xl: 0 0 0 1px var(--border), 0 24px 60px rgb(20 20 19 / 12%);
+  --shadow-drawer: -1px 0 0 var(--border), -24px 0 60px rgb(20 20 19 / 8%);
+  --focus-ring: 0 0 0 1px var(--text);
+
+  /* Squared off. A 2px corner is there only so an edge doesn't alias. */
+  --radius-xs: 0px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 3px;
+  --radius-2xl: 3px;
+}
+
+[data-theme="dark"] {
+  /* Black lacquer and ivory. Warm by a degree, never brown. The cards sit one
+     step up from the page so they separate without leaning on hairlines. */
+  --bg: #0d0c0b;
+  --backdrop: #080707;
+  --surface: #151413;
+  --surface-strong: #1d1b19;
+  --text: #f2efe9;
+  --text-muted: #b3aea6;
+  --text-soft: #a39e96;
+  --border: #2a2725;
+  --border-strong: #46423d;
+  --rule-input: #6e6a63;
+
+  --primary: #f2efe9;
+  /* Pressed ivory goes a shade down, never to paper-white. */
+  --primary-pressed: #e4e0d8;
+  --primary-bright: #f2efe9;
+  --primary-soft: #1f1d1b;
+  --primary-soft-border: #4a4641;
+  --primary-text: #f2efe9;
+  --on-primary: #0d0c0b;
+  --info-text: #d6d2ca;
+  --info-soft: rgb(242 239 233 / 6%);
+  --header-bg: #0d0c0b;
+  --segment-track: #0d0c0b;
+  --segment-chip: #2a2826;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-card: none;
+  --shadow-button: none;
+  --shadow-lg: 0 0 0 1px var(--border-strong), 0 16px 40px rgb(0 0 0 / 55%);
+  --shadow-xl: 0 0 0 1px var(--border-strong), 0 24px 64px rgb(0 0 0 / 65%);
+  --shadow-drawer: -1px 0 0 var(--border-strong), -24px 0 64px rgb(0 0 0 / 55%);
+}
+
+::selection { background: var(--text); color: var(--bg); }
+
+/* Every field hint in one readable grey. The browser default (#757575) is
+   under 4.5:1 on both papers, and hints like "e.g. 1:30" carry the format. */
+::placeholder { color: var(--text-soft); opacity: 1; }
+
+/* ── Display type ─────────────────────────────────────────────────────── */
+/* Garamond for names and titles — the words a booker would put on a poster.
+   Cormorant's x-height is small, so every size here is a step up from the
+   Inter it replaces; the weight sits at a book weight, not a bold. */
+.landing__headline,
+.page-header__title,
+.show-detail__title,
+.show-workspace__body .show-detail__title,
+.dash-next__name,
+.dash-todo__name,
+.show-card__title,
+.login__title,
+.plan-card__name,
+.accordion-section__title,
+.show-workspace .accordion-section__title,
+.show-workspace__notes h2,
+.show-workspace .show-detail__host-label,
+.run-show .run-show__name {
+  font-family: var(--font-serif);
+  font-variant-numeric: lining-nums proportional-nums;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+.page-header__title,
+.show-detail__title,
+.show-workspace__body .show-detail__title {
+  font-size: 2.15rem;
+  line-height: 1.05;
+  font-weight: 500;
+}
+@media (min-width: 900px) {
+  .page-header__title { font-size: 3.25rem; line-height: 1; letter-spacing: -0.012em; }
+  .show-detail__title,
+  .show-workspace__body .show-detail__title { font-size: 2.75rem; line-height: 1.02; }
+}
+@media (max-width: 899px) {
+  .show-workspace__body .show-detail__title { font-size: 2.05rem; }
+}
+
+/* The line under a page title is information, so it is set in Inter. */
+.page-header__subtitle {
+  font-family: inherit;
+  font-style: normal;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
+/* Except where it is a tally on a document — "1 of 2 signed" — which reads
+   like the line under a title page. Lining figures, so the count is never a
+   squint. */
+.contracts .page-header__subtitle {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.3rem;
+  font-weight: 500;
+  font-variant-numeric: lining-nums;
+  color: var(--text-muted);
+}
+
+.dash-next__name { font-size: 2.35rem; line-height: 1.04; }
+@container shows-col (max-width: 619px) {
+  .dash-next__name { font-size: 1.85rem; }
+}
+.dash-todo__name { font-size: 1.25rem; font-weight: 600; }
+
+/* People are names on a roster: the comics on a bill, the Rolodex, the
+   performer you are editing, the signer of a contract. */
+.show-workspace__person strong,
+.rolodex__name,
+.perf-profile__heading,
+.contracts__row-name,
+.contracts__candidate-name,
+.contracts__item-name,
+.signing__title,
+.signing__panel--done h2,
+.show-detail__topbar-title {
+  font-family: var(--font-serif);
+  font-variant-numeric: lining-nums proportional-nums;
+  letter-spacing: 0;
+}
+.show-workspace__person strong { font-size: 1.3rem; font-weight: 600; line-height: 1.15; }
+.rolodex__name { font-size: 1.3rem; font-weight: 600; line-height: 1.15; }
+.contracts__row-name,
+.contracts__candidate-name { font-size: 1.3rem; font-weight: 600; }
+.contracts__item-name { font-size: 1.35rem; font-weight: 600; line-height: 1.15; }
+.perf-profile__heading { font-size: 2.05rem; font-weight: 500; line-height: 1.1; }
+.signing__title { font-size: 1.85rem; font-weight: 500; line-height: 1.1; }
+.signing__panel--done h2 { font-size: 2rem; font-weight: 500; }
+.show-detail__topbar-title { font-size: 1.3rem; font-weight: 600; }
+/* On a phone the bar's one job is to say which show you are in, so the
+   Run Show block gives up some of its tracking and padding to the name. */
+@media (max-width: 480px) {
+  .show-detail__topbar-title {
+    font-size: 1.15rem;
+    line-height: 1.1;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+  .show-detail__run-show.show-detail__run-show { padding-inline: 12px; letter-spacing: 0.08em; }
+}
+
+/* The More page reads as a contents page. */
+.more-item__label {
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+.more-item__icon { background: transparent; border-color: var(--border); color: var(--text-muted); }
+.show-card__title { font-size: 1.35rem; font-weight: 600; line-height: 1.15; }
+.accordion-section__title,
+.show-workspace .accordion-section__title,
+.show-workspace__notes h2,
+.show-workspace .show-detail__host-label { font-size: 1.3rem; font-weight: 600; }
+.plan-card__name { font-size: 1.85rem; font-weight: 500; line-height: 1.05; }
+
+/* ── Labels ───────────────────────────────────────────────────────────── */
+/* Small tracked capitals, the way a programme lists its credits. */
+/* #root because utility.css resets the tracking of every heading through an
+   id selector, and most of these labels are h2s. */
+#root :is(
+  .dash-panel__title,
+  .dash-panel__aside,
+  .shows-list__heading-text,
+  .run-of-show__label,
+  .settings__section-title,
+  .settings__card-title,
+  .show-flyer__title,
+  .contracts__section-label,
+  .contracts__picker-label,
+  .perf-profile__section-label,
+  .signing__answer dt,
+  .login__label,
+  .schedule-summary__label,
+  .timeline__heading
+) {
+  font-family: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+#root .dash-panel--next .dash-panel__title { color: var(--text); }
+.signing__answer dd { margin-top: 4px; }
+
+/* ── Wordmark ─────────────────────────────────────────────────────────── */
+/* The name set the way a hotel or a house sets its name over the door:
+   Garamond capitals, widely spaced. */
+.landing__wordmark-text,
+.mobile-brand > span,
+.show-workspace__brand span,
+.bottom-nav__brand-text {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  word-spacing: -0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+  line-height: 1.2;
+}
+@media (max-width: 899px) {
+  .mobile-brand > span { font-size: 0.86rem; letter-spacing: 0.18em; }
+}
+
+/* The mark loses its blue tile and becomes a single ink (or ivory) glyph. */
+.brand-mark { content: url('/brand/mark-ink.svg'); }
+[data-theme="dark"] .brand-mark { content: url('/brand/mark-ivory.svg'); }
+.mobile-brand .brand-mark { width: 22px; height: 22px; }
+
+/* ── Surfaces ─────────────────────────────────────────────────────────── */
+/* A hairline does all of the work. */
+.show-card,
+.dash-panel--next,
+.accordion-section,
+.settings__card,
+.plan-card,
+.season__panel,
+.season__tile,
+.section-card,
+.show-tile,
+.show-progress__card,
+.budget-card,
+.more-list,
+.more-menu__list,
+.empty-state,
+.contracts__list,
+.music-list__item,
+.onboarding__container,
+.install-prompt,
+.import-pick-card,
+.ai-import-entry,
+.show-workspace__card,
+.show-workspace .show-detail__host,
+.show-workspace__notes,
+.show-flyer {
+  border-color: var(--border);
+  box-shadow: none;
+}
+.modal-box,
+.sheet { border-color: var(--border-strong); }
+
+/* The first screen after sign-up: no coloured glow, just the page. */
+.onboarding { background: var(--bg); }
+.onboarding__container { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* Show cards: no coloured spine unless the show is actually live. */
+.show-card,
+.show-card:hover,
+.show-card:focus-within { border-left-width: 1px; }
+.show-card--upcoming,
+.show-card--completed,
+.show-card--cancelled { --card-accent: var(--border); }
+@media (hover: hover) {
+  .show-card:hover { border-color: var(--border-strong); box-shadow: none; background: var(--surface); }
+}
+.show-card:hover { border-left-color: var(--card-accent, var(--border-strong)); }
+.show-card--upcoming:hover,
+.show-card--completed:hover { border-left-color: var(--border-strong); }
+
+/* The date reads like a dateline: the day in Garamond, the month in firm
+   small capitals above it so the eye finds it first, the weekday quieter
+   below, and a rule between it and the name. */
+.show-card__date,
+.show-card .show-card__date {
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  width: 58px;
+  padding: 2px 12px 2px 0;
+  gap: 2px;
+}
+.show-card__date-month,
+.show-card__date-sub {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text-soft);
+}
+.show-card__date-month,
+.show-card--upcoming .show-card__date-month { color: var(--text); font-weight: 700; }
+.show-card__date-day {
+  font-family: var(--font-serif);
+  font-size: 2.15rem;
+  font-weight: 500;
+  line-height: 0.95;
+  letter-spacing: 0;
+  font-variant-numeric: lining-nums;
+}
+.show-card__date--tbd { border-style: solid; border-right-style: solid; }
+/* Under the title, clear of the (now wider) dateline. */
+@media (min-width: 481px) {
+  .show-card__footer { padding-left: 70px; }
+}
+/* On a phone the list's marker bar only shows for a show that is live. */
+@media (max-width: 619px) {
+  .show-card:not(.show-card--in-progress)::before { content: none; }
+}
+
+/* Status as a small capital with a neutral mark: a hollow ring for a show
+   that is booked, a solid one for a show that is over, green only when it
+   is live. The ring keeps it from reading as one more piece of meta. */
+.show-card__status {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.show-card--upcoming .show-card__status { color: var(--text-muted); }
+.show-card__status::before {
+  width: 6px;
+  height: 6px;
+  box-shadow: none;
+}
+.show-card--upcoming .show-card__status::before {
+  background: transparent;
+  border: 1px solid var(--text-muted);
+}
+.show-card--completed .show-card__status::before { background: var(--text-soft); }
+.show-card--cancelled .show-card__status::before { display: none; }
+
+/* The same status on the show page speaks in the same small capitals, at
+   the same size — on the type scale, never below it. */
+.show-detail__status {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Featured ─────────────────────────────────────────────────────────── */
+/* The next show is the lead story: a straight rule across its head, drawn
+   as a border so it stays square at the corners. The sign-in card and the
+   plan card carry the same mark, and nothing else does. */
+.dash-panel--next,
+.dash-panel--next:hover {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: var(--rule-feature);
+  box-shadow: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.dash-next__when { color: var(--text); font-weight: 600; }
+.dash-todo__row { border-bottom-color: var(--border); }
+.dash-todo__reason { font-size: var(--text-xs); letter-spacing: 0.02em; color: var(--text-muted); }
+
+/* ── Controls ─────────────────────────────────────────────────────────── */
+.btn {
+  border-radius: var(--radius-sm);
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: none;
+}
+
+/* The primary action is a solid block: ivory on black, ink on ivory. */
+.btn--primary,
+.login__button:not(.login__button--secondary),
+.rs-music-card__play {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: var(--on-primary);
+  box-shadow: none;
+  border-radius: var(--radius-sm);
+}
+.btn--primary:hover:not(:disabled),
+.login__button:not(.login__button--secondary):hover:not(:disabled),
+.rs-music-card__play:hover:not(:disabled) {
+  background: var(--primary-pressed);
+  border-color: var(--primary-pressed);
+}
+/* Only the solid primary speaks in tracked capitals, like the one call to
+   action on a house's site. Everything else stays in sentence case. */
+.btn--primary,
+.login__button:not(.login__button--secondary),
+.show-detail__run-show,
+.signing__cta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.btn--primary.btn--sm { font-size: var(--text-2xs); letter-spacing: 0.12em; }
+
+/* The show page's Run Show is the primary action under another name. */
+.show-detail__run-show {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+  padding-inline: 18px;
+}
+.show-detail__run-show:hover { filter: none; background: var(--primary-pressed); border-color: var(--primary-pressed); }
+.btn--secondary,
+.login__button--secondary,
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  box-shadow: none;
+}
+.btn--secondary:hover:not(:disabled),
+.login__button--secondary:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--text);
+  color: var(--text);
+}
+.btn--ghost { color: var(--text); border-color: var(--border-strong); }
+.btn--ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text); background: transparent; }
+/* Destroying something says so in the one colour that means it — in the
+   text-strength shade, since the fill-strength --danger is under 4.5:1 on
+   the black lacquer. */
+.contracts__delete,
+.contracts__delete:hover:not(:disabled),
+.perf-contracts__error,
+.sched-templates__delete,
+.music-list__delete,
+.sched-templates__delete:hover:not(:disabled),
+.music-list__delete:hover:not(:disabled),
+.cue__delete:hover,
+.cue__delete:focus-visible { color: var(--danger-text); }
+
+/* One focus treatment: a crisp ink line, square, no halo. */
+.btn:focus-visible,
+.login__button:focus-visible,
+.icon-btn:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+/* The menu button already has a frame, so focus draws that frame in ink
+   rather than adding a second ring around it. */
+.navigation-toggle:focus-visible,
+.navigation-toggle:focus-visible:hover {
+  outline: none;
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+:where(input, select, textarea):focus-visible {
+  outline: none;
+  border-color: var(--text);
+  box-shadow: var(--focus-ring);
+}
+
+/* One field style everywhere — sign-in included: a hairline box whose edge
+   you can find (--rule-input clears 3:1 on every surface, in both themes).
+   The component classes are named because a :where() fallback has no
+   specificity and would lose to their own sheets; the :not() lifts the list
+   to two classes so it also beats ".show-workspace .section-field__input",
+   and leaves a field that is showing an error its red edge. */
+.shows-toolbar__search,
+.shows-toolbar__sort {
+  background: transparent;
+  border-radius: var(--radius-sm);
+}
+:is(
+  .shows-toolbar__search,
+  .shows-toolbar__sort,
+  .perf-profile__input,
+  .rolodex__input,
+  .section-field__input,
+  .section-field__select,
+  .section-field__textarea,
+  .show-form__input,
+  .show-form__select,
+  .show-form__textarea,
+  .onboarding__input,
+  .scene-list__input,
+  .recap-todo__input,
+  .cue__edit-input,
+  .trim__input,
+  .music-search__input,
+  .dj-search__input,
+  .lineup-target__input,
+  .vendor-form__textarea,
+  .show-detail__name-input,
+  .show-detail__host-input,
+  .signing__field input,
+  .signing__field textarea
+):not([aria-invalid="true"], [class*="--invalid"]) {
+  border-color: var(--rule-input);
+}
+:where(input:not([type=checkbox], [type=radio], [type=range], [type=color]), select, textarea) {
+  border-color: var(--rule-input);
+}
+:is(
+  .shows-toolbar__search,
+  .shows-toolbar__sort,
+  .perf-profile__input,
+  .rolodex__input,
+  .section-field__input,
+  .section-field__select,
+  .section-field__textarea,
+  .show-form__input,
+  .show-form__select,
+  .show-form__textarea,
+  .onboarding__input,
+  .scene-list__input,
+  .recap-todo__input,
+  .cue__edit-input,
+  .trim__input,
+  .music-search__input,
+  .dj-search__input,
+  .lineup-target__input,
+  .vendor-form__textarea,
+  .show-detail__name-input,
+  .show-detail__host-input,
+  .signing__field input,
+  .signing__field textarea
+):not([aria-invalid="true"], [class*="--invalid"]):focus {
+  border-color: var(--text);
+}
+
+/* The list/calendar toggle and the season range: the selected half is a
+   solid block, the way the primary action is, so it can't be mistaken. */
+.shows-toolbar__view-btn--active,
+.season__range-btn--active,
+.shows-toolbar__view-btn--active:hover,
+.season__range-btn--active:hover {
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: none;
+}
+
+/* Tags square off and go quiet. */
+.pill,
+.sync-status__pill,
+.show-detail__status,
+.accordion-section__count,
+.contracts__badge,
+.more-item__badge,
+.music-list__tag,
+.onboarding__chip,
+.settings__chip,
+.cue__perf {
+  border-radius: var(--radius-sm);
+}
+.sync-status__pill {
+  background: transparent;
+  border-color: var(--border);
+  box-shadow: none;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.accordion-section__count {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+/* ── Navigation ───────────────────────────────────────────────────────── */
+@media (max-width: 899px) {
+  /* Solid: nothing scrolls visibly behind the tab labels. */
+  .bottom-nav {
+    background: var(--bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: var(--border);
+  }
+  .bottom-nav__item { color: var(--text-soft); }
+  .bottom-nav__item span { font-weight: 500; letter-spacing: 0.02em; }
+}
+.bottom-nav__item--active { color: var(--text); }
+.bottom-nav__item--active span { font-weight: 650; }
+@media (min-width: 900px) {
+  .bottom-nav__item--active,
+  .bottom-nav:popover-open .bottom-nav__item--active {
+    background: transparent;
+    color: var(--text);
+    box-shadow: inset 2px 0 0 var(--text);
+  }
+  .bottom-nav:popover-open { border-color: var(--border-strong); box-shadow: var(--shadow-xl); border-radius: var(--radius-sm); }
+  .bottom-nav:popover-open .bottom-nav__item { border-radius: 0; }
+  .navigation-toggle { box-shadow: none; border-color: var(--border); border-radius: var(--radius-sm); background: transparent; }
+  .navigation-toggle:hover { border-color: var(--text); background: transparent; }
+}
+.show-workspace__sidebar nav button[aria-expanded="true"] {
+  color: var(--text);
+  box-shadow: inset 0 -1px 0 var(--text);
+}
+.show-workspace .accordion-section__icon { background: transparent; color: var(--text-muted); }
+
+/* ── Letter avatars ───────────────────────────────────────────────────── */
+/* Monograms: a Garamond capital inside a hairline ring, no per-person hue. */
+.avatar-tint.avatar-tint,
+[data-theme="dark"] .avatar-tint.avatar-tint {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  font-family: var(--font-serif);
+  font-weight: 500;
+}
+.show-workspace__initial.avatar-tint { font-size: 1.3rem; line-height: 1; }
+
+/* ── Sign-in ──────────────────────────────────────────────────────────── */
+/* No stage light, no glass: a black (or ivory) page, a headline set like a
+   magazine cover line, and a form drawn with rules. */
+.landing,
+[data-theme="dark"] .landing { background: var(--bg); }
+.landing__headline {
+  font-size: clamp(3.4rem, 6.4vw, 5.6rem);
+  font-weight: 400;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  margin-bottom: 26px;
+}
+#root .landing__headline { letter-spacing: -0.015em; }
+.landing__headline em {
+  font-style: italic;
+  font-weight: 400;
+  color: inherit;
+}
+.landing__lede {
+  max-width: 36ch;
+  font-size: var(--text-base);
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+.landing__steps { border-top-color: var(--border); margin-top: 36px; }
+.landing__steps li {
+  border-bottom-color: var(--border);
+  padding: 14px 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+/* The step numbers are a programme's running numbers: large enough to read,
+   lining figures, the muted ink rather than the faint one. */
+.landing__steps span {
+  display: inline-block;
+  min-width: 36px;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.35rem;
+  font-weight: 500;
+  font-variant-numeric: lining-nums;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
+  vertical-align: -2px;
+  color: var(--text-muted);
+}
+.landing__tour {
+  margin-top: 22px;
+  color: var(--text);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+  text-decoration-color: var(--border-strong);
+}
+.landing__tour:hover { text-decoration-color: var(--text); }
+
+.login__container,
+[data-theme="dark"] .login__container {
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  border-color: var(--border);
+  border-top: var(--rule-feature);
+  background: var(--surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  padding: 40px;
+}
+.login__title { font-size: 2.1rem; line-height: 1.1; font-weight: 500; }
+.login__header { margin-bottom: 28px; }
+.login__form { gap: 22px; }
+.login__field { gap: 8px; }
+/* The same hairline box as every other field in the app. */
+.login__input,
+[data-theme="dark"] .login__input {
+  min-height: 48px;
+  background: transparent;
+  border: 1px solid var(--rule-input);
+  border-radius: var(--radius-sm);
+  padding-inline: 14px;
+  box-shadow: none;
+}
+.login__input:focus,
+.login__input:focus-visible {
+  border-color: var(--text);
+  box-shadow: var(--focus-ring);
+}
+.login__button { min-height: 48px; border-radius: var(--radius-sm); }
+.login__button--secondary { color: var(--text); border-color: var(--border-strong); min-height: 48px; font-weight: 550; }
+.login__no-account summary { text-decoration-color: var(--border-strong); }
+.login__legal a { text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+@media (max-width: 700px) {
+  .landing__headline { font-size: 2.9rem; }
+  /* Stacked above the card on a phone: clear of the card's head rule. */
+  .landing__tour { margin-bottom: 28px; }
+  .login__container,
+  [data-theme="dark"] .login__container { padding: 28px 22px; }
+}
+
+/* ── Settings ─────────────────────────────────────────────────────────── */
+.settings__theme { background: transparent; border-color: var(--border); }
+.settings__theme--active { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.settings__theme-dot { box-shadow: 0 0 0 1px rgb(128 128 128 / 35%); }
+.settings__chip--active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+
+/* The plan reads like a membership card, not an upsell banner: the tier in
+   Garamond, its standing in small capitals, the perks as a ruled list. */
+.plan-card,
+.settings__card.plan-card {
+  border-top: var(--rule-feature);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.plan-card__current {
+  align-items: baseline;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.plan-card__price {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.plan-card__perks {
+  list-style: none;
+  padding-left: 0;
+  margin-top: -14px;
+  margin-bottom: 18px;
+}
+.plan-card__perks li {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.plan-card__notice { border-color: var(--border-strong); background: transparent; color: var(--text); border-radius: var(--radius-sm); }
+
+/* A Producer-only control on the free plan: a quiet note with the tier's
+   name as a small engraved tag, not a coloured banner. */
+.producer-lock {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+.producer-lock__text { color: var(--text-muted); }
+.producer-lock__badge {
+  padding: 2px 7px;
+  border: 1px solid var(--text);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  vertical-align: 2px;
+}
+
+/* Anything that put white type on the accent now takes the accent's own ink. */
+.live-viewer__sound { color: var(--on-primary); }
+.live-viewer__sound--on { color: var(--text); }
+
+/* ── Signing page and receipt ─────────────────────────────────────────── */
+/* What a performer — or their manager — opens from a text. The same house:
+   the contract's name in Garamond, a ruled panel, one ivory action. */
+.signing__from {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.18em;
+  color: var(--text-muted);
+}
+.signing__bar { border-bottom-color: var(--border); }
+.signing__panel { border-color: var(--border); }
+@media (min-width: 720px) {
+  .signing__panel {
+    border-top: var(--rule-feature);
+    border-radius: 0;
+  }
+}
+.signing__panel:not(.signing__panel--done) > h2 {
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.signing__card { border-radius: var(--radius-sm); }
+.signing__card h1 { font-family: var(--font-serif); font-size: 1.85rem; font-weight: 500; }
+.signing__page img { border-radius: 0; box-shadow: 0 0 0 1px var(--border); }
+.signing__rule {
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--text);
+  background: transparent;
+}
+.signing__cta:not(:disabled) {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.signing__cta:not(:disabled):hover { background: var(--primary-pressed); border-color: var(--primary-pressed); }
+/* The signer's line is the signature block of the receipt: their name and
+   the moment, in Garamond with lining figures. */
+.signing__done-line {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 500;
+  font-variant-numeric: lining-nums;
+  letter-spacing: 0;
+}
+/* The reference reads like a docket number. */
+.signing__ref {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.signing__sending-dot { background: var(--text); }
+
+/* ── Run Show ─────────────────────────────────────────────────────────── */
+/* Still a dark screen at the side of a stage, in both themes, but now black
+   and ivory: the clock's amber and red, and the green of a playing track,
+   are the only colours on it. RunShowAppearance.css arrives with the lazily
+   loaded chunk after this file, so these carry the extra class. */
+.run-show.run-show.run-show {
+  --rs-blue: var(--show-accent, #f2efe9);
+  --rs-blue-text: #f2efe9;
+  --rs-panel: var(--show-surface, #151413);
+  --rs-panel-border: rgb(242 239 233 / 10%);
+  --rs-deck: var(--show-surface-strong, #1d1b19);
+  --rs-deck-edge: rgb(242 239 233 / 16%);
+  --rs-dim: #b3aea6;
+  --text: #f2efe9;
+  --text-muted: #b3aea6;
+  --text-soft: #b3aea6;
+  --primary: #f2efe9;
+  --on-primary: #0d0c0b;
+  background: var(--show-backdrop, #0a0908);
+}
+.run-show.run-show .run-show__bar { background: var(--show-backdrop, #0a0908); }
+.run-show.run-show .run-show__name { font-size: 1.55rem; font-weight: 500; letter-spacing: 0; }
+.run-show.run-show .rs-panel { border-radius: var(--radius-sm); }
+#root .run-show :is(.rs-board__title, .rs-lineup__title, .rs-bank__label, .rs-fade__title, .rs-clock__head) {
+  letter-spacing: 0.18em;
+  font-weight: 600;
+}
+/* Header controls and toggles: sentence case, the brighter grey. */
+.run-show.run-show :is(.run-show__fullscreen, .run-show__restart, .run-show__finish, .run-show__close) {
+  color: var(--text-muted);
+  border-color: var(--rs-deck-edge);
+  font-weight: 550;
+}
+/* The Playing card is the featured card on this screen. */
+.run-show.run-show .rs-music-card {
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  border-color: var(--rs-panel-border);
+  border-top: 2px solid #f2efe9;
+}
+.run-show.run-show .rs-music-card__status { color: var(--rs-dim); letter-spacing: 0.18em; }
+.run-show.run-show .rs-music-card__track {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+/* The performer under the track is a name too. */
+.run-show.run-show .rs-music-card__info > span:not(.rs-music-card__status, .rs-music-card__remote) {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.run-show.run-show .rs-music-card__play {
+  border-color: #f2efe9;
+  background: #f2efe9;
+  color: #0d0c0b;
+  box-shadow: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.run-show.run-show .rs-music-card__play:hover:not(:disabled) { background: #dcd8d0; border-color: #dcd8d0; }
+.run-show.run-show .rs-btn,
+.run-show.run-show .run-show__fullscreen,
+.run-show.run-show .run-show__restart,
+.run-show.run-show .run-show__finish,
+.run-show.run-show .run-show__close,
+.run-show.run-show .rs-chip { border-radius: var(--radius-sm); }
+.run-show.run-show .rs-chip,
+.run-show.run-show .rs-fade .rs-chip { color: var(--text-muted); font-weight: 550; }
+.run-show.run-show .rs-btn:hover:not(:disabled) { background: #262422; }
+.run-show.run-show .rs-btn--start,
+.run-show.run-show .rs-btn--start:hover:not(:disabled) {
+  background: #f2efe9;
+  border-color: #f2efe9;
+  color: #0d0c0b;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.run-show.run-show .rs-chip--active,
+.run-show.run-show .rs-fade .rs-chip--active {
+  background: rgb(242 239 233 / 8%);
+  border-color: #f2efe9;
+  color: #f2efe9;
+}
+.run-show.run-show .rs-pad:hover .rs-pad__face { border-color: #f2efe9; background: #262422; }
+.run-show.run-show .rs-pad__face { border-width: 1px; }
+.run-show.run-show .rs-pad__initial,
+.run-show.run-show .rs-pad--disc .rs-pad__initial {
+  font-family: var(--font-serif);
+  font-size: 2.3rem;
+  font-weight: 500;
+  line-height: 1;
+}
+/* Performers on the soundboard are names on the bill, as on the show page;
+   the track under each is set like a song title in a programme. */
+.run-show.run-show .rs-pad__label {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+.run-show.run-show .rs-pad__sub:not(.rs-pad__sub--auto) {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.98rem;
+  font-weight: 500;
+}
+/* Playing: an ivory ring and the green badge. The name stays ivory; the
+   badge carries the state. */
+.run-show.run-show .rs-pad--playing .rs-pad__face { border-width: 2px; border-color: #f2efe9; box-shadow: none; }
+.run-show.run-show .rs-pad--playing .rs-pad__label { color: #f2efe9; }
+.run-show.run-show .rs-pad--loading .rs-pad__face { border-width: 2px; box-shadow: none; }
+.run-show.run-show .rs-lineup__row--current { background: rgb(242 239 233 / 6%); border-color: #f2efe9; }
+.run-show.run-show .rs-lineup__who {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+.run-show.run-show .rs-progress__bar { background: #f2efe9; }
+.run-show.run-show .rs-progress__bar--over { background: var(--rs-red); }
+.run-show.run-show .rs-clock__time { font-weight: 400; letter-spacing: -0.03em; }
+.run-show.run-show button:focus-visible,
+.run-show.run-show .rs-fade__slider:focus-visible { outline: 2px solid #f2efe9; outline-offset: 3px; }
+
+/* Faders: a fine ivory rail and a plain cap, like a mixing desk in a
+   recording studio rather than a game controller. */
+.run-show.run-show .rs-console__levels {
+  background: transparent;
+  border: 1px solid var(--rs-panel-border);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+.run-show.run-show .rs-fade__slider::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 0;
+  background: rgb(242 239 233 / 70%);
+  box-shadow: none;
+}
+.run-show.run-show .rs-fade__slider::-moz-range-track {
+  height: 2px;
+  border-radius: 0;
+  background: rgb(242 239 233 / 70%);
+}
+.run-show.run-show .rs-fade__slider::-webkit-slider-thumb {
+  width: 14px;
+  height: 28px;
+  margin-top: -13px;
+  border-radius: 1px;
+  border: 1px solid #f2efe9;
+  background: linear-gradient(90deg, #f2efe9 0 45%, #0d0c0b 45% 55%, #f2efe9 55%);
+  box-shadow: none;
+}
+.run-show.run-show .rs-fade__slider::-moz-range-thumb {
+  width: 14px;
+  height: 28px;
+  border-radius: 1px;
+  border: 1px solid #f2efe9;
+  background: linear-gradient(90deg, #f2efe9 0 45%, #0d0c0b 45% 55%, #f2efe9 55%);
+  box-shadow: none;
+}
+
+/* ── Run Show: the playing state ──────────────────────────────────────── */
+/* The one green on this screen is the same muted sage as every other
+   success mark in the house (a tick on the bill, "Signed"), not a neon. */
+.run-show.run-show.run-show { --rs-green: #8fcca6; }
+.run-show.run-show .rs-pad--playing .rs-pad__state { color: #0d0c0b; }
+/* The base sheet reserves a second line for every name; at the Garamond
+   size that empty line pushed the song away from the name it belongs to. */
+.run-show.run-show .rs-pad__label { min-height: 0; }
+/* When "Hear it" wraps onto a row of its own on a phone, it starts that row
+   rather than hanging off the right with an empty band beside it. */
+@media (max-width: 480px) {
+  .run-show.run-show .rs-fade__hear { margin-left: 0; }
+}
+.run-show.run-show .rs-fade__hear { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ── Figures ──────────────────────────────────────────────────────────── */
+/* Tabular figures only where numbers stand in a column (utility.css no
+   longer sets them on the body: there Inter's tnum also swapped in a
+   digit-wide hyphen, so "Day-of" read as "Day - of" on a signed receipt). */
+.show-card__meta-time,
+.rs-clock__time,
+.cue__time,
+.schedule-summary,
+.rs-lineup__range,
+.budget-card { font-variant-numeric: tabular-nums; }
+
+/* ── Show cards on a laptop ───────────────────────────────────────────── */
+@media (min-width: 620px) {
+  /* Cards in a row share one height, so the gaps between rows match. */
+  .shows-grid { align-items: stretch; }
+  /* The facts line is separated by a centred dot drawn in the gap before
+     each item. A dot that would start a wrapped line falls outside the box
+     and is clipped, so a line never begins with one. */
+  .show-card__meta { overflow: hidden; }
+  .show-card__meta-item { position: relative; }
+  .show-card__meta-item + .show-card__meta-item::before {
+    content: '·';
+    position: absolute;
+    left: -0.5em;
+    color: var(--text-soft);
+    font-weight: 400;
+  }
+  /* The state always takes its own line under the facts, so it sits in the
+     same place on every card instead of wrapping on some and not others. */
+  .show-card__status { flex-basis: 100%; }
+}
+/* The same dots between the facts under a show's title. */
+.show-detail__meta { overflow: hidden; }
+.show-detail__meta > span { position: relative; }
+.show-detail__meta > span + span::before {
+  content: '·';
+  position: absolute;
+  left: -0.62em;
+  color: var(--text-soft);
+  font-weight: 400;
+}
+
+/* ── Show page: one way back ──────────────────────────────────────────── */
+/* The bar's chevron button is always there; the sidebar's text arrow said
+   the same thing a second time, in a different glyph. */
+.show-workspace__sidebar .show-workspace__nav-back { display: none; }
+
+/* The status band over a phone screen is solid, so no strip of scrolled
+   content shows between it and the show's sticky bar. */
+.status-rail__pill-row { background: var(--bg); }
+
+/* ── Contracts ────────────────────────────────────────────────────────── */
+/* The signed/waiting mark sits beside the signer's name on every row, so
+   the list reads down the left edge; the open ring is drawn in a grey you
+   can see. */
+.contracts__row { align-items: flex-start; }
+.contracts__mark {
+  align-self: flex-start;
+  margin-top: 0.7em;
+  border-color: var(--text-muted);
+}
+.contracts__mark--signed { border-color: var(--success); }
+.contracts__fields { margin: var(--space-5) 0 var(--space-6); }

@@ -6,19 +6,47 @@
   <title>How to Keep a Live Show on Time — I Can Run A Show</title>
   <meta name="description" content="Light signals, set lengths, buffers, and the real math of live show timing — how producers keep comedy and variety shows from running long." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0d0c0b" media="(prefers-color-scheme: dark)" />
   <link rel="canonical" href="https://icanrunashow.com/guides/keep-your-show-on-time.html" />
   <style>
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 350 800; font-display: swap; src: url('/fonts/inter-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Cormorant Garamond'; font-style: normal; font-weight: 300 700; font-display: swap; src: url('/fonts/cormorant-garamond-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 300 700; font-display: swap; src: url('/fonts/cormorant-garamond-latin-italic.woff2') format('woff2'); }
+    /* The app's house style: ivory paper and ink (black lacquer and ivory
+       after dark), a Garamond for headings, Inter to read. */
+    :root {
+      --serif: 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
+      --bg: #f5f3ee; --surface: #fbfaf7; --text: #141413; --body: #2b2a27; --muted: #55524c;
+      --border: #e1ddd4; --border-strong: #b8b3a9;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d0c0b; --surface: #151413; --text: #f2efe9; --body: #d9d5cd; --muted: #b3aea6;
+        --border: #2a2725; --border-strong: #46423d;
+      }
+    }
     * { box-sizing: border-box; margin: 0; }
-    body { font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif; background: #f6f7f9; color: #0e1116; line-height: 1.7; }
-    main { max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
-    h1 { font-size: 1.7rem; letter-spacing: -0.02em; margin-bottom: 24px; line-height: 1.25; }
-    h2 { font-size: 1.2rem; margin: 32px 0 10px; }
-    p, li { color: #333; font-size: 0.97rem; margin-bottom: 12px; }
-    ul, ol { padding-left: 22px; margin: 8px 0 16px; }
+    body { font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+    ::selection { background: var(--text); color: var(--bg); }
+    main { max-width: 720px; margin: 0 auto; padding: 56px 20px 96px; }
+    h1 { font-family: var(--serif); font-size: clamp(2.4rem, 6vw, 3.4rem); font-weight: 500; letter-spacing: -0.01em; line-height: 1.04; }
+    h2 { font-family: var(--serif); font-size: 1.7rem; font-weight: 600; line-height: 1.15; margin: 40px 0 10px; }
+    p, li { color: var(--body); font-size: 0.98rem; }
+    a { color: var(--text); text-decoration-thickness: 1px; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+    a:hover { text-decoration-color: var(--text); }
+    :focus-visible { outline: 1px solid var(--text); outline-offset: 3px; }
+    /* The way back reads as a link: sentence case, ink, underlined, and a
+       target tall enough to hit. */
+    .home { display: inline-block; margin: -12px 22px 28px 0; padding: 12px 0; font-size: 0.9rem; font-weight: 500; letter-spacing: 0.01em; color: var(--text); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--border-strong); text-underline-offset: 4px; }
+    .home:hover { text-decoration-color: var(--text); }
+    h1 { margin-bottom: 28px; }
+    p, li { margin-bottom: 12px; }
+    ul, ol { padding-left: 22px; margin: 8px 0 18px; }
     li { margin-bottom: 6px; }
-    a { color: #3b5bdb; text-underline-offset: 3px; }
-    .home { display: inline-block; margin-bottom: 28px; font-weight: 600; font-size: 0.9rem; text-decoration: none; }
-    .cta { background: #fff; border: 1px solid #e3e6eb; border-radius: 12px; box-shadow: 0 1px 2px rgb(16 24 40 / 4%), 0 1px 3px rgb(16 24 40 / 3%); padding: 16px 18px; margin-top: 36px; }
+    strong { color: var(--text); }
+    .cta { background: var(--surface); border: 1px solid var(--border); border-top: 2px solid var(--text); border-radius: 0 0 2px 2px; padding: 20px 22px; margin-top: 44px; }
+    .cta p:last-child { margin-bottom: 0; }
   </style>
 </head>
 <body>
@@ -26,38 +54,38 @@
   <a class="home" href="/guides/">&larr; All guides</a>
   <h1>How to keep a live show on time (without being the bad guy)</h1>
 
-  <p>Every performer who runs long thinks they're the exception. They're killing, the crowd loves it, one more bit. Multiply that by six acts and your tight 90-minute showcase is a two-and-a-half-hour endurance event. Keeping a show on time isn't about being strict — it's about building a system where on-time is the default.</p>
+  <p>Every performer who runs long thinks they’re the exception. They’re killing, the crowd loves it, one more bit. Multiply that by six acts and your tight 90-minute showcase is a two-and-a-half-hour endurance event. Keeping a show on time isn’t about being strict — it’s about building a system where on-time is the default.</p>
 
   <h2>The real math of set lengths</h2>
-  <p>A "10-minute set" is never 10 minutes. There's the intro (30 seconds), the walk-on (30 seconds), the settling-in, and the goodnight. Realistically a 10-minute set occupies 12 minutes of show. When you build your schedule, either budget the transitions explicitly or tell performers a number that's two minutes shorter than the slot you actually gave them. Both work; pick one and be consistent.</p>
+  <p>A “10-minute set” is never 10 minutes. There’s the intro (30 seconds), the walk-on (30 seconds), the settling-in, and the goodnight. Realistically a 10-minute set occupies 12 minutes of show. When you build your schedule, either budget the transitions explicitly or tell performers a number that’s two minutes shorter than the slot you actually gave them. Both work; pick one and be consistent.</p>
 
   <h2>The light</h2>
   <ul>
     <li><strong>Agree on the signal before the show.</strong> Phone flashlight from the back, a lamp by the tech booth — anything, as long as every performer is told where to look.</li>
     <li><strong>Give the light at the agreed time, every time.</strong> The first time you skip the light for a friend, your light means nothing.</li>
-    <li><strong>Light means "wrap the bit,"</strong> not "stop mid-sentence." Standard is: light at N minutes = finish inside N+2.</li>
-    <li><strong>The host tracks it too.</strong> If a performer blows through the light, the host's intro for the next act starts a little tighter. The schedule self-corrects quietly.</li>
+    <li><strong>Light means “wrap the bit,”</strong> not “stop mid-sentence.” Standard is: light at N minutes = finish inside N+2.</li>
+    <li><strong>The host tracks it too.</strong> If a performer blows through the light, the host’s intro for the next act starts a little tighter. The schedule self-corrects quietly.</li>
   </ul>
 
   <h2>Where to hide your buffers</h2>
   <p>Never schedule back-to-back-to-back with zero slack — one long set cascades through the whole night. Instead:</p>
   <ol>
     <li><strong>Host reset before the headliner.</strong> A 5-minute flexible block that can silently become 0 or 8.</li>
-    <li><strong>Doors-to-showtime gap.</strong> Start the show 5 minutes after the announced time, never more. That's your late-crowd buffer — don't spend it twice.</li>
+    <li><strong>Doors-to-showtime gap.</strong> Start the show 5 minutes after the announced time, never more. That’s your late-crowd buffer — don’t spend it twice.</li>
     <li><strong>The outro.</strong> Plugs and goodnights can be 90 seconds or 5 minutes. Decide in the moment.</li>
   </ol>
 
   <h2>Countdown, not count-up</h2>
-  <p>A timer that counts down to zero changes behavior in a way a wall clock never will. When the person on stage — or the host in the wings — can see "2:14 remaining," nobody has to do arithmetic mid-show. This is exactly the problem live-show timer tools solve: a big countdown for the current act, an "up next" card so the following performer is already moving toward the stage, and a red state when someone's over.</p>
+  <p>A timer that counts down to zero changes behavior in a way a wall clock never will. When the person on stage — or the host in the wings — can see “2:14 remaining,” nobody has to do arithmetic mid-show. This is exactly the problem live-show timer tools solve: a big countdown for the current act, an “up next” card so the following performer is already moving toward the stage, and a red state when someone’s over.</p>
 
-  <h2>The producer's timing checklist</h2>
+  <h2>The producer’s timing checklist</h2>
   <ul>
     <li>Set lengths communicated in writing before show day</li>
     <li>Light signal agreed and visible from the stage</li>
     <li>One person owns the clock</li>
     <li>Buffers placed, not sprinkled</li>
     <li>Headliner start time treated as sacred</li>
-    <li>Announced end time honored — the audience's train schedule doesn't care how good the show is</li>
+    <li>Announced end time honored — the audience’s train schedule doesn’t care how good the show is</li>
   </ul>
 
   <div class="cta">
