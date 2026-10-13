@@ -498,12 +498,25 @@ async function captureRunShowGif(page) {
     await page.waitForTimeout(DELAY_MS - 20); // screenshots cost ~20ms
   }
 
-  // Decode in the browser: a canvas turns each PNG into the RGBA the encoder
-  // wants, and scales it down on the way.
+  await writeGif(page, frames, { width: WIDTH, delay: DELAY_MS, file: 'run-show.gif' });
+  log(`captured ${OUT_DIR}/run-show.gif (${frames.length} frames)`);
+
+  await page.setViewportSize({ width: 430, height: 932 });
+  await page.keyboard.press('Escape');
+  await page.locator('.show-detail').waitFor();
+}
+
+/**
+ * Encode PNG screenshots as one looping GIF, in-process. The browser decodes
+ * each PNG on a canvas (scaling it to `width` on the way), and gifenc writes
+ * the frames. One palette serves the whole clip, drawn from frames sampled
+ * across it: the screens are mostly a fixed interface, and a palette per frame
+ * both inflates the file and makes the background shimmer between frames.
+ */
+async function writeGif(page, frames, { width, delay, file }) {
   const helper = await page.context().newPage();
   await helper.setContent('<canvas id="c"></canvas>');
-  const encoder = GIFEncoder();
-  let palette = null;
+  const decoded = [];
   for (const png of frames) {
     const frame = await helper.evaluate(
       async ({ b64, width }) => {
@@ -525,26 +538,96 @@ async function captureRunShowGif(page) {
         }
         return { data: btoa(binary), width, height };
       },
-      { b64: png.toString('base64'), width: WIDTH },
+      { b64: png.toString('base64'), width },
     );
-    const rgba = new Uint8Array(Buffer.from(frame.data, 'base64'));
-    // One palette for the whole clip: the screen is mostly a fixed dark
-    // interface, and a palette per frame both inflates the file and makes the
-    // background shimmer between frames.
-    palette ??= quantize(rgba, 128, { format: 'rgb565' });
-    encoder.writeFrame(applyPalette(rgba, palette, 'rgb565'), frame.width, frame.height, {
-      palette,
-      delay: DELAY_MS,
-    });
+    decoded.push({ rgba: new Uint8Array(Buffer.from(frame.data, 'base64')), width: frame.width, height: frame.height });
+  }
+  await helper.close();
+
+  // Sample the first, middle and last frames so a clip that changes screens
+  // (dashboard, show page, live mode) gets colours from each of them.
+  const samples = [...new Set([0, Math.floor(decoded.length / 2), decoded.length - 1])].map((i) => decoded[i].rgba);
+  const pool = new Uint8Array(samples.reduce((n, a) => n + a.length, 0));
+  let offset = 0;
+  for (const a of samples) { pool.set(a, offset); offset += a.length; }
+  const palette = quantize(pool, 128, { format: 'rgb565' });
+
+  const encoder = GIFEncoder();
+  for (const { rgba, width: w, height: h } of decoded) {
+    encoder.writeFrame(applyPalette(rgba, palette, 'rgb565'), w, h, { palette, delay });
   }
   encoder.finish();
-  await helper.close();
-  await writeFile(`${OUT_DIR}/run-show.gif`, Buffer.from(encoder.bytes()));
-  log(`captured ${OUT_DIR}/run-show.gif (${frames.length} frames)`);
+  await writeFile(`${OUT_DIR}/${file}`, Buffer.from(encoder.bytes()));
+}
 
-  await page.setViewportSize({ width: 430, height: 932 });
+/**
+ * The README's hero: the whole night in one loop, on a laptop. The dashboard,
+ * then the show's page with its lineup and running order, then live mode with
+ * a walk-on playing and the running order advancing.
+ */
+async function captureDemoGif(page) {
+  const WIDTH = 960;
+  const DELAY_MS = 180;
+  const frames = [];
+  const hold = async (n) => {
+    for (let i = 0; i < n; i++) {
+      frames.push(await page.screenshot());
+      await page.waitForTimeout(DELAY_MS - 40); // a @2x screenshot costs ~40ms
+    }
+  };
+
+  // A laptop screen, scaled down to 960 wide: at this size live mode puts the
+  // soundboard, the clock and the running order on screen together.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // The live-mode clip leaves the show page open; the loop starts a level up.
+  if (await page.locator('.show-detail').count()) {
+    await page.locator('.show-detail__back-btn').first().click();
+  }
+  await page.locator('.shows-list').waitFor();
+  await page.evaluate(() => { document.querySelector('.app-main')?.scrollTo(0, 0); window.scrollTo(0, 0); });
+  await page.waitForTimeout(400);
+  await hold(9);
+
+  await openDemoShow(page);
+  await page.locator('.show-detail').waitFor();
+  await page.waitForTimeout(400);
+  await hold(7);
+  // Down through the lineup and the running order, the way a producer checks
+  // the night before it starts.
+  await page.mouse.move(640, 480);
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.wheel(0, 70);
+    await page.waitForTimeout(60);
+    frames.push(await page.screenshot());
+  }
+  await hold(5);
+  await page.evaluate(() => { document.querySelector('.app-main')?.scrollTo(0, 0); window.scrollTo(0, 0); });
+
+  await page.locator('.show-detail__run-show').click();
+  await page.locator('.run-show').waitFor();
+  const start = page.getByRole('button', { name: /^Start( timer)?$/ });
+  if (await start.count()) await start.click();
+  await page.waitForTimeout(300);
+  await hold(5);
+  await playFirstPad(page);
+  await page.evaluate(() => document.activeElement?.blur());
+  // Pressing the pad can scroll the board; bring the clock back so the cues
+  // advancing are in the frame with the music playing.
+  await page.locator('.rs-clock').evaluate((el) => el.scrollIntoView({ block: 'nearest' }));
+  await page.waitForTimeout(200);
+  await hold(8);
+  await page.keyboard.press('ArrowRight');
+  await hold(7);
+  await page.keyboard.press('ArrowRight');
+  await hold(7);
+
+  await writeGif(page, frames, { width: WIDTH, delay: DELAY_MS, file: 'demo.gif' });
+  log(`captured ${OUT_DIR}/demo.gif (${frames.length} frames)`);
+
   await page.keyboard.press('Escape');
   await page.locator('.show-detail').waitFor();
+  await page.setViewportSize({ width: 430, height: 932 });
 }
 
 /**
@@ -722,6 +805,7 @@ async function main() {
     await openDemoShow(page);
     await page.locator('.show-detail').waitFor();
     await captureRunShowGif(page);
+    await captureDemoGif(page);
     await page.locator('.show-detail__back-btn').first().click();
     await page.locator('.shows-list').waitFor();
 

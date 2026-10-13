@@ -55,7 +55,8 @@ Phone screens are captured at 430×932 with `deviceScaleFactor: 2`. Desktop dash
 | `schedule.png` | The run-of-show builder |
 | `performer-profile.png` | A performer's profile |
 | `run-show.png` | Full-screen live mode |
-| `run-show.gif` | The README's hero — live mode running, 30 frames at 5 fps |
+| `demo.gif` | The README's hero — dashboard → show page → Run Show on a laptop, one loop |
+| `run-show.gif` | The sales page's hero — live mode running on a phone, 30 frames at 5 fps |
 | `rolodex.png` | The Rolodex, with its show-type-aware wording |
 | `settings.png` | Settings — theme, brand, and the folded workspace details |
 | `more.png` | The More hub |

@@ -11,7 +11,7 @@
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-PWA_%C2%B7_iOS_(Capacitor)-111827)
 [![CI](https://github.com/taylordrew4u2/Showrunner-ICanRunAShow/actions/workflows/ci.yml/badge.svg)](https://github.com/taylordrew4u2/Showrunner-ICanRunAShow/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-4285f4)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1c1b19)](LICENSE)
 
 [**Live app**](https://icanrunashow.com) · [**Product tour**](https://icanrunashow.com/tour/) · [**Docs**](docs/ARCHITECTURE.md)
 
@@ -34,7 +34,7 @@ Producers of recurring comedy, drag and variety nights tend to run them from a s
 - **Exactly-once signatures, enforced in SQL.** `UPDATE … WHERE token = ? AND signed_at IS NULL` makes a replayed or racing submit harmless, and each signature records a SHA-256 of the exact document shown.
 - **No lost saves across tabs.** Every write carries the SHA-256 of the ciphertext it expects to replace; the API answers `409 save_conflict` on a mismatch, so a stale tab can't erase a newer edit. Saves are debounced at 1s and blocked until the initial load succeeds.
 - **Media garbage collection by reachability.** Uploads are encrypted chunks referenced from shows, the music library, the Rolodex, contracts and the trash. The browser decides what's unreachable (the server can't read references), and the sweep is disabled until the account has fully loaded.
-- **1,045 unit tests and 120 E2E tests.** 104 Vitest files, plus 23 Playwright specs each run as desktop and phone against a hermetic in-memory API, on every push and PR.
+- **1,068 unit tests and 130 E2E tests.** 106 Vitest files, plus 24 Playwright specs each run as desktop and phone against a hermetic in-memory API, on every push and PR.
 
 ## Features
 
@@ -140,7 +140,7 @@ flowchart LR
 - **Keys in the URL fragment for sharing.** A performer with no account can open a signing link from a text message, and the server still can't decrypt the contract, because fragments are never sent in requests or `Referer`.
 - **Schedule import stays on the device.** No upload, no per-use API bill, and it behaves the same on every install. The trade-off: OCR quality limits messy or handwritten sheets.
 - **Web Audio instead of `<audio>`.** `HTMLAudioElement` was unreliable under iOS Safari's autoplay rules after auto-advance; one `AudioContext` unlocked on the first tap, with preloaded buffers and explicit `resume()`, is not.
-- **Hand-written CSS on design tokens, no framework.** Type, spacing, z-index and motion scales as CSS variables; light/dark is a single `data-theme` swap. The Inter variable font is self-hosted so it's precached for offline use.
+- **Hand-written CSS on design tokens, no framework.** Type, spacing, z-index and motion scales as CSS variables; light/dark is a single `data-theme` swap. Two self-hosted typefaces, precached for offline use: Cormorant Garamond for names (shows, performers, signers) and the Inter variable font for controls and data. The look is ink and ivory with no accent colour, so the only colour on screen means something (status).
 
 More, including the bugs that shaped these: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/SECURITY.md](docs/SECURITY.md)
 
@@ -149,7 +149,7 @@ More, including the bugs that shaped these: [docs/ARCHITECTURE.md](docs/ARCHITEC
 | Layer | Choice |
 | --- | --- |
 | Frontend | React 19, TypeScript 5.9 (strict), hand-written CSS on design tokens |
-| Build / PWA | Vite 8, vite-plugin-pwa (Workbox), self-hosted Inter |
+| Build / PWA | Vite 8, vite-plugin-pwa (Workbox), self-hosted Inter and Cormorant Garamond |
 | API | Vercel serverless functions (Node, TypeScript) in `api/` |
 | Database | Turso (libSQL) via `@libsql/client`, server-side only |
 | Crypto | crypto-js: PBKDF2-SHA256 key derivation, AES, SHA-256 |
