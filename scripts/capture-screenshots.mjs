@@ -57,8 +57,16 @@ const LAUNCH = {
 
 const log = (...a) => console.log('•', ...a);
 
+/** Let an edit that is still being saved land, so no still says "Saving". */
+async function settleSave(page) {
+  await page
+    .waitForFunction(() => !document.querySelector('.sync-status--saving'), null, { timeout: 10000 })
+    .catch(() => {});
+}
+
 async function shot(page, name) {
   await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+  await settleSave(page);
   await page.waitForTimeout(500); // let any transition settle
   const path = `${OUT_DIR}/${name}.png`;
   await page.screenshot({ path });
@@ -233,8 +241,19 @@ async function captureRunShow(page) {
   const start = page.getByRole('button', { name: /^Start$/ });
   if (await start.count()) await start.click();
   await playFirstPad(page);
+  await page.evaluate(() => document.activeElement?.blur());
+  // The whole soundboard, cut at the panel's own edge: the phone screen ended
+  // halfway through the second row of performers, slicing their names.
+  await page.setViewportSize({ width: 430, height: 1400 });
   await page.waitForTimeout(1200); // let the timer tick
-  await shot(page, 'run-show');
+  const board = await page.locator('.rs-board').boundingBox();
+  const path = `${OUT_DIR}/run-show.png`;
+  await page.screenshot({
+    path,
+    clip: { x: 0, y: 0, width: 430, height: Math.min(1400, Math.ceil(board.y + board.height + 16)) },
+  });
+  log(`captured ${path}`);
+  await page.setViewportSize({ width: 430, height: 932 });
   await page.keyboard.press('Escape');
   await page.locator('.show-detail').waitFor();
 }
@@ -316,50 +335,21 @@ async function captureContracts(page, context) {
   await signer.locator('.signing__agree:not(.signing__rule-agree) input').check();
   // A headshot is required before signing: it is the face on the flyer and
   // the soundboard button, and the one detail a producer cannot type in later.
-  // Drawn in the house's own inks rather than a flat grey square, which on
-  // the soundboard read as a photo that had failed to load: a cameo
-  // silhouette, ink on a warm paper. It faces left, so the play badge on a
-  // soundboard pad sits over the shoulder rather than the profile.
-  const face = await signer.evaluate(() => {
+  // The demo sends a plain card with her initial, set like the initial every
+  // other performer wears, rather than an invented portrait.
+  const face = await signer.evaluate(async () => {
+    await document.fonts.load('500 150px "Cormorant Garamond"');
     const canvas = document.createElement('canvas');
     canvas.width = 240;
     canvas.height = 300;
     const c = canvas.getContext('2d');
-    c.translate(240, 0);
-    c.scale(-1, 1);
-    const light = c.createRadialGradient(150, 70, 10, 120, 150, 230);
-    light.addColorStop(0, '#c9c4bb');
-    light.addColorStop(1, '#9a958d');
-    c.fillStyle = light;
+    c.fillStyle = '#1d1b19';
     c.fillRect(0, 0, 240, 300);
-    c.fillStyle = '#2a2725';
-    c.translate(6, 16);
-    c.scale(0.95, 0.95);
-    c.beginPath();
-    c.moveTo(82, 214);
-    c.bezierCurveTo(80, 200, 60, 186, 50, 160); // nape
-    c.bezierCurveTo(40, 130, 44, 84, 74, 58); // back of the head
-    c.bezierCurveTo(96, 40, 140, 34, 162, 52); // crown
-    c.bezierCurveTo(176, 64, 182, 84, 180, 104); // forehead
-    c.lineTo(181, 112);
-    c.bezierCurveTo(179, 118, 178, 120, 180, 126); // bridge
-    c.bezierCurveTo(186, 136, 194, 146, 196, 152); // nose
-    c.bezierCurveTo(196, 157, 188, 159, 182, 159);
-    c.bezierCurveTo(182, 163, 184, 166, 184, 170); // lips
-    c.bezierCurveTo(182, 173, 179, 175, 179, 176);
-    c.bezierCurveTo(182, 178, 183, 182, 181, 185);
-    c.bezierCurveTo(178, 189, 176, 190, 176, 192); // chin
-    c.bezierCurveTo(180, 198, 178, 208, 168, 213);
-    c.bezierCurveTo(158, 217, 146, 214, 140, 218); // jaw
-    c.bezierCurveTo(138, 230, 142, 246, 152, 254); // throat
-    c.bezierCurveTo(180, 266, 222, 274, 260, 292); // shoulders
-    c.lineTo(260, 320);
-    c.lineTo(-20, 320);
-    c.lineTo(-20, 284);
-    c.bezierCurveTo(30, 258, 70, 250, 80, 236);
-    c.bezierCurveTo(84, 228, 84, 220, 82, 214);
-    c.closePath();
-    c.fill();
+    c.fillStyle = '#f2efe9';
+    c.font = '500 150px "Cormorant Garamond"';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('M', 120, 158);
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await signer.locator('.signing__photo-pick input[type=file]').setInputFiles({
@@ -472,6 +462,24 @@ async function captureRunShowGif(page) {
   const start = page.getByRole('button', { name: /^Start$/ });
   if (await start.count()) await start.click();
   await playFirstPad(page);
+  // The pad keeps focus after the press, and the first arrow key would draw
+  // a focus ring round it; the clip is about the clock, not the pad.
+  await page.evaluate(() => document.activeElement?.blur());
+  // Framed on the clock and the running order, where the arrow keys show:
+  // the soundboard sits above them on a phone, and the clip used to be the
+  // soundboard alone, still for all thirty frames.
+  await page.setViewportSize({ width: 430, height: 1200 });
+  await page.locator('.rs-clock').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(300);
+  const clock = await page.locator('.rs-clock').boundingBox();
+  const lineup = await page.locator('.rs-lineup').boundingBox();
+  const top = Math.max(0, Math.floor(clock.y - 12));
+  const clip = {
+    x: 0,
+    y: top,
+    width: 430,
+    height: Math.min(1200 - top, Math.ceil(lineup.y + lineup.height + 12) - top),
+  };
 
   // Hold on the running clock, then advance twice — the two things live mode
   // is for. A press and the frame after it land in the same beat, so the
@@ -484,7 +492,7 @@ async function captureRunShowGif(page) {
   const frames = [];
   for (const key of beats) {
     if (key) await page.keyboard.press(key);
-    frames.push(await page.screenshot());
+    frames.push(await page.screenshot({ clip }));
     await page.waitForTimeout(DELAY_MS - 20); // screenshots cost ~20ms
   }
 
@@ -532,6 +540,7 @@ async function captureRunShowGif(page) {
   await writeFile(`${OUT_DIR}/run-show.gif`, Buffer.from(encoder.bytes()));
   log(`captured ${OUT_DIR}/run-show.gif (${frames.length} frames)`);
 
+  await page.setViewportSize({ width: 430, height: 932 });
   await page.keyboard.press('Escape');
   await page.locator('.show-detail').waitFor();
 }
@@ -703,15 +712,19 @@ async function main() {
     await page.locator('.shows-list').waitFor();
     await captureRolodexAndSettings(page);
     await captureMore(page);
-    await captureContracts(page, context);
-    await captureSettings(page);
 
-    // Last: it needs the show page, and leaves Run Show on the way out.
+    // Before contracts: signing files the signer's headshot onto their
+    // profile, and every performer in the clip should wear the same initial.
     await page.locator('.bottom-nav__item', { hasText: 'Shows' }).click();
     await page.locator('.shows-list').waitFor();
     await openDemoShow(page);
     await page.locator('.show-detail').waitFor();
     await captureRunShowGif(page);
+    await page.locator('.show-detail__back-btn').first().click();
+    await page.locator('.shows-list').waitFor();
+
+    await captureContracts(page, context);
+    await captureSettings(page);
 
     log('done');
   } finally {
