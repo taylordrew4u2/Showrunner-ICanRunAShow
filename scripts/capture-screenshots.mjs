@@ -238,19 +238,19 @@ async function playFirstPad(page) {
 async function captureRunShow(page) {
   await page.locator('.show-detail__run-show').click();
   await page.locator('.run-show').waitFor();
-  const start = page.getByRole('button', { name: /^Start$/ });
+  const start = page.getByRole('button', { name: /^Start( timer)?$/ });
   if (await start.count()) await start.click();
   await playFirstPad(page);
   await page.evaluate(() => document.activeElement?.blur());
-  // The whole soundboard, cut at the panel's own edge: the phone screen ended
-  // halfway through the second row of performers, slicing their names.
+  // Down to the end of the performers' bank and no further: the phone screen
+  // ended halfway through the second row of performers, slicing their names.
   await page.setViewportSize({ width: 430, height: 1400 });
   await page.waitForTimeout(1200); // let the timer tick
-  const board = await page.locator('.rs-board').boundingBox();
+  const bank = await page.locator('.rs-bank').first().boundingBox();
   const path = `${OUT_DIR}/run-show.png`;
   await page.screenshot({
     path,
-    clip: { x: 0, y: 0, width: 430, height: Math.min(1400, Math.ceil(board.y + board.height + 16)) },
+    clip: { x: 0, y: 0, width: 430, height: Math.min(1400, Math.ceil(bank.y + bank.height + 14)) },
   });
   log(`captured ${path}`);
   await page.setViewportSize({ width: 430, height: 932 });
@@ -459,7 +459,7 @@ async function captureRunShowGif(page) {
 
   await page.locator('.show-detail__run-show').click();
   await page.locator('.run-show').waitFor();
-  const start = page.getByRole('button', { name: /^Start$/ });
+  const start = page.getByRole('button', { name: /^Start( timer)?$/ });
   if (await start.count()) await start.click();
   await playFirstPad(page);
   // The pad keeps focus after the press, and the first arrow key would draw
