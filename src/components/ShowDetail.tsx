@@ -966,13 +966,7 @@ export function ShowDetail({
             onClick={onBack}
             aria-label="Back to shows"
           >
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
-              <path
-                fillRule="evenodd"
-                d="M12.707 4.293a1 1 0 010 1.414L8.414 10l4.293 4.293a1 1 0 01-1.414 1.414l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 0z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <Icon name="back" size={16} />
             <span>Shows</span>
           </button>
           {/* Once the page's own big title has scrolled past, its name appears

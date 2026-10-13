@@ -1,3 +1,4 @@
+import { Icon } from './Icon';
 import type { Performer } from '../types';
 import { bulkMailto, isEmail } from '../utils/social';
 
@@ -15,7 +16,7 @@ export function LineupActions({ performers, showName, onAnnounce }: {
   if (!href && !(onAnnounce && performers.length)) return null;
   return <div className="section-mass-message">
     {onAnnounce && performers.length > 0 && <button className="btn btn--secondary btn--sm" onClick={onAnnounce}>Post copy</button>}
-    {href && <a className="btn btn--secondary btn--sm" href={href}>✉ Email all performers ({emailable.length})</a>}
+    {href && <a className="btn btn--secondary btn--sm" href={href}><Icon name="mail" size={16} /> Email all performers ({emailable.length})</a>}
     <span className="section-mass-message__hint">Copy the comics and their socials, ready to paste.{href ? " Email opens your mail app with everyone BCC'd." : ''}</span>
   </div>;
 }

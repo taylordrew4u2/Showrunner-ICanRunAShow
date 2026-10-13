@@ -158,7 +158,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
                 className="perf-profile__input"
                 value={credits}
                 onChange={e => setField('credits', e.target.value)}
-                placeholder="Credits the host should mention when bringing them onstage"
+                placeholder="What the host says to bring them up"
               />
             </div>
             <div className="perf-profile__field perf-profile__field--full">

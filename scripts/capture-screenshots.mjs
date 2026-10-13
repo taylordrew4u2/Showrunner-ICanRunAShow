@@ -57,8 +57,16 @@ const LAUNCH = {
 
 const log = (...a) => console.log('•', ...a);
 
+/** Let an edit that is still being saved land, so no still says "Saving". */
+async function settleSave(page) {
+  await page
+    .waitForFunction(() => !document.querySelector('.sync-status--saving'), null, { timeout: 10000 })
+    .catch(() => {});
+}
+
 async function shot(page, name) {
   await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+  await settleSave(page);
   await page.waitForTimeout(500); // let any transition settle
   const path = `${OUT_DIR}/${name}.png`;
   await page.screenshot({ path });
@@ -89,7 +97,7 @@ async function signInOrUp(page) {
 
   await page.getByPlaceholder('Enter username').fill(USER);
   await page.getByPlaceholder('Enter your password').fill(PASS);
-  await page.getByRole('button', { name: /^Sign In$/ }).click();
+  await page.getByRole('button', { name: /^Sign in$/ }).click();
 
   // Wait for whichever screen sign-in lands on. A race between three
   // `waitFor`s settles as soon as any one of them does, which was reporting
@@ -103,10 +111,10 @@ async function signInOrUp(page) {
 
   if (!(await inApp.count()) && !(await onboarding.count())) {
     log('account not found — creating it');
-    await page.getByRole('button', { name: /New here\? Create Account/ }).click();
+    await page.getByRole('button', { name: /New here\? Create an account/ }).click();
     await page.getByPlaceholder('Enter username').fill(USER);
     await page.getByPlaceholder('Enter your password').fill(PASS);
-    await page.getByRole('button', { name: /^Create Account$/ }).click();
+    await page.getByRole('button', { name: /^Create account$/ }).click();
     await onboarding.waitFor({ timeout: 10000 }).catch(() => {});
   }
 
@@ -230,11 +238,24 @@ async function playFirstPad(page) {
 async function captureRunShow(page) {
   await page.locator('.show-detail__run-show').click();
   await page.locator('.run-show').waitFor();
-  const start = page.getByRole('button', { name: /^Start$/ });
+  const start = page.getByRole('button', { name: /^Start( timer)?$/ });
   if (await start.count()) await start.click();
   await playFirstPad(page);
+  await page.evaluate(() => document.activeElement?.blur());
+  // Down to the end of the performers' bank and no further: the phone screen
+  // ended halfway through the second row of performers, slicing their names.
+  await page.setViewportSize({ width: 430, height: 1400 });
+  // Pressing the pad scrolled the board; the shot starts at the top of it.
+  await page.locator('.run-show__scroll').evaluate((el) => el.scrollTo(0, 0));
   await page.waitForTimeout(1200); // let the timer tick
-  await shot(page, 'run-show');
+  const bank = await page.locator('.rs-bank').first().boundingBox();
+  const path = `${OUT_DIR}/run-show.png`;
+  await page.screenshot({
+    path,
+    clip: { x: 0, y: 0, width: 430, height: Math.min(1400, Math.ceil(bank.y + bank.height + 14)) },
+  });
+  log(`captured ${path}`);
+  await page.setViewportSize({ width: 430, height: 932 });
   await page.keyboard.press('Escape');
   await page.locator('.show-detail').waitFor();
 }
@@ -316,13 +337,21 @@ async function captureContracts(page, context) {
   await signer.locator('.signing__agree:not(.signing__rule-agree) input').check();
   // A headshot is required before signing: it is the face on the flyer and
   // the soundboard button, and the one detail a producer cannot type in later.
-  const face = await signer.evaluate(() => {
+  // The demo sends a plain card with her initial, set like the initial every
+  // other performer wears, rather than an invented portrait.
+  const face = await signer.evaluate(async () => {
+    await document.fonts.load('500 150px "Cormorant Garamond"');
     const canvas = document.createElement('canvas');
     canvas.width = 240;
     canvas.height = 300;
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#6b7280';
-    context.fillRect(0, 0, 240, 300);
+    const c = canvas.getContext('2d');
+    c.fillStyle = '#1d1b19';
+    c.fillRect(0, 0, 240, 300);
+    c.fillStyle = '#f2efe9';
+    c.font = '500 150px "Cormorant Garamond"';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('M', 120, 158);
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await signer.locator('.signing__photo-pick input[type=file]').setInputFiles({
@@ -432,9 +461,27 @@ async function captureRunShowGif(page) {
 
   await page.locator('.show-detail__run-show').click();
   await page.locator('.run-show').waitFor();
-  const start = page.getByRole('button', { name: /^Start$/ });
+  const start = page.getByRole('button', { name: /^Start( timer)?$/ });
   if (await start.count()) await start.click();
   await playFirstPad(page);
+  // The pad keeps focus after the press, and the first arrow key would draw
+  // a focus ring round it; the clip is about the clock, not the pad.
+  await page.evaluate(() => document.activeElement?.blur());
+  // Framed on the clock and the running order, where the arrow keys show:
+  // the soundboard sits above them on a phone, and the clip used to be the
+  // soundboard alone, still for all thirty frames.
+  await page.setViewportSize({ width: 430, height: 1200 });
+  await page.locator('.rs-clock').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(300);
+  const clock = await page.locator('.rs-clock').boundingBox();
+  const lineup = await page.locator('.rs-lineup').boundingBox();
+  const top = Math.max(0, Math.floor(clock.y - 12));
+  const clip = {
+    x: 0,
+    y: top,
+    width: 430,
+    height: Math.min(1200 - top, Math.ceil(lineup.y + lineup.height + 12) - top),
+  };
 
   // Hold on the running clock, then advance twice — the two things live mode
   // is for. A press and the frame after it land in the same beat, so the
@@ -447,16 +494,29 @@ async function captureRunShowGif(page) {
   const frames = [];
   for (const key of beats) {
     if (key) await page.keyboard.press(key);
-    frames.push(await page.screenshot());
+    frames.push(await page.screenshot({ clip }));
     await page.waitForTimeout(DELAY_MS - 20); // screenshots cost ~20ms
   }
 
-  // Decode in the browser: a canvas turns each PNG into the RGBA the encoder
-  // wants, and scales it down on the way.
+  await writeGif(page, frames, { width: WIDTH, delay: DELAY_MS, file: 'run-show.gif' });
+  log(`captured ${OUT_DIR}/run-show.gif (${frames.length} frames)`);
+
+  await page.setViewportSize({ width: 430, height: 932 });
+  await page.keyboard.press('Escape');
+  await page.locator('.show-detail').waitFor();
+}
+
+/**
+ * Encode PNG screenshots as one looping GIF, in-process. The browser decodes
+ * each PNG on a canvas (scaling it to `width` on the way), and gifenc writes
+ * the frames. One palette serves the whole clip, drawn from frames sampled
+ * across it: the screens are mostly a fixed interface, and a palette per frame
+ * both inflates the file and makes the background shimmer between frames.
+ */
+async function writeGif(page, frames, { width, delay, file }) {
   const helper = await page.context().newPage();
   await helper.setContent('<canvas id="c"></canvas>');
-  const encoder = GIFEncoder();
-  let palette = null;
+  const decoded = [];
   for (const png of frames) {
     const frame = await helper.evaluate(
       async ({ b64, width }) => {
@@ -478,25 +538,96 @@ async function captureRunShowGif(page) {
         }
         return { data: btoa(binary), width, height };
       },
-      { b64: png.toString('base64'), width: WIDTH },
+      { b64: png.toString('base64'), width },
     );
-    const rgba = new Uint8Array(Buffer.from(frame.data, 'base64'));
-    // One palette for the whole clip: the screen is mostly a fixed dark
-    // interface, and a palette per frame both inflates the file and makes the
-    // background shimmer between frames.
-    palette ??= quantize(rgba, 128, { format: 'rgb565' });
-    encoder.writeFrame(applyPalette(rgba, palette, 'rgb565'), frame.width, frame.height, {
-      palette,
-      delay: DELAY_MS,
-    });
+    decoded.push({ rgba: new Uint8Array(Buffer.from(frame.data, 'base64')), width: frame.width, height: frame.height });
+  }
+  await helper.close();
+
+  // Sample the first, middle and last frames so a clip that changes screens
+  // (dashboard, show page, live mode) gets colours from each of them.
+  const samples = [...new Set([0, Math.floor(decoded.length / 2), decoded.length - 1])].map((i) => decoded[i].rgba);
+  const pool = new Uint8Array(samples.reduce((n, a) => n + a.length, 0));
+  let offset = 0;
+  for (const a of samples) { pool.set(a, offset); offset += a.length; }
+  const palette = quantize(pool, 128, { format: 'rgb565' });
+
+  const encoder = GIFEncoder();
+  for (const { rgba, width: w, height: h } of decoded) {
+    encoder.writeFrame(applyPalette(rgba, palette, 'rgb565'), w, h, { palette, delay });
   }
   encoder.finish();
-  await helper.close();
-  await writeFile(`${OUT_DIR}/run-show.gif`, Buffer.from(encoder.bytes()));
-  log(`captured ${OUT_DIR}/run-show.gif (${frames.length} frames)`);
+  await writeFile(`${OUT_DIR}/${file}`, Buffer.from(encoder.bytes()));
+}
+
+/**
+ * The README's hero: the whole night in one loop, on a laptop. The dashboard,
+ * then the show's page with its lineup and running order, then live mode with
+ * a walk-on playing and the running order advancing.
+ */
+async function captureDemoGif(page) {
+  const WIDTH = 960;
+  const DELAY_MS = 180;
+  const frames = [];
+  const hold = async (n) => {
+    for (let i = 0; i < n; i++) {
+      frames.push(await page.screenshot());
+      await page.waitForTimeout(DELAY_MS - 40); // a @2x screenshot costs ~40ms
+    }
+  };
+
+  // A laptop screen, scaled down to 960 wide: at this size live mode puts the
+  // soundboard, the clock and the running order on screen together.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // The live-mode clip leaves the show page open; the loop starts a level up.
+  if (await page.locator('.show-detail').count()) {
+    await page.locator('.show-detail__back-btn').first().click();
+  }
+  await page.locator('.shows-list').waitFor();
+  await page.evaluate(() => { document.querySelector('.app-main')?.scrollTo(0, 0); window.scrollTo(0, 0); });
+  await page.waitForTimeout(400);
+  await hold(9);
+
+  await openDemoShow(page);
+  await page.locator('.show-detail').waitFor();
+  await page.waitForTimeout(400);
+  await hold(7);
+  // Down through the lineup and the running order, the way a producer checks
+  // the night before it starts.
+  await page.mouse.move(640, 480);
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.wheel(0, 70);
+    await page.waitForTimeout(60);
+    frames.push(await page.screenshot());
+  }
+  await hold(5);
+  await page.evaluate(() => { document.querySelector('.app-main')?.scrollTo(0, 0); window.scrollTo(0, 0); });
+
+  await page.locator('.show-detail__run-show').click();
+  await page.locator('.run-show').waitFor();
+  const start = page.getByRole('button', { name: /^Start( timer)?$/ });
+  if (await start.count()) await start.click();
+  await page.waitForTimeout(300);
+  await hold(5);
+  await playFirstPad(page);
+  await page.evaluate(() => document.activeElement?.blur());
+  // Pressing the pad can scroll the board; bring the clock back so the cues
+  // advancing are in the frame with the music playing.
+  await page.locator('.rs-clock').evaluate((el) => el.scrollIntoView({ block: 'nearest' }));
+  await page.waitForTimeout(200);
+  await hold(8);
+  await page.keyboard.press('ArrowRight');
+  await hold(7);
+  await page.keyboard.press('ArrowRight');
+  await hold(7);
+
+  await writeGif(page, frames, { width: WIDTH, delay: DELAY_MS, file: 'demo.gif' });
+  log(`captured ${OUT_DIR}/demo.gif (${frames.length} frames)`);
 
   await page.keyboard.press('Escape');
   await page.locator('.show-detail').waitFor();
+  await page.setViewportSize({ width: 430, height: 932 });
 }
 
 /**
@@ -537,21 +668,40 @@ async function captureDesktop(page) {
   // the night's flyer and running order beside it.
   await openDemoShow(page);
   await page.locator('.show-detail').waitFor();
-  const flyer = await page.evaluate(() => {
+  // The demo flyer is set in the house style, not a stock template: a black
+  // field, an ivory rule across its head, the name in the Garamond the app
+  // uses for names, and the room in tracked Inter capitals.
+  const flyer = await page.evaluate(async () => {
+    await Promise.all([
+      document.fonts.load('500 68px "Cormorant Garamond"'),
+      document.fonts.load('italic 500 68px "Cormorant Garamond"'),
+      document.fonts.load('600 20px "Inter"'),
+    ]);
     const canvas = document.createElement('canvas');
     canvas.width = 600;
     canvas.height = 800;
-    const context = canvas.getContext('2d');
-    const fill = context.createLinearGradient(0, 0, 0, 800);
-    fill.addColorStop(0, '#1f2f4a');
-    fill.addColorStop(1, '#7a2e2e');
-    context.fillStyle = fill;
-    context.fillRect(0, 0, 600, 800);
-    context.fillStyle = '#f5f4f1';
-    context.font = 'bold 68px sans-serif';
-    ['FRIDAY', 'NIGHT', 'COMEDY'].forEach((word, i) => context.fillText(word, 56, 210 + i * 84));
-    context.font = '30px sans-serif';
-    context.fillText('The Basement · Brooklyn', 56, 720);
+    const c = canvas.getContext('2d');
+    c.fillStyle = '#0d0c0b';
+    c.fillRect(0, 0, 600, 800);
+    c.fillStyle = '#f2efe9';
+    c.fillRect(56, 64, 488, 2);
+    c.font = '600 17px "Inter"';
+    c.letterSpacing = '4px';
+    c.fillStyle = '#b3aea6';
+    c.fillText('FRIDAYS AT EIGHT', 56, 104);
+    c.letterSpacing = '0px';
+    c.fillStyle = '#f2efe9';
+    c.font = '500 112px "Cormorant Garamond"';
+    c.fillText('Friday', 50, 330);
+    c.fillText('Night', 50, 440);
+    c.font = 'italic 500 112px "Cormorant Garamond"';
+    c.fillText('Comedy', 50, 550);
+    c.fillStyle = 'rgb(242 239 233 / 28%)';
+    c.fillRect(56, 680, 488, 1);
+    c.fillStyle = '#f2efe9';
+    c.font = '600 19px "Inter"';
+    c.letterSpacing = '5px';
+    c.fillText('THE BASEMENT · BROOKLYN', 56, 728);
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await page.getByLabel('Choose flyer file', { exact: true }).setInputFiles({
@@ -647,15 +797,20 @@ async function main() {
     await page.locator('.shows-list').waitFor();
     await captureRolodexAndSettings(page);
     await captureMore(page);
-    await captureContracts(page, context);
-    await captureSettings(page);
 
-    // Last: it needs the show page, and leaves Run Show on the way out.
+    // Before contracts: signing files the signer's headshot onto their
+    // profile, and every performer in the clip should wear the same initial.
     await page.locator('.bottom-nav__item', { hasText: 'Shows' }).click();
     await page.locator('.shows-list').waitFor();
     await openDemoShow(page);
     await page.locator('.show-detail').waitFor();
     await captureRunShowGif(page);
+    await captureDemoGif(page);
+    await page.locator('.show-detail__back-btn').first().click();
+    await page.locator('.shows-list').waitFor();
+
+    await captureContracts(page, context);
+    await captureSettings(page);
 
     log('done');
   } finally {

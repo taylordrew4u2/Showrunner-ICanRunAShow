@@ -30,15 +30,15 @@ test.describe('signing in', () => {
 
     // The name is taken. Trying to create it again is refused rather than
     // quietly made into a second account with the same name.
-    await device.getByRole('button', { name: 'New here? Create Account' }).click();
+    await device.getByRole('button', { name: 'New here? Create an account' }).click();
     await device.getByPlaceholder('Enter your password').fill('a different password');
-    await device.getByRole('button', { name: 'Create Account', exact: true }).click();
+    await device.getByRole('button', { name: 'Create account', exact: true }).click();
     await expect(device.getByRole('alert')).toHaveText('Account already exists. Please sign in.');
     expect(Object.keys(state.users)).toHaveLength(1);
 
     // The right password, and the returning account lands on its shows rather
     // than the first-run questions.
-    await device.getByRole('button', { name: 'Already have an account? Sign In' }).click();
+    await device.getByRole('button', { name: 'Already have an account? Sign in' }).click();
     await signIn(device, 'producer', PASSWORD);
     await expect(device.locator('.app-main')).toBeVisible();
     await expect(device.getByRole('button', { name: 'Get started' })).toHaveCount(0);

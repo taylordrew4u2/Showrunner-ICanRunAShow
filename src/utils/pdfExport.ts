@@ -33,6 +33,26 @@ function formatCurrency(amount: number): string {
 const PRINT_FRAME_LIFETIME_MS = 60_000;
 
 /**
+ * The house faces for a printed sheet: Cormorant Garamond for names, Inter
+ * for everything else, self-hosted like the app's own. The URLs are absolute
+ * because the sheet is written into a blank window, which has no base URL of
+ * its own to resolve "/fonts/…" against.
+ */
+function houseFontFaces(): string {
+  const origin = typeof location !== "undefined" && /^https?:/.test(location.origin) ? location.origin : "";
+  const face = (family: string, style: string, weight: string, file: string) =>
+    `@font-face { font-family: '${family}'; font-style: ${style}; font-weight: ${weight}; font-display: swap; src: url('${origin}/fonts/${file}') format('woff2'); }`;
+  return [
+    face("Inter", "normal", "350 800", "inter-latin.woff2"),
+    face("Cormorant Garamond", "normal", "300 700", "cormorant-garamond-latin.woff2"),
+  ].join("\n    ");
+}
+
+/** The ink and paper every printed sheet shares. */
+const SERIF = "'Cormorant Garamond', Garamond, 'Times New Roman', serif";
+const SANS = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+/**
  * Put a printable page in front of the producer.
  *
  * A new tab where the browser gives one. The iOS shell never does: Capacitor
@@ -139,43 +159,45 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <meta charset="utf-8" />
   <title>${esc(show.name)}</title>
   <style>
+    ${houseFontFaces()}
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1F2937; font-size: 13px; }
-    .brand { color: #6B46C1; font-size: 24px; font-weight: bold; margin-bottom: 4px; }
-    .producers { color: #4B5563; margin-bottom: 16px; font-size: 14px; }
-    h1 { font-size: 22px; color: #1F2937; margin-bottom: 8px; }
-    .meta { color: #4B5563; margin-bottom: 4px; font-size: 14px; }
-    h2 { font-size: 16px; color: #6B46C1; border-bottom: 2px solid #6B46C1; padding-bottom: 6px; margin: 24px 0 10px; }
+    body { font-family: ${SANS}; padding: 40px; color: #141413; background: #fff; font-size: 13px; }
+    .brand { font-family: ${SERIF}; color: #141413; font-size: 18px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 4px; }
+    .producers { color: #55524c; margin-bottom: 16px; font-size: 13px; }
+    h1 { font-family: ${SERIF}; font-size: 30px; font-weight: 500; line-height: 1.1; color: #141413; margin-bottom: 8px; }
+    .meta { color: #55524c; margin-bottom: 4px; font-size: 13px; }
+    .meta strong { color: #141413; font-weight: 600; }
+    h2 { font-family: ${SERIF}; font-size: 20px; font-weight: 500; color: #141413; border-bottom: 1px solid #c9c5bd; padding-bottom: 6px; margin: 26px 0 10px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-    /* White text on a fill. Print dialogs drop backgrounds by default, which
-       would leave every header row a blank strip — so the fill is forced. */
-    th { background: #6B46C1; color: #fff; padding: 8px 12px; text-align: left; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    td { padding: 7px 12px; border-bottom: 1px solid #E5E7EB; font-size: 13px; vertical-align: top; }
+    /* No fill: tracked capitals over an ink rule, which a printer keeps even
+       when it drops backgrounds. */
+    th { background: none; color: #141413; padding: 8px 12px 6px; text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; border-bottom: 1px solid #141413; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    td { padding: 7px 12px; border-bottom: 1px solid #e4e1da; font-size: 13px; vertical-align: top; }
     tr:last-child td { border-bottom: none; }
-    .total-row td { font-weight: bold; background: #F3F4F6; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .rules-box { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 14px; margin-top: 10px; white-space: pre-wrap; font-size: 13px; }
-    .section-empty { color: #9CA3AF; font-style: italic; font-size: 12px; padding: 6px 0; }
-    .badge { display: inline-block; background: #EDE9FE; color: #5B21B6; border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; margin-left: 6px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .badge--green { background: #D1FAE5; color: #065F46; }
-    .todo-item { padding: 4px 0; border-bottom: 1px solid #F3F4F6; font-size: 13px; }
+    .total-row td { font-weight: 600; background: none; border-top: 1px solid #141413; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .rules-box { border: 1px solid #c9c5bd; border-radius: 0; padding: 14px; margin-top: 10px; white-space: pre-wrap; font-size: 13px; }
+    .section-empty { color: #6b675f; font-style: italic; font-size: 12px; padding: 6px 0; }
+    .badge { display: inline-block; background: none; color: #55524c; border-radius: 0; padding: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; margin-left: 8px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .badge--green::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #2f7d4f; margin-right: 6px; vertical-align: 1px; }
+    .todo-item { padding: 4px 0; border-bottom: 1px solid #e4e1da; font-size: 13px; }
     .todo-item:last-child { border-bottom: none; }
-    .todo-done { text-decoration: line-through; color: #9CA3AF; }
-    .recap-box { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 14px; margin-top: 10px; }
+    .todo-done { text-decoration: line-through; color: #6b675f; }
+    .recap-box { border: 1px solid #c9c5bd; border-radius: 0; padding: 14px; margin-top: 10px; }
     .recap-row { display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 10px; }
     .recap-stat { min-width: 120px; }
-    .recap-stat__label { font-size: 11px; color: #6B7280; }
-    .recap-stat__value { font-size: 18px; font-weight: 700; color: #1F2937; }
+    .recap-stat__label { font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: #55524c; }
+    .recap-stat__value { font-size: 18px; font-weight: 600; color: #141413; font-variant-numeric: tabular-nums; }
     .recap-notes { margin-top: 10px; font-size: 13px; white-space: pre-wrap; }
 
     /* ── Intro cards ──────────────────────────────────────────────────
        The stack the host reads from at the mic. Printed to look like the
-       index cards they replace — ruled lines, a red line under the name —
+       index cards they replace — ruled lines, a rule under the name —
        because that is the thing a host already knows how to hold and shuffle.
 
        Two to a row and a fixed height so a sheet cuts into even cards, and
        page-break-inside so none of them ever straddles a fold. */
     .cards-page { page-break-before: always; }
-    .cards-note { color: #6B7280; font-size: 12px; margin: 0 0 14px; }
+    .cards-note { color: #55524c; font-size: 12px; margin: 0 0 14px; }
     .cards {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -185,17 +207,17 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       position: relative;
       height: 2.5in;
       padding: 14px 16px 12px;
-      border: 1px solid #C7CBD1;
-      border-radius: 5px;
-      background: #FFFDF8;
+      border: 1px solid #c9c5bd;
+      border-radius: 0;
+      background: #fff;
       /* The faint ruling. Printers strip backgrounds by default, hence the
          print-color-adjust below — without it these cards come out blank. */
       background-image: repeating-linear-gradient(
         to bottom,
         transparent 0,
         transparent 27px,
-        #DCE6F1 27px,
-        #DCE6F1 28px
+        #ebe8e2 27px,
+        #ebe8e2 28px
       );
       background-position: 0 46px;
       overflow: hidden;
@@ -207,27 +229,29 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       top: 10px;
       right: 12px;
       font-size: 11px;
-      font-weight: 700;
-      color: #9CA3AF;
+      font-weight: 600;
+      color: #6b675f;
+      font-variant-numeric: tabular-nums;
     }
     .card__name {
-      font-size: 21px;
-      font-weight: 700;
-      line-height: 1.15;
-      color: #111827;
+      font-family: ${SERIF};
+      font-size: 25px;
+      font-weight: 600;
+      line-height: 1.1;
+      color: #141413;
       padding-bottom: 6px;
       margin-bottom: 8px;
-      border-bottom: 2px solid #D93025;
+      border-bottom: 1px solid #141413;
       padding-right: 28px;
       word-break: break-word;
     }
     .card__credits {
       font-size: 13px;
       line-height: 28px;
-      color: #1F2937;
+      color: #141413;
       word-break: break-word;
     }
-    .card__credits--none { color: #9CA3AF; font-style: italic; }
+    .card__credits--none { color: #6b675f; font-style: italic; }
     .card__foot {
       position: absolute;
       left: 16px;
@@ -237,12 +261,12 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       justify-content: space-between;
       gap: 10px;
       font-size: 11px;
-      color: #4B5563;
-      border-top: 1px solid #E5E7EB;
+      color: #55524c;
+      border-top: 1px solid #e4e1da;
       padding-top: 6px;
     }
     .card__walkon { font-weight: 600; }
-    .card__kind { color: #9CA3AF; white-space: nowrap; }
+    .card__kind { color: #6b675f; white-space: nowrap; }
 
     @media print {
       body { padding: 24px; }
@@ -433,16 +457,18 @@ export function exportDJListToPDF(show: Show, library: MusicTrack[] = []): void 
   <meta charset="utf-8" />
   <title>${esc(show.name)} - DJ List</title>
   <style>
+    ${houseFontFaces()}
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1F2937; font-size: 13px; }
-    h1 { font-size: 20px; color: #1F2937; margin-bottom: 8px; }
-    .meta { color: #4B5563; margin-bottom: 4px; font-size: 13px; }
-    h2 { font-size: 15px; color: #0F766E; border-bottom: 2px solid #0F766E; padding-bottom: 6px; margin: 24px 0 10px; }
+    body { font-family: ${SANS}; padding: 40px; color: #141413; background: #fff; font-size: 13px; }
+    h1 { font-family: ${SERIF}; font-size: 28px; font-weight: 500; line-height: 1.1; color: #141413; margin-bottom: 8px; }
+    .meta { color: #55524c; margin-bottom: 4px; font-size: 13px; }
+    .meta strong { color: #141413; font-weight: 600; }
+    h2 { font-family: ${SERIF}; font-size: 20px; font-weight: 500; color: #141413; border-bottom: 1px solid #c9c5bd; padding-bottom: 6px; margin: 26px 0 10px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-    /* Forced for the same reason as the runsheet's: printers strip the fill
-       and take the white header text with it. */
-    th { background: #0F766E; color: #fff; padding: 8px 12px; text-align: left; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    td { padding: 7px 12px; border-bottom: 1px solid #E5E7EB; font-size: 13px; }
+    /* The same header as the runsheet's: tracked capitals over an ink rule,
+       with nothing for a printer to strip. */
+    th { background: none; color: #141413; padding: 8px 12px 6px; text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; border-bottom: 1px solid #141413; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    td { padding: 7px 12px; border-bottom: 1px solid #e4e1da; font-size: 13px; }
     tr:last-child td { border-bottom: none; }
   </style>
 </head>

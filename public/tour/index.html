@@ -7,7 +7,8 @@
   <meta name="description" content="The show-running app for comedy, drag, burlesque and variety producers. Lineup, walk-on music, cue timer, contracts with e-signing, flyers and a live audience link — in one app that works in a venue basement with no signal. Free to start." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="canonical" href="https://icanrunashow.com/tour/" />
-  <meta name="theme-color" content="#0b0c0f" />
+  <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0d0c0b" media="(prefers-color-scheme: dark)" />
 
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://icanrunashow.com/tour/" />
@@ -21,6 +22,7 @@
   <meta name="twitter:image" content="https://icanrunashow.com/og-image.png" />
 
   <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/cormorant-garamond-latin.woff2" as="font" type="font/woff2" crossorigin />
 
   <script type="application/ld+json">
   {
@@ -46,41 +48,54 @@
       font-display: swap;
       src: url('/fonts/inter-latin.woff2') format('woff2');
     }
+    /* The app's display face: a Garamond for headlines and names. */
+    @font-face {
+      font-family: 'Cormorant Garamond';
+      font-style: normal;
+      font-weight: 300 700;
+      font-display: swap;
+      src: url('/fonts/cormorant-garamond-latin.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Cormorant Garamond';
+      font-style: italic;
+      font-weight: 300 700;
+      font-display: swap;
+      src: url('/fonts/cormorant-garamond-latin-italic.woff2') format('woff2');
+    }
 
     /* The app's palette, so the page someone reads before signing up
-       looks like the thing they get after. */
+       looks like the thing they get after: ink and ivory, hairlines, and
+       colour only where it means something. */
     :root {
-      --bg: #f6f7f9;
-      --surface: #ffffff;
-      --surface-strong: #f1f3f6;
-      --text: #0e1116;
-      --text-muted: #4b5563;
-      --border: #e3e6eb;
-      --primary: #3b5bdb;
-      --primary-pressed: #3149c0;
-      --primary-soft: #eef1fd;
-      --on-primary: #ffffff;
-      --success: #2f9e44;
-      --hero-bg: #0b0c0f;
-      --hero-text: #f3f4f7;
-      --hero-muted: #a1a7b4;
-      --hero-accent: #a5b8ff;
-      --card-shadow: 0 1px 2px rgb(16 24 40 / 4%), 0 1px 3px rgb(16 24 40 / 3%);
+      --serif: 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
+      --bg: #f5f3ee;
+      --surface: #fbfaf7;
+      --surface-strong: #efece6;
+      --text: #141413;
+      --text-muted: #55524c;
+      --border: #e1ddd4;
+      --border-strong: #b8b3a9;
+      --primary: #141413;
+      --primary-pressed: #34322f;
+      --on-primary: #f5f3ee;
+      --success: #25603f;
+      --shot-shadow: 0 1px 2px rgb(20 20 19 / 6%), 0 24px 60px rgb(20 20 19 / 12%);
     }
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
-        --bg: #0b0c0f;
-        --surface: #131519;
-        --surface-strong: #101216;
-        --text: #f3f4f7;
-        --text-muted: #a1a7b4;
-        --border: #23262e;
-        --primary: #4263eb;
-        --primary-pressed: #5472f0;
-        --primary-soft: #161d36;
-        --success: #51cf66;
-        --hero-bg: #07080a;
-        --card-shadow: inset 0 1px 0 rgb(255 255 255 / 4%), 0 1px 2px rgb(0 0 0 / 35%);
+        --bg: #0d0c0b;
+        --surface: #151413;
+        --surface-strong: #121110;
+        --text: #f2efe9;
+        --text-muted: #b3aea6;
+        --border: #2a2725;
+        --border-strong: #46423d;
+        --primary: #f2efe9;
+        --primary-pressed: #dcd8d0;
+        --on-primary: #0d0c0b;
+        --success: #8fcca6;
+        --shot-shadow: 0 0 0 1px rgb(242 239 233 / 6%), 0 30px 80px rgb(0 0 0 / 60%);
       }
     }
 
@@ -93,174 +108,186 @@
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
     }
+    ::selection { background: var(--text); color: var(--bg); }
     /* height: auto, or the height attribute (there to reserve space while the
        image loads) wins over the CSS width and squashes every screenshot. */
     img { max-width: 100%; height: auto; display: block; }
-    a { color: var(--primary); }
+    a { color: var(--text); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    :focus-visible { outline: 1px solid var(--text); outline-offset: 3px; }
     .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
 
+    /* Only the solid primary speaks in tracked capitals. */
     .btn {
       display: inline-flex; align-items: center; justify-content: center;
-      min-height: 48px; padding: 0 22px; border-radius: 10px;
-      font-weight: 650; font-size: 1rem; text-decoration: none;
-      border: 1px solid transparent; transition: background 0.15s ease, transform 0.15s ease;
+      min-height: 48px; padding: 0 24px; border-radius: 2px;
+      font-weight: 550; font-size: 0.98rem; text-decoration: none;
+      border: 1px solid transparent; transition: background 0.15s ease, border-color 0.15s ease;
     }
     .btn--primary {
-      background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 86%, #fff), var(--primary));
-      border-color: color-mix(in srgb, var(--primary) 82%, #000); color: var(--on-primary);
-      box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%), 0 1px 2px rgb(16 24 40 / 20%), 0 6px 18px color-mix(in srgb, var(--primary) 30%, transparent);
+      background: var(--primary); border-color: var(--primary); color: var(--on-primary);
+      font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
     }
-    .btn--primary:hover { background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 78%, #fff), color-mix(in srgb, var(--primary) 92%, #fff)); transform: translateY(-1px); }
-    .btn--ghost { border-color: rgba(243, 244, 247, 0.22); background: rgba(243, 244, 247, 0.04); color: var(--hero-text); }
-    .btn--ghost:hover { background: rgba(236, 235, 232, 0.08); }
-    .btn--outline { border-color: var(--border); color: var(--text); background: var(--surface); }
+    .btn--primary:hover { background: var(--primary-pressed); border-color: var(--primary-pressed); }
+    .btn--ghost, .btn--outline { border-color: var(--border-strong); background: transparent; color: var(--text); }
+    .btn--ghost:hover, .btn--outline:hover { border-color: var(--text); }
 
     /* ── Nav ── */
-    .nav { background: color-mix(in srgb, var(--hero-bg) 82%, transparent); color: var(--hero-text); position: sticky; top: 0; z-index: 10; -webkit-backdrop-filter: saturate(160%) blur(14px); backdrop-filter: saturate(160%) blur(14px); border-bottom: 1px solid rgb(255 255 255 / 6%); }
+    .nav { background: color-mix(in srgb, var(--bg) 92%, transparent); color: var(--text); position: sticky; top: 0; z-index: 10; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
     .nav .wrap { display: flex; align-items: center; gap: 20px; min-height: 64px; }
-    .nav__brand { white-space: nowrap; display: flex; align-items: center; gap: 10px; color: var(--hero-text); text-decoration: none; font-weight: 700; letter-spacing: -0.01em; }
-    .nav__brand img { width: 28px; height: 28px; }
-    .nav__brand span { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-    .nav__links { display: flex; gap: 22px; margin-left: auto; align-items: center; }
-    .nav__links a { white-space: nowrap; color: var(--hero-muted); text-decoration: none; font-size: 0.93rem; font-weight: 550; }
-    .nav__links a:hover { color: var(--hero-text); }
-    .nav__links .btn { min-height: 40px; padding: 0 16px; font-size: 0.9rem; color: var(--on-primary); }
-    @media (max-width: 720px) { .nav__links .hide-sm { display: none; } .nav__links { gap: 14px; } }
+    .nav__brand { white-space: nowrap; display: flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none; }
+    .nav__brand img { width: 24px; height: 24px; }
+    .nav__brand span { font-family: var(--serif); font-size: 1.02rem; font-weight: 600; letter-spacing: 0.2em; word-spacing: -0.08em; text-transform: uppercase; }
+    .nav__links { display: flex; gap: 26px; margin-left: auto; align-items: center; }
+    .nav__links a { white-space: nowrap; color: var(--text-muted); text-decoration: none; font-size: 0.92rem; font-weight: 500; }
+    .nav__links a:hover { color: var(--text); }
+    .nav__links .btn { min-height: 40px; padding: 0 16px; font-size: 0.75rem; letter-spacing: 0.12em; color: var(--on-primary); }
+    .nav__links .btn:hover { color: var(--on-primary); }
+    @media (max-width: 720px) { .nav__links .hide-sm { display: none; } .nav__links { gap: 16px; } }
+    .nav__brand picture { flex: 0 0 auto; display: block; }
+    @media (max-width: 480px) {
+      .wrap { padding: 0 16px; }
+      .nav .wrap { gap: 12px; }
+      .nav__brand { gap: 9px; }
+      .nav__brand span { font-size: 0.78rem; letter-spacing: 0.13em; }
+      .nav__links { gap: 14px; }
+      .nav__links a { font-size: 0.88rem; }
+      .nav__links .btn { padding: 0 12px; font-size: 0.72rem; letter-spacing: 0.1em; }
+    }
     @media (max-width: 380px) { .nav__brand span { display: none; } }
 
     /* ── Hero ── */
-    .hero {
-      background:
-        radial-gradient(900px 520px at 18% -10%, rgb(66 99 235 / 32%), transparent 62%),
-        radial-gradient(700px 520px at 92% 20%, rgb(132 94 247 / 14%), transparent 60%),
-        var(--hero-bg);
-      color: var(--hero-text); padding: 72px 0 88px; overflow: hidden;
-    }
-    .hero .wrap { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: center; }
-    .eyebrow { display: inline-block; font-size: 0.75rem; font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; color: var(--hero-accent); margin-bottom: 16px; }
-    .hero h1 { font-size: clamp(2.3rem, 5.4vw, 3.9rem); line-height: 1.04; letter-spacing: -0.035em; font-weight: 750; margin-bottom: 20px; }
-    .hero h1 em { font-style: normal; color: var(--hero-accent); }
-    .hero__lede { font-size: 1.15rem; color: var(--hero-muted); max-width: 34em; margin-bottom: 28px; }
-    .hero__ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-    .hero__fine { font-size: 0.88rem; color: var(--hero-muted); }
+    .hero { background: var(--bg); color: var(--text); padding: 84px 0 96px; overflow: hidden; }
+    .hero .wrap { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 56px; align-items: center; }
+    .eyebrow { display: inline-block; text-wrap: balance; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 20px; }
+    .hero h1 { font-family: var(--serif); font-size: clamp(3rem, 6.6vw, 5.5rem); line-height: 0.98; letter-spacing: -0.015em; font-weight: 400; margin-bottom: 26px; }
+    .hero h1 em { font-style: italic; }
+    .hero__lede { font-size: 1.1rem; color: var(--text-muted); max-width: 32em; margin-bottom: 32px; }
+    .hero__ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+    /* On a phone the two calls to action stack as one even column. */
+    @media (max-width: 480px) { .hero__ctas > * { flex: 1 1 100%; } }
+    .hero__fine { font-size: 0.86rem; color: var(--text-muted); }
     .hero__fine span { white-space: nowrap; }
     .hero__shot { justify-self: center; position: relative; }
-    .hero__shot img { width: 300px; border-radius: 28px; border: 1px solid rgb(255 255 255 / 10%); box-shadow: 0 0 0 6px rgb(255 255 255 / 3%), 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 120px rgb(66 99 235 / 25%); }
+    .hero__shot img { width: 300px; border-radius: 2px; border: 1px solid var(--border-strong); box-shadow: var(--shot-shadow); }
     .hero__badge {
-      position: absolute; left: -36px; bottom: 48px; background: var(--surface); color: var(--text);
-      border-radius: 999px; padding: 10px 16px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border);
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35); display: flex; gap: 8px; align-items: center;
+      /* Under the screen, not over it: laid across the phone it hid the captions
+         beneath the first soundboard pad. */
+      position: absolute; left: 0; bottom: -60px; background: var(--surface); color: var(--text);
+      border-radius: 2px; padding: 10px 16px; font-size: 0.84rem; font-weight: 600; border: 1px solid var(--border-strong);
+      box-shadow: 0 12px 32px rgb(0 0 0 / 22%); display: flex; gap: 9px; align-items: center;
     }
-    .hero__badge i { width: 9px; height: 9px; border-radius: 50%; background: var(--success); display: inline-block; }
+    .hero__badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--success); display: inline-block; }
     @media (max-width: 860px) {
+      .hero { padding: 56px 0 72px; }
       .hero .wrap { grid-template-columns: 1fr; }
       .hero__shot img { width: 250px; }
-      .hero__badge { left: -12px; }
+      .hero__badge { left: 0; }
     }
 
-
     /* Trust strip: facts about payments and data, not testimonials. */
-    .trust { border-bottom: 1px solid var(--border); background: var(--surface); }
-    .trust .wrap { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 32px; padding-top: 18px; padding-bottom: 18px; }
-    .trust span { display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
-    .trust svg { width: 18px; height: 18px; color: var(--primary); }
+    .trust { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--bg); }
+    .trust .wrap { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 26px; padding-top: 20px; padding-bottom: 20px; }
+    .trust span { display: inline-flex; align-items: center; gap: 9px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+    .trust svg { width: 16px; height: 16px; color: var(--text); }
 
     /* ── Sections ── */
-    section { padding: 80px 0; }
-    .section-head { max-width: 680px; margin-bottom: 44px; }
-    .section-head .eyebrow { color: var(--primary); }
-    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .section-head .eyebrow, :root:not([data-theme="light"]) .swap__col--after h3 { color: #91a7ff; } }
-    h2 { font-size: clamp(1.8rem, 3.6vw, 2.5rem); line-height: 1.12; letter-spacing: -0.025em; font-weight: 720; margin-bottom: 14px; }
-    .section-head p { color: var(--text-muted); font-size: 1.08rem; }
+    section { padding: 96px 0; }
+    .section-head { max-width: 700px; margin-bottom: 48px; }
+    h2 { font-family: var(--serif); font-size: clamp(2.3rem, 4.6vw, 3.4rem); line-height: 1.04; letter-spacing: -0.01em; font-weight: 500; margin-bottom: 16px; }
+    .section-head p { color: var(--text-muted); font-size: 1.06rem; }
+    .section-head .eyebrow { font-size: 0.7rem; margin-bottom: 18px; }
 
     /* Pain → fix */
-    .swap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .swap__col { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; box-shadow: var(--card-shadow); }
-    .swap__col h3 { font-size: 0.75rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px; color: var(--text-muted); }
-    .swap__col--after { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); background: radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 60%), var(--surface); }
-    .swap__col--after h3 { color: var(--primary); }
-    .swap ul { list-style: none; display: grid; gap: 10px; }
-    .swap li { display: flex; gap: 10px; }
-    .swap__col--before li::before { content: '✕'; color: #b45309; font-weight: 700; }
-    .swap__col--after li::before { content: '✓'; color: var(--success); font-weight: 700; }
+    .swap { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .swap__col { background: var(--surface); border: 1px solid var(--border); border-radius: 2px; padding: 30px; }
+    .swap__col h3 { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; margin-bottom: 18px; color: var(--text-muted); }
+    /* The featured card: one straight rule across its head. */
+    .swap__col--after { border-top: 2px solid var(--text); border-radius: 0 0 2px 2px; }
+    .swap__col--after h3 { color: var(--text); }
+    .swap ul { list-style: none; display: grid; gap: 0; }
+    .swap li { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+    .swap li:first-child { border-top: 0; padding-top: 0; }
+    .swap__col--before li { color: var(--text-muted); }
+    .swap__col--before li::before { content: '✕'; color: var(--text-muted); font-weight: 600; }
+    .swap__col--after li::before { content: '✓'; color: var(--text-muted); font-weight: 400; }
     @media (max-width: 720px) { .swap { grid-template-columns: 1fr; } }
 
     /* Feature rows */
-    .feature { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; padding: 40px 0; border-top: 1px solid var(--border); }
+    .feature { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; padding: 48px 0; border-top: 1px solid var(--border); }
     .feature:first-of-type { border-top: 0; }
     .feature--flip .feature__media { order: -1; }
-    .feature h3 { font-size: 1.6rem; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 12px; }
-    .feature p { color: var(--text-muted); margin-bottom: 14px; font-size: 1.04rem; }
-    .feature ul { list-style: none; display: grid; gap: 8px; }
-    .feature li { padding-left: 22px; position: relative; }
-    .feature li::before { content: '→'; position: absolute; left: 0; color: var(--primary); font-weight: 700; }
+    .feature h3 { font-family: var(--serif); font-size: 2.1rem; font-weight: 500; letter-spacing: -0.005em; line-height: 1.08; margin-bottom: 16px; }
+    .feature p { color: var(--text-muted); margin-bottom: 18px; font-size: 1.04rem; }
+    .feature ul { list-style: none; display: grid; gap: 0; border-top: 1px solid var(--border); }
+    .feature li { padding: 9px 0 9px 26px; position: relative; border-bottom: 1px solid var(--border); }
+    .feature li::before { content: '—'; position: absolute; left: 0; color: var(--text-muted); }
     .feature__media { display: flex; justify-content: center; }
-    .feature__media img { border-radius: 20px; border: 1px solid var(--border); background: var(--surface); box-shadow: 0 2px 6px rgb(16 24 40 / 6%), 0 24px 60px rgb(16 24 40 / 14%); }
+    .feature__media img { border-radius: 2px; border: 1px solid var(--border-strong); background: var(--surface); box-shadow: var(--shot-shadow); }
     .feature__media .phone { width: 280px; }
-    .feature__media .wide { width: 100%; border-radius: 14px; }
+    .feature__media .wide { width: 100%; border-radius: 2px; }
     @media (max-width: 860px) {
-      .feature { grid-template-columns: 1fr; gap: 28px; }
+      .feature { grid-template-columns: 1fr; gap: 32px; }
       .feature--flip .feature__media { order: 0; }
       .feature__media .phone { width: 240px; }
     }
 
     /* Grid of smaller wins */
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; box-shadow: var(--card-shadow); }
-    .card h3 { font-size: 1.05rem; margin-bottom: 6px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+    .card { background: transparent; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 30px 28px; }
+    .card h3 { font-family: var(--serif); font-size: 1.5rem; font-weight: 600; line-height: 1.15; margin-bottom: 8px; }
     .card p { color: var(--text-muted); font-size: 0.95rem; }
-    .card__icon { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 14px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent); }
-    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card__icon { color: #a5b8ff; } }
+    .card__icon { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 18px; border-radius: 0; background: transparent; color: var(--text); border: 1px solid var(--border-strong); }
     @media (max-width: 860px) { .grid { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
 
     /* Who it's for */
-    .band { background: var(--surface-strong); }
+    .band { background: var(--surface-strong); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
     .chips { display: flex; flex-wrap: wrap; gap: 10px; }
-    .chip { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 8px 16px; font-weight: 600; font-size: 0.95rem; }
+    .chip { background: transparent; border: 1px solid var(--border-strong); border-radius: 2px; padding: 9px 16px; font-weight: 500; font-size: 0.95rem; }
 
     /* Pricing */
-    .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 860px; }
-    .plan { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 32px; display: flex; flex-direction: column; box-shadow: var(--card-shadow); }
-    .plan--pro { border: 1px solid color-mix(in srgb, var(--primary) 60%, var(--border)); position: relative; background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 60%), var(--surface); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 10%, transparent), 0 24px 60px color-mix(in srgb, var(--primary) 18%, transparent); }
-    .plan__tag { position: absolute; top: -13px; left: 28px; background: var(--primary); color: var(--on-primary); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 5px 12px; border-radius: 999px; }
-    .plan h3 { font-size: 1.2rem; margin-bottom: 4px; }
-    .plan__for { color: var(--text-muted); font-size: 0.93rem; margin-bottom: 18px; }
-    .plan__price { font-size: 2.6rem; font-weight: 750; letter-spacing: -0.03em; line-height: 1; }
-    .plan__price small { font-size: 1rem; font-weight: 550; color: var(--text-muted); letter-spacing: 0; }
-    .plan__price s { color: var(--text-muted); font-weight: 600; }
-    .plan__note { font-size: 0.9rem; color: var(--success); font-weight: 650; margin: 8px 0 20px; min-height: 1.4em; }
-    .plan ul { list-style: none; display: grid; gap: 9px; margin-bottom: 26px; flex: 1; }
-    .plan li { padding-left: 24px; position: relative; font-size: 0.97rem; }
-    .plan li::before { content: '✓'; position: absolute; left: 0; color: var(--success); font-weight: 700; }
+    .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 880px; }
+    .plan { background: var(--surface); border: 1px solid var(--border); border-radius: 2px; padding: 36px 34px; display: flex; flex-direction: column; }
+    .plan--pro { position: relative; border-top: 2px solid var(--text); border-radius: 0 0 2px 2px; }
+    .plan__tag { position: absolute; top: -12px; left: 32px; background: var(--text); color: var(--bg); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; padding: 5px 11px; border-radius: 0; }
+    .plan h3 { font-family: var(--serif); font-size: 2.1rem; font-weight: 500; line-height: 1.05; margin-bottom: 6px; }
+    .plan__for { color: var(--text-muted); font-size: 0.93rem; margin-bottom: 22px; }
+    .plan__price { font-family: var(--serif); font-size: 3.6rem; font-weight: 500; font-variant-numeric: lining-nums; letter-spacing: -0.01em; line-height: 1; }
+    .plan__price small { font-family: 'Inter', sans-serif; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted); }
+    .plan__price s { color: var(--text-muted); font-weight: 400; }
+    .plan__note { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; margin: 10px 0 22px; min-height: 1.4em; }
+    .plan ul { list-style: none; display: grid; gap: 0; margin-bottom: 28px; flex: 1; border-top: 1px solid var(--border); align-content: start; }
+    .plan li { padding: 9px 0 9px 26px; position: relative; font-size: 0.96rem; border-bottom: 1px solid var(--border); }
+    .plan li::before { content: '✓'; position: absolute; left: 0; color: var(--text-muted); font-weight: 400; }
     .plan .btn { width: 100%; }
-    .plans__fine { color: var(--text-muted); font-size: 0.9rem; margin-top: 18px; max-width: 860px; }
-    @media (max-width: 720px) { .plans { grid-template-columns: 1fr; } }
+    .plans__fine { color: var(--text-muted); font-size: 0.9rem; margin-top: 22px; max-width: 880px; }
+    @media (max-width: 720px) { .plans { grid-template-columns: 1fr; gap: 28px; } }
 
     /* FAQ */
-    .faq { max-width: 760px; display: grid; gap: 10px; }
-    details { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; box-shadow: var(--card-shadow); }
-    summary { font-weight: 650; cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+    .faq { max-width: 780px; display: grid; gap: 0; border-top: 1px solid var(--border); }
+    details { border-bottom: 1px solid var(--border); padding: 20px 2px; }
+    summary { font-family: var(--serif); font-size: 1.4rem; font-weight: 600; line-height: 1.25; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
     summary::-webkit-details-marker { display: none; }
-    summary::after { content: '+'; color: var(--primary); font-weight: 700; font-size: 1.2rem; line-height: 1; }
+    summary::after { content: '+'; font-family: 'Inter', sans-serif; color: var(--text-muted); font-weight: 400; font-size: 1.3rem; line-height: 1; }
     details[open] summary::after { content: '–'; }
-    details p { color: var(--text-muted); margin-top: 10px; }
+    details p { color: var(--text-muted); margin-top: 10px; max-width: 62ch; }
 
     /* Final CTA */
-    .closer { background: radial-gradient(800px 400px at 50% 120%, rgb(66 99 235 / 30%), transparent 65%), var(--hero-bg); color: var(--hero-text); text-align: center; }
-    .closer h2 { margin-bottom: 14px; }
-    .closer p { color: var(--hero-muted); font-size: 1.1rem; margin-bottom: 28px; }
-    footer { padding: 32px 0 48px; color: var(--text-muted); font-size: 0.88rem; }
+    .closer { background: var(--bg); color: var(--text); text-align: center; border-top: 1px solid var(--border); padding: 112px 0; }
+    .closer h2 { margin: 0 auto 16px; max-width: 22ch; font-size: clamp(2.4rem, 5vw, 3.8rem); }
+    .closer p { color: var(--text-muted); font-size: 1.06rem; margin: 0 auto 32px; max-width: 34em; }
+    footer { padding: 32px 0 48px; color: var(--text-muted); font-size: 0.86rem; border-top: 1px solid var(--border); }
     footer .wrap { display: flex; flex-wrap: wrap; gap: 18px; justify-content: space-between; }
-    footer nav { display: flex; gap: 18px; flex-wrap: wrap; }
+    footer nav { display: flex; gap: 22px; flex-wrap: wrap; }
     footer a { color: var(--text-muted); }
+    footer a:hover { color: var(--text); }
   </style>
 </head>
 <body>
 
 <header class="nav">
   <div class="wrap">
-    <a class="nav__brand" href="/tour/"><img src="/brand/mark.svg" alt="" /><span>I Can Run A Show</span></a>
+    <a class="nav__brand" href="/tour/"><picture><source srcset="/brand/mark-ivory.svg" media="(prefers-color-scheme: dark)" /><img src="/brand/mark-ink.svg" width="24" height="24" alt="" /></picture><span>I Can Run A Show</span></a>
     <nav class="nav__links" aria-label="Main">
       <a class="hide-sm" href="#features">Features</a>
       <a class="hide-sm" href="#pricing">Pricing</a>
@@ -275,7 +302,7 @@
   <section class="hero">
     <div class="wrap">
       <div>
-        <p class="eyebrow">For comedy · drag · burlesque · variety producers</p>
+        <p class="eyebrow">For comedy&nbsp;· drag&nbsp;· burlesque&nbsp;· variety producers</p>
         <h1>Run the whole night from <em>one screen.</em></h1>
         <p class="hero__lede">
           Lineup, walk-on music, the clock, the contracts and the flyer — in one app built for
@@ -293,7 +320,7 @@
         </p>
       </div>
       <div class="hero__shot">
-        <img src="/tour/run-show.gif" width="300" height="650" alt="Run Show live mode: the cue clock counting down while the running order advances" />
+        <img src="/tour/run-show.gif" width="300" height="606" alt="Run Show live mode: the cue clock counting down while the running order advances" />
         <div class="hero__badge"><i></i> On time · 2 acts to go</div>
       </div>
     </div>
@@ -313,8 +340,8 @@
     <div class="wrap">
       <div class="section-head">
         <p class="eyebrow">The problem</p>
-        <h2>Producing a show shouldn't take five apps and a panic attack.</h2>
-        <p>Every indie producer runs the same messy stack. I Can Run A Show replaces all of it.</p>
+        <h2>Producing a show shouldn’t take five apps and a panic attack.</h2>
+        <p>Most producers run the night off five apps that never talk to each other. I Can Run A Show replaces all of them.</p>
       </div>
       <div class="swap">
         <div class="swap__col swap__col--before">
@@ -324,15 +351,15 @@
             <li>Walk-on songs queued in Spotify, praying for no ads</li>
             <li>A phone stopwatch to light the comics</li>
             <li>Chasing headshots and handles in DMs for the flyer</li>
-            <li>Bookings "confirmed" in a text thread nobody can find</li>
+            <li>Bookings “confirmed” in a text thread nobody can find</li>
           </ul>
         </div>
         <div class="swap__col swap__col--after">
           <h3>With I Can Run A Show</h3>
           <ul>
             <li>One lineup, one running order, synced to every device</li>
-            <li>Tap a performer's face — their song fades in</li>
-            <li>A cue clock that tells you if you're running long</li>
+            <li>Tap a performer’s face — their song fades in</li>
+            <li>A cue clock that tells you if you’re running long</li>
             <li>Performers fill in their own details from a link</li>
             <li>Contracts signed, timestamped and on file</li>
           </ul>
@@ -359,7 +386,7 @@
             <li>Screen stays awake for the whole show</li>
           </ul>
         </div>
-        <div class="feature__media"><img class="phone" src="/tour/run-show.webp" width="646" height="1400" loading="lazy" alt="Run Show screen with the clock, soundboard and performer buttons" /></div>
+        <div class="feature__media"><img class="phone" src="/tour/run-show.webp" width="567" height="1400" loading="lazy" alt="Run Show screen with the clock, soundboard and performer buttons" /></div>
       </div>
 
       <div class="feature feature--flip">
@@ -380,7 +407,7 @@
           <h3>Contracts that actually get signed.</h3>
           <p>Upload your booking agreement and send it to anyone in your rolodex. They open a link, read it, type their name — done. No account, no app, no printer.</p>
           <ul>
-            <li>See at a glance who's signed and who's still waiting</li>
+            <li>See at a glance who’s signed and who’s still waiting</li>
             <li>Every signature is timestamped with a fingerprint of the exact document</li>
             <li>A built-in no-show rule performers acknowledge when they sign</li>
           </ul>
@@ -404,11 +431,11 @@
       <div class="feature">
         <div>
           <h3>Plan every show on one page.</h3>
-          <p>Lineup first, flyer and running order beside it. Readiness checks tell you what's still missing before doors.</p>
+          <p>Lineup first, flyer and running order beside it. Readiness checks tell you what’s still missing before doors.</p>
           <ul>
             <li>Flyer, venue, staff, host, vendors and deadlines</li>
             <li>Expenses tracked per show</li>
-            <li>Calendar of everything you've got coming up</li>
+            <li>Calendar of everything you’ve got coming up</li>
           </ul>
         </div>
         <div class="feature__media"><img class="wide" src="/tour/desktop-show.webp" width="1400" height="984" loading="lazy" alt="A show on a laptop: the lineup with the flyer and running order beside it" /></div>
@@ -424,10 +451,10 @@
         <p>Bad signal, a dying phone and five minutes to doors. It was designed for exactly that.</p>
       </div>
       <div class="grid">
-        <div class="card"><div class="card__icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></div><h3>Works offline</h3><p>Install it to your home screen. When the venue Wi-Fi dies, the show doesn't.</p></div>
-        <div class="card"><div class="card__icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h3>Private by design</h3><p>Your shows are encrypted on your device before they're saved. We can't read them.</p></div>
-        <div class="card"><div class="card__icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg></div><h3>Live audience link</h3><p>Share a link that shows who's on now and who's up next — updates live.</p></div>
-        <div class="card"><div class="card__icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><h3>Promo post in one tap</h3><p>The bill, the host and everyone's handles composed into a caption, ready to paste.</p></div>
+        <div class="card"><div class="card__icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></div><h3>Works offline</h3><p>Install it to your home screen. When the venue Wi-Fi dies, the show doesn’t.</p></div>
+        <div class="card"><div class="card__icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h3>Private by design</h3><p>Your shows are encrypted on your device before they’re saved. We can’t read them.</p></div>
+        <div class="card"><div class="card__icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg></div><h3>Live audience link</h3><p>Share a link that shows who’s on now and who’s up next — updates live.</p></div>
+        <div class="card"><div class="card__icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><h3>Promo post in one tap</h3><p>The bill, the host and everyone’s handles composed into a caption, ready to paste.</p></div>
         <div class="card"><div class="card__icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><h3>Season report</h3><p>Audience, money and your regulars across every show — plus a venue pitch, copied in one tap.</p></div>
         <div class="card"><div class="card__icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><h3>No ads, no tracking</h3><p>No ad cookies, no third-party trackers, no selling your data. Ever.</p></div>
       </div>
@@ -437,8 +464,8 @@
   <section>
     <div class="wrap">
       <div class="section-head">
-        <p class="eyebrow">Who it's for</p>
-        <h2>If you put people on a stage, it's for you.</h2>
+        <p class="eyebrow">Who it’s for</p>
+        <h2>If you put people on a stage, it’s for you.</h2>
         <p>Weekly open mics, monthly showcases, touring drag revues, burlesque nights and the comic who books their own room.</p>
       </div>
       <div class="chips">
@@ -459,7 +486,7 @@
       <div class="section-head">
         <p class="eyebrow">Pricing</p>
         <h2>Less than one comp drink a month.</h2>
-        <p>Start free and stay free as long as you like. Upgrade when you're running a real calendar.</p>
+        <p>Start free and stay free as long as you like. Upgrade when you’re running a real calendar.</p>
       </div>
       <div class="plans">
         <div class="plan">
@@ -495,7 +522,7 @@
           <a class="btn btn--primary" href="/">Start free, upgrade in the app</a>
         </div>
       </div>
-      <p class="plans__fine">No credit card to sign up. Upgrade from Settings whenever you're ready — secure checkout by Stripe, cancel anytime. If you stop paying, links you've already shared, contracts already signed and a remote already paired keep working, and you can export all your data anytime.</p>
+      <p class="plans__fine">No credit card to sign up. Upgrade from Settings whenever you’re ready — secure checkout by Stripe, cancel anytime. If you stop paying, links you’ve already shared, contracts already signed and a remote already paired keep working, and you can export all your data anytime.</p>
     </div>
   </section>
 
@@ -512,19 +539,19 @@
         </details>
         <details>
           <summary>What happens if the venue has no signal?</summary>
-          <p>Install the app to your home screen and it keeps running offline. Your edits are saved on the device and synced when you're back online.</p>
+          <p>Install the app to your home screen and it keeps running offline. Your edits are saved on the device and synced when you’re back online.</p>
         </details>
         <details>
           <summary>Does it play music from Spotify?</summary>
-          <p>No — you upload the actual audio files for walk-ons and DJ tracks. That means no ads mid-show, no buffering, and no surprise "this song isn't available".</p>
+          <p>No — you upload the actual audio files for walk-ons and DJ tracks. That means no ads mid-show, no buffering, and no surprise “this song isn’t available”.</p>
         </details>
         <details>
           <summary>Is it on the App Store?</summary>
-          <p>It runs in any browser and installs to the home screen on iPhone and Android in two taps. Open icanrunashow.com in Safari or Chrome and choose "Add to Home Screen".</p>
+          <p>It runs in any browser and installs to the home screen on iPhone and Android in two taps. Open icanrunashow.com in Safari or Chrome and choose “Add to Home Screen”.</p>
         </details>
         <details>
           <summary>Who can see my shows?</summary>
-          <p>Only you. Your data is encrypted on your device with a key made from your password before it's saved. That also means we can't recover it if you forget your password — so download a backup from Settings.</p>
+          <p>Only you. Your data is encrypted on your device with a key made from your password before it’s saved. That also means we can’t recover it if you forget your password — so download a backup from Settings.</p>
         </details>
         <details>
           <summary>Can I get my data out?</summary>
@@ -541,7 +568,7 @@
   <section class="closer">
     <div class="wrap">
       <h2>Your next show deserves a better run sheet.</h2>
-      <p>Open the sample show and press Run Show — you'll see it in under a minute. Free to start, no card.</p>
+      <p>Open the sample show and press Run Show — you’ll see it in under a minute. Free to start, no card.</p>
       <a class="btn btn--primary" href="/">Start free — no card</a>
     </div>
   </section>

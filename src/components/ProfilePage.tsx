@@ -1,6 +1,7 @@
 import { clarifyIntroductionCredits } from '../utils/introductionCredits';
 import { useEffect, useState } from 'react';
 import type { ProfileSubmission } from '../types';
+import { Icon } from './Icon';
 import { collectFieldAnswers, missingRequiredFields } from '../utils/contracts';
 import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
 import { readFileAsDataURL } from '../utils/media';
@@ -303,7 +304,7 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
                 {headshot ? (
                   <img className="signing__photo-preview" src={headshot} alt="Your headshot" />
                 ) : (
-                  <span className="signing__photo-empty" aria-hidden="true">☺</span>
+                  <span className="signing__photo-empty" aria-hidden="true"><Icon name="user" size={24} /></span>
                 )}
                 <div className="signing__photo-actions">
                   <label className="btn btn--secondary btn--sm signing__photo-pick">
