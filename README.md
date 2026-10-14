@@ -23,6 +23,25 @@
 
 </div>
 
+## App Store
+
+<img src="docs/promo/banner-1920x1080.png" width="100%" alt="Every show. Every comic. Zero chaos. Book the lineup, see who's on which night, and run all your shows." />
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/promo/01-every-show.png" alt="Every show. Every comic. Zero chaos. The Shows dashboard." /></td>
+    <td width="33%"><img src="docs/promo/02-run-show.png" alt="Showtime, handled. Run Show soundboard with walk-on music for every comic." /></td>
+    <td width="33%"><img src="docs/promo/03-run-of-show.png" alt="No more who's next. Run of show with set times for every comic." /></td>
+  </tr>
+  <tr>
+    <td><img src="docs/promo/04-show-page.png" alt="One tap. Entire show. Lineup, flyer, schedule and budget on one page." /></td>
+    <td><img src="docs/promo/05-rolodex.png" alt="Book faster. Every time. Save a comic once and drop them onto any show." /></td>
+    <td><img src="docs/promo/06-stage-remote.png" alt="Run sound from the stage. A clicker starts and stops walk-on music." /></td>
+  </tr>
+</table>
+
+<sub>App Store screenshots (iPhone 6.9", 1320x2868) and a 1920x1080 banner. Source files in <a href="docs/promo">docs/promo</a>.</sub>
+
 ## Why I built it
 
 Producers of recurring comedy, drag and variety nights tend to run them from a spreadsheet, a notes app, a group chat and whatever music player is open. Each of those breaks at the worst moment: in a venue basement with no signal, while a performer is walking on. This app puts booking, paperwork and the live run of the night in one tool that works offline and is built for a phone.
