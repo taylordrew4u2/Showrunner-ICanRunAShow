@@ -16,8 +16,8 @@
     "e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
-    "@capacitor/core": "^8.4.2",
-    "@capacitor/ios": "^8.4.2",
+    "@capacitor/core": "~8.4.3",
+    "@capacitor/ios": "~8.4.3",
     "@libsql/client": "^0.17.0",
     "crypto-js": "^4.2.0",
     "pdfjs-dist": "5.5.207",
@@ -27,7 +27,7 @@
     "workbox-window": "^7.4.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.4.2",
+    "@capacitor/cli": "~8.4.3",
     "@eslint/js": "^9.39.3",
     "@playwright/test": "^1.61.1",
     "@types/crypto-js": "^4.2.2",
