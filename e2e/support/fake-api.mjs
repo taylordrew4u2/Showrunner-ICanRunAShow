@@ -23,7 +23,7 @@ import { createHash } from 'node:crypto';
  */
 /**
  * @typedef {object} FakeState
- * @property {Record<string, string>} users  Accounts, by user id: the client hash each one signed up with.
+ * @property {Record<string, {credential: string, clientVersion: number}>} users  Accounts, by user id: the client credential that opens each one, and which kind it is (1 = the old SHA-256 hash, 2 = the per-account key; api/_lib/credentials.ts).
  * @property {{id: string, encryptedData: string}[]} shows
  * @property {string | null} settings
  * @property {{at: string, shows: {id: string, encryptedData: string}[]}[]} showSnapshots  Earlier saves, newest last.
@@ -57,12 +57,15 @@ const MAX_CHUNKS = 64;
 const PROFILE_PHOTO_MAX_CHUNKS = 4;
 const MAX_TRACKS_PER_TOKEN = 60;
 // api/auth.ts and api/_lib/auth.ts
+const MAX_CREDENTIAL_CHARS = 128;
 const LOGIN_MAX_FAILURES = 10;
 const LOGIN_WINDOW_SECONDS = 300;
 const SIGNUP_MAX = 20;
 const SIGNUP_WINDOW_SECONDS = 3600;
 const AUTHZ_MAX_FAILURES = 20;
 const AUTHZ_WINDOW_SECONDS = 300;
+// api/account.ts
+const ACCOUNT_MAX_NAMED_TOKENS = 5000;
 // api/_lib/snapshots.ts
 const KEEP_RECENT = 12;
 const KEEP_DAYS = 30;
@@ -98,6 +101,9 @@ const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 /** api/_lib/http.ts exceedsSize: the JSON size of a value, against a cap. */
 const exceedsSize = (value, maxBytes) => JSON.stringify(value ?? null).length > maxBytes;
 
+/** api/auth.ts badCredential: the browser's derived hex digests, nothing longer. */
+const badCredential = (value) => typeof value !== 'string' || value.length === 0 || value.length > MAX_CREDENTIAL_CHARS;
+
 /** api/sign.ts and api/profile-photo.ts badToken. */
 const badToken = (token) => typeof token !== 'string' || token.length < 16 || token.length > 128;
 
@@ -111,9 +117,13 @@ function badChunk(seq, total, data, maxChunks) {
     typeof data !== 'string' || data.length === 0;
 }
 
-/** api/_lib/tokenOwnership.ts: whose a token is, by the row that names it. */
+/**
+ * api/_lib/tokenOwnership.ts: whose a token is, by the row that names it.
+ * 'legacy' is a row from before owners were recorded.
+ */
 function ownership(row, userId) {
-  if (!row || row.userId == null) return 'free';
+  if (!row) return 'free';
+  if (row.userId == null) return 'legacy';
   return row.userId === userId ? 'mine' : 'other';
 }
 
@@ -154,7 +164,7 @@ export async function installFakeApi(ctx, state) {
     const path = url.pathname;
     const method = req.method();
     const headers = req.headers();
-    const body = ['POST', 'PUT'].includes(method) ? JSON.parse(req.postData() || '{}') : {};
+    const body = ['POST', 'PUT', 'DELETE'].includes(method) ? JSON.parse(req.postData() || '{}') : {};
     const ok = (data) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
     const err = (status, error) =>
@@ -179,23 +189,31 @@ export async function installFakeApi(ctx, state) {
     }
 
     // api/_lib/auth.ts authorize: the account named by x-user-id, when x-auth
-    // is the credential it signed up with. Null for a missing header, an
-    // unknown account, a wrong credential, or too many wrong ones. Every
-    // producer route goes through this, so an account that was never created
-    // cannot read or write anything.
+    // is the credential that opens it (whichever kind it holds). Null for a
+    // missing header, an unknown account, a wrong credential, or too many
+    // wrong ones. Every producer route goes through this, so an account that
+    // was never created cannot read or write anything.
+    let throttled = false;
     function authorize() {
       const userId = headers['x-user-id'];
       const auth = headers['x-auth'];
       if (!userId || !auth) return null;
       const failures = `authz:${userId}:${address}`;
-      if (!rateLimitPeek(failures, AUTHZ_MAX_FAILURES, AUTHZ_WINDOW_SECONDS)) return null;
+      if (!rateLimitPeek(failures, AUTHZ_MAX_FAILURES, AUTHZ_WINDOW_SECONDS)) {
+        throttled = true;
+        return null;
+      }
       if (!Object.hasOwn(state.users, userId)) return null;
-      if (state.users[userId] !== auth) {
+      if (state.users[userId].credential !== auth) {
         rateLimit(failures, AUTHZ_MAX_FAILURES, AUTHZ_WINDOW_SECONDS);
         return null;
       }
       return userId;
     }
+    // What a route answers when authorize refuses: 401 for a credential that
+    // is missing or wrong, 429 (api/_lib/http.ts TooManyRequestsError) when the
+    // failures were used up and the credential was never looked at.
+    const refused = () => (throttled ? err(429, 'too_many_requests') : err(401, 'unauthorized'));
 
     if (path === '/api/health') return ok({ ok: true, configured: true, db: 'reachable' });
 
@@ -204,12 +222,12 @@ export async function installFakeApi(ctx, state) {
     // would have, and sends the browser straight back as Stripe does.
     if (path === '/api/billing') {
       const userId = authorize();
-      if (!userId) return err(401, 'unauthorized');
+      if (!userId) return refused();
       const row = state.billing[userId];
       const paid = ['active', 'trialing', 'past_due'].includes(row?.status);
       const founder = state.founders;
       if (method === 'GET') {
-        return ok({ configured: state.billingConfigured, plan: founder || paid ? 'producer' : 'free', founder, status: row?.status ?? null, renewsAt: null, canManage: !!row });
+        return ok({ configured: state.billingConfigured, plan: founder || paid ? 'producer' : 'free', founder, status: row?.status ?? null, renewsAt: null, endsAt: null, canManage: !!row });
       }
       if (!state.billingConfigured) return err(501, 'billing_not_configured');
       if (body.action === 'checkout') {
@@ -222,21 +240,94 @@ export async function installFakeApi(ctx, state) {
       return err(400, 'bad_request');
     }
 
+    // api/account.ts. Any subscription that could still charge is cancelled
+    // first, and one that cannot be (no Stripe keys) stops the deletion with
+    // nothing deleted. Then every row the account owns goes, with the links it
+    // names that no account owns. The fake keeps one account's shows,
+    // settings and media, so those go whole.
+    if (path === '/api/account') {
+      if (method !== 'DELETE') return err(405, 'method_not_allowed');
+      const userId = authorize();
+      if (!userId) return err(401, 'unauthorized');
+      const tokens = body.tokens ?? [];
+      if (
+        !Array.isArray(tokens) || tokens.length > ACCOUNT_MAX_NAMED_TOKENS ||
+        tokens.some((t) => typeof t !== 'string' || t.length === 0 || t.length > 128)
+      ) {
+        return err(400, 'bad_request');
+      }
+      const billing = state.billing[userId];
+      if (billing && !['canceled', 'incomplete_expired'].includes(billing.status) && !state.billingConfigured) {
+        return err(501, 'billing_not_configured');
+      }
+      delete state.billing[userId];
+      const named = new Set(tokens);
+      for (const [token, row] of Object.entries(state.sign)) {
+        if (row.userId === userId || (row.userId == null && named.has(token))) {
+          delete state.sign[token];
+          delete state.doc[token];
+          delete state.profilePhoto[token];
+        }
+      }
+      for (const [token, row] of Object.entries(state.live)) {
+        if (row.userId === userId || (row.userId == null && named.has(token))) {
+          delete state.live[token];
+          delete state.liveMedia[token];
+        }
+      }
+      for (const token of named) {
+        if (!state.sign[token]) {
+          delete state.doc[token];
+          delete state.profilePhoto[token];
+        }
+        if (!state.live[token]) delete state.liveMedia[token];
+      }
+      state.shows = [];
+      state.settings = null;
+      state.showSnapshots = [];
+      state.settingsSnapshots = [];
+      state.media = {};
+      state.mediaWrittenAt = {};
+      for (const bucket of Object.keys(state.rateLimits)) {
+        if (bucket.startsWith(`auth:${userId}:`) || bucket.startsWith(`authz:${userId}:`)) delete state.rateLimits[bucket];
+      }
+      delete state.users[userId];
+      return ok({ ok: true });
+    }
+
     if (path === '/api/auth') {
       if (method !== 'POST') return err(405, 'method_not_allowed');
-      const { action, userId, passwordHash } = body;
-      if (!userId || !passwordHash) return err(400, 'bad_request');
+      const { action, userId } = body;
+      // api/auth.ts credential(): either may be left out, but one that is sent
+      // must look like a credential, and at least one must come.
+      const credential = (value) => (value === undefined ? undefined : badCredential(value) ? null : value);
+      const authKey = credential(body.authKey);
+      const passwordHash = credential(body.passwordHash);
+      if (badCredential(userId) || authKey === null || passwordHash === null) return err(400, 'bad_request');
+      if (!(authKey ?? passwordHash)) return err(400, 'bad_request');
       const failures = `auth:${userId}:${address}`;
       if (!rateLimitPeek(failures, LOGIN_MAX_FAILURES, LOGIN_WINDOW_SECONDS)) return err(429, 'too_many_requests');
       if (action === 'signup') {
         if (!rateLimit(`signup:${address}`, SIGNUP_MAX, SIGNUP_WINDOW_SECONDS)) return err(429, 'too_many_requests');
         if (Object.hasOwn(state.users, userId)) return err(409, 'account_exists');
-        state.users[userId] = String(passwordHash);
+        // A build from before the per-account key signs up with the old hash,
+        // and the account is filed as v1 so it can move over later.
+        state.users[userId] = authKey ? { credential: authKey, clientVersion: 2 } : { credential: passwordHash, clientVersion: 1 };
         return ok({ ok: true });
       }
       if (action === 'login') {
-        const known = Object.hasOwn(state.users, userId) && state.users[userId] === passwordHash;
+        // api/_lib/credentials.ts verifySignIn: a v2 account opens with authKey
+        // alone; a v1 account with the old hash, and moves to the authKey sent
+        // beside it. Without the old hash a v1 account asks for it; without an
+        // authKey a v2 account answers 426 update_required, which a build from
+        // before reads as a failed sign-in rather than a wrong password.
+        // Neither is a failed guess.
+        const user = Object.hasOwn(state.users, userId) ? state.users[userId] : null;
+        if (user && user.clientVersion < 2 && !passwordHash) return ok({ ok: false, legacy: true });
+        if (user && user.clientVersion >= 2 && !authKey) return err(426, 'update_required');
+        const known = !!user && user.credential === (user.clientVersion >= 2 ? authKey : passwordHash);
         if (!known) rateLimit(failures, LOGIN_MAX_FAILURES, LOGIN_WINDOW_SECONDS);
+        else if (user.clientVersion < 2 && authKey) state.users[userId] = { credential: authKey, clientVersion: 2 };
         return ok({ ok: known });
       }
       return err(400, 'bad_request');
@@ -244,7 +335,7 @@ export async function installFakeApi(ctx, state) {
 
     if (path === '/api/shows') {
       const userId = authorize();
-      if (!userId) return err(401, 'unauthorized');
+      if (!userId) return refused();
       if (method === 'GET' && url.searchParams.get('history')) {
         return ok({
           snapshots: [...state.showSnapshots].reverse().map((s) => ({ at: s.at, count: s.shows.length })),
@@ -293,7 +384,7 @@ export async function installFakeApi(ctx, state) {
 
     if (path === '/api/settings') {
       const userId = authorize();
-      if (!userId) return err(401, 'unauthorized');
+      if (!userId) return refused();
       if (method === 'GET' && url.searchParams.get('history')) {
         return ok({
           snapshots: [...state.settingsSnapshots].reverse().map((s) => ({ at: s.at, parked: !!s.parked })),
@@ -341,7 +432,7 @@ export async function installFakeApi(ctx, state) {
 
     if (path === '/api/media') {
       const userId = authorize();
-      if (!userId) return err(401, 'unauthorized');
+      if (!userId) return refused();
       if (method === 'PUT') {
         const { id, seq, total, data } = body;
         if (typeof id !== 'string' || id.length < 8 || id.length > 64 || badChunk(seq, total, data, MAX_CHUNKS)) {
@@ -393,15 +484,16 @@ export async function installFakeApi(ctx, state) {
         return ok({ data: chunks[seq], total: chunks.length });
       }
       const userId = authorize();
-      if (!userId) return err(401, 'unauthorized');
+      if (!userId) return refused();
       if (method === 'PUT') {
         const { token, seq, total, data } = body;
         if (badToken(token) || badChunk(seq, total, data, MAX_CHUNKS)) return err(400, 'bad_request');
         if (data.length > MAX_CHUNK_CHARS) return tooLarge();
         // The document lands before the request that names it, so a token
         // nobody has written under is free; once the request row is there,
-        // only its account may touch the document.
-        if (ownership(state.sign[token], userId) === 'other') return err(403, 'forbidden');
+        // only its account may touch the document, and a legacy request's
+        // document is nobody's to replace.
+        if (['other', 'legacy'].includes(ownership(state.sign[token], userId))) return err(403, 'forbidden');
         (state.doc[token] ||= [])[seq] = data;
         return ok({ ok: true });
       }
@@ -428,7 +520,7 @@ export async function installFakeApi(ctx, state) {
       // not grant the right to write to it: only a signed-in account may
       // publish, and only the account that owns the row.
       const userId = authorize();
-      if (!userId) return err(401, 'unauthorized');
+      if (!userId) return refused();
       const { token, payload } = body;
       if (!token) return err(400, 'bad_request');
       if (exceedsSize(payload, LIVE_MAX_PAYLOAD_BYTES)) return tooLarge();
@@ -466,7 +558,7 @@ export async function installFakeApi(ctx, state) {
       // token is in every audience member's hands, so "has both" is not the
       // producer.
       const userId = authorize();
-      if (!userId) return err(401, 'unauthorized');
+      if (!userId) return refused();
       if (method === 'PUT') {
         const { token, id, seq, total, data } = body;
         if (
@@ -514,7 +606,7 @@ export async function installFakeApi(ctx, state) {
       // Reading is the producer's — the one who made the link, not any
       // account that has seen it.
       const userId = authorize();
-      if (!userId) return err(401, 'unauthorized');
+      if (!userId) return refused();
       if (method === 'GET') {
         const token = url.searchParams.get('token');
         const seq = Number(url.searchParams.get('seq'));
@@ -563,15 +655,16 @@ export async function installFakeApi(ctx, state) {
       // the request. The signer holds the token by construction, so "has the
       // token and an account" must not be enough to revoke or replace it.
       const userId = authorize();
-      if (!userId) return err(401, 'unauthorized');
+      if (!userId) return refused();
       if (method === 'PUT') {
         const { token, payload } = body;
         if (badToken(token) || typeof payload !== 'string' || payload.length === 0) return err(400, 'bad_request');
         if (exceedsSize(payload, SIGN_MAX_PAYLOAD_BYTES)) return tooLarge();
         const prev = state.sign[token];
-        // upsertSignRequest: a row nobody owns is claimed; another account's
-        // is left alone. Re-sending never clears a signature already made.
-        if (ownership(prev, userId) === 'other') return err(403, 'forbidden');
+        // upsertSignRequest: another account's row is left alone, and so is
+        // a legacy one — nobody may claim it. Re-sending never clears a
+        // signature already made.
+        if (['other', 'legacy'].includes(ownership(prev, userId))) return err(403, 'forbidden');
         state.sign[token] = {
           payload,
           signature: prev?.signature ?? null,
@@ -586,6 +679,7 @@ export async function installFakeApi(ctx, state) {
         if (ownership(state.sign[token], userId) === 'other') return err(403, 'forbidden');
         delete state.sign[token];
         delete state.doc[token];
+        delete state.profilePhoto[token];
         return ok({ ok: true });
       }
       return err(405, 'method_not_allowed');

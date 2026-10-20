@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   actMinutesField,
+  previewRowKey,
   settleActMinutes,
   typeActMinutes,
   type ActMinutesEdit,
 } from './ScheduleGenerator';
+import { generateSchedule } from '../utils/generateSchedule';
+import type { Performer } from '../types';
 
 const untouched: ActMinutesEdit = { lengths: {}, drafts: {} };
 const DEFAULT_MIN = 10;
@@ -56,5 +59,43 @@ describe("retyping an act's minutes in the generator", () => {
     const edit = typeActMinutes(ada, 'jo', '');
     expect(scheduled(edit, 'ada')).toBe(8);
     expect(actMinutesField(edit, 'ada', scheduled(edit, 'ada'))).toBe(8);
+  });
+});
+
+describe('the rows of the generator preview', () => {
+  const ada: Performer = { id: 'ada', name: 'Ada' };
+  const ben: Performer = { id: 'ben', name: 'Ben' };
+  const preview = (people: Performer[], lengths: Record<string, number>) =>
+    generateSchedule({
+      acts: people.map((performer) => ({ performer, durationMin: lengths[performer.id] ?? DEFAULT_MIN })),
+      hostName: 'Hal',
+    });
+  type Preview = ReturnType<typeof preview>;
+  const actKey = (items: Preview, id: string) => {
+    const index = items.findIndex((item) => item.performerId === id);
+    return previewRowKey(items[index], index);
+  };
+
+  // The preview is rebuilt on every keystroke, and every cue in it gets a new
+  // id each time. Keyed by those ids, each digit typed into an act's minutes
+  // swapped in a fresh row — and a fresh, unfocused box, so the phone keypad
+  // closed after the first digit.
+  it('keeps an act’s row as its minutes are typed', () => {
+    const before = preview([ada, ben], {});
+    const edit = typeActMinutes(untouched, 'ada', '2');
+    const after = preview([ada, ben], edit.lengths);
+    expect(actKey(after, 'ada')).toBe(actKey(before, 'ada'));
+    expect(actKey(after, 'ben')).toBe(actKey(before, 'ben'));
+  });
+
+  it('keeps an act’s row when it is moved', () => {
+    const before = preview([ada, ben], {});
+    const after = preview([ben, ada], {});
+    expect(actKey(after, 'ada')).toBe(actKey(before, 'ada'));
+  });
+
+  it('gives every row its own key, even for two acts of the same name', () => {
+    const items = preview([ada, ben, { id: 'cy', name: 'Ada' }], {});
+    expect(new Set(items.map(previewRowKey)).size).toBe(items.length);
   });
 });

@@ -2,7 +2,7 @@ import type { Show } from '../types';
 import { parseShowDate, formatShowTime } from '../utils/showDate';
 import { formatRuntime } from '../utils/sectionSummary';
 import { baseDurations } from '../utils/showTiming';
-import { lineupProgress } from '../utils/lineupTarget';
+import { bookedTowardTarget, lineupProgress } from '../utils/lineupTarget';
 import { whenLabel } from '../utils/showsOverview';
 import { useConfirm } from './useConfirm';
 import './ShowCard.css';
@@ -35,7 +35,7 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
   // With a target set, "how big is the bill" stops being the useful number and
   // "how close is it to booked" takes over. Same calculation the Performers
   // section runs, so a card can't call a bill full that the section doesn't.
-  const lineup = lineupProgress(show.performers.length, show.performerTarget);
+  const lineup = lineupProgress(bookedTowardTarget(show.performers), show.performerTarget);
   const runtime = show.schedule.length
     ? formatRuntime(baseDurations(show.schedule).reduce((sum, sec) => sum + sec, 0))
     : null;

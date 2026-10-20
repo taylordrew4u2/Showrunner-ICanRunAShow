@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildTimeline, segmentLength, billBalance, clockLabel } from './showTimeline';
+import { generateSchedule } from './generateSchedule';
 import type { ScheduleItem } from '../types';
 
 const cue = (over: Partial<ScheduleItem>): ScheduleItem => ({
@@ -144,5 +145,28 @@ describe('billBalance', () => {
 
   it('has nothing to say about a single-act bill', () => {
     expect(billBalance(sets([10]))).toBeNull();
+  });
+
+  // The generator puts the host on the welcome, on a one-minute handover
+  // before every act and on the outro. Counted as sets, the handover was
+  // always the shortest, and an even bill read "Ada has 10× the time of Hal".
+  it('leaves the host’s welcome, handovers and outro out of the comparison', () => {
+    const acts = ['Ada', 'Ben', 'Cy'].map((name) => ({ performer: { id: name, name } }));
+    const even = buildTimeline(generateSchedule({ acts, hostName: 'Hal' }))!.segments;
+    expect(billBalance(even, 'Hal')!.ratio).toBeCloseTo(1);
+    expect(billBalance(even, ' hal ')!.shortest.performer).not.toBe('Hal');
+
+    const one = buildTimeline(generateSchedule({ acts: acts.slice(0, 1), hostName: 'Hal' }))!.segments;
+    expect(billBalance(one, 'Hal')).toBeNull();
+  });
+
+  it('still finds a lopsided bill on a hosted night', () => {
+    const acts = [
+      { performer: { id: 'a', name: 'Ada' }, durationMin: 20 },
+      { performer: { id: 'b', name: 'Ben' }, durationMin: 5 },
+    ];
+    const b = billBalance(buildTimeline(generateSchedule({ acts, hostName: 'Hal' }))!.segments, 'Hal')!;
+    expect(b.ratio).toBeCloseTo(4);
+    expect([b.longest.performer, b.shortest.performer]).toEqual(['Ada', 'Ben']);
   });
 });

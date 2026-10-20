@@ -32,6 +32,7 @@ import {
   DAY_OF_CANCELLATION_RULE,
 } from '../utils/contracts';
 import { renderPdfPages, type RenderedPage } from '../utils/pdfPages';
+import { openFilePickerOnKey } from '../utils/filePickerKey';
 import { clearSignerDraft, loadSignerDraft, saveSignerDraft } from '../utils/signerDraft';
 import './SigningPage.css';
 
@@ -569,7 +570,13 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
                 </span>
               )}
               <div className="signing__photo-actions">
-                <label id="signer-headshot" tabIndex={0} className="btn btn--secondary btn--sm signing__photo-pick">
+                <label
+                  id="signer-headshot"
+                  role="button"
+                  tabIndex={0}
+                  className="btn btn--secondary btn--sm signing__photo-pick"
+                  onKeyDown={openFilePickerOnKey}
+                >
                   {photoBusy ? 'Adding…' : headshot ? 'Choose a different one' : 'Add a photo'}
                   <input
                     type="file"

@@ -4,16 +4,19 @@ import { audioEngine } from '../utils/audioEngine';
 import { assignFallbackWalkOns, withFallbackWalkOns } from '../utils/walkOnFallback';
 import { randomMusic } from '../utils/randomMusic';
 import { padColor } from '../utils/padColor';
-import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
+import { guestsOnStageBy, livePublisher, publicCue, type LiveViewPayload } from '../utils/liveView';
+import { isSurpriseGuest } from '../utils/surpriseGuests';
 import type { SessionCredentials } from '../utils/session-vault';
 import { loadColorScheme } from '../utils/theme';
 import {
   DEFAULT_CUE_SECONDS,
   MIN_CUE_SECONDS,
   baseDurations,
+  carryCueClock,
   fmtCountdown,
   fmtOffset,
   fmtShowTime,
+  nudgeAdjustment,
 } from '../utils/showTiming';
 import {
   buildSoundboard,
@@ -25,7 +28,9 @@ import {
 import { useMediaUrl } from '../utils/useMediaUrl';
 import { getMediaCredentials } from '../utils/mediaStore';
 import {
+  MAX_VIEWER_TRACKS,
   ensureViewerKey,
+  planViewerUploads,
   publishTrack,
   trimSlice,
   unpublishAll,
@@ -52,6 +57,13 @@ interface RunShowProps {
   showName: string;
   showId?: string;
   viewToken?: string;
+  /**
+   * The key the viewer link's audio is encrypted under, as saved with the
+   * show — see Show.viewerKey. Missing until the show has one.
+   */
+  viewerKey?: string;
+  /** Save onto the show a key the board had to make, or found on this device. */
+  onViewerKey?: (key: string) => void;
   schedule: ScheduleItem[];
   performers?: Performer[];
   djSongs?: DJSong[];
@@ -96,6 +108,20 @@ const FAILURE_MESSAGE: Record<string, string> = {
   blocked:
     'the browser is blocking audio. Click the song or Play music on this screen to try again.',
 };
+
+/**
+ * What the operator is told when the viewer got less than the whole board.
+ * Counted in pads, because pads are what the operator will press.
+ */
+function describePublishShort({ failed, skipped }: { failed: number; skipped: number }): string {
+  const left = failed + skipped;
+  const why = [
+    failed > 0 ? `${failed} couldn't be sent` : '',
+    skipped > 0 ? `a viewer link holds ${MAX_VIEWER_TRACKS} songs` : '',
+  ].filter(Boolean).join(' and ');
+  return `${left} ${left === 1 ? 'track plays' : 'tracks play'} on this device only — ${why}.` +
+    (failed > 0 ? ' Turn this off and on again to retry.' : '');
+}
 
 type WakeLockSentinel = { release: () => Promise<void> };
 /** The one corner of the Screen Wake Lock API the board uses. */
@@ -240,6 +266,7 @@ function TrackButton({
       {/* Said on the pad, because the operator should never be surprised on
           the night by music they don't remember choosing. */}
       {isFallback && <span className="rs-pad__sub rs-pad__sub--auto">From your library</span>}
+      {track.surprise && <span className="rs-surprise">Surprise</span>}
     </button>
   );
 }
@@ -247,6 +274,8 @@ function TrackButton({
 export function RunShow({
   showName,
   viewToken,
+  viewerKey,
+  onViewerKey,
   schedule,
   performers = [],
   djSongs = [],
@@ -298,7 +327,8 @@ export function RunShow({
   // seconds on screen are read off these rather than counted in ticks: a
   // phone that takes a call or is put in a pocket stops running timers, and
   // every tick it missed was a second the show lost. Read on every tick and
-  // again the moment the page is visible, so time away is accounted for.
+  // again the moment the page is visible, so time away is accounted for —
+  // including cues that ran out while it was away (see the auto-advance).
   const cueStartedAtRef = useRef<number | null>(null);
   const showStartedAtRef = useRef<number | null>(null);
   // Bumped when the cue clock is put back to zero without the cue changing,
@@ -337,6 +367,12 @@ export function RunShow({
   const [viewerAudio, setViewerAudio] = useState<ViewerTrack[] | null>(null);
   const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'error'>('idle');
   const [publishDone, setPublishDone] = useState(0);
+  // Files to send, for the progress count — one per song, not one per pad.
+  const [publishTotal, setPublishTotal] = useState(0);
+  // A publish that went out without some of the board, in pads: those whose
+  // file failed to send, and those past what one viewer link holds. Those
+  // pads play on this device only.
+  const [publishShort, setPublishShort] = useState<{ failed: number; skipped: number } | null>(null);
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
   // The fade audition — see auditionFade(). Held in a ref so any press can call
   // the test off before its scheduled stop lands on somebody else's track.
@@ -396,6 +432,7 @@ export function RunShow({
   const isOver = remaining < 0;
   const pct = Math.max(0, Math.min(100, (elapsed / totalSec) * 100));
   const isLast = idx >= schedule.length - 1;
+  const started = running || showElapsed > 0 || idx > 0;
 
   // Drift = real time used vs. where the plan says we should be. Recomputed from
   // current position so Prev / Jump / Reset stay consistent. Capping elapsed at
@@ -464,12 +501,21 @@ export function RunShow({
     setElapsed(0);
   }
 
-  // Auto-advance to the next cue when this segment's timer reaches zero.
+  // Auto-advance to the next cue when this segment's timer reaches zero. The
+  // next cue's clock starts where this one was due to end — see carryCueClock
+  // — and if that is already past the next cue too, the effect runs again on
+  // the new cue and moves on again.
   useEffect(() => {
     if (!running || isLast) return;
     if (elapsed >= totalSec) {
       setIdx((i) => Math.min(schedule.length - 1, i + 1));
-      rewindCue();
+      if (cueStartedAtRef.current == null) {
+        setElapsed(0);
+        return;
+      }
+      const next = carryCueClock(cueStartedAtRef.current, totalSec, Date.now());
+      cueStartedAtRef.current = next.cueStartedAt;
+      setElapsed(next.elapsed);
     }
   }, [running, elapsed, totalSec, isLast, schedule.length]);
 
@@ -490,7 +536,7 @@ export function RunShow({
     setCueResets((n) => n + 1);
   }
   function adjustTime(delta: number) {
-    setAdjust((a) => ({ ...a, [idx]: (a[idx] ?? 0) + delta }));
+    setAdjust((a) => ({ ...a, [idx]: nudgeAdjustment(a[idx] ?? 0, base[idx] ?? DEFAULT_CUE_SECONDS, delta) }));
   }
 
   async function restartShow() {
@@ -516,6 +562,31 @@ export function RunShow({
     audioEngine.init();
     setRunning(true);
     notifyStart();
+  }
+
+  /**
+   * Close the board, asking first once the show is under way.
+   *
+   * Closing ends the night for the room — its screen goes to "ended" — and
+   * stops the audio, and the clocks and every minute added or taken off live
+   * only here, so reopening starts again at cue one. Finish show and Restart
+   * ask before doing less than that. Escape and the X did not: one keypress
+   * out of habit, or a presentation clicker's slideshow button, threw the
+   * whole show away mid-set.
+   */
+  async function requestClose() {
+    if (started || playingKey !== null) {
+      const ok = await confirm({
+        title: 'Leave Run Show?',
+        message:
+          'The audio stops, the room screen shows the show as ended, and the board starts again ' +
+          'from cue one with any time you added or took off cleared. The show is not marked completed.',
+        confirmLabel: 'Leave',
+        danger: false,
+      });
+      if (!ok) return;
+    }
+    onClose();
   }
 
   async function finishShow() {
@@ -708,38 +779,58 @@ export function RunShow({
       setPublishState('error');
       return;
     }
-    const key = ensureViewerKey(viewToken);
-    const tracks = [...board.performers, ...board.cues, ...board.dj];
+    const key = ensureViewerKey(viewToken, viewerKey);
+    // Onto the show at once, so the next device to publish and the next link
+    // copied use this same key rather than making one of their own.
+    if (key !== viewerKey) onViewerKey?.(key);
+    // Each file once, and no more than the link holds — see planViewerUploads.
+    const { uploads, skipped } = planViewerUploads([...board.performers, ...board.cues, ...board.dj]);
     setPublishState('publishing');
     setPublishDone(0);
+    setPublishTotal(uploads.length);
+    setPublishShort(null);
+    // Files an earlier publish left behind count against the link's limit,
+    // and a pad that has since come off the board would hold its place for
+    // good. Nothing is playing from them: this only runs while sharing is off.
+    await unpublishAll(viewToken, creds).catch(() => {});
     const published: ViewerTrack[] = [];
-    try {
-      for (const track of tracks) {
-        // A stable id per board key, so re-publishing overwrites rather than
-        // piling up a second copy of every track under the token.
-        const mediaId = `t-${track.key.replace(/[^a-zA-Z0-9]/g, '-')}`.slice(0, 60);
-        const total = await publishTrack(viewToken, key, track.src, mediaId, creds);
-        // The trim travels with the track: the viewer plays the same slice
-        // this board would, not the whole file from the top.
+    let failed = 0;
+    for (const upload of uploads) {
+      let total: number;
+      try {
+        total = await publishTrack(viewToken, key, upload.src, upload.mediaId, creds);
+      } catch {
+        // One file that will not go — a dropped connection, a track missing
+        // from the store — used to throw away every walk-on already sent.
+        failed += upload.pads.length;
+        continue;
+      }
+      // The trim travels with each pad: the viewer plays the same slice this
+      // board would, not the whole file from the top.
+      for (const track of upload.pads) {
         published.push({
           key: track.key,
-          mediaId,
+          mediaId: upload.mediaId,
           total,
           startSec: track.startSec || undefined,
           endSec: track.endSec || undefined,
         });
-        setPublishDone((n) => n + 1);
       }
-      setViewerAudio(published);
-      setPublishState('idle');
-    } catch {
-      setPublishState('error');
+      setPublishDone((n) => n + 1);
     }
+    if (published.length === 0) {
+      setPublishState('error');
+      return;
+    }
+    setViewerAudio(published);
+    setPublishState('idle');
+    if (failed > 0 || skipped.length > 0) setPublishShort({ failed, skipped: skipped.length });
   }
 
   async function stopViewerAudio() {
     setViewerAudio(null);
     setPublishState('idle');
+    setPublishShort(null);
     const creds = getMediaCredentials();
     if (viewToken && creds) await unpublishAll(viewToken, creds).catch(() => {});
   }
@@ -777,43 +868,50 @@ export function RunShow({
   );
 
   // ── Live viewer publishing ───────────────────────────────────────────────
+  // Surprise guests the room has already watched walk on. Kept for the rest of
+  // the session: stepping back through the order after their set does not make
+  // them a secret again, it would only have the screen contradict the room.
+  const revealedRef = useRef<Set<string>>(new Set());
+
   // Publish the live state when something meaningful changes. The viewer
   // interpolates the remaining seconds between updates from lastUpdateMs, so we
   // don't need to write on every tick. The viewer link itself is configured in
   // the show detail page (Viewer link button); we just write to its token here.
   useEffect(() => {
+    for (const id of guestsOnStageBy(schedule, performers, idx, running || showElapsed > 0)) {
+      revealedRef.current.add(id);
+    }
     if (!viewToken) return;
     const liveStatus: LiveViewPayload['status'] =
       running ? 'running' : showElapsed > 0 || idx > 0 ? 'paused' : 'idle';
+    // Through publicCue, not the names the board shows: the payload is public,
+    // and a surprise guest still waiting in the wings must not be in it.
+    const upNext = publicCue(next, performers, revealedRef.current);
     const payload: LiveViewPayload = {
       showName,
       status: liveStatus,
       theme: loadColorScheme(),
-      segment: {
-        name: onStageName,
-        description: current?.description,
-        credits: onStagePerformer?.credits,
-      },
-      next: {
-        name: nextName || undefined,
-        description: next?.description,
-      },
+      segment: publicCue(current, performers, revealedRef.current),
+      next: { name: upNext.name, description: upNext.description, surprise: upNext.surprise },
       totalSec,
       remainingAtLastUpdate: totalSec - elapsed,
       lastUpdateMs: Date.now(),
-      ...(viewerAudio
-        ? {
-            audio: viewerAudio,
-            playback: {
-              key: playingKey,
-              atMs: Date.now(),
-              fadeInMs: fade.fadeInMs,
-              fadeOutMs: fade.fadeOutMs,
-            },
-          }
-        : {}),
+      ...(viewerAudio ? { audio: viewerAudio } : {}),
+      // Sent whether or not the viewer is carrying the sound. Turning the
+      // sharing off mid-song used to drop the instruction altogether, and a
+      // screen still playing a walk-on was never told to stop. A pad the
+      // viewer was never sent plays on this device alone, and the screen
+      // falls silent rather than carrying on with the previous song.
+      playback: {
+        key: viewerAudio?.some((t) => t.key === playingKey) ? playingKey : null,
+        atMs: Date.now(),
+        fadeInMs: fade.fadeInMs,
+        fadeOutMs: fade.fadeOutMs,
+      },
     };
-    if (session) publishLiveView(viewToken, payload, session).catch(() => { /* swallow */ });
+    // Sent until it lands — see createLivePublisher. A lost cue change or a
+    // lost stop otherwise stayed lost until the operator touched something.
+    if (session) livePublisher(viewToken).publish(payload, session);
     // playingKey is in the deps on purpose: when the viewer is carrying the
     // sound, a press has to reach it immediately rather than waiting for the
     // next cue change. cueResets likewise: a cue put back to zero changes
@@ -826,18 +924,19 @@ export function RunShow({
   // from there, the "final" cue of every show was cue one. So the latest cue is
   // kept here, refreshed after every render, and the cleanup reads it instead.
   const finalSegmentRef = useRef<Pick<LiveViewPayload, 'segment' | 'totalSec'>>({ segment: {}, totalSec });
+  // The fade the closing silence goes out on, for the same reason.
+  const finalFadeOutRef = useRef(fade.fadeOutMs);
   useEffect(() => {
     finalSegmentRef.current = {
-      segment: {
-        name: onStageName,
-        description: current?.description,
-        credits: onStagePerformer?.credits,
-      },
+      segment: publicCue(current, performers, revealedRef.current),
       totalSec,
     };
+    finalFadeOutRef.current = fade.fadeOutMs;
   });
 
   // On Run Show close, mark the live view ended so viewers see the final state.
+  // Silence goes with it: closing the board, or finishing the show, stops this
+  // device's audio, and the screen wired to the PA has to stop with it.
   useEffect(() => () => {
     if (!viewToken) return;
     const payload: LiveViewPayload = {
@@ -848,8 +947,11 @@ export function RunShow({
       next: {},
       remainingAtLastUpdate: 0,
       lastUpdateMs: Date.now(),
+      playback: { key: null, atMs: Date.now(), fadeInMs: 0, fadeOutMs: finalFadeOutRef.current },
     };
-    if (session) publishLiveView(viewToken, payload, session).catch(() => { /* ignore */ });
+    // The publisher outlives the board, so a closing state that does not
+    // land at once is still sent after the screen has gone.
+    if (session) livePublisher(viewToken).publish(payload, session);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -905,6 +1007,14 @@ export function RunShow({
         !!el &&
         ((el.tagName === 'INPUT' && !isSlider) || el.tagName === 'TEXTAREA' || el.isContentEditable);
       if (typing) return;
+      // No cues, no board on screen: nothing the keys reach can be seen. The
+      // music key and the clicker started a random library song with no way
+      // to stop it in view, and Space marked the show in progress and put a
+      // running five-minute countdown on the room's screen for no segment.
+      if (schedule.length === 0) {
+        if (e.key === 'Escape') void requestClose();
+        return;
+      }
       // Handle music before the slider guard and timer shortcuts. A paired
       // button must neither adjust a focused slider nor also start the clock.
       if (e.key === 's' || e.key === 'S' || isRemotePress(e.key, remoteKey)) {
@@ -912,7 +1022,7 @@ export function RunShow({
         if (!e.repeat) toggleMusic();
         return;
       }
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') void requestClose();
       if (e.key === ' ') {
         e.preventDefault();
         toggleRunning();
@@ -926,24 +1036,20 @@ export function RunShow({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, running, isLast, confirmOpen, playingKey, loadingKey, selectedKey, current, board, billWithMusic, remoteKey, fade, readyCount]);
+  }, [idx, running, isLast, started, confirmOpen, playingKey, loadingKey, selectedKey, current, board, billWithMusic, remoteKey, fade, readyCount, schedule.length]);
 
-  const started = running || showElapsed > 0 || idx > 0;
   const startLabel = running ? 'Pause' : started ? 'Resume' : 'Start';
   const djWithoutAudio = djSongs.filter((s) => !s.music).length;
   const hasBoard = board.performers.length > 0 || board.cues.length > 0 || board.dj.length > 0;
   // Distinct audio files — what gets decoded, so what the ready count counts.
   const trackCount = useMemo(() => soundboardSources(board).length, [board]);
-  // Buttons on the board. Publishing walks these, not the distinct files, so
-  // two performers sharing a track would otherwise overrun the progress count.
-  const padCount = board.performers.length + board.cues.length + board.dj.length;
 
   if (schedule.length === 0) {
     return (
       <div ref={dialogRef} tabIndex={-1} className="run-show" role="dialog" aria-modal="true" aria-label="Run show">
         <div className="run-show__bar">
           <span className="run-show__name">{showName}</span>
-          <button className="run-show__close" onClick={onClose} aria-label="Close run show">
+          <button className="run-show__close" onClick={requestClose} aria-label="Close run show">
             <Icon name="x" size={18} />
           </button>
         </div>
@@ -951,6 +1057,10 @@ export function RunShow({
           <div className="run-show__empty-title">No cues yet</div>
           <p>Add some schedule items first, then come back to run the show.</p>
         </div>
+        {/* The X here asks first too, once the show is under way — the cues
+            can be emptied from another device mid-show. Without the prompt
+            on screen to answer, the board could not be closed at all. */}
+        {confirmDialog}
       </div>
     );
   }
@@ -978,7 +1088,7 @@ export function RunShow({
           <button className="run-show__finish" onClick={finishShow} title="End the show and mark it completed">
             Finish show
           </button>
-          <button className="run-show__close" onClick={onClose} aria-label="Close run show">
+          <button className="run-show__close" onClick={requestClose} aria-label="Close run show">
             <Icon name="x" size={18} />
           </button>
         </div>
@@ -1055,7 +1165,7 @@ export function RunShow({
                   disabled={publishState === 'publishing' || !hasBoard}
                 >
                   {publishState === 'publishing'
-                    ? `Sending ${publishDone}/${padCount}…`
+                    ? `Sending ${publishDone}/${publishTotal}…`
                     : viewerAudio
                       ? 'Playing on viewer screen'
                       : 'Play through viewer screen'}
@@ -1063,9 +1173,11 @@ export function RunShow({
                 <span className="rs-fade__viewer-note">
                   {publishState === 'error'
                     ? "Couldn't send the audio — check your connection and try again."
-                    : viewerAudio
-                      ? 'The viewer link plays the walk-ons. Anyone with that link can hear them.'
-                      : 'Send this board to the viewer link, for the machine wired to the PA.'}
+                    : viewerAudio && publishShort
+                      ? describePublishShort(publishShort)
+                      : viewerAudio
+                        ? 'The viewer link plays the walk-ons. Anyone with that link can hear them.'
+                        : 'Send this board to the viewer link, for the machine wired to the PA.'}
                 </span>
               </div>
             )}
@@ -1241,7 +1353,8 @@ export function RunShow({
               digits go red. */}
           <span className="visually-hidden" role="status" aria-live="polite">
             Cue {idx + 1} of {schedule.length}: {current?.description || 'Untitled cue'}
-            {onStageName ? ` — ${onStageName}` : ''}. {status}.
+            {onStageName ? ` — ${onStageName}` : ''}
+            {isSurpriseGuest(onStagePerformer) ? ', surprise guest' : ''}. {status}.
           </span>
           {isOver && (
             <span className="visually-hidden" role="alert">This cue is over time.</span>
@@ -1267,6 +1380,7 @@ export function RunShow({
           <div className="rs-clock__cue">
             <span className="rs-clock__cue-desc">{current?.description || 'Untitled cue'}</span>
             {onStageName && <span className="rs-clock__cue-who">{onStageName}</span>}
+            {isSurpriseGuest(onStagePerformer) && <span className="rs-surprise">Surprise</span>}
           </div>
           <div className="rs-clock__range">
             {fmtOffset(offsets[idx] ?? 0)}–{fmtOffset((offsets[idx] ?? 0) + totalSec)}
@@ -1315,6 +1429,7 @@ export function RunShow({
           <ol className="rs-lineup__list">
             {schedule.map((cue, i) => {
               const who = cuePerformerName(cue, performers);
+              const surprise = isSurpriseGuest(resolveCuePerformer(cue, performers));
               return (
                 <li key={cue.id}>
                   <button
@@ -1330,7 +1445,12 @@ export function RunShow({
                     </span>
                     <span className="rs-lineup__body">
                       <span className="rs-lineup__desc">{cue.description || 'Untitled cue'}</span>
-                      {who && <span className="rs-lineup__who">{who}</span>}
+                      {who && (
+                        <span className="rs-lineup__who">
+                          {who}
+                          {surprise && <span className="rs-surprise">Surprise</span>}
+                        </span>
+                      )}
                     </span>
                     <span className="rs-lineup__len">{Math.max(1, Math.round(effDurations[i] / 60))}m</span>
                     {i === idx && <span className="rs-lineup__badge">Now</span>}

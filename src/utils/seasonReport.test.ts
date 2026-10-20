@@ -107,6 +107,32 @@ describe('the season report, edge cases', () => {
     expect(report.topPerformers[0].count).toBe(2);
   });
 
+  // Run Show marks a night in progress when it starts, and only "End show"
+  // finishes it. Closed any other way it stays in progress, its recap still
+  // opens once the date has passed, and the figures typed into it were left
+  // out of every total while the night was counted as still to come.
+  it('counts a past night left in progress as run, with its recap and costs', () => {
+    const report = buildSeasonReport([
+      show({ id: 'a', date: '2026-09-01', recap: { attendance: 50 } }),
+      show({
+        id: 'b',
+        date: '2026-10-02',
+        status: 'in-progress',
+        recap: { attendance: 80, merchSales: 200 },
+        expenses: [{ id: 'e', category: 'Venue', itemName: 'Room', cost: 150 }],
+      }),
+    ], [], 'year', TODAY);
+    expect(report).toMatchObject({ run: 2, upcoming: 0, audience: 130, revenue: 200, showCosts: 150, net: 50 });
+    expect(seasonPitch(report, '', 'year', TODAY)).not.toContain('on the calendar');
+  });
+
+  it('still counts tonight’s show as on the calendar while it is in progress', () => {
+    const report = buildSeasonReport([
+      show({ date: '2026-10-05', status: 'in-progress', expenses: [{ id: 'e', category: 'Venue', itemName: 'Room', cost: 150 }] }),
+    ], [], 'year', TODAY);
+    expect(report).toMatchObject({ run: 0, upcoming: 1, showCosts: 0 });
+  });
+
   it('ranks rooms by venue name, never by city', () => {
     const report = buildSeasonReport([
       show({ date: '2026-01-01', location: 'Brooklyn' }),
@@ -146,5 +172,34 @@ describe('money on the report', () => {
     expect(formatMoney(-12.5)).toBe('-$12.50');
     expect(formatMoney(1234)).toBe('$1,234');
     expect(formatMoney(12.5)).toBe('$12.50');
+  });
+
+  // Adding up cents in floating point leaves dust: $0.10 + $0.20 is not quite
+  // $0.30. A season that broke even printed "-$0.00" in red.
+  it('calls a season that broke even to the cent exactly even', () => {
+    const report = buildSeasonReport([
+      show({ date: '2026-01-01', expenses: [
+        { id: 'a', category: 'Venue', itemName: 'Room', cost: 0.1 },
+        { id: 'b', category: 'Venue', itemName: 'Tape', cost: 0.2 },
+      ] }),
+      show({ date: '2026-02-01', recap: { merchSales: 0.3 } }),
+    ], [], 'year', TODAY);
+    expect(report.net).toBe(0);
+    expect(formatMoney(report.net)).toBe('$0');
+
+    const busier = buildSeasonReport([
+      show({ date: '2026-01-01', expenses: [
+        { id: 'a', category: 'Venue', itemName: 'Room', cost: 10.1 },
+        { id: 'b', category: 'Venue', itemName: 'Sound', cost: 20.2 },
+      ] }),
+      show({ date: '2026-02-01', recap: { merchSales: 30.3 } }),
+    ], [], 'year', TODAY);
+    expect(busier.net).toBe(0);
+  });
+
+  it('never prints a sign or cents on a sum that rounds to nothing', () => {
+    expect(formatMoney(-5.551115123125783e-17)).toBe('$0');
+    expect(formatMoney(3.552713678800501e-15)).toBe('$0');
+    expect(formatMoney(12.499999999999998)).toBe('$12.50');
   });
 });

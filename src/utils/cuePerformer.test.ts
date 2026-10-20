@@ -47,6 +47,11 @@ describe('matchKnownName', () => {
     expect(matchKnownName('Al already left', ['Al'])).toBeNull();
   });
 
+  it('matches a short name when the caller asks it to, still as a whole word', () => {
+    expect(matchKnownName('Intro — Al', ['Al'], 1)).toBe('Al');
+    expect(matchKnownName('Already on', ['Al'], 1)).toBeNull();
+  });
+
   it('treats a name with regex characters as literal text', () => {
     expect(matchKnownName('Set — J.C. Diaz', ['J.C. Diaz'])).toBe('J.C. Diaz');
     expect(matchKnownName('Set — JXC Diaz', ['J.C. Diaz'])).toBeNull();

@@ -109,6 +109,29 @@ describe('buildSoundboard', () => {
     expect(board.performers.map((t) => t.photo)).toEqual(['media:face1#1', 'media:face2#1', 'media:face3#1']);
   });
 
+  it('marks a surprise guest’s button, whichever song wins and whether or not they have a cue', () => {
+    const roster = [
+      performer({ id: 'p1', name: 'Ada Cole', walkOnMusic: 'media:ada#1' }),
+      performer({ id: 'g1', name: 'Miles Trent', walkOnMusic: 'media:miles#1', surpriseGuest: true }),
+      performer({ id: 'g2', name: 'Rae Sun', walkOnMusic: 'media:rae#1', surpriseGuest: true }),
+      performer({ id: 'g3', name: 'Late Guest', walkOnMusic: 'media:late#1', surpriseGuest: true }),
+    ];
+    const board = buildSoundboard(
+      [
+        cue({ id: 'c1', performerId: 'p1' }),
+        cue({ id: 'c2', performerId: 'g1', music: 'media:special#1' }),
+        cue({ id: 'c3', performerId: 'g2' }),
+      ],
+      roster,
+    );
+    expect(board.performers.map((t) => [t.label, t.surprise])).toEqual([
+      ['Ada Cole', undefined],
+      ['Miles Trent', true],
+      ['Rae Sun', true],
+      ['Late Guest', true],
+    ]);
+  });
+
   it('leaves the photo off a track nobody owns', () => {
     const board = buildSoundboard([cue({ id: 'c1', description: 'Bed', music: 'media:x#1' })], []);
     expect(board.cues[0].photo).toBeUndefined();

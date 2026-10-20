@@ -13,9 +13,11 @@
  * that's out.
  *
  * Instead each show gets its own random key, generated here and never sent to
- * a server. Tracks are re-encrypted under it and uploaded to /api/live-media,
- * and the key rides in the fragment of the viewer link — the one part of a URL
- * browsers keep to themselves. The server stores bytes it cannot read, and the
+ * a server in a form it can read: it is saved inside the show, which is
+ * encrypted like everything else. Tracks are re-encrypted under it and
+ * uploaded to /api/live-media, and the key rides in the fragment of the
+ * viewer link — the one part of a URL browsers keep to themselves. The
+ * server stores bytes it cannot read, and the
  * blast radius of a shared link is exactly the show it was made for.
  *
  * The trade this makes, which is worth being clear about: anyone holding the
@@ -24,9 +26,9 @@
  */
 
 import { sharedLinkPath } from './sharedLink';
-import { api } from './api';
+import { api, withNetworkRetry } from './api';
 import { decryptWithKey, encryptWithKey } from './encryption';
-import { resolveMediaUrl } from './mediaStore';
+import { MEDIA_CHUNK_TIMEOUT_MS, resolveMediaUrl } from './mediaStore';
 import type { SessionCredentials } from './session-vault';
 import { trimmedLength } from './trim';
 
@@ -96,8 +98,11 @@ export function nextPlaybackAction(
   playback: ViewerPlayback | undefined,
   isDownloaded: (key: string) => boolean,
 ): PlaybackAction {
-  if (!playback) return { action: 'none' };
-  const wanted = playback.key;
+  // No instruction at all is silence too. A board that closes, or stops
+  // sending its audio here, publishes nothing about playback, and treating
+  // that as "carry on" left the PA playing a song the board could no longer
+  // stop.
+  const wanted = playback?.key ?? null;
   // Silence: only worth acting on if something is actually running.
   if (!wanted) return playing === null ? { action: 'none' } : { action: 'stop' };
   if (wanted === playing) return { action: 'none' };
@@ -112,6 +117,55 @@ export function generateViewerKey(): string {
   let binary = '';
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * How many different tracks one viewer link can hold. The server refuses the
+ * next one — MAX_TRACKS_PER_TOKEN in api/live-media.ts, which this mirrors.
+ */
+export const MAX_VIEWER_TRACKS = 60;
+
+/** One file to send to the viewer, and every pad on the board that plays it. */
+export interface ViewerUpload<P extends { key: string; src: string }> {
+  mediaId: string;
+  src: string;
+  pads: P[];
+}
+
+/**
+ * What to upload for a board, in the order given.
+ *
+ * Files, not pads. The DJ bank carries the whole music library and anyone
+ * without a walk-on of their own plays a library song too, so a board of a
+ * dozen acts and a fifty-song library passed the server's limit, and one
+ * upload per pad sent the same songs several times over before the server
+ * refused the rest and the whole publish failed.
+ *
+ * Past the limit the remaining files are left out rather than failing the
+ * lot: pass the pads walk-ons first, then show tracks, then the DJ bank, and
+ * what gets left out is the end of the library. Those pads still play on the
+ * board's own device.
+ */
+export function planViewerUploads<P extends { key: string; src: string }>(
+  pads: P[],
+  max = MAX_VIEWER_TRACKS,
+): { uploads: ViewerUpload<P>[]; skipped: P[] } {
+  const bySrc = new Map<string, ViewerUpload<P>>();
+  const skipped: P[] = [];
+  for (const pad of pads) {
+    const existing = bySrc.get(pad.src);
+    if (existing) {
+      existing.pads.push(pad);
+    } else if (bySrc.size < max) {
+      // A stable id per file, named after the first pad that plays it, so
+      // re-publishing overwrites rather than piling up a second copy.
+      const mediaId = `t-${pad.key.replace(/[^a-zA-Z0-9]/g, '-')}`.slice(0, 60);
+      bySrc.set(pad.src, { mediaId, src: pad.src, pads: [pad] });
+    } else {
+      skipped.push(pad);
+    }
+  }
+  return { uploads: [...bySrc.values()], skipped };
 }
 
 /** Split a string into fixed-size slices (exported for tests). */
@@ -142,8 +196,13 @@ export function readViewerKeyFromHash(hash: string): string | null {
 }
 
 // The key has to outlive the Run Show screen: a link handed out on Tuesday
-// must still decode Friday's board. Kept per token, on the producer's device
-// only — it is never uploaded anywhere.
+// must still decode Friday's board. It is kept with the show (Show.viewerKey),
+// inside the show's encryption, so it reaches every device the producer
+// signs in on. Kept only on the device that made it, a publish from any other
+// device made a new key, re-encrypted every track under it, and left every
+// link already handed out unable to decode a thing. Keys from before that
+// are still here, per token, and are adopted into the show the next time
+// one is needed.
 const KEY_PREFIX = 'showrunner:viewerkey:';
 
 export function loadViewerKey(token: string): string | null {
@@ -154,8 +213,22 @@ export function loadViewerKey(token: string): string | null {
   }
 }
 
-/** The show's existing key, or a new one saved for next time. */
-export function ensureViewerKey(token: string): string {
+/** Forget a show's key, once the account whose show it was is gone. */
+export function forgetViewerKey(token: string): void {
+  try {
+    localStorage.removeItem(KEY_PREFIX + token);
+  } catch {
+    /* nothing this device can do */
+  }
+}
+
+/**
+ * The show's key: the one saved with the show, else one this device made
+ * before keys travelled with the show, else a new one. The caller saves
+ * whatever comes back onto the show when it differs from `saved`.
+ */
+export function ensureViewerKey(token: string, saved?: string | null): string {
+  if (saved) return saved;
   const existing = loadViewerKey(token);
   if (existing) return existing;
   const key = generateViewerKey();
@@ -186,10 +259,17 @@ export async function publishTrack(
   const chunks = splitIntoChunks(dataUrl);
   const auth = { authUserId: creds.userId, authHash: creds.authHash };
   for (let seq = 0; seq < chunks.length; seq++) {
-    await api.put(
-      '/api/live-media',
-      { token, id: mediaId, seq, total: chunks.length, data: encryptWithKey(chunks[seq], viewerKey) },
-      auth,
+    const data = encryptWithKey(chunks[seq], viewerKey);
+    // Each chunk is a ~2MB upload from the venue, given the media store's
+    // allowance and sent again if the connection drops: one lost chunk used
+    // to fail the track. Safe to repeat — the server keeps one copy per
+    // chunk and overwrites it.
+    await withNetworkRetry(() =>
+      api.put(
+        '/api/live-media',
+        { token, id: mediaId, seq, total: chunks.length, data },
+        { ...auth, timeoutMs: MEDIA_CHUNK_TIMEOUT_MS },
+      ),
     );
   }
   return chunks.length;
@@ -216,8 +296,12 @@ export async function fetchViewerTrack(
   try {
     const parts: string[] = new Array(track.total);
     for (let seq = 0; seq < track.total; seq++) {
+      // A ~2MB chunk, so the media store's allowance rather than the default
+      // twenty seconds: on a slow venue link every chunk, and every retry of
+      // the track, ran out of time and the walk-on never arrived.
       const res = await api.get<{ data: string }>(
         `/api/live-media?token=${encodeURIComponent(token)}&id=${encodeURIComponent(track.mediaId)}&seq=${seq}`,
+        { timeoutMs: MEDIA_CHUNK_TIMEOUT_MS },
       );
       parts[seq] = decryptWithKey<string>(res.data, viewerKey);
     }

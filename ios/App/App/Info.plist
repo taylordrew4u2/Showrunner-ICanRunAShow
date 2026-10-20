@@ -24,6 +24,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of a run sheet, a flyer or a headshot to add it to a show.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save a flyer or a headshot to your photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a photo of a run sheet, a flyer or a headshot to add it to a show.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -47,5 +53,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>WKAppBoundDomains</key>
+	<array>
+		<string>icanrunashow.com</string>
+		<string>localhost</string>
+	</array>
 </dict>
 </plist>

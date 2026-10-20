@@ -1,4 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { DJSong, Performer, PotentialComic, ScheduleItem, ScheduleTemplate, ScheduleTemplateItem } from '../../types';
 import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
@@ -15,14 +16,21 @@ import { scheduleSpan } from '../../utils/sectionSummary';
 import { ScheduleTemplates } from '../ScheduleTemplates';
 import { ScheduleGenerator } from '../ScheduleGenerator';
 import { OnStagePicker } from '../OnStagePicker';
+import { ErrorBoundary } from '../ErrorBoundary';
+import { Modal } from '../Modal';
+import { loadOrReload } from '../../utils/chunkReload';
 
 // Loaded on demand — pulls in the OCR/PDF parsing deps only when the
 // import flow is actually opened, keeping them out of the main bundle.
+// A page left open across a deploy asks for a file the host no longer has;
+// loadOrReload reloads into the new build rather than failing.
 const AIImportFlow = lazy(() =>
-  import('../AIImportFlow').then((m) => ({ default: m.AIImportFlow })),
+  loadOrReload(() => import('../AIImportFlow')).then((m) => ({ default: m.AIImportFlow })),
 );
 
 interface ScheduleSectionProps {
+  /** Which show this is, so an undo is only offered on the show it came from. */
+  showId: string;
   schedule: ScheduleItem[];
   /** The show's DJ list, so a cue can play a song already on file. */
   djSongs?: DJSong[];
@@ -64,6 +72,11 @@ type ScheduleMode = 'choose' | 'build';
 
 /** A running order that a generated or template one took the place of. */
 export interface ReplacedOrder {
+  /**
+   * The show it was replaced on. Cue ids alone cannot say: a duplicated or
+   * repeated show is cloned cue for cue, ids and all.
+   */
+  showId: string;
   /** The cues that were on the show before. */
   cues: ScheduleItem[];
   /** The ids of the cues that took their place, to tell the order is still theirs. */
@@ -78,12 +91,17 @@ let lastReplaced: ReplacedOrder | null = null;
 
 /**
  * The order an undo would restore, if the schedule on screen is still the one
- * that replaced it. Another show's cues, or a show cleared since, get nothing:
- * restoring over those would be a second wipe, not a way back from the first.
+ * that replaced it. Another show's cues, a copy of this one, or a show cleared
+ * since get nothing: restoring over those would be a second wipe, not a way
+ * back from the first.
  */
 // eslint-disable-next-line react-refresh/only-export-components
-export function undoableReplace(schedule: ScheduleItem[], stash: ReplacedOrder | null): ReplacedOrder | null {
-  if (!stash) return null;
+export function undoableReplace(
+  schedule: ScheduleItem[],
+  stash: ReplacedOrder | null,
+  showId: string,
+): ReplacedOrder | null {
+  if (!stash || stash.showId !== showId) return null;
   const ids = new Set(schedule.map((cue) => cue.id));
   return stash.byIds.some((id) => ids.has(id)) ? stash : null;
 }
@@ -104,6 +122,30 @@ export function replaceWarning(schedule: ScheduleItem[], djSongs: DJSong[]): str
   const back = `Undo brings the ${count} cue${count === 1 ? '' : 's'} back`;
   if (uploads === 0) return `${back}.`;
   return `${back}, but not the music uploaded to ${uploads === 1 ? 'one' : uploads} of them. That is deleted.`;
+}
+
+/**
+ * In place of the import sheet when it could not be opened: no connection, or
+ * it still would not load after the reload above. The rest of the show page
+ * stays up — a sheet that failed to open used to replace the whole app.
+ */
+function ImportDidNotOpen({ onClose }: { onClose: () => void }) {
+  return createPortal(
+    <Modal onClose={onClose} labelledBy="import-failed-title">
+      <h2 className="confirm-dialog__title" id="import-failed-title">Import didn't open</h2>
+      <p className="confirm-dialog__message">
+        Your schedule is unchanged. Check your connection, or reload to get the latest version of
+        the app, then try again.
+      </p>
+      <div className="confirm-dialog__actions">
+        <button type="button" className="btn btn--ghost" onClick={onClose}>Close</button>
+        <button type="button" className="btn btn--primary" onClick={() => window.location.reload()}>
+          Reload
+        </button>
+      </div>
+    </Modal>,
+    document.body,
+  );
 }
 
 function formatMinutes(total: number): string {
@@ -409,6 +451,7 @@ const CueRow = memo(function CueRow({
 });
 
 export function ScheduleSection({
+  showId,
   schedule,
   djSongs = [],
   templates = [],
@@ -431,7 +474,7 @@ export function ScheduleSection({
   const [importOpen, setImportOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [generatorOpen, setGeneratorOpen] = useState(false);
-  const [replaced, setReplaced] = useState<ReplacedOrder | null>(() => undoableReplace(schedule, lastReplaced));
+  const [replaced, setReplaced] = useState<ReplacedOrder | null>(() => undoableReplace(schedule, lastReplaced, showId));
   const templatesEnabled = !!onSaveTemplate && !!onDeleteTemplate;
 
   // Keep latest schedule + onChange in refs so the per-row callbacks
@@ -532,14 +575,14 @@ export function ScheduleSection({
   /** Swap the running order out, keeping the old one so the swap can be undone. */
   function replaceSchedule(cues: ScheduleItem[]) {
     if (schedule.length > 0) {
-      lastReplaced = { cues: schedule, byIds: cues.map((cue) => cue.id) };
+      lastReplaced = { showId, cues: schedule, byIds: cues.map((cue) => cue.id) };
       setReplaced(lastReplaced);
     }
     onChange(cues);
   }
 
   function undoReplace() {
-    const stash = undoableReplace(schedule, replaced);
+    const stash = undoableReplace(schedule, replaced, showId);
     if (!stash) return;
     onChange(stash.cues);
     lastReplaced = null;
@@ -579,7 +622,7 @@ export function ScheduleSection({
     setMode('build');
   }
 
-  const undo = undoableReplace(schedule, replaced);
+  const undo = undoableReplace(schedule, replaced, showId);
 
   function handleApplyImport(items: ScheduleItem[]) {
     onChange([...schedule, ...withMatchedPerformers(items, knownNames)]);
@@ -707,7 +750,7 @@ export function ScheduleSection({
           {/* Above the cue list, because the shape of the night is what you
               want before you start reading rows — and it's the fastest way to
               spot a bill that's gone lopsided. */}
-          <ShowTimeline schedule={schedule} showTime={showTime} />
+          <ShowTimeline schedule={schedule} showTime={showTime} host={host} />
 
           <div className="quick-add">
             <input
@@ -817,18 +860,20 @@ export function ScheduleSection({
       )}
 
       {importOpen && (
-        <Suspense fallback={null}>
-          <AIImportFlow
-            showName={showName || 'Show'}
-            performers={performers}
-            unbookedComics={unbookedComics}
-            host={host}
-            onBookPerformer={onBookPerformer}
-            knownNames={knownNames}
-            onClose={() => setImportOpen(false)}
-            onApply={handleApplyImport}
-          />
-        </Suspense>
+        <ErrorBoundary fallback={<ImportDidNotOpen onClose={() => setImportOpen(false)} />}>
+          <Suspense fallback={null}>
+            <AIImportFlow
+              showName={showName || 'Show'}
+              performers={performers}
+              unbookedComics={unbookedComics}
+              host={host}
+              onBookPerformer={onBookPerformer}
+              knownNames={knownNames}
+              onClose={() => setImportOpen(false)}
+              onApply={handleApplyImport}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
       {confirmDialog}
     </div>

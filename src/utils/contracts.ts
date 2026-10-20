@@ -170,8 +170,9 @@ function instagramField(): ContractField {
  */
 export function isInstagramField(field: ContractField): boolean {
   // A release that asks for a social security number is not asking for a
-  // handle, and requiring one in its place would be worse than useless.
-  if (/social security|\bssn\b/i.test(field.label)) return false;
+  // handle, and requiring one in its place would be worse than useless. The
+  // same for Canada's social insurance number.
+  if (/social security|\bssn\b|social insurance/i.test(field.label)) return false;
   return field.id === INSTAGRAM_FIELD_ID
     || /instagram|\big\b|social|@handle/i.test(field.label);
 }

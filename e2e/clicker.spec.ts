@@ -111,7 +111,9 @@ for (const remoteKey of ['F18', ' ']) {
     await expect(run.locator('.rs-music-card__track')).toHaveText('Test music');
     await run.getByRole('button', { name: 'Stop music', exact: true }).click();
     await expect(run.locator('.rs-music-card__track')).toHaveText('Other music');
+    // The show is under way (it moved to the next cue), so closing asks first.
     await run.getByRole('button', { name: 'Close run show', exact: true }).click();
+    await page.locator('.confirm-dialog__actions').getByRole('button', { name: 'Leave', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Run Show', exact: true })).toBeFocused();
   });
 }

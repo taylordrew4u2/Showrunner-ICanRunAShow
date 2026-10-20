@@ -8,6 +8,7 @@ import {
   profileLinkStatus,
   profileUrl,
   refreshProfiles,
+  sendProfile,
   submitProfile,
 } from './profileLink';
 import { profileFromAnswers } from './signatureImport';
@@ -122,6 +123,55 @@ describe('opening a link as the performer', () => {
     ]);
 
     expect(posts[0].signature).not.toContain('mona@sable.example');
+  });
+});
+
+describe('pressing Send with a photo attached', () => {
+  const key = 'key-0123456789abcdef';
+  const link = (signature: object | null) => ({
+    payload: encryptWithKey(
+      { kind: 'profile', fromName: 'Basement', personName: 'Mona', fields: [], createdAt: '' },
+      key,
+    ),
+    signature: signature ? encryptWithKey(signature, key) : null,
+  });
+  const fields = [{ label: 'Email', value: 'mona@sable.example' }];
+
+  it('reports the answers as sent when an earlier reply was lost and the photo is now refused', async () => {
+    // The first press reached the server and its reply did not come back.
+    // The link is sealed, so the server now refuses the photo — which used
+    // to read as "nothing has been sent yet", on every press, forever.
+    vi.spyOn(api, 'put').mockRejectedValue(Object.assign(new Error('not_open'), { status: 409 }));
+    vi.spyOn(api, 'get').mockResolvedValue(link({
+      submittedAt: '2026-09-10T00:00:00.000Z', typedName: 'Mona Sable', fields, photoChunks: 1,
+    }) as never);
+    const post = vi.spyOn(api, 'post');
+
+    const result = await sendProfile('tok', key, 'Mona Sable', fields, 'data:image/jpeg;base64,AAAA');
+
+    expect(result).toEqual({ submitted: expect.objectContaining({ typedName: 'Mona Sable' }) });
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('still says nothing was sent when the photo fails on a link nobody has answered', async () => {
+    vi.spyOn(api, 'put').mockRejectedValue(Object.assign(new Error('too_large'), { status: 413 }));
+    vi.spyOn(api, 'get').mockResolvedValue(link(null) as never);
+    const post = vi.spyOn(api, 'post');
+
+    const result = await sendProfile('tok', key, 'Mona Sable', fields, 'data:image/jpeg;base64,AAAA');
+
+    expect(result).toEqual({ photoFailed: true });
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('sends the photo first and then the answers, with the photo counted on the record', async () => {
+    vi.spyOn(api, 'put').mockResolvedValue({ ok: true } as never);
+    const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
+
+    const result = await sendProfile('tok', key, 'Mona Sable', fields, 'data:image/jpeg;base64,AAAA');
+
+    expect(post).toHaveBeenCalledOnce();
+    expect(result).toEqual({ submitted: expect.objectContaining({ typedName: 'Mona Sable', photoChunks: 1 }) });
   });
 });
 

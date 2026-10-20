@@ -119,48 +119,58 @@ export async function renderPdfPages(
     import.meta.url,
   ).toString();
 
-  const pdf = await pdfjsLib.getDocument({
+  const task = pdfjsLib.getDocument({
     data: bytes,
     WasmFactory: BundledWasmFactory,
     // The worker cannot fetch the decoders itself without a directory URL, so
     // it asks the page, and the page answers from the bundle.
     useWorkerFetch: false,
-  }).promise;
-  const total = pdf.numPages;
-  const pages: RenderedPage[] = [];
+  });
+  // Each document gets a Web Worker of its own, holding a parsed copy of the
+  // file, and only destroying the task lets either go. Without this, every
+  // contract opened and every Try again left one behind on the signer's phone.
+  try {
+    const pdf = await task.promise;
+    const total = pdf.numPages;
+    const pages: RenderedPage[] = [];
 
-  for (let n = 1; n <= total; n++) {
-    const page = await pdf.getPage(n);
-    const base = page.getViewport({ scale: 1 });
-    // Render above CSS size so the text survives pinch-zoom, which is how
-    // anyone reads a contract's small print on a phone.
-    const ratio = Math.min(typeof devicePixelRatio === 'number' ? devicePixelRatio : 1, 2);
-    const viewport = page.getViewport({ scale: (RENDER_WIDTH / base.width) * ratio });
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.floor(viewport.width);
-    canvas.height = Math.floor(viewport.height);
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('That document could not be drawn.');
-    // A PDF page is transparent where nothing is drawn, which on a dark theme
-    // renders as white text on white paper. Paper is white.
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvas, canvasContext: context, viewport }).promise;
+    for (let n = 1; n <= total; n++) {
+      const page = await pdf.getPage(n);
+      const base = page.getViewport({ scale: 1 });
+      // Render above CSS size so the text survives pinch-zoom, which is how
+      // anyone reads a contract's small print on a phone.
+      const ratio = Math.min(typeof devicePixelRatio === 'number' ? devicePixelRatio : 1, 2);
+      const viewport = page.getViewport({ scale: (RENDER_WIDTH / base.width) * ratio });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('That document could not be drawn.');
+      // A PDF page is transparent where nothing is drawn, which on a dark theme
+      // renders as white text on white paper. Paper is white.
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvas, canvasContext: context, viewport }).promise;
 
-    const rendered: RenderedPage = {
-      pageNumber: n,
-      // JPEG rather than PNG: a scanned agreement as PNG runs to tens of
-      // megabytes of data URL, and this is a photograph of a page.
-      dataUrl: canvas.toDataURL('image/jpeg', 0.82),
-      width: canvas.width,
-      height: canvas.height,
-    };
-    pages.push(rendered);
-    onPage?.(rendered, total);
-    // Let the canvas go before allocating the next one.
-    canvas.width = 0;
-    canvas.height = 0;
+      const rendered: RenderedPage = {
+        pageNumber: n,
+        // JPEG rather than PNG: a scanned agreement as PNG runs to tens of
+        // megabytes of data URL, and this is a photograph of a page.
+        dataUrl: canvas.toDataURL('image/jpeg', 0.82),
+        width: canvas.width,
+        height: canvas.height,
+      };
+      pages.push(rendered);
+      onPage?.(rendered, total);
+      // Let the canvas go before allocating the next one.
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+
+    return pages;
+  } finally {
+    // A worker that fails to shut down is no reason to report a contract that
+    // was drawn as one that was not.
+    await task.destroy().catch(() => {});
   }
-
-  return pages;
 }

@@ -109,7 +109,7 @@ export function ShowForm({ initial, onSave, onCancel }: ShowFormProps) {
 
   return (
     <form className="show-form" onSubmit={handleSubmit}>
-      <h2 className="show-form__title">{initial?.id ? 'Edit Show' : 'New Show'}</h2>
+      <h2 className="show-form__title" id="show-form-title">{initial?.id ? 'Edit Show' : 'New Show'}</h2>
 
       <label className="show-form__label">
         Show Name *

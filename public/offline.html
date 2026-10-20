@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Offline — I Can Run A Show</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#0d0c0b" />
+  <!-- The iOS shell's error page: server.errorPath in capacitor.config.ts.
+       Capacitor shows it from the app bundle (capacitor://localhost) when
+       the live site fails to load, so it may only use files that ship in the
+       bundle too. Nothing here comes from the network. -->
+  <style>
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 350 800; font-display: swap; src: url('/fonts/inter-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Cormorant Garamond'; font-style: normal; font-weight: 300 700; font-display: swap; src: url('/fonts/cormorant-garamond-latin.woff2') format('woff2'); }
+    /* Black lacquer and ivory, the app's default look and the colour of its
+       boot splash, so a failed launch doesn't flash a different page. The
+       producer's own light/dark choice is stored by the live site, out of
+       this page's reach. */
+    :root {
+      color-scheme: dark;
+      --serif: 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
+      --bg: #0d0c0b; --text: #f2efe9; --body: #d9d5cd; --muted: #b3aea6;
+      --primary: #f2efe9; --primary-pressed: #dcd8d0; --on-primary: #0d0c0b;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      padding: max(48px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(48px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.6; text-align: center;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background: var(--text); color: var(--bg); }
+    main { width: 100%; max-width: 30rem; }
+    .mark { display: block; width: 48px; height: 48px; margin: 0 auto 28px; }
+    h1 { font-family: var(--serif); font-size: clamp(2.2rem, 9vw, 2.9rem); font-weight: 500; letter-spacing: -0.01em; line-height: 1.04; margin-bottom: 18px; }
+    p { color: var(--body); font-size: 0.98rem; }
+    p + p { margin-top: 12px; }
+    /* The house primary: solid ivory, tracked capitals, a target big enough
+       to hit with a thumb in the dark. */
+    button {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 48px; min-width: 160px; margin-top: 32px; padding: 0 24px;
+      border: 1px solid var(--primary); border-radius: 2px;
+      background: var(--primary); color: var(--on-primary);
+      font: inherit; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    button:active { background: var(--primary-pressed); border-color: var(--primary-pressed); }
+    :focus-visible { outline: 1px solid var(--text); outline-offset: 3px; }
+    .status { min-height: 1.6em; margin-top: 16px; color: var(--muted); font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+<main>
+  <img class="mark" src="/brand/mark-ivory.svg" width="48" height="48" alt="" />
+  <h1>Waiting for a signal</h1>
+  <p>I Can Run A Show couldn’t load. It needs to open once with a connection to save itself to this device. After that it opens with no signal at all.</p>
+  <p>Connect to Wi-Fi or mobile data, then tap Retry. It also tries again by itself when the connection comes back.</p>
+  <button type="button" id="retry">Retry</button>
+  <p class="status" id="note" role="status"></p>
+</main>
+<script>
+  // The live site, as server.url in capacitor.config.ts. This page lives at
+  // capacitor://localhost, so reloading would only bring this page back.
+  const APP_URL = 'https://icanrunashow.com/';
+  const note = document.getElementById('note');
+
+  function retry() {
+    // With no network at all the load can only fail and land back here, so
+    // say so rather than flicker.
+    if (!navigator.onLine) {
+      note.textContent = 'Still no connection.';
+      return;
+    }
+    note.textContent = 'Trying again…';
+    // replace, so going back never returns to this page.
+    location.replace(APP_URL);
+  }
+
+  document.getElementById('retry').addEventListener('click', retry);
+  // Signal back, or airplane mode off: no tap needed.
+  window.addEventListener('online', retry);
+</script>
+</body>
+</html>

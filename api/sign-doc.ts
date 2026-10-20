@@ -42,7 +42,9 @@ export default async function handler(req: Request): Promise<Response> {
     // ── Producer writes ────────────────────────────────────────────────────
     // The document is uploaded before the request that names it exists, so
     // a token nobody has written under yet is free to write under; once the
-    // request row is there, only its account may touch the document.
+    // request row is there, only its account may touch the document. A
+    // legacy request names no account, and its document is never re-sent,
+    // so nobody may replace it — it can still be dropped with the request.
     const userId = await authorize(req);
     if (!userId) return json({ error: 'unauthorized' }, 401);
 
@@ -64,7 +66,8 @@ export default async function handler(req: Request): Promise<Response> {
         return json({ error: 'bad_request' }, 400);
       }
       if (data.length > MAX_CHUNK_CHARS) return tooLarge();
-      if ((await signTokenOwnership(db, token, userId)) === 'other') return json({ error: 'forbidden' }, 403);
+      const owner = await signTokenOwnership(db, token, userId);
+      if (owner === 'other' || owner === 'legacy') return json({ error: 'forbidden' }, 403);
 
       await db.execute({
         sql: `INSERT INTO sign_doc (token, seq, total, data) VALUES (?, ?, ?, ?)

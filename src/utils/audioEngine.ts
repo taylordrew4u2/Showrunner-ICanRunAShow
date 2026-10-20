@@ -46,7 +46,8 @@ export type PlayResult =
 interface PlayOptions {
   /** Fade-in for the track being started. */
   fadeInMs?: number;
-  /** Fade-out applied to whatever is already playing. */
+  /** Fade-out applied to whatever is already playing, and to this track's
+   *  own out-point when it has a `durationSec`. */
   fadeOutMs?: number;
   /** Where in the track to start, in seconds. The top of the file if unset. */
   offsetSec?: number;
@@ -55,6 +56,13 @@ interface PlayOptions {
   durationSec?: number;
   /** Called when the track finishes on its own — not when it's stopped or replaced. */
   onEnded?: () => void;
+  /**
+   * Called when the track is stopped or another play() takes the engine —
+   * every way it can end that onEnded doesn't cover. Something that will stop
+   * its own track later (a preview's time cap) needs to know it no longer has
+   * the engine, or it stops whatever took over.
+   */
+  onReleased?: () => void;
 }
 
 const DEFAULT_FADE_IN_MS = 1200;
@@ -107,6 +115,7 @@ interface Playing {
   source: AudioBufferSourceNode;
   gain: GainNode;
   token: number;
+  onReleased?: () => void;
 }
 
 class AudioEngine {
@@ -154,6 +163,16 @@ class AudioEngine {
       window.AudioContext ||
       (window as unknown as { webkitAudioContext?: CtxCtor }).webkitAudioContext;
     if (!Ctx) return;
+    // Safari puts Web Audio in the ambient session, which the iPhone's
+    // ring/silent switch mutes: the pad lights, the context says it is
+    // running, and the room hears nothing. The native app sets the playback
+    // category in AppDelegate; this is the same thing for Safari and the
+    // home-screen app, wherever the browser offers navigator.audioSession.
+    // Set before the context exists, so the first press already plays through.
+    try {
+      const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+      if (session && session.type !== 'playback') session.type = 'playback';
+    } catch { /* not offered here; audio still plays, it just obeys the switch */ }
     this.ctx = new Ctx();
     this.master = this.ctx.createGain();
     this.master.gain.value = this.muted ? 0 : 1;
@@ -248,7 +267,12 @@ class AudioEngine {
     source.start(now, offset);
     if (opts.durationSec && opts.durationSec > 0) {
       const end = now + opts.durationSec;
-      const fadeStart = Math.max(now + fadeS, end - fadeS);
+      // The tail eases out over the fade-out, not the fade-in. With the
+      // default — in on the press, out over 350ms — borrowing the fade-in made
+      // the ramp zero long, and every trimmed track ended in a click. A slice
+      // shorter than its fades still stops at its out-point.
+      const outS = Math.min(opts.durationSec, Math.max(0, opts.fadeOutMs ?? DEFAULT_FADE_OUT_MS) / 1000);
+      const fadeStart = Math.min(end, Math.max(now + fadeS, end - outS));
       gain.gain.setValueAtTime(1, fadeStart);
       gain.gain.linearRampToValueAtTime(0, end);
       try { source.stop(end + 0.05); } catch { /* ignore */ }
@@ -260,7 +284,7 @@ class AudioEngine {
       this.current = null;
       opts.onEnded?.();
     };
-    this.current = { src, source, gain, token };
+    this.current = { src, source, gain, token, onReleased: opts.onReleased };
     return 'started';
   }
 
@@ -289,18 +313,21 @@ class AudioEngine {
     playing.source.onended = null;
     if (fadeMs <= 0) {
       try { playing.source.stop(); } catch { /* ignore */ }
-      return;
+    } else {
+      const fadeS = fadeMs / 1000;
+      const now = this.ctx.currentTime;
+      const g = playing.gain.gain;
+      const currentVal = g.value;
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(currentVal, now);
+      g.linearRampToValueAtTime(0, now + fadeS);
+      const stopAt = now + fadeS + 0.05;
+      this.drainUntil = Math.max(this.drainUntil, stopAt);
+      try { playing.source.stop(stopAt); } catch { /* ignore */ }
     }
-    const fadeS = fadeMs / 1000;
-    const now = this.ctx.currentTime;
-    const g = playing.gain.gain;
-    const currentVal = g.value;
-    g.cancelScheduledValues(now);
-    g.setValueAtTime(currentVal, now);
-    g.linearRampToValueAtTime(0, now + fadeS);
-    const stopAt = now + fadeS + 0.05;
-    this.drainUntil = Math.max(this.drainUntil, stopAt);
-    try { playing.source.stop(stopAt); } catch { /* ignore */ }
+    // Told after the fade is scheduled, so whatever the owner does about it
+    // can't keep the outgoing track from leaving.
+    playing.onReleased?.();
   }
 
   /**
@@ -323,6 +350,9 @@ class AudioEngine {
     }
     this.drainUntil = 0;
     this.master = null;
+    // Mute is the board's control, not the engine's. Kept past the board, it
+    // silenced every preview elsewhere while they reported that they'd started.
+    this.muted = false;
     this.buffers.clear();
     this.loadFailures.clear();
   }

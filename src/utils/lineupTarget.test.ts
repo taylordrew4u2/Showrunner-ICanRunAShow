@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lineupProgress } from './lineupTarget';
+import { bookedTowardTarget, lineupProgress } from './lineupTarget';
 
 describe('lineupProgress', () => {
   it('has no "full" without a target', () => {
@@ -49,5 +49,22 @@ describe('lineupProgress', () => {
     const p = lineupProgress(0, 5);
     expect(p.full).toBe(false);
     expect(p.shortLabel).toBe('0 of 5 booked');
+  });
+});
+
+describe('bookedTowardTarget', () => {
+  it('counts the bill and not the surprise guests booked on top of it', () => {
+    const lineup = [
+      { id: 'p1', name: 'Ada' },
+      { id: 'g1', name: 'Miles', surpriseGuest: true },
+      { id: 'p2', name: 'Bea' },
+    ];
+    expect(bookedTowardTarget(lineup)).toBe(2);
+    // One surprise must not make a bill with a spot left read as full.
+    expect(lineupProgress(bookedTowardTarget(lineup), 3).label).toBe('2 of 3 booked · 1 spot left');
+  });
+
+  it('is zero for a lineup of only guests', () => {
+    expect(bookedTowardTarget([{ surpriseGuest: true }, { surpriseGuest: true }])).toBe(0);
   });
 });

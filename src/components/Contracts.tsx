@@ -297,6 +297,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
   // sending it are Producer.
   const { locked } = useProducerAccess();
   const fileInput = useRef<HTMLInputElement>(null);
+  const sending = useRef(false);
 
   const contracts = settings.contracts ?? [];
   const requests = useMemo(() => settings.signatureRequests ?? [], [settings.signatureRequests]);
@@ -404,36 +405,46 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
   }
 
   async function handleSend(name: string, email?: string, contactId?: string) {
-    if (!open || locked) return;
+    // One send at a time. Only the buttons were disabled while busy, and the
+    // name box sends on Enter, so a second Enter during the upload made a
+    // second link: the first was not filed yet for alreadyPending to see, and
+    // the producer was never asked. A ref rather than `busy`, which a second
+    // keypress in the same moment still reads from before it was set.
+    if (!open || locked || sending.current) return;
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (alreadyPending(requests, open.id, trimmed, contactId)) {
-      const go = await confirm({
-        message: `${trimmed} already has an unsigned link for this contract. Sending again makes a second link, and whichever one they open first is the one that counts.`,
-        confirmLabel: 'Send anyway',
-        danger: false,
-      });
-      if (!go) return;
-    }
-    setError(null);
-    setBusy(trimmed);
+    sending.current = true;
     try {
-      const request = await sendForSignature(
-        open,
-        { name: trimmed, email, contactId },
-        settings.brandName,
-        session,
-        showContextForSigner(shows, trimmed),
-      );
-      onUpdateSettings({ ...settings, signatureRequests: [request, ...requests] });
-      setManualName('');
-      setPicking(false);
-      // Straight to the link — the producer's next move is always to send it.
-      await copyLink(request);
-    } catch {
-      setError('That did not send. Check your connection and try again.');
+      if (alreadyPending(requests, open.id, trimmed, contactId)) {
+        const go = await confirm({
+          message: `${trimmed} already has an unsigned link for this contract. Sending again makes a second link, and whichever one they open first is the one that counts.`,
+          confirmLabel: 'Send anyway',
+          danger: false,
+        });
+        if (!go) return;
+      }
+      setError(null);
+      setBusy(trimmed);
+      try {
+        const request = await sendForSignature(
+          open,
+          { name: trimmed, email, contactId },
+          settings.brandName,
+          session,
+          showContextForSigner(shows, trimmed),
+        );
+        onUpdateSettings({ ...settings, signatureRequests: [request, ...requests] });
+        setManualName('');
+        setPicking(false);
+        // Straight to the link — the producer's next move is always to send it.
+        await copyLink(request);
+      } catch {
+        setError('That did not send. Check your connection and try again.');
+      } finally {
+        setBusy(null);
+      }
     } finally {
-      setBusy(null);
+      sending.current = false;
     }
   }
 
@@ -662,7 +673,9 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                   placeholder="Type a name"
                   aria-label="Signer's name"
                   onChange={(e) => setManualName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleSend(manualName); }}
+                  // Not the Enter that finishes an IME composition: that one
+                  // is choosing a character, not sending the name.
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSend(manualName); }}
                 />
                 <button
                   className="btn btn--primary btn--sm"

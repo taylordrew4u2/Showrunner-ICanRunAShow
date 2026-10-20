@@ -29,7 +29,8 @@ import { liveTokenOwnership } from './_lib/tokenOwnership';
 const MAX_CHUNK_CHARS = 3_500_000;
 const MAX_CHUNKS = 64;
 // A board is a handful of walk-ons, not a library. Caps what one token can
-// hold so a shared link can't be turned into free storage.
+// hold so a shared link can't be turned into free storage. The board plans
+// its uploads to this number (MAX_VIEWER_TRACKS in src/utils/viewerAudio.ts).
 const MAX_TRACKS_PER_TOKEN = 60;
 
 export default async function handler(req: Request): Promise<Response> {

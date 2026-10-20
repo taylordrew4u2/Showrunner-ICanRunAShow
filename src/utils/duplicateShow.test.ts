@@ -19,6 +19,7 @@ const original = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-02T00:00:00.000Z',
   viewToken: 'live-token',
+  viewerKey: 'audio-key',
   viewNote: 'Doors at 7:30',
   recap: { attendance: 60 },
 } as unknown as Show;
@@ -38,6 +39,7 @@ describe('duplicateShow', () => {
     // A copy carrying the viewer token would publish over the original's
     // live page.
     expect(copy.viewToken).toBeUndefined();
+    expect(copy.viewerKey).toBeUndefined();
     expect(copy.viewNote).toBeUndefined();
     expect(copy.recap).toBeUndefined();
     expect(copy.status).toBe('upcoming');
@@ -134,5 +136,23 @@ describe('duplicating the sample show', () => {
   it('makes a real night that counts in the season report', () => {
     const copy = duplicateShow({ ...original, sample: true } as Show);
     expect(copy.sample).toBeUndefined();
+  });
+});
+
+describe('duplicating a show with a surprise guest', () => {
+  it('books nobody on the copy, guests included, and unlinks the guest from their cue', () => {
+    // The cast never carries over to a new night, so there is no flag to
+    // keep: a guest on one night is booked afresh, on whichever tab, for the
+    // next. What must not survive is a cue still pointing at them.
+    const copy = duplicateShow({
+      ...original,
+      performers: [
+        { id: 'p1', name: 'Ada Cole' },
+        { id: 'g1', name: 'Miles Trent', surpriseGuest: true },
+      ],
+      schedule: [{ id: 's1', time: '0:00', description: 'Surprise set', performerId: 'g1', performer: 'Miles Trent' }],
+    } as Show);
+    expect(copy.performers).toEqual([]);
+    expect(copy.schedule).toEqual([{ id: 's1', time: '0:00', description: 'Surprise set' }]);
   });
 });

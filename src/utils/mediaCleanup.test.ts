@@ -152,6 +152,29 @@ describe('orphanedRefs', () => {
   it('does not ask for the same delete twice', () => {
     expect(orphanedRefs(['media:x#1', 'media:x#1'], [], settings())).toEqual(['media:x#1']);
   });
+
+  it('keeps library audio a show still plays after the track left the library', () => {
+    // Trimming a library row in a show copies it into the show with its
+    // libraryId still set. Removing the track from the library keeps the
+    // audio because that show uses it, so the show's row is now the only
+    // thing holding it — and a cue losing the same audio must not take it.
+    const s = show({
+      djSongs: [{ id: 'm1', title: 'Bed', artist: '', music: 'media:abc#2', libraryId: 't1', startSec: 10 }],
+    });
+    expect(orphanedRefs(['media:abc#2'], [s], settings({ musicLibrary: [] }))).toEqual([]);
+  });
+
+  it('keeps library audio a trashed show would play if restored', () => {
+    const s = settings({
+      musicLibrary: [],
+      trash: [{
+        id: 't', type: 'show',
+        data: show({ djSongs: [{ id: 'm1', title: 'Bed', artist: '', music: 'media:abc#2', libraryId: 't1' }] }),
+        deletedAt: '',
+      }],
+    });
+    expect(orphanedRefs(['media:abc#2'], [], s)).toEqual([]);
+  });
 });
 
 describe('liveMediaIds', () => {
@@ -203,6 +226,14 @@ describe('unreferencedMedia', () => {
     const stored = [{ id: 'face', chunks: 1, bytes: 90 }];
     const s = settings({ potentialComics: [{ id: 'c', name: 'Ada', photo: 'media:face#1' }] });
     expect(unreferencedMedia(stored, [], s)).toEqual([]);
+  });
+
+  it('keeps audio a show still plays from a track since removed from the library', () => {
+    const s = show({
+      djSongs: [{ id: 'm1', title: 'Bed', artist: '', music: 'media:orphan#2', libraryId: 't1' }],
+    });
+    const old = stored.map((m) => ({ ...m, ageSeconds: 90_000 }));
+    expect(unreferencedMedia(old, [s], settings({ musicLibrary: [] })).map((m) => m.id)).toEqual(['kept']);
   });
 
   it('reports everything as unused when the account genuinely has no data', () => {

@@ -3,6 +3,7 @@
 // component stays about layout.
 import type { MusicTrack, Show } from '../types';
 import { showDJSongs } from './musicLibrary';
+import { bookedTowardTarget } from './lineupTarget';
 
 export interface ProgressStat {
   key: string;
@@ -66,10 +67,11 @@ export function buildShowStats(show: Show, library: MusicTrack[] = []): ShowStat
     // still goes on. A meter you learn to ignore devalues the ones beside it.
     progress: [
       // Only meaningful once a target is set; total 0 drops the bar entirely.
+      // Counted the way the Performers section counts it, surprise guests out.
       {
         key: 'lineup',
         label: 'Lineup booked',
-        done: performers.length,
+        done: bookedTowardTarget(performers),
         total: num(show.performerTarget),
       },
       {

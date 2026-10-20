@@ -1,13 +1,13 @@
 import { BrandMark } from './components/BrandMark';
 import { recoverShowDraft } from './utils/recoverShowDraft';
-import { showBaselineHashes, settingsBaselineHash } from './utils/secure-storage';
+import { showBaselineHashes, settingsBaselineHash, heldCopyLock, showSentHashes, settingsSentHashes, heldOverCurrentSettings } from './utils/secure-storage';
 import { createPendingStore } from './utils/pendingStore';
 import { watchStatusRail } from './utils/statusBand';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, ScheduleTemplateItem } from './types';
 import { DEFAULT_SETTINGS, MAX_DELETED_SHOW_IDS } from './types';
 import { generateId } from './utils/id';
-import { ServerNotConfiguredError, type ApiError } from './utils/api';
+import { ServerNotConfiguredError, onCredentialRefused, type ApiError } from './utils/api';
 import { applyUpdate, isUpdateReady, onUpdateReady } from './utils/appUpdate';
 import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
 import { vibrateTap } from './utils/haptics';
@@ -18,7 +18,7 @@ import { normalizeComicSettings } from './utils/sharedComicSettings';
 import { mergeSettingsEdit } from './utils/mergeSettingsEdit';
 import { mergeShowEdit } from './utils/mergeShowEdit';
 import { bulkMailto } from './utils/social';
-import { buildOverview, completePastShows } from './utils/showsOverview';
+import { buildOverview, completePastShows, sortShows } from './utils/showsOverview';
 import { 
   loadEncryptedShows,
   rebaseLoadedShows,
@@ -77,6 +77,7 @@ import { ShowDetail } from './components/ShowDetail';
 import { Expenses } from './components/Expenses';
 import { Modal } from './components/Modal';
 import { RolodexProfile } from './components/sections/RolodexProfile';
+import { ProfileDrawer } from './components/sections/PerformerProfile';
 import { LiveViewer } from './components/LiveViewer';
 import { Contracts } from './components/Contracts';
 import { SigningPage } from './components/SigningPage';
@@ -87,11 +88,14 @@ import { deleteMedia } from './utils/mediaStore';
 import { mergePendingShows } from './utils/mergePending';
 import { duplicateShow } from './utils/duplicateShow';
 import { buildSampleShow } from './utils/sampleShow';
-import { unpublishAll } from './utils/viewerAudio';
+import { forgetViewerKey, unpublishAll } from './utils/viewerAudio';
 import { MusicLibrary } from './components/MusicLibrary';
 import { InstallPrompt } from './components/InstallPrompt';
 import { MorePage } from './components/MorePage';
-import { billingReturn, loadBilling, openBillingPortal, PAID_FEATURES_LOCKED, startCheckout, type BillingState } from './utils/billing';
+import { billingReturn, loadBilling, openBillingPortal, PAID_FEATURES_LOCKED, shouldRecheckPlan, startCheckout, type BillingState } from './utils/billing';
+import { accountTokens, deleteAccount } from './utils/account';
+import { isNativeShell } from './utils/nativeShell';
+import { onPageReturn } from './utils/pageReturn';
 import { ProducerLock } from './components/ProducerLock';
 import { ProducerProvider, type ProducerAccess } from './utils/producerAccess';
 import { SeasonReport } from './components/SeasonReport';
@@ -240,6 +244,20 @@ function writeLastSync(username: string, at: number): void {
   }
 }
 
+/** Drop what this device noted about an account that no longer exists. */
+function forgetAccountNotes(username: string): void {
+  for (const key of [LAST_EXPORT_KEY, LAST_SYNC_KEY]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw?.startsWith('{') && sameAccount((JSON.parse(raw) as { username?: unknown }).username, username)) {
+        localStorage.removeItem(key);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 /**
  * Says so when the list you're looking at isn't all of your shows.
  *
@@ -295,19 +313,32 @@ export default function App() {
   activeSessionRef.current = session;
   const [localBackupFailed, setLocalBackupFailed] = useState(false);
   const writePending = useCallback((key: string, username: string, data: unknown): boolean => {
-    const written = pendingStore.write(key, username, data, session ? {
+    // Sealed with the account's key, which only a signed-in session has —
+    // and every caller is one. Nothing is held here in the clear.
+    if (!session) return false;
+    const written = pendingStore.write(key, username, data, heldCopyLock(session), {
       settingsHash: key === PENDING_SETTINGS_KEY ? settingsBaselineHash(session) : undefined,
       showHashes: key === PENDING_SHOWS_KEY ? showBaselineHashes(session) : undefined,
-    } : undefined);
+      // And what this tab has sent on top of that: a save still on its way
+      // when this copy is written moves the baseline only when it lands.
+      settingsSent: key === PENDING_SETTINGS_KEY ? settingsSentHashes(session) : undefined,
+      showsSent: key === PENDING_SHOWS_KEY ? showSentHashes(session) : undefined,
+    });
     setLocalBackupFailed(!written);
     return written;
   }, [session]);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  // The name to put back in the sign-in form when the server, not the
+  // producer, ended the session. See handleCredentialRefused.
+  const [signedOutAs, setSignedOutAs] = useState('');
   const [colorScheme, setColorScheme] = useState<ColorScheme>(() => loadColorScheme());
   const [desktopNavigation, setDesktopNavigation] = useState(() => window.matchMedia('(min-width: 900px)').matches);
   const [navigationOpen, setNavigationOpen] = useState(false);
   const navigationRef = useRef<HTMLElement>(null);
+  // Settings' "Leave without saving?" question, lent to the nav while the
+  // page is open. Null on every other page.
+  const settingsLeaveRef = useRef<((go: () => void) => void) | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 900px)');
@@ -400,54 +431,83 @@ export default function App() {
     if (!billingReturned) return;
     window.history.replaceState(null, '', window.location.pathname + window.location.hash);
   }, [billingReturned]);
+  // When this page last sent the producer to Stripe, for checkout or the
+  // billing portal, until a look at the plan afterwards has settled it.
+  // Coming back doesn't always go through ?billing=success (the producer can
+  // just come Back, or finish somewhere else and switch back), so coming back
+  // to the app while this is set is the cue to look again.
+  const sentToStripeAt = useRef<number | null>(null);
+  const noteSentToStripe = useCallback((url: string) => {
+    sentToStripeAt.current = Date.now();
+    return url;
+  }, []);
   // Stable per account, so the plan card fetches once per visit rather than on
   // every render of Settings.
   const billingActions = useMemo(
     () => session && {
       load: () => loadBilling(session),
-      checkout: () => startCheckout(session),
-      portal: () => openBillingPortal(session),
+      checkout: () => startCheckout(session).then(noteSentToStripe),
+      portal: () => openBillingPortal(session).then(noteSentToStripe),
       returned: billingReturned,
     },
-    [session, billingReturned],
+    [session, billingReturned, noteSentToStripe],
   );
   // The plan, for deciding what's locked. Checked once per sign-in; after a
   // checkout, a few times more, because Stripe's webhook can land a moment
   // after the producer does and they shouldn't meet a lock they just paid off.
+  // Checked again, the same way, each time billingRecheck is bumped below.
   const [billingState, setBillingState] = useState<BillingState | null>(null);
+  const [billingRecheck, setBillingRecheck] = useState(0);
   useEffect(() => {
     if (!session) {
       setBillingState(null);
       return;
     }
     let cancelled = false;
-    const attempts = billingReturned === 'success' ? 6 : 1;
+    const awaiting = sentToStripeAt.current;
+    const attempts = billingReturned === 'success' || awaiting !== null ? 6 : 1;
     (async () => {
       for (let i = 0; i < attempts && !cancelled; i++) {
         try {
           const next = await loadBilling(session);
           if (cancelled) return;
           setBillingState(next);
-          if (next.plan === 'producer') return;
+          if (next.plan === 'producer') break;
         } catch {
           // Unknown stays unlocked; see ProducerLock.
         }
         if (i < attempts - 1) await new Promise((r) => setTimeout(r, 2000));
       }
+      // Paid, or every look a slow webhook could need has been had. Unless the
+      // producer has set off for Stripe again since, stop looking on return.
+      if (!cancelled && sentToStripeAt.current === awaiting) sentToStripeAt.current = null;
     })();
     return () => { cancelled = true; };
-  }, [session, billingReturned]);
+  }, [session, billingReturned, billingRecheck]);
+  // Back in the app after a trip to Stripe, or in the iOS shell on the free
+  // plan: look at the plan again rather than leave features the producer has
+  // just paid for locked until the next launch.
+  const onFreePlan = !!billingState?.configured && billingState.plan !== 'producer';
+  useEffect(() => {
+    if (!session) return;
+    return onPageReturn(() => {
+      const sentToStripe = sentToStripeAt.current !== null;
+      if (shouldRecheckPlan({ sentToStripe, nativeShell: isNativeShell(), freePlan: onFreePlan })) {
+        setBillingRecheck((n) => n + 1);
+      }
+    });
+  }, [session, onFreePlan]);
   const producerAccess = useMemo<ProducerAccess>(
     () => ({
       // Locked only when the server has Stripe set up and has said, in so
       // many words, that this account is on the free plan.
       locked: PAID_FEATURES_LOCKED && !!billingState?.configured && billingState.plan !== 'producer',
       upgrade: async () => {
-        if (!session) return;
-        window.location.assign(await startCheckout(session));
+        if (!billingActions) return;
+        window.location.assign(await billingActions.checkout());
       },
     }),
-    [billingState, session],
+    [billingState, billingActions],
   );
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   /**
@@ -461,6 +521,9 @@ export default function App() {
   const [newComicNotes, setNewComicNotes] = useState('');
   const [newListEmail, setNewListEmail] = useState('');
   const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
+  // Stable, so the profile drawer's Escape listener is not torn down on every
+  // render of the app.
+  const closeRolodexProfile = useCallback(() => setSelectedComicId(null), []);
   // Which follow-up list from the at-a-glance row the grid is narrowed to.
   const [showsFocus, setShowsFocus] = useState<ShowsFocus>(null);
   const [expandOrigin, setExpandOrigin] = useState({ x: 50, y: 30 });
@@ -572,11 +635,13 @@ export default function App() {
         // Migrate per-show expenses into global settings.expenses
         let migratedSettings = stripLegacySettingsMedia({ ...loadedSettings, expenses: loadedSettings.expenses || [] });
         const perShowExpenses = migratedShows.flatMap((s) => s.expenses || []);
+        let movedExpenses = false;
         if (perShowExpenses.length > 0) {
           const existingIds = new Set(migratedSettings.expenses.map((e: { id: string }) => e.id));
           const newExpenses = perShowExpenses.filter((e) => !existingIds.has(e.id));
           if (newExpenses.length > 0) {
             migratedSettings = { ...migratedSettings, expenses: [...migratedSettings.expenses, ...newExpenses] };
+            movedExpenses = true;
           }
           // Clear per-show expenses after migration
           for (const show of migratedShows) {
@@ -590,9 +655,9 @@ export default function App() {
         // If a previous session had unsaved edits (save failed, tab closed),
         // recover edits against their original baseline. Conflicting versions
         // get separate show IDs so both survive.
-        const showDrafts = pendingStore.readAll<Show[]>(PENDING_SHOWS_KEY, currentSession.username);
+        const showDrafts = pendingStore.readAll<Show[]>(PENDING_SHOWS_KEY, currentSession.username, heldCopyLock(currentSession));
         const rawPendingShows = showDrafts.length ? showDrafts.reduce((current, draft) =>
-          recoverShowDraft(draft.data, current, draft.metadata?.showHashes), migratedShows) : null;
+          recoverShowDraft(draft.data, current, draft.metadata?.showHashes, draft.metadata?.showsSent), migratedShows) : null;
         // Same healing as the server rows: a local backup written by an older
         // build can be missing list fields the list renders without checking.
         const pendingShows = rawPendingShows
@@ -609,7 +674,7 @@ export default function App() {
         // each a full settings blob, until the quota went and nothing could
         // be backed up at all. Each is parked on the account first and let go
         // of this browser only once it is there.
-        const settingsDrafts = pendingStore.list<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username);
+        const settingsDrafts = pendingStore.list<AppSettings>(PENDING_SETTINGS_KEY, currentSession.username, heldCopyLock(currentSession));
         const parkOlderDrafts = () => {
           // Every page load is a new slot, so a save that kept failing across
           // reloads leaves the same edits in several of them. One copy on the
@@ -646,7 +711,7 @@ export default function App() {
         // on the account, and only let go of this device once it is there.
         let pendingSettings: AppSettings | null = null;
         if (healedHeldSettings && heldSettings) {
-          if (heldSettings.metadata?.settingsHash !== undefined && heldSettings.metadata.settingsHash === settingsBaselineHash(currentSession)) {
+          if (heldOverCurrentSettings(heldSettings.metadata, currentSession)) {
             pendingSettings = healedHeldSettings;
           } else {
             const acknowledge = pendingStore.capture(PENDING_SETTINGS_KEY, currentSession.username);
@@ -704,18 +769,24 @@ export default function App() {
         setSettings(sharedSettings);
         dataLoaded.current = true;
         setSettingsLoaded(true);
-        if (pendingSettings || sharedSettings !== recoveredSettings) saveSettings(sharedSettings);
+        // Expenses moved off the shows above exist only in memory until this
+        // save. Left to some later settings write, the next edit to such a
+        // show saved it without them and they were gone from everywhere.
+        if (pendingSettings || movedExpenses || sharedSettings !== recoveredSettings) saveSettings(sharedSettings);
         setLoadError(null);
         // Encrypting a settings blob is main-thread work, and nothing above
         // waits on these copies — so they are made once the shows are on
         // screen rather than in front of them.
         if (settingsDrafts.length > 1) window.setTimeout(parkOlderDrafts, 0);
       } catch (error) {
-        if (cancelled) return;
+        // A refused credential has already signed this session out (see
+        // handleCredentialRefused); the sign-in form says why, and a load
+        // error left behind would greet the next sign-in.
+        if (cancelled || activeSessionRef.current !== currentSession) return;
         console.error('Failed to load shows:', error);
         // Never overwrite in-memory shows on load failure — leave state unchanged
         // so the auto-save effect cannot wipe the database.
-        setLoadError("Couldn't load your shows. Check your connection and refresh the page.");
+        setLoadError("Couldn't load your shows. Check your connection and try again.");
       } finally {
         if (!cancelled) setLoadingData(false);
       }
@@ -928,7 +999,9 @@ export default function App() {
           showSaveConflictRef.current = false;
           settledClean = true;
           savedShowsRef.current = saved;
-          setHasLocalCopy(false);
+          // The shows' copy is let go of; a settings edit still retrying
+          // keeps its own.
+          setHasLocalCopy(settingsSaveFailedRef.current);
           retryDelayRef.current = 5000;
           if (!settingsSaveFailedRef.current) setSaveError(null);
           markSynced(currentSession.username);
@@ -1002,7 +1075,7 @@ export default function App() {
    * values are what get held in memory and written to disk.
    */
   async function beginSession(username: string, password: string) {
-    const creds = credentialsFrom(username, password);
+    const creds = await credentialsFrom(username, password);
     await saveSession(creds);
     // Loading before the session, in the same render: the load effect only
     // flips the skeleton on after the first paint with a session, and that
@@ -1125,6 +1198,30 @@ export default function App() {
     if (session && dataLoaded.current) {
       if (latestShowsRef.current !== savedShowsRef.current) writePending(PENDING_SHOWS_KEY, session.username, latestShowsRef.current);
     }
+    endSession();
+  }
+
+  /**
+   * Delete the account for good, then leave nothing of it on this device:
+   * the drafts held for it in every tab, its viewer-link keys, what was noted
+   * about its saves and backups, and the session itself. Throws, with nothing
+   * deleted anywhere, when the server refused.
+   */
+  async function handleDeleteAccount(): Promise<void> {
+    if (!session) return;
+    const tokens = accountTokens(latestShowsRef.current, latestSettingsRef.current);
+    await deleteAccount(session, tokens);
+    // Ended first, so a save still in flight stands down rather than parking
+    // a fresh draft for an account that is gone.
+    endSession();
+    pendingStore.clear(PENDING_SHOWS_KEY, session.username);
+    pendingStore.clear(PENDING_SETTINGS_KEY, session.username);
+    forgetAccountNotes(session.username);
+    for (const token of tokens) forgetViewerKey(token);
+  }
+
+  /** Back to the sign-in screen, holding nothing of the account that left. */
+  function endSession() {
     ++settingsSaveSeqRef.current;
     activeSessionRef.current = null;
     setSession(null);
@@ -1137,6 +1234,7 @@ export default function App() {
     setSelectedShow(null);
     setShowForm(false);
     setAuthError('');
+    setSignedOutAs('');
     // Everything the status rail knows belongs to the account that just left.
     // A conflict on one producer's show had the pill stuck on "Needs you" and
     // their banner on screen for the co-producer who signed in next, and
@@ -1157,6 +1255,49 @@ export default function App() {
   }
 
   /**
+   * The server no longer accepts this session's credential.
+   *
+   * Usually a session saved by an earlier build, on an account that has since
+   * signed in somewhere else and moved to the per-account credential. Nothing
+   * this device can send fixes that without the password, and every save would
+   * be refused until then. So it signs out, the same way as signing out by
+   * hand: unsaved edits stay on this device, filed under the account, and the
+   * next sign-in to it brings them back and saves them.
+   */
+  function handleCredentialRefused() {
+    const username = session?.username ?? '';
+    handleLogout();
+    setSignedOutAs(username);
+    setAuthError("You've been signed out on this device. Sign in again to carry on. Changes that hadn't saved yet are kept here and will save once you're back in.");
+  }
+
+  // Every producer route reports a refused credential through one listener.
+  // Only this session's own credential counts: a refusal of an earlier
+  // session's, from a request still in flight when it ended, must not sign
+  // out the session that replaced it.
+  //
+  // Never while Run Show is open. The usual cause is the producer signing in
+  // on a second device, and at a venue that happens during the show: signing
+  // out here would take the board down with it, cue, clock and walk-ons. The
+  // refused saves are held on this device as they always are, every one of
+  // them is refused again on its next retry, and the first refusal after the
+  // show is closed signs out.
+  useEffect(() => {
+    if (!session) return;
+    const current = session;
+    onCredentialRefused((credential) => {
+      if (credential !== current.authHash || activeSessionRef.current !== current) return;
+      if (document.querySelector('.run-show')) return;
+      handleCredentialRefused();
+    });
+    return () => onCredentialRefused(null);
+    // handleCredentialRefused is redeclared every render, but it closes over
+    // nothing mutable except `session`, this effect's only dependency, and
+    // refs. Listing it would re-register the listener on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  /**
    * Download a plain-JSON copy of everything. The one guarantee that doesn't
    * depend on this app, this device, or this server still being around — so
    * it's reachable from the status pill on every screen, not just Settings.
@@ -1166,8 +1307,8 @@ export default function App() {
     try {
       const url = await exportUserData(session, { shows: latestShowsRef.current, unreadable: unreadableRowsRef.current, settings,
         recoveryDrafts: [
-          ...pendingStore.list(PENDING_SHOWS_KEY, session.username).map(p => ({ kind: 'shows', at: p.at, data: p.data })),
-          ...pendingStore.list(PENDING_SETTINGS_KEY, session.username).map(p => ({ kind: 'settings', at: p.at, data: p.data })),
+          ...pendingStore.list(PENDING_SHOWS_KEY, session.username, heldCopyLock(session)).map(p => ({ kind: 'shows', at: p.at, data: p.data })),
+          ...pendingStore.list(PENDING_SETTINGS_KEY, session.username, heldCopyLock(session)).map(p => ({ kind: 'settings', at: p.at, data: p.data })),
         ],
       });
       const a = document.createElement('a');
@@ -1226,7 +1367,8 @@ export default function App() {
   }
 
   async function handleSaveSettings(updatedSettings: AppSettings) {
-    if (!session) return;
+    // Never onto an account that has not been read, as for onboarding.
+    if (!session || !dataLoaded.current) return;
     const savingSession = session;
 
     setSettingsSaving(true);
@@ -1242,6 +1384,7 @@ export default function App() {
       acknowledge();
       if (activeSessionRef.current !== savingSession) return;
       settingsSaveFailedRef.current = false;
+      setHasLocalCopy(latestShowsRef.current !== savedShowsRef.current);
       if (!showSaveConflictRef.current) setSaveError(null);
       setSettings(updatedSettings);
       markSynced(session.username);
@@ -1484,7 +1627,10 @@ export default function App() {
   }
 
   function saveSettings(updatedSettings: typeof settings) {
-    if (!session) return;
+    // Settings that were never loaded are the defaults plus one edit, and the
+    // settings request can succeed while the shows request fails — leaving a
+    // baseline that lets that save through over the whole real account.
+    if (!session || !dataLoaded.current) return;
     updatedSettings = resolvedSettingsRef.current.get(updatedSettings) ?? updatedSettings;
     const currentSession = session;
     // Each call supersedes any still-retrying older one, so a stale snapshot
@@ -1505,6 +1651,8 @@ export default function App() {
           acknowledge();
           if (seq === settingsSaveSeqRef.current) {
             settingsSaveFailedRef.current = false;
+            // The settings' copy is let go of; unsaved shows keep theirs.
+            setHasLocalCopy(latestShowsRef.current !== savedShowsRef.current);
             if (!showSaveConflictRef.current) setSaveError(null);
             markSynced(currentSession.username);
           }
@@ -2014,24 +2162,7 @@ export default function App() {
 
 
   // Sort the visible shows. Undated shows always sort to the end for date sorts.
-  const sortedShows = [...filteredShows].sort((a, b) => {
-    switch (sortBy) {
-      case 'name':
-        return a.name.localeCompare(b.name);
-      case 'date-asc':
-        if (!a.date && !b.date) return 0;
-        if (!a.date) return 1;
-        if (!b.date) return -1;
-        return a.date.localeCompare(b.date);
-      case 'date-desc':
-        if (!a.date && !b.date) return 0;
-        if (!a.date) return 1;
-        if (!b.date) return -1;
-        return b.date.localeCompare(a.date);
-      default:
-        return 0; // 'added' — preserve existing newest-first order
-    }
-  });
+  const sortedShows = sortShows(filteredShows, sortBy);
 
   function clearFilters() {
     setSearchQuery('');
@@ -2072,28 +2203,56 @@ export default function App() {
           onSignUp={handleSignUp}
           loading={authLoading}
           errorMessage={authError}
+          defaultUsername={signedOutAs}
         />
-      ) : loadingData ? (
+      ) : loadingData || !settingsLoaded ? (
+        // Nothing of the account is on screen until it has been read. A
+        // launch that could not read it used to open the whole app over the
+        // defaults: a Rolodex entry added there saved those defaults over the
+        // real settings, and a show made there was never saved and vanished
+        // when the load was retried, with the pill saying Saved. A failed
+        // load offers the retry instead, and a way to sign out.
         <div className="app">
-          <div className="app-loading" role="status" aria-live="polite" aria-label="Loading your shows">
-            <div className="app-loading__skeletons" aria-hidden="true">
-              <div className="skeleton-tile-row">
-                <div className="skeleton skeleton--tile" />
-                <div className="skeleton skeleton--tile" />
+          {loadError && !loadingData ? (
+            <div className="app-loading">
+              <div className="app-loading__skeletons">
+                <div className="empty-state" role="alert">
+                  <h2 className="empty-state__title">{loadError}</h2>
+                  <p className="empty-state__text">
+                    Nothing has been deleted — this is a connection problem, not a data problem.
+                  </p>
+                  <div className="empty-state__actions">
+                    <button className="btn btn--primary" onClick={() => setLoadRetryTick((t) => t + 1)}>
+                      Try again
+                    </button>
+                    <button className="btn btn--secondary" onClick={handleLogout}>
+                      Sign out
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="skeleton skeleton--bar" />
-              <div className="skeleton skeleton--card" />
-              <div className="skeleton skeleton--card" />
-              <div className="skeleton skeleton--card" />
             </div>
-          </div>
+          ) : (
+            <div className="app-loading" role="status" aria-live="polite" aria-label="Loading your shows">
+              <div className="app-loading__skeletons" aria-hidden="true">
+                <div className="skeleton-tile-row">
+                  <div className="skeleton skeleton--tile" />
+                  <div className="skeleton skeleton--tile" />
+                </div>
+                <div className="skeleton skeleton--bar" />
+                <div className="skeleton skeleton--card" />
+                <div className="skeleton skeleton--card" />
+                <div className="skeleton skeleton--card" />
+              </div>
+            </div>
+          )}
         </div>
       ) : !settings.onboarded && settingsLoaded ? (
         // Only once the account has actually loaded. Before, a launch that
         // could not reach the server left the defaults in place — and their
         // "not onboarded" walked a producer with a year of shows through the
         // welcome questions, whose Finish then saved those defaults over the
-        // real account. The shows page carries the load error instead.
+        // real account. The load error has its own screen instead, above.
         <Onboarding
           username={session.username}
           onComplete={handleCompleteOnboarding}
@@ -2735,22 +2894,25 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Rolodex edit drawer */}
+                {/* Rolodex edit drawer. A dialog, like the show page's: as two
+                    bare divs, focus stayed on the row's Edit button under the
+                    backdrop, Tab walked the rows behind it and Escape did
+                    nothing. */}
                 {selectedComicId && (() => {
                   const comic = settings.potentialComics.find(c => c.id === selectedComicId);
                   if (!comic) return null;
                   return (
-                    <>
-                      <div className="perf-drawer__backdrop" onClick={() => setSelectedComicId(null)} />
-                      <div className="perf-drawer">
-                        <RolodexProfile
-                          comic={comic}
-                          onBack={() => setSelectedComicId(null)}
-                          onChange={handleUpdateRolodexComic}
-                          onDelete={id => { handleRemovePotentialComic(id); setSelectedComicId(null); }}
-                        />
-                      </div>
-                    </>
+                    <ProfileDrawer
+                      label={`${comic.name.trim() || rolodexTerm.singular}'s profile`}
+                      onClose={closeRolodexProfile}
+                    >
+                      <RolodexProfile
+                        comic={comic}
+                        onBack={closeRolodexProfile}
+                        onChange={handleUpdateRolodexComic}
+                        onDelete={id => { handleRemovePotentialComic(id); setSelectedComicId(null); }}
+                      />
+                    </ProfileDrawer>
                   );
                 })()}
               </div>
@@ -2766,6 +2928,7 @@ export default function App() {
                 onColorSchemeChange={setColorScheme}
                 username={session.username}
                 onLogout={handleLogout}
+                onDeleteAccount={handleDeleteAccount}
                 onRestoreShow={handleRestoreShow}
                 onDeleteForever={handleDeleteForever}
                 onEmptyTrash={handleEmptyTrash}
@@ -2776,6 +2939,7 @@ export default function App() {
                 lastBackupAt={lastBackupAt}
                 lastSavedAt={lastSavedAt}
                 billing={billingActions ?? undefined}
+                leaveRef={settingsLeaveRef}
               />
             )}
           </main>
@@ -2809,12 +2973,20 @@ export default function App() {
                     aria-current={active ? 'page' : undefined}
                     onClick={() => {
                       if (desktopNavigation) navigationRef.current?.hidePopover();
-                      if (item.id === 'list') {
-                        handleBack();
-                      } else {
-                        setView(item.id);
-                        setSelectedShow(null);
-                      }
+                      const go = () => {
+                        if (item.id === 'list') {
+                          handleBack();
+                        } else {
+                          setView(item.id);
+                          setSelectedShow(null);
+                        }
+                      };
+                      // Nothing in Settings saves itself. Leaving it from the
+                      // nav asks first, as its own Back button does, rather
+                      // than dropping a typed brand name or a paired remote.
+                      const leave = view === 'settings' && item.id !== 'settings' ? settingsLeaveRef.current : null;
+                      if (leave) leave(go);
+                      else go();
                     }}
                   >
                     <Icon name={item.icon} size={20} className="bottom-nav__item-icon" />
@@ -2826,7 +2998,7 @@ export default function App() {
           </nav>
 
           {showForm && (
-            <Modal onClose={() => setShowForm(false)}>
+            <Modal onClose={() => setShowForm(false)} labelledBy="show-form-title">
               <ShowForm
                 onSave={handleCreateShow}
                 onCancel={() => setShowForm(false)}

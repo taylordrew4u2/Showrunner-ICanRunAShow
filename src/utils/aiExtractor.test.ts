@@ -85,6 +85,97 @@ describe('parseScheduleManually', () => {
     const items = parseScheduleManually('7:00 PM Doors, bar 5-6 pm');
     expect(items[0].time).toBe('7:00 PM');
   });
+
+  it('does not read a row, set or day number before a dash as the start of a range', () => {
+    // Read as a range, "1 - 8:00 PM" started at one in the afternoon and ran
+    // seven hours — a length the review screen never shows.
+    const items = parseScheduleManually(
+      '1 - 8:00 PM Doors\nSet 2 - 9:30 PM Devon\nAct 3 – 9:15 PM Jane\nFeb 12 - 8pm Show',
+    );
+    expect(items.map((i) => [i.time, i.durationMin])).toEqual([
+      ['8:00 PM', undefined],
+      ['9:30 PM', undefined],
+      ['9:15 PM', undefined],
+      ['8pm', undefined],
+    ]);
+  });
+
+  it('still reads a range that runs a whole evening', () => {
+    expect(parseScheduleManually('Doors 7-10pm').map((i) => [i.time, i.durationMin])).toEqual([['7 pm', 180]]);
+  });
+
+  it('keeps the am/pm of a range end that a colon or comma follows', () => {
+    // The stray "PM" used to become the cue's performer, and the length was lost.
+    const items = parseScheduleManually(
+      '8:00 PM - 8:20 PM: Ada Cole\n8:00 PM to 8:20 PM: Ada Cole\n9 PM - 9:20 PM: Devon\n8:00 PM – 8:20 PM, Ada Cole',
+    );
+    expect(items.map((i) => [i.performer, i.description, i.durationMin])).toEqual([
+      [undefined, 'Ada Cole', 20],
+      [undefined, 'Ada Cole', 20],
+      [undefined, 'Devon', 20],
+      [undefined, 'Ada Cole', 20],
+    ]);
+  });
+
+  it('never takes am or pm for a performer', () => {
+    expect(splitPerformer('PM: Ada Cole').performer).toBeUndefined();
+    expect(splitPerformer('P.M. — Ada Cole').performer).toBeUndefined();
+  });
+
+  it('reads a time written with a dot, as UK and Australian run sheets do', () => {
+    // "8.00pm" used to be read as "00pm" — noon — and "7.30pm" as no time at all.
+    const items = parseScheduleManually('7.30pm Doors\n8.00pm Welcome\n8.05 p.m. Devon');
+    expect(items.map((i) => [i.time, i.description])).toEqual([
+      ['7:30pm', 'Doors'],
+      ['8:00pm', 'Welcome'],
+      ['8:05 pm', 'Devon'],
+    ]);
+  });
+
+  it('reads a dotted range and its length', () => {
+    const items = parseScheduleManually('8.00-8.20pm Devon\n9.00pm - 9.15pm Raffle');
+    expect(items.map((i) => [i.time, i.description, i.durationMin])).toEqual([
+      ['8:00 pm', 'Devon', 20],
+      ['9:00pm', 'Raffle', 15],
+    ]);
+  });
+
+  it('does not read a price as a time', () => {
+    expect(parseScheduleManually('Tickets £7.50 on the door')).toEqual([]);
+  });
+});
+
+describe('parseScheduleManually on rows pasted from a spreadsheet', () => {
+  it('reads the performer out of its own column, whichever side of the segment it is on', () => {
+    const items = parseScheduleManually('8:00 PM\tWelcome\tAda Cole\n8:10 PM\tDevon Park\tOpening set');
+    expect(items.map((i) => [i.time, i.performer, i.description])).toEqual([
+      ['8:00 PM', 'Ada Cole', 'Welcome'],
+      ['8:10 PM', 'Devon Park', 'Opening set'],
+    ]);
+  });
+
+  it('reads a start and an end column as a range with a length', () => {
+    const items = parseScheduleManually('8:00 PM\t8:20 PM\tDevon\nJune Ito\t8:20 PM\t8:35 PM');
+    expect(items.map((i) => [i.time, i.description, i.durationMin])).toEqual([
+      ['8:00 PM', 'Devon', 20],
+      ['8:20 PM', 'June Ito', 15],
+    ]);
+  });
+
+  it('does not guess a performer when two columns could both be names', () => {
+    const items = parseScheduleManually('8:00 PM\tComedy\tAda Cole');
+    expect(items[0].performer).toBeUndefined();
+    expect(items[0].description).not.toMatch(/\t/);
+  });
+
+  it('keeps a column that holds a name and its segment together', () => {
+    const items = parseScheduleManually('8:35 PM\tMarisol — headliner');
+    expect(items.map((i) => [i.performer, i.description])).toEqual([['Marisol', 'headliner']]);
+  });
+
+  it('skips the header row', () => {
+    expect(parseScheduleManually('Time\tSegment\tPerformer\n8:00 PM\tWelcome\tAda Cole')).toHaveLength(1);
+  });
 });
 
 describe('linesFromPdfText', () => {

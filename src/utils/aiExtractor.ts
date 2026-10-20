@@ -99,23 +99,30 @@ async function extractTextFromPDF(file: File): Promise<string> {
   ).toString();
 
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({
+  const task = pdfjsLib.getDocument({
     data: arrayBuffer,
     // A scanned schedule is one JPEG 2000 image per page, and pdf.js decodes
     // those only through a decoder it has to ask the page for — see
     // pdfPages.ts. Without this, such a page reads as no text at all.
     WasmFactory: BundledWasmFactory,
     useWorkerFetch: false,
-  }).promise;
-  let fullText = "";
+  });
+  // Destroyed when done, or each import leaves a Web Worker and a parsed copy
+  // of the file behind — see pdfPages.ts.
+  try {
+    const pdf = await task.promise;
+    let fullText = "";
 
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    fullText += linesFromPdfText(textContent.items) + "\n";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      fullText += linesFromPdfText(textContent.items) + "\n";
+    }
+
+    return fullText.trim();
+  } finally {
+    await task.destroy().catch(() => {});
   }
-
-  return fullText.trim();
 }
 
 /**
@@ -176,7 +183,8 @@ async function ocrImage(file: File): Promise<string> {
  * Supports text files (.txt, .csv, .json), PDFs, and images (.jpg, .png, etc.)
  *
  * Text and PDF are parsed deterministically; images go through on-device OCR
- * (Tesseract) and then the same parser. No network, no service.
+ * (Tesseract) and then the same parser. Nothing is sent to any service, but
+ * the OCR engine itself is downloaded the first time a photo is read.
  */
 export async function importScheduleFromFile(
   file: File,
@@ -187,6 +195,21 @@ export async function importScheduleFromFile(
       ocrText = await ocrImage(file);
     } catch (error) {
       console.error("OCR failed:", error);
+      // Almost always the engine failing to download — offline, or a venue
+      // network that blocks the CDN it comes from. This used to fall through
+      // to "make sure the times are clearly visible", so the producer retook
+      // the photo, and every retake failed the same way.
+      //
+      // The one failure that is the photo's is the engine running and not
+      // being able to open the file (a format it cannot decode). Its worker
+      // rejects with a plain string, not an Error. Told to find signal for
+      // that, the producer would look for a problem they do not have.
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/attempting to read image/i.test(message)) {
+        throw new Error(
+          "Couldn't start the photo reader. It downloads the first time it's used on this device, so it needs a connection then. Paste the text instead, or try again with signal.",
+        );
+      }
     }
     const ocrItems = parseScheduleManually(ocrText);
     if (ocrItems.length > 0) return ocrItems;
@@ -224,11 +247,16 @@ export function splitPerformer(description: string): { performer?: string; descr
   if (!match) return { description };
   const [, left, right] = match;
   const name = left.trim();
-  const words = name.split(/\s+/);
-  const looksLikeName = words.length <= 3 && words.every((word) => /^[A-Z][\p{L}'’.-]*$/u.test(word))
-    && !NOT_A_PERSON.has(name.toLowerCase());
-  if (!looksLikeName || !right.trim()) return { description };
+  if (!looksLikeName(name) || !right.trim()) return { description };
   return { performer: name, description: right.trim() };
+}
+
+/** One to three capitalised words, and not a run-sheet word: how a name reads. */
+function looksLikeName(text: string): boolean {
+  const name = text.trim();
+  const words = name.split(/\s+/);
+  return words.length <= 3 && words.every((word) => /^[A-Z][\p{L}'’.-]*$/u.test(word))
+    && !NOT_A_PERSON.has(name.toLowerCase());
 }
 
 /** Capitalised run-sheet words that sit where a name would but are not one. */
@@ -237,6 +265,7 @@ const NOT_A_PERSON = new Set([
   'closer', 'opener', 'feature', 'dj', 'intro', 'outro', 'welcome', 'set', 'showtime', 'show', 'start',
   'end', 'finish', 'open', 'close', 'curtain', 'soundcheck', 'sound check', 'walk in', 'walk-in', 'encore',
   'raffle', 'announcements', 'note', 'notes', 'reminder', 'lights', 'music', 'bar', 'merch', 'photos',
+  'am', 'pm', 'a.m.', 'p.m.',
 ]);
 
 /**
@@ -252,18 +281,55 @@ export function parseScheduleManually(text: string): ScheduleItem[] {
   const items: ScheduleItem[] = [];
 
   // "7:00 PM", "19:00", "7pm", "7 a.m." — a colon-time, or a bare hour with am/pm.
-  const timePattern = /\b(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?|\d{1,2}\s*[ap]\.?m\.?)\b/i;
+  // And "7.30pm", the way UK and Australian run sheets write it: without its
+  // own rule the bare-hour rule found "00pm" inside "8.00pm" and read noon.
+  // A dotted time needs its am/pm, or every price on the sheet would be one.
+  const timePattern = /\b(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?|\d{1,2}\.\d{2}\s*[ap]\.?m\.?|\d{1,2}\s*[ap]\.?m\.?)\b/i;
   // "8-8:20pm Devon": the start of a range often has no am/pm of its own, so
   // the pattern above skips it and lands on the range END — the cue then
   // starts twenty minutes late with a stray "8-" in its text. A range whose
   // end carries the meridiem is a time too, and it wins when it begins no
   // later than the first stand-alone time on the line.
-  const rangePattern = /\b(\d{1,2}(?::\d{2})?)\s*(?:[-–—]|to)\s*(\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?)\b/i;
-  const cleanTime = (raw: string) => raw.replace(/\s+/g, " ").replace(/\.\s*/g, "").trim();
+  const rangePattern = /\b(\d{1,2}(?:[:.]\d{2})?)\s*(?:[-–—]|to)\s*(\d{1,2}(?:[:.]\d{2})?\s*[ap]\.?m\.?)\b/i;
+  // Not every number before a dash starts a range, though: "1 - 8:00 PM Doors"
+  // is row one, "Set 2 - 9:30 PM" the second set, "Feb 12 - 8pm" the date.
+  // Read as ranges they start in the early afternoon and run for hours — a
+  // length the review screen never shows, carried straight into Run Show. No
+  // cue runs longer than an evening, so a "range" that does is not one.
+  const MAX_RANGE_MIN = 180;
+  // "8.30pm" is stored as "8:30pm": the rest of the app reads a colon, and
+  // dropping the dots of "p.m." would otherwise leave "830pm".
+  const cleanTime = (raw: string) =>
+    raw.replace(/(\d)\.(\d{2})/, "$1:$2").replace(/\s+/g, " ").replace(/\.\s*/g, "").trim();
 
-  for (const line of lines) {
+  // A row copied out of a spreadsheet arrives as tab-separated cells, and a
+  // tab is not a separator anything below reads: "Welcome<tab>Ada Cole" stayed
+  // one description with no performer, and an End column stayed in the text
+  // with its length lost. The cells are put back into a line the rest of this
+  // reads — the first two cells that are only a time as the start and end of
+  // a range — and when exactly one other cell reads as a name, that is who is
+  // on. Two that both could be (a "Comedy" column beside "Ada Cole") are left
+  // for the producer rather than guessed between.
+  const isTime = (cell: string) => !cell.replace(timePattern, "").replace(/[\s.]/g, "");
+  const readCells = (raw: string): { line: string; columns: boolean; performer?: string } => {
+    const cells = raw.split(/\t+/).map((cell) => cell.trim()).filter(Boolean);
+    if (cells.length < 2) return { line: raw, columns: false };
+    const times: string[] = [];
+    const rest: string[] = [];
+    for (const cell of cells) (times.length < 2 && isTime(cell) ? times : rest).push(cell);
+    const names = rest.length > 1 ? rest.filter(looksLikeName) : [];
+    const performer = names.length === 1 ? names[0] : undefined;
+    const words = rest.filter((cell) => cell !== performer).join(" — ");
+    return { line: [times.join(" - "), words].filter(Boolean).join(" "), columns: rest.length > 1, performer };
+  };
+
+  for (const raw of lines) {
+    const row = readCells(raw);
+    const line = row.line;
     const single = line.match(timePattern);
-    const range = line.match(rangePattern);
+    const found = line.match(rangePattern);
+    const span = found ? minutesBetweenClock(cleanTime(found[1]), cleanTime(found[2])) : null;
+    const range = found && span != null && span <= MAX_RANGE_MIN ? found : null;
     const match = range && (!single || (range.index ?? 0) <= (single.index ?? 0)) ? range : single;
     if (!match || match.index === undefined) continue;
 
@@ -278,14 +344,19 @@ export function parseScheduleManually(text: string): ScheduleItem[] {
     // It's captured rather than discarded: the end of the range is the one
     // place a plain-text schedule states how long a segment runs, and throwing
     // it away is why every imported cue arrived with no minutes on it.
+    //
+    // The end may be followed by the colon or comma that introduces the act
+    // ("8:00 PM - 8:20 PM: Ada Cole"). Allowing only a space there made the
+    // match back off to "8:20", leaving "PM: Ada Cole" — and "PM" on stage.
     const rangeMatch = match === range ? null : description.match(
-      /^[\s•·*>]*(?:[-–—]|to)\s*(\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?)(?=\s|$)/i,
+      /^[\s•·*>]*(?:[-–—]|to)\s*(\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?|\d{1,2}\.\d{2}\s*[ap]\.?m\.?)(?=[\s,;:|)\]]|$)/i,
     );
     const rangeEnd = match === range ? cleanTime(match[2]) : rangeMatch?.[1] && cleanTime(rangeMatch[1]);
     if (rangeMatch) description = description.slice(rangeMatch[0].length);
-    // Trim leading bullets/separators and trailing separators.
+    // Trim leading bullets/separators (and the comma a range end can leave)
+    // and trailing separators.
     description = description
-      .replace(/^[\s\-–—:|•·*.>]+/, "")
+      .replace(/^[\s\-–—:;,|•·*.>]+/, "")
       .replace(/[\s\-–—:|]+$/, "")
       .trim();
 
@@ -295,7 +366,7 @@ export function parseScheduleManually(text: string): ScheduleItem[] {
       // the meridiem it was always meant to have — otherwise the cue sorts and
       // times itself twelve hours out.
       const start = borrowMeridiem(time, rangeEnd);
-      const cue = splitPerformer(description);
+      const cue = row.columns ? { performer: row.performer, description } : splitPerformer(description);
       items.push({
         id: generateId(),
         time: start,

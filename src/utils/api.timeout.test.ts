@@ -67,3 +67,49 @@ describe('saving a big show or settings blob on a slow connection', () => {
     expect(timeoutForBody(4_300_000)).toBe(SUBMIT_TIMEOUT_MS);
   });
 });
+
+// The load is the other direction. GET /api/shows answers with every show's
+// ciphertext and GET /api/settings with the whole blob — megabytes for a big
+// or older account — and a GET has no body of its own, so it got twenty
+// seconds for the lot. At a basement's 20KB/s that is about 400KB, so a big
+// account aborted on every launch and every retry and never loaded at all.
+
+/** A server that answers at once and then sends its answer very slowly. */
+function tricklingFetch() {
+  return vi.fn((_: string, init?: RequestInit) => Promise.resolve({
+    ok: true,
+    status: 200,
+    json: () => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        const err = new Error('The operation was aborted.');
+        err.name = 'AbortError';
+        reject(err);
+      });
+    }),
+  } as Response));
+}
+
+describe('loading a big account on a slow connection', () => {
+  it('gives the answer longer to arrive than a small request gets', async () => {
+    vi.stubGlobal('fetch', tricklingFetch());
+    let settled: 'pending' | 'rejected' = 'pending';
+    const load = api.get('/api/shows').catch(() => { settled = 'rejected'; });
+
+    await vi.advanceTimersByTimeAsync(20_001);
+    expect(settled).toBe('pending');
+
+    // Not forever: past this the account is too big for the connection.
+    await vi.advanceTimersByTimeAsync(SUBMIT_TIMEOUT_MS);
+    await load;
+    expect(settled).toBe('rejected');
+  });
+
+  it('still gives up after twenty seconds on a server that never answers', async () => {
+    vi.stubGlobal('fetch', hangingFetch());
+    let settled: 'pending' | 'rejected' = 'pending';
+    const load = api.get('/api/shows').catch(() => { settled = 'rejected'; });
+    await vi.advanceTimersByTimeAsync(20_001);
+    await load;
+    expect(settled).toBe('rejected');
+  });
+});

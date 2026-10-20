@@ -3,12 +3,15 @@ import type { ScheduleItem } from '../types';
 import {
   DEFAULT_CUE_SECONDS,
   baseDurations,
+  MIN_CUE_SECONDS,
+  carryCueClock,
   fillCueDurations,
   isUntimed,
   fmtCountdown,
   fmtOffset,
   fmtShowTime,
   nextUpLabel,
+  nudgeAdjustment,
   parseClockToMinutes,
   parseDurationSeconds,
 } from './showTiming';
@@ -148,5 +151,49 @@ describe('fillCueDurations', () => {
     const schedule = [cue(), cue({ durationMin: 5 }), cue({ durationMin: 0 })];
     expect(schedule.filter(isUntimed)).toHaveLength(2);
     expect(fillCueDurations(schedule).filled).toBe(2);
+  });
+});
+
+describe('the clock of an auto-advanced cue', () => {
+  it('starts when the last cue was due to end, so a run of cues keeps to plan', () => {
+    // A minute-long cue each, the clock read once a second, and the advance
+    // landing a few milliseconds after the read that saw the cue run out.
+    let startedAt = 0;
+    const advancedAt: number[] = [];
+    for (let tick = 1; advancedAt.length < 10; tick++) {
+      const now = tick * 1_000;
+      if (Math.floor((now - startedAt) / 1_000) >= 60) {
+        advancedAt.push(now / 1_000);
+        startedAt = carryCueClock(startedAt, 60, now + 4).cueStartedAt;
+      }
+    }
+    expect(advancedAt).toEqual([60, 120, 180, 240, 300, 360, 420, 480, 540, 600]);
+  });
+
+  it('counts the time a locked phone spent past the end of the cue', () => {
+    // A 5:00 cue with a minute left when the phone locked; unlocked six
+    // minutes later, the next 5:00 cue has already run its course too.
+    const next = carryCueClock(0, 300, 600_000);
+    expect(next).toEqual({ cueStartedAt: 300_000, elapsed: 300 });
+    expect(carryCueClock(next.cueStartedAt, 300, 600_000)).toEqual({ cueStartedAt: 600_000, elapsed: 0 });
+  });
+});
+
+describe('nudging a cue shorter or longer', () => {
+  it('moves the cue back up on the first + once it has hit the floor', () => {
+    // A 5:00 cue: −2 min three times stops at 0:30. The next +30s has to
+    // show, not pay back presses the screen never showed.
+    let adjust = 0;
+    const lengths: number[] = [];
+    for (const delta of [-120, -120, -120, 30, 30, 30]) {
+      adjust = nudgeAdjustment(adjust, 300, delta);
+      lengths.push(Math.max(MIN_CUE_SECONDS, 300 + adjust));
+    }
+    expect(lengths).toEqual([180, 60, 30, 60, 90, 120]);
+  });
+
+  it('adds and takes away freely above the floor', () => {
+    expect(nudgeAdjustment(0, 300, 120)).toBe(120);
+    expect(nudgeAdjustment(120, 300, -30)).toBe(90);
   });
 });

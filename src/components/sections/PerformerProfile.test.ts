@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { isFrontDialog } from './PerformerProfile';
 
@@ -26,5 +29,26 @@ describe('the keyboard while a profile drawer is open', () => {
     // "Remove this performer?" sits over the profile. One Escape must dismiss
     // the question, not the question and the profile it was asked about.
     expect(isFrontDialog(drawer, inside(confirmation))).toBe(false);
+  });
+});
+
+/** Every .tsx file under src, as [path, source]. */
+function sources(dir = fileURLToPath(new URL('../..', import.meta.url))): [string, string][] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry): [string, string][] => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return sources(path);
+    return entry.name.endsWith('.tsx') ? [[path, readFileSync(path, 'utf8')]] : [];
+  });
+}
+
+describe('where a profile drawer is opened', () => {
+  it('is always ProfileDrawer, never a hand-built panel', () => {
+    // The Rolodex page built its own out of two divs, with no dialog role, no
+    // focus moved into it and no Escape: the keyboard stayed on the rows
+    // under the backdrop.
+    const handBuilt = sources()
+      .filter(([path, text]) => !path.endsWith('PerformerProfile.tsx') && /className="perf-drawer"/.test(text))
+      .map(([path]) => path);
+    expect(handBuilt).toEqual([]);
   });
 });

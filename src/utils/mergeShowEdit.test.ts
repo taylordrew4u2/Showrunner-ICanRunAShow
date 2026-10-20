@@ -102,3 +102,32 @@ describe('mergeShowEdit', () => {
   });
 
 });
+
+describe('mergeShowEdit with surprise guests', () => {
+  it('keeps the flag through a merge with a concurrent edit to someone else', () => {
+    const baseline = show();
+    const current = { ...baseline, performers: [ada, { ...jo, socialMedia: '@newjo' }] };
+    const incoming = { ...baseline, performers: [{ ...ada, surpriseGuest: true }, jo] };
+    const merged = mergeShowEdit(baseline, incoming, current);
+    expect(merged.performers).toEqual([{ ...ada, surpriseGuest: true }, { ...jo, socialMedia: '@newjo' }]);
+  });
+
+  it('keeps a guest booked from the guests tab, flag and all, beside a concurrent booking', () => {
+    const baseline = show();
+    const guest: Performer = { id: 'guest-slot', name: 'Miles Trent', surpriseGuest: true };
+    const current = { ...baseline, performers: [ada, jo, newSlot] };
+    const merged = mergeShowEdit(baseline, { ...baseline, performers: [ada, jo, guest] }, current);
+    expect(merged.performers).toEqual([ada, jo, guest, newSlot]);
+  });
+
+  it('clears the flag when the profile switches them back, keeping a concurrent field edit', () => {
+    const guestAda = { ...ada, surpriseGuest: true };
+    const baseline = show({ performers: [guestAda, jo] });
+    const current = { ...baseline, performers: [{ ...guestAda, photo: 'media:new-photo' }, jo] };
+    const incoming = { ...baseline, performers: [{ ...guestAda, surpriseGuest: undefined }, jo] };
+    const [merged] = mergeShowEdit(baseline, incoming, current).performers;
+    expect(merged.surpriseGuest).toBeUndefined();
+    expect(merged.photo).toBe('media:new-photo');
+    expect(merged.email).toBe(ada.email);
+  });
+});

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
-import { createShow, gotoTab, openSection, signUpAndOnboard } from './support/app';
+import { createShow, gotoTab, openSection, openShowDrafts, signUpAndOnboard, storedShowDrafts } from './support/app';
 
 test('an older tab cannot erase a newly saved show', async ({ page, context }) => {
   const state = emptyState();
@@ -61,8 +61,10 @@ test('a conflicting edit stays on screen and reports that it has not saved', asy
   await expect(page.locator('.sync-status--blocked')).toBeVisible();
   await expect(page.locator('.cue-list')).toContainText('Unsaved local cue');
   expect(state.shows[0].encryptedData).toBe(remote);
-  const pending = await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('showrunner:pendingShows')).map(k => JSON.parse(localStorage.getItem(k)!)));
-  expect(JSON.stringify(pending)).toContain('Unsaved local cue');
+  // Held on this device, sealed with the account's key rather than in the clear.
+  const stored = await storedShowDrafts(page);
+  expect(stored.join('')).not.toContain('Unsaved local cue');
+  expect(JSON.stringify(openShowDrafts(stored))).toContain('Unsaved local cue');
 });
 
 
@@ -148,9 +150,7 @@ test('losing the signal says Offline, keeps the edit here, and saves it when the
   // Still offline, still not an error, and held on this device meanwhile.
   await expect(page.locator('.sync-status--offline')).toBeVisible();
   await expect(page.getByRole('alert')).toHaveCount(0);
-  await expect.poll(() => page.evaluate(() =>
-    Object.keys(localStorage).filter(k => k.startsWith('showrunner:pendingShows')).map(k => localStorage.getItem(k)).join(''),
-  )).toContain('Doors open');
+  await expect.poll(async () => JSON.stringify(openShowDrafts(await storedShowDrafts(page)))).toContain('Doors open');
   expect(state.shows[0].encryptedData).toBe(saved);
 
   offline = false;

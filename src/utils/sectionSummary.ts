@@ -1,6 +1,7 @@
-import type { ScheduleItem, StaffMember, Vendor } from '../types';
+import type { Performer, ScheduleItem, StaffMember, Vendor } from '../types';
 import { baseDurations, parseClockToMinutes } from './showTiming';
 import { timeLabelFor } from './elapsed';
+import { billedPerformers, surpriseGuests } from './surpriseGuests';
 
 /**
  * One-line summaries of what's inside a collapsed section.
@@ -20,6 +21,20 @@ export function joinNames(names: (string | undefined)[], max = 3): string | null
   if (clean.length === 0) return null;
   if (clean.length <= max) return clean.join(', ');
   return `${clean.slice(0, max).join(', ')} +${clean.length - max}`;
+}
+
+/**
+ * "Alice, Bea, Cal · 1 surprise guest" — the bill, then how many are being
+ * kept quiet. Counted rather than named: this line sits on the collapsed card,
+ * which is the part of the page a producer has open with the room looking
+ * over their shoulder.
+ */
+export function performersSummary(performers: Performer[]): string | null {
+  const names = joinNames(billedPerformers(performers).map((p) => p.name));
+  const guests = surpriseGuests(performers).length;
+  const extra = guests > 0 ? `${guests} surprise guest${guests === 1 ? '' : 's'}` : null;
+  const parts = [names, extra].filter((part): part is string => !!part);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 /** "45 min" / "1 hr" / "1 hr 10 min" — never "0 hr 70 min". */

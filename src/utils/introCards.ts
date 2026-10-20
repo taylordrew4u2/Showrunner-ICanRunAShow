@@ -1,4 +1,5 @@
 import type { Show, Performer, Artist } from '../types';
+import { isSurpriseGuest } from './surpriseGuests';
 
 /**
  * Intro cards — the stack a host reads from at the mic.
@@ -24,6 +25,11 @@ export interface IntroCard {
   walkOn: string | null;
   social: string | null;
   kind: 'performer' | 'artist';
+  /**
+   * A surprise guest. The host is the one person who has to know it: their
+   * card is the intro the room has not been warned about, and it says so.
+   */
+  surprise: boolean;
 }
 
 function clean(value: string | undefined | null): string | null {
@@ -88,6 +94,7 @@ export function buildIntroCards(show: Show): IntroCard[] {
       walkOn: walkOnLine(person),
       social: clean(person.socialMedia),
       kind: entry.kind,
+      surprise: isSurpriseGuest(person),
     };
   });
 }

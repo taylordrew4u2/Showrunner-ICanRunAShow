@@ -111,6 +111,20 @@ describe('downloading the walk-ons onto the viewer screen', () => {
     expect(loader.has('a')).toBe(true);
   });
 
+  it('fetches a song several pads play once, for all of them', async () => {
+    // Two acts with no walk-on of their own fall back to the same library
+    // song, which is on the DJ bank too: one upload, listed under each pad.
+    const shared = (key: string): ViewerTrack => ({ key, mediaId: 't-performer-ann', total: 2 });
+    const seen: string[] = [];
+    const loader = createTrackLoader(async (t) => { seen.push(t.key); return `data:${t.mediaId}`; }, () => {});
+    loader.sync([shared('performer:ann'), shared('performer:bo'), shared('dj:library:song-1'), track('performer:cy')]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(seen).toEqual(['performer:ann', 'performer:cy']);
+    for (const key of ['performer:ann', 'performer:bo', 'dj:library:song-1']) {
+      expect(loader.urlOf(key)).toBe('data:t-performer-ann');
+    }
+  });
+
   it('tells the screen when a track is ready, and never after the screen has moved on', async () => {
     const ready = vi.fn();
     let finish: (url: string | null) => void = () => {};

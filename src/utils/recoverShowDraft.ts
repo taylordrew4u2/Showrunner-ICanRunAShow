@@ -17,10 +17,16 @@ function newer(local: Show, remote: Show): Show {
 }
 
 /** Recover local edits without treating a stale whole-list backup as truth.
- * If both sides changed, keep the server show and a distinct recovered copy. */
-export function recoverShowDraft(draft: Show[], server: Show[], baseline: Record<string, string> = {}): Show[] {
+ * If both sides changed, keep the server show and a distinct recovered copy.
+ *
+ * `sent` is what the held copy's tab had sent of each show when the copy was
+ * written. A save can land after the copy was held — Run Show saves on every
+ * tick — and the server then has the tab's own edit, which the copy already
+ * contains. That is the version the copy was made over, not somebody else's. */
+export function recoverShowDraft(draft: Show[], server: Show[], baseline: Record<string, string> = {}, sent: Record<string, string[]> = {}): Show[] {
   if (!Array.isArray(draft)) return server;
   const result = new Map(server.map(s => [s.id, s]));
+  const madeOver = (id: string, remote: Show) => hash(remote) === baseline[id] || (sent[id] ?? []).includes(hash(remote));
   const held = new Set<string>();
   for (const value of draft) {
     if (value && typeof value.id === 'string') held.add(value.id);
@@ -29,7 +35,7 @@ export function recoverShowDraft(draft: Show[], server: Show[], baseline: Record
     const localHash = hash(local);
     const remote = result.get(local.id);
     if (localHash === baseline[local.id] || (remote && hash(remote) === localHash)) continue;
-    if ((!remote && !baseline[local.id]) || (remote && hash(remote) === baseline[local.id])) {
+    if ((!remote && !baseline[local.id]) || (remote && madeOver(local.id, remote))) {
       result.set(local.id, local);
     } else if (!baseline[local.id]) {
       // No baseline for this show, so nothing here is evidence that the server
@@ -49,12 +55,13 @@ export function recoverShowDraft(draft: Show[], server: Show[], baseline: Record
   // server's list quietly put every such show back, so a delete made in the
   // basement — offline, or backgrounded inside the save's debounce — un-happened
   // on the next launch, while the trash still held its copy. Honour it only
-  // while the server has exactly what this device loaded; an edit made elsewhere
-  // since is a conflict, and there the edit wins over the deletion.
-  for (const [id, base] of Object.entries(baseline)) {
+  // while the server has exactly what this device loaded, or sent; an edit
+  // made elsewhere since is a conflict, and there the edit wins over the
+  // deletion.
+  for (const id of new Set([...Object.keys(baseline), ...Object.keys(sent)])) {
     if (held.has(id)) continue;
     const remote = result.get(id);
-    if (remote && hash(remote) === base) result.delete(id);
+    if (remote && madeOver(id, remote)) result.delete(id);
   }
   return [...result.values()];
 }

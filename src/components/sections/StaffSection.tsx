@@ -128,7 +128,13 @@ export function StaffSection({ staff, onChange }: StaffSectionProps) {
             {editId !== s.id && (
               <div className="section-list-item__actions">
                 <button className="btn btn--ghost btn--sm" onClick={() => startEdit(s)}>Edit</button>
-                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteStaff(s.id)}>×</button>
+                <button
+                  className="btn btn--ghost btn--sm section-list-item__delete"
+                  onClick={() => deleteStaff(s.id)}
+                  aria-label={`Delete ${s.personName} (${s.role})`}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
               </div>
             )}
           </li>

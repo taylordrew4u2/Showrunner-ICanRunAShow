@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './Modal.css';
 
 interface ModalProps {
@@ -19,7 +19,14 @@ const openDialogs: symbol[] = [];
 
 export function Modal({ onClose, children, labelledBy, label }: ModalProps) {
   const boxRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
+  // What had focus before this opened, read while the first render runs.
+  // React applies a child's autoFocus while committing, before any effect,
+  // so an effect read the New Show form's name field instead of the
+  // "+ New Show" button. That field is gone once the dialog closes, and focus
+  // fell to the top of the page.
+  const [opener] = useState(() =>
+    typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null),
+  );
   const idRef = useRef(Symbol('modal'));
   // Where the pointer went down. A click is delivered to the common ancestor
   // of where a press started and ended, so a drag that started in a text box
@@ -28,7 +35,6 @@ export function Modal({ onClose, children, labelledBy, label }: ModalProps) {
   const pressedOverlayRef = useRef(false);
 
   useEffect(() => {
-    previousFocusRef.current = document.activeElement as HTMLElement;
     const id = idRef.current;
     openDialogs.push(id);
 
@@ -41,13 +47,18 @@ export function Modal({ onClose, children, labelledBy, label }: ModalProps) {
       // The control that opened this may have gone with what it confirmed —
       // a row's Delete button leaves with the row — and focusing a detached
       // node drops focus to the top of the page.
-      const previous = previousFocusRef.current;
-      if (previous?.isConnected) previous.focus();
+      if (opener?.isConnected) opener.focus();
     };
-  }, []);
+  }, [opener]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // Only the dialog on top answers the keyboard, Tab as well as Escape.
+      // A confirmation is portalled to <body>, outside the sheet it sits
+      // over, so the sheet's trap took every Tab in it for an escape and
+      // pulled focus back: Tab never left Cancel, or landed in the sheet
+      // behind the question.
+      if (openDialogs[openDialogs.length - 1] !== idRef.current) return;
       const box = boxRef.current;
       if (e.key === 'Tab' && box) {
         // Tab stays inside: aria-modal alone does not keep a keyboard out of
@@ -70,7 +81,6 @@ export function Modal({ onClose, children, labelledBy, label }: ModalProps) {
         return;
       }
       if (e.key !== 'Escape') return;
-      if (openDialogs[openDialogs.length - 1] !== idRef.current) return;
       // The Escape that closes this dialog is spent closing it. Run Show keeps
       // a keydown listener on window for its own shortcuts, and window is
       // downstream of document — without this, one Escape both dismissed the

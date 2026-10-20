@@ -13,6 +13,8 @@ import { useProducerAccess } from '../utils/producerAccess';
 import './Settings.css';
 import { useConfirm } from './useConfirm';
 import type { Snapshot } from '../utils/secure-storage';
+import { normalizeUsername } from '../utils/session-vault';
+import type { ApiError } from '../utils/api';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -29,6 +31,11 @@ interface SettingsProps {
   /** Who's signed in — shown in the account card. */
   username?: string;
   onLogout?: () => void;
+  /**
+   * Delete the account and everything stored under it, then sign out.
+   * Rejects, with nothing deleted, when the server refused.
+   */
+  onDeleteAccount?: () => Promise<void>;
   onRestoreShow?: (trashId: string) => void;
   onDeleteForever?: (trashId: string) => void;
   onEmptyTrash?: () => void;
@@ -47,6 +54,13 @@ interface SettingsProps {
   onRestoreSnapshot?: (snapshot: Snapshot) => Promise<void>;
   /** The Stripe plan card's calls, made as the signed-in account. */
   billing?: BillingActions;
+  /**
+   * Where the page lends out its "Leave without saving?" question while it is
+   * open, so the app's nav can ask it too. The nav stays on screen under this
+   * page, and its tabs used to unmount it, draft and all, with the "Unsaved
+   * changes" dock still showing.
+   */
+  leaveRef?: React.RefObject<((go: () => void) => void) | null>;
 }
 
 /** The server stamps snapshots in UTC without a zone marker. */
@@ -73,6 +87,15 @@ function snapshotWhat(snapshot: Snapshot): string {
   return `${n} show${n === 1 ? '' : 's'}`;
 }
 
+/** Why deleting the account did not happen, said so the reader knows what to do next. */
+function deleteFailure(err: unknown): string {
+  const code = (err as ApiError)?.code;
+  if (code === 'stripe_error' || code === 'billing_not_configured') {
+    return 'Your Producer subscription couldn’t be cancelled, so nothing was deleted. Try again in a few minutes.';
+  }
+  return 'Your account couldn’t be deleted just now. Check your connection and try again.';
+}
+
 /** Bytes as something a person reads, for the storage card. */
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -92,6 +115,7 @@ export function Settings({
   lastSavedAt = null,
   username,
   onLogout,
+  onDeleteAccount,
   onRestoreShow,
   onDeleteForever,
   onEmptyTrash,
@@ -99,6 +123,7 @@ export function Settings({
   onListSnapshots,
   onRestoreSnapshot,
   billing,
+  leaveRef,
 }: SettingsProps) {
   const { confirm, confirmDialog } = useConfirm();
   // A remote already paired keeps working on the free plan, so nobody's show
@@ -123,6 +148,12 @@ export function Settings({
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
   const [newProducerName, setNewProducerName] = useState('');
   const [newProducerRole, setNewProducerRole] = useState('');
+  // Deleting the account is armed by typing its name, not by one more tap on
+  // a dialog: there is no undo, and a tap is easy to make without reading.
+  const [deleteTyped, setDeleteTyped] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteArmed = !!username && normalizeUsername(deleteTyped) === normalizeUsername(username);
 
   const totalSpent = (settings.expenses || []).reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
   const remaining = (settings.brandBudget || 0) - totalSpent;
@@ -230,6 +261,14 @@ export function Settings({
     }
     go();
   }
+
+  // Lent again after every render, so the nav asks about the edits as they
+  // stand now, and taken back when the page closes.
+  useEffect(() => {
+    if (!leaveRef) return;
+    leaveRef.current = (go) => { void leave(go); };
+    return () => { leaveRef.current = null; };
+  });
 
   return (
     <div className={`settings${dirty ? ' settings--dirty' : ''}`}>
@@ -790,6 +829,55 @@ export function Settings({
             </button>
           )}
         </div>
+        {onDeleteAccount && username && (
+          <details className="settings__details">
+            <summary className="settings__details-summary">
+              <span className="settings__details-title">Delete account</span>
+              <span className="settings__details-hint">Remove it and everything in it, for good</span>
+            </summary>
+            <div className="settings__details-body">
+              <p className="settings__hint">
+                This deletes your account and everything stored with it: shows, Rolodex, contracts
+                and signed agreements, files, and earlier versions. Links you’ve sent stop working,
+                and a Producer subscription is cancelled straight away. It can’t be undone —
+                download a backup first if you want to keep anything.
+              </p>
+              <label className="section-field">
+                <span className="section-field__label">
+                  Type your username, <strong>{username}</strong>, to confirm
+                </span>
+                <input
+                  className="section-field__input"
+                  value={deleteTyped}
+                  onChange={(e) => setDeleteTyped(e.target.value)}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  disabled={deleteBusy}
+                />
+              </label>
+              {deleteError && <p className="settings__sweep-error" role="alert">{deleteError}</p>}
+              <button
+                className="btn btn--danger btn--sm"
+                disabled={!deleteArmed || deleteBusy}
+                onClick={async () => {
+                  setDeleteBusy(true);
+                  setDeleteError(null);
+                  try {
+                    // On success the app signs out and this page goes with it.
+                    await onDeleteAccount();
+                  } catch (err) {
+                    setDeleteError(deleteFailure(err));
+                    setDeleteBusy(false);
+                  }
+                }}
+              >
+                {deleteBusy ? 'Deleting\u2026' : 'Delete my account'}
+              </button>
+            </div>
+          </details>
+        )}
       </div>
       {/* Every other screen in this app saves itself, so a red button sitting
           permanently mid-page here asked to be pressed for no reason and gave

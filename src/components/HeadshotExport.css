@@ -1,0 +1,21 @@
+/* Headshot download, in the row of lineup tools (.section-mass-message).
+
+   What it has to say goes on a line of its own at the end of the row, after
+   the hint: between the buttons it would push the rest of the row apart. */
+.headshot-export__note {
+  order: 1;
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Somebody's face did not come through. Amber, like a lineup that is short:
+   it is something to chase, not a failure of the whole download. */
+.headshot-export__note--warning {
+  padding: var(--space-1-5) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  color: var(--warning);
+  background: var(--warning-soft);
+}

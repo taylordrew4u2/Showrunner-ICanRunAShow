@@ -407,6 +407,11 @@
   margin: 0;
   color: var(--text);
   white-space: pre-wrap;
+  /* A pasted profile link has no break in it and is wider than a phone. It
+     used to push past the row and be clipped, so the producer could neither
+     read nor copy the handle. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ── The details a signature brought back ─────────────────────────────────

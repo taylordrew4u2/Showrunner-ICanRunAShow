@@ -96,6 +96,10 @@
   margin: 0;
   color: var(--text);
   white-space: pre-wrap;
+  /* Breaks anywhere, so a pasted link wraps instead of being clipped at the
+     edge of a phone. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .perf-contracts__send {

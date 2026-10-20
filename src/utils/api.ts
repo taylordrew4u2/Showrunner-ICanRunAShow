@@ -18,18 +18,36 @@ interface Opts {
   body?: unknown;
   /** Sent as the x-user-id header for authorized routes. */
   authUserId?: string;
-  /** Sent as the x-auth header (client-computed password hash). */
+  /** Sent as the x-auth header (the session's credential, derived from the password). */
   authHash?: string;
   /**
    * How long to wait before giving up, in milliseconds.
    *
-   * Left unset, the deadline is sized to the body (see `timeoutForBody`). A
+   * Left unset, the wait for an answer is sized to the body (see
+   * `timeoutForBody`), and reading that answer once it starts gets
+   * `SUBMIT_TIMEOUT_MS`. A chosen deadline covers the whole request. A
    * signature carrying a headshot is a megabyte of ciphertext, and a megabyte
    * uphill from a basement does not finish in twenty seconds — it was aborted
    * every time, including on every retry, so that signer could never get
    * through at all. Those calls ask for longer explicitly.
    */
   timeoutMs?: number;
+}
+
+/**
+ * Who to tell when the server refuses the credential a request carried.
+ *
+ * Every producer route answers 401 for one reason: the x-auth sent is not the
+ * account's credential (any more). Retrying cannot fix that. The usual cause is
+ * a session saved before the per-account credential existed, on an account
+ * that has since signed in somewhere else and moved over. Told here, once for
+ * every route, so the app can ask for the password again instead of retrying
+ * saves that can never land.
+ */
+let credentialRefused: ((credential: string) => void) | null = null;
+
+export function onCredentialRefused(listener: ((credential: string) => void) | null): void {
+  credentialRefused = listener;
 }
 
 async function request<T>(method: string, path: string, opts: Opts = {}): Promise<T> {
@@ -44,9 +62,20 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
 
   const controller = new AbortController();
   // Ciphertext is ASCII, so the string length is the wire size near enough.
-  const timeout = setTimeout(() => controller.abort(), opts.timeoutMs ?? timeoutForBody(body?.length ?? 0));
+  let timeout = setTimeout(() => controller.abort(), opts.timeoutMs ?? timeoutForBody(body?.length ?? 0));
   try {
     const res = await fetch(path, { method, headers, body, signal: controller.signal });
+    // The server has answered; what is left is reading the answer, and for a
+    // load that is the big part. GET /api/shows carries every show's
+    // ciphertext and GET /api/settings the whole blob, and the twenty seconds
+    // above — which still decide how long to wait for a server that never
+    // answers — also had to cover that download. A big account on venue wifi
+    // was aborted on every launch and every retry, and never loaded at all.
+    // The answer gets what an upload gets.
+    if (opts.timeoutMs === undefined) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+    }
 
     if (res.status === 503) {
       let message: string | undefined;
@@ -68,6 +97,7 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
       const err: ApiError = new Error(parsed?.error || `Request failed (${res.status})`);
       err.status = res.status;
       err.code = parsed?.error;
+      if (res.status === 401 && opts.authHash) credentialRefused?.(opts.authHash);
       throw err;
     }
 

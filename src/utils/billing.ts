@@ -13,7 +13,9 @@ export interface BillingState {
   founder?: boolean;
   status: string | null;
   renewsAt: string | null;
-  /** Whether there's a Stripe customer to open the portal for. */
+  /** When a subscription that was cancelled but is still paid for stops; renewsAt is null then. */
+  endsAt?: string | null;
+  /** Whether there's a subscription to open the Stripe portal for. */
   canManage: boolean;
 }
 
@@ -46,4 +48,24 @@ export async function openBillingPortal(creds: SessionCredentials): Promise<stri
 export function billingReturn(search: string): 'success' | 'cancelled' | null {
   const value = new URLSearchParams(search).get('billing');
   return value === 'success' || value === 'cancelled' ? value : null;
+}
+
+/**
+ * Whether coming back to the app is a reason to look at the plan again.
+ *
+ * After this page sent the producer to Stripe, yes. Neither checkout nor the
+ * billing portal reliably comes back through ?billing=success: the producer
+ * can simply come Back, or finish somewhere this session isn't signed in and
+ * switch back. In the iOS shell, also whenever the account is on the free
+ * plan, since nothing in the app takes payment there and an upgrade can only
+ * have happened on the web meanwhile.
+ * Otherwise nothing will have changed, so there's nothing to ask.
+ */
+export function shouldRecheckPlan({ sentToStripe, nativeShell, freePlan }: {
+  sentToStripe: boolean;
+  nativeShell: boolean;
+  /** Known to be on the free plan, with Stripe set up. */
+  freePlan: boolean;
+}): boolean {
+  return sentToStripe || (nativeShell && freePlan);
 }

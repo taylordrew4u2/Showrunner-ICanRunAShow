@@ -9,7 +9,14 @@
  * Only performers count toward the target. The field is "Performers wanted",
  * and a show can carry artists as well — folding those in would let a bill fill
  * up without a single performer booked.
+ *
+ * Nor do surprise guests. The target is the bill the producer is building to
+ * post, and a guest is booked on top of it — counted in, one surprise would
+ * make the lineup read full with a spot still to fill.
  */
+
+import type { Performer } from '../types';
+import { billedPerformers } from './surpriseGuests';
 
 export interface LineupProgress {
   /** False when no target is set: a lineup with no target has no "full". */
@@ -25,6 +32,11 @@ export interface LineupProgress {
   label: string;
   /** The one-line form for a card: "3 of 5 booked" / "Full · 5 of 5". */
   shortLabel: string;
+}
+
+/** How many on a lineup count toward its target: the bill, not the guests. */
+export function bookedTowardTarget(performers: Pick<Performer, 'surpriseGuest'>[]): number {
+  return billedPerformers(performers).length;
 }
 
 export function lineupProgress(booked: number, target: number | undefined): LineupProgress {

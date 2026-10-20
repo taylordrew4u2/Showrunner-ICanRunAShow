@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  MAX_VIEWER_TRACKS,
   ensureViewerKey,
   generateViewerKey,
   loadViewerKey,
   nextPlaybackAction,
+  planViewerUploads,
   readViewerKeyFromHash,
   splitIntoChunks,
   trimSlice,
@@ -69,6 +71,24 @@ describe('viewer audio keys', () => {
     const first = ensureViewerKey('tok-a');
     expect(ensureViewerKey('tok-a')).toBe(first);
     expect(ensureViewerKey('tok-b')).not.toBe(first);
+  });
+
+  it('publishes under the key saved with the show, whichever device does it', () => {
+    // The laptop made the key at sound check and the link went out with it.
+    // On the night the phone publishes: it has no key of its own, or an old
+    // one, and a fresh key would have left every link already handed out
+    // unable to decode a single track.
+    const storage = stubStorage();
+    storage.set('showrunner:viewerkey:tok-a', 'phone-own-key');
+    expect(ensureViewerKey('tok-a', 'key-saved-with-show')).toBe('key-saved-with-show');
+    stubStorage();
+    expect(ensureViewerKey('tok-a', 'key-saved-with-show')).toBe('key-saved-with-show');
+  });
+
+  it('keeps using a key this device made before keys travelled with the show', () => {
+    const storage = stubStorage();
+    storage.set('showrunner:viewerkey:tok-a', 'older-key');
+    expect(ensureViewerKey('tok-a', undefined)).toBe('older-key');
   });
 
   it('reports no key for a show that has never published', () => {
@@ -163,5 +183,49 @@ describe('what the viewer plays next', () => {
   it('does nothing when the board has published no instruction', () => {
     // A show whose board never turned viewer audio on.
     expect(nextPlaybackAction(null, undefined, downloaded())).toEqual({ action: 'none' });
+  });
+
+  it('stops a running track when the board stops sending instructions', () => {
+    // The board closed, finished the show, or stopped sharing its audio, and
+    // its next publish says nothing about playback. Carrying on would leave
+    // the PA playing a song nobody on the board can stop any more.
+    expect(nextPlaybackAction('a', undefined, downloaded('a'))).toEqual({ action: 'stop' });
+  });
+});
+
+describe('what the board sends to the viewer', () => {
+  const pad = (key: string, src: string) => ({ key, src });
+
+  it('sends a song once, however many pads play it', () => {
+    // Two performers with no walk-on of their own both fall back to the same
+    // library song, which is also on the DJ bank.
+    const { uploads, skipped } = planViewerUploads([
+      pad('performer:ann', 'media:song-1'),
+      pad('performer:bo', 'media:song-1'),
+      pad('dj:library:song-1', 'media:song-1'),
+      pad('cue:outro', 'media:outro'),
+    ]);
+    expect(uploads.map((u) => u.src)).toEqual(['media:song-1', 'media:outro']);
+    expect(uploads[0].pads.map((p) => p.key)).toEqual(['performer:ann', 'performer:bo', 'dj:library:song-1']);
+    expect(uploads[0].mediaId).toBe('t-performer-ann');
+    expect(skipped).toEqual([]);
+  });
+
+  it('keeps to what one viewer link holds, walk-ons and show tracks first', () => {
+    // Twelve acts and a 50-song library: 62 different files.
+    const performers = Array.from({ length: 12 }, (_, i) => pad(`performer:p${i}`, `media:walk-${i}`));
+    const dj = Array.from({ length: 50 }, (_, i) => pad(`dj:library:s${i}`, `media:song-${i}`));
+    const { uploads, skipped } = planViewerUploads([...performers, ...dj]);
+    expect(uploads).toHaveLength(MAX_VIEWER_TRACKS);
+    expect(uploads.slice(0, 12).map((u) => u.src)).toEqual(performers.map((p) => p.src));
+    expect(skipped.map((p) => p.key)).toEqual(['dj:library:s48', 'dj:library:s49']);
+  });
+
+  it('gives a pad whose song is already going the same upload, even past the limit', () => {
+    const many = Array.from({ length: MAX_VIEWER_TRACKS }, (_, i) => pad(`dj:s${i}`, `media:song-${i}`));
+    const { uploads, skipped } = planViewerUploads([...many, pad('performer:late', 'media:song-0')]);
+    expect(uploads).toHaveLength(MAX_VIEWER_TRACKS);
+    expect(uploads[0].pads.map((p) => p.key)).toEqual(['dj:s0', 'performer:late']);
+    expect(skipped).toEqual([]);
   });
 });

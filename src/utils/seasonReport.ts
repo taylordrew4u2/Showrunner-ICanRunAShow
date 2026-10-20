@@ -4,6 +4,7 @@
 import type { Expense, Show } from '../types';
 import { rolodexKey } from './rolodex';
 import { parseShowDate } from './showDate';
+import { daysUntil } from './showsOverview';
 
 export type SeasonRange = 'year' | 'all';
 
@@ -41,12 +42,36 @@ function num(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Money adds up in floating point, where $0.10 + $0.20 is not quite $0.30, so
+// a season that broke even came out a hair either side of zero — "-$0.00" in
+// red. Totals are rounded to the cent before anything reads them. `|| 0` turns
+// a rounded -0 into 0.
+function toCents(value: number): number {
+  return Math.round(value * 100) / 100 || 0;
+}
+
 function inRange(date: string | undefined, range: SeasonRange, year: number): boolean {
   if (range === 'all') return true;
   // An undated show or expense can't be placed in a year, so it only counts
   // toward all time — guessing would put last year's costs on this year.
   const parsed = parseShowDate(date);
   return parsed !== null && parsed.getFullYear() === year;
+}
+
+/**
+ * Whether a night is over: finished, or started and its date gone by.
+ *
+ * Run Show marks a show in progress when it starts, and only "End show"
+ * finishes it. Closed any other way it stays in progress for good —
+ * completePastShows leaves that status alone, since a producer set it — while
+ * its recap opens once the date has passed. Counting by status alone left
+ * those recaps out of every total and listed the night as still to come.
+ */
+function hasRun(show: Show, today: Date): boolean {
+  if (show.status === 'completed') return true;
+  if (show.status !== 'in-progress') return false;
+  const date = parseShowDate(show.date);
+  return date !== null && daysUntil(date, today) < 0;
 }
 
 function rank(counts: Map<string, RankedName>, limit: number): RankedName[] {
@@ -66,7 +91,7 @@ export function buildSeasonReport(
   // be claiming a show that never happened.
   const shows = allShows.filter((s) => !s.sample && inRange(s.date, range, year));
   const live = shows.filter((s) => s.status !== 'cancelled');
-  const completed = shows.filter((s) => s.status === 'completed');
+  const completed = shows.filter((s) => hasRun(s, today));
 
   let audience = 0;
   let withAudience = 0;
@@ -88,7 +113,7 @@ export function buildSeasonReport(
   // deposits were still spent. An upcoming night's costs wait for it to run,
   // or a deposit paid ahead would read as a loss against income not yet earned.
   const showCosts = shows
-    .filter((s) => s.status === 'completed' || s.status === 'cancelled')
+    .filter((s) => hasRun(s, today) || s.status === 'cancelled')
     .reduce((sum, s) => sum + (s.expenses ?? []).reduce((acc, e) => acc + num(e.cost), 0), 0);
 
   const brandSpending = brandExpenses
@@ -129,16 +154,16 @@ export function buildSeasonReport(
   return {
     shows: shows.length,
     run: completed.length,
-    upcoming: shows.filter((s) => s.status === 'upcoming' || s.status === 'in-progress').length,
+    upcoming: shows.filter((s) => (s.status === 'upcoming' || s.status === 'in-progress') && !hasRun(s, today)).length,
     cancelled: shows.length - live.length,
     audience,
     showsWithAudience: withAudience,
     averageAudience: withAudience ? Math.round(audience / withAudience) : 0,
     bestNight,
-    revenue,
-    showCosts,
-    net: revenue - showCosts,
-    brandSpending,
+    revenue: toCents(revenue),
+    showCosts: toCents(showCosts),
+    net: toCents(revenue - showCosts),
+    brandSpending: toCents(brandSpending),
     bookings,
     uniquePerformers: people.size,
     topPerformers: rank(people, 5),
@@ -147,8 +172,11 @@ export function buildSeasonReport(
 }
 
 export function formatMoney(value: number): string {
-  const sign = value < 0 ? '-' : '';
-  const abs = Math.abs(value);
+  // Sign and digits both from the value rounded to the cent: taking the sign
+  // from the raw value printed float dust of -0.00000000000000005 as "-$0.00".
+  const cents = Math.round(value * 100);
+  const sign = cents < 0 ? '-' : '';
+  const abs = Math.abs(cents) / 100;
   // Whole dollars stay whole; anything with cents shows both digits ($12.50,
   // not $12.5), matching the PDF export.
   const digits = Number.isInteger(abs) ? 0 : 2;

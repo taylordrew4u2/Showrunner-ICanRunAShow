@@ -1,18 +1,19 @@
 import CryptoJS from "crypto-js";
 import type { Show, AppSettings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
-import { encryptWithKey, decryptWithKeys, deriveUserId, hashPassword } from "./encryption";
+import { encryptWithKey, decryptWithKeys, deriveAuthKey, deriveUserId, hashPassword } from "./encryption";
 import { normalizeUsername, type SessionCredentials } from "./session-vault";
 import { api, type ApiError } from "./api";
 import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from "./trash";
 import { describeLargestMedia } from "./showSize";
 import { healShow } from "./showHealing";
+import type { DraftLock } from "./pendingStore";
 
 /**
  * Secure storage. All data is encrypted in the browser (the password-derived
  * key never leaves the device); the server API only ever stores/returns opaque
- * ciphertext. The browser sends a derived userId + password hash for routing
- * and authorization, never the raw password.
+ * ciphertext. The browser sends a derived userId + a credential derived from
+ * the password for routing and authorization, never the raw password.
  */
 
 /**
@@ -49,17 +50,19 @@ function readKeys(creds: SessionCredentials): string[] {
 }
 
 /**
- * Create a new account.
+ * Create a new account. It starts on the per-account credential, so the old
+ * SHA-256 hash is never sent for it at all.
  */
 export async function createAccount(
   username: string,
   password: string,
 ): Promise<void> {
+  const userId = getUserId(username);
   try {
     await api.post("/api/auth", {
       action: "signup",
-      userId: getUserId(username),
-      passwordHash: hashPassword(password),
+      userId,
+      authKey: await deriveAuthKey(password, userId),
     });
   } catch (err) {
     if ((err as ApiError).status === 409) throw new Error("ACCOUNT_EXISTS");
@@ -69,17 +72,33 @@ export async function createAccount(
 
 /**
  * Verify account credentials.
+ *
+ * The new credential goes first, alone. Only an account that still holds a
+ * verifier for the old hash answers `legacy`, and only then is the old hash
+ * sent, beside the new one, so the server can check the password the old way
+ * and keep the new credential in its place. Sending both every time would put
+ * the old hash, the one that cracks at SHA-256 speed, on the wire at every
+ * sign-in, for every account, indefinitely.
  */
 export async function authenticateUser(
   username: string,
   password: string,
 ): Promise<boolean> {
-  const res = await api.post<{ ok: boolean }>("/api/auth", {
+  const userId = getUserId(username);
+  const authKey = await deriveAuthKey(password, userId);
+  const res = await api.post<{ ok: boolean; legacy?: boolean }>("/api/auth", {
     action: "login",
-    userId: getUserId(username),
+    userId,
+    authKey,
+  });
+  if (res.ok || !res.legacy) return res.ok;
+  const moved = await api.post<{ ok: boolean }>("/api/auth", {
+    action: "login",
+    userId,
+    authKey,
     passwordHash: hashPassword(password),
   });
-  return res.ok;
+  return moved.ok;
 }
 
 /** One row exactly as the server stores it: an id and an opaque blob. */
@@ -184,7 +203,7 @@ const sha = (value: string) => CryptoJS.SHA256(value).toString();
  * saved for the rest of the night, though nobody else had written. This is how
  * the tab tells its own lost writes from somebody else's.
  */
-interface SentRow { hash: string | null; plain?: string }
+interface SentRow { hash: string | null; plain?: string; plainHash?: string }
 const showsSent = new WeakMap<SessionCredentials, Map<string, SentRow[]>>();
 const settingsSent = new WeakMap<SessionCredentials, string[]>();
 // Enough to cover a lost answer or two; a show being run is saved on every
@@ -195,8 +214,31 @@ function rememberShowSent(creds: SessionCredentials, id: string, cipher: string 
   let sent = showsSent.get(creds);
   if (!sent) { sent = new Map(); showsSent.set(creds, sent); }
   const rows = sent.get(id) ?? [];
-  rows.push({ hash: cipher === null ? null : sha(cipher), plain });
+  rows.push({ hash: cipher === null ? null : sha(cipher), plain, plainHash: plain === undefined ? undefined : sha(plain) });
   sent.set(id, rows.slice(-SENT_MEMORY));
+}
+
+function rememberSettingsSent(creds: SessionCredentials, cipher: string): void {
+  const sent = settingsSent.get(creds) ?? [];
+  settingsSent.set(creds, [...sent, sha(cipher)].slice(-SENT_MEMORY * 4));
+}
+
+/**
+ * The versions of each show this tab has sent, as showBaselineHashes measures
+ * them. A held copy carries these beside the baseline: a save that lands after
+ * the copy was written moves the baseline, and the server then holds this
+ * tab's own edit — which the copy already contains — not somebody else's.
+ * See recoverShowDraft.
+ */
+export function showSentHashes(creds: SessionCredentials): Record<string, string[]> {
+  return Object.fromEntries([...showsSent.get(creds) ?? []].map(([id, rows]) => [
+    id, rows.flatMap(row => row.plainHash === undefined ? [] : [row.plainHash]),
+  ]));
+}
+
+/** The same for settings: every version this tab has sent, or queued to send. */
+export function settingsSentHashes(creds: SessionCredentials): string[] {
+  return [...settingsSent.get(creds) ?? []];
 }
 
 /**
@@ -227,6 +269,39 @@ async function adoptOwnShowWrites(creds: SessionCredentials, baseline: Map<strin
 
 const showCipherCache = new WeakMap<Show, { key: string; cipher: string }>();
 
+/** An object's ciphertext under this session's key, encrypted once however often it is sent or held. */
+function cipherFor<T extends object>(cache: WeakMap<T, { key: string; cipher: string }>, value: T, creds: SessionCredentials): string {
+  let held = cache.get(value);
+  if (!held || held.key !== creds.key) {
+    held = { key: creds.key, cipher: encryptWithKey(value, creds.key) };
+    cache.set(value, held);
+  }
+  return held.cipher;
+}
+
+/**
+ * How this device keeps its held copy of unsaved work: sealed with the
+ * account's own key, as everything sent to the server is, so a copy left in
+ * the browser after sign-out opens only for someone with the password.
+ *
+ * A show list is sealed show by show, with the very ciphers a save sends. The
+ * copy is written on every edit — during Run Show, on every tick — and sealing
+ * the whole list each time would be a whole account's worth of AES per edit;
+ * this way an edit costs the one show it changed, and the save that follows
+ * costs nothing more.
+ */
+export function heldCopyLock(creds: SessionCredentials): DraftLock {
+  const keys = readKeys(creds);
+  return {
+    seal: (data) => Array.isArray(data)
+      ? data.map((show: Show) => cipherFor(showCipherCache, show, creds))
+      : cipherFor(settingsCiphers, data as AppSettings, creds),
+    open: (sealed) => Array.isArray(sealed)
+      ? sealed.map((show: string) => decryptWithKeys(show, keys))
+      : decryptWithKeys(sealed as string, keys),
+  };
+}
+
 /** Save only changes against the version this tab actually loaded. */
 export async function saveEncryptedShows(
   shows: Show[], creds: SessionCredentials, unreadable: EncryptedShowRow[] = [],
@@ -238,12 +313,7 @@ export async function saveEncryptedShows(
     const plain = JSON.stringify(show);
     const previous = baseline.get(show.id);
     if (previous?.plain === plain) { desired.set(show.id, previous); continue; }
-    let cached = showCipherCache.get(show);
-    if (!cached || cached.key !== creds.key) {
-      cached = { key: creds.key, cipher: encryptWithKey(show, creds.key) };
-      showCipherCache.set(show, cached);
-    }
-    desired.set(show.id, { cipher: cached.cipher, plain });
+    desired.set(show.id, { cipher: cipherFor(showCipherCache, show, creds), plain });
   }
   for (const row of unreadable) {
     if (!desired.has(row.id)) desired.set(row.id, { cipher: row.encryptedData });
@@ -440,25 +510,38 @@ export function settingsBaselineHash(creds: SessionCredentials): string | null |
   const cipher = settingsBaselines.get(creds);
   return cipher ? CryptoJS.SHA256(cipher).toString() : null;
 }
+
+/**
+ * Whether a held settings copy was made over what the account holds now: the
+ * version its tab had loaded, or one that tab had sent, or queued, by the time
+ * the copy was written. Either way the copy already contains everything the
+ * account has, and is recovered rather than parked as somebody else's.
+ */
+export function heldOverCurrentSettings(
+  held: { settingsHash?: string | null; settingsSent?: string[] } | undefined,
+  creds: SessionCredentials,
+): boolean {
+  const current = settingsBaselineHash(creds);
+  if (held?.settingsHash === undefined || current === undefined) return false;
+  return held.settingsHash === current || (current !== null && (held.settingsSent ?? []).includes(current));
+}
 const settingsQueues = new WeakMap<SessionCredentials, Promise<void>>();
 const settingsCiphers = new WeakMap<AppSettings, { key: string; cipher: string }>();
 
 /** Serialize this tab's saves; compare against what it actually loaded. */
 export function saveEncryptedSettings(settings: AppSettings, creds: SessionCredentials): Promise<void> {
   const previous = settingsQueues.get(creds) ?? Promise.resolve();
+  // Encrypted and counted as sent now, not when its turn in the queue comes:
+  // a copy held while this save waits behind another one is made over it as
+  // well (see heldOverCurrentSettings). The server can only ever hold it if
+  // it is sent, so counting one that never is costs nothing.
+  const encryptedData = cipherFor(settingsCiphers, settings, creds);
+  rememberSettingsSent(creds, encryptedData);
   const next = previous.catch(() => {}).then(async () => {
     if (!settingsBaselines.has(creds)) throw new Error('Load settings before saving.');
-    let held = settingsCiphers.get(settings);
-    if (!held || held.key !== creds.key) {
-      held = { key: creds.key, cipher: encryptWithKey(settings, creds.key) };
-      settingsCiphers.set(settings, held);
-    }
-    const encryptedData = held.cipher;
     if (encryptedData.length > MAX_SAVE_BYTES) throw new PayloadTooLargeError('Your settings are too large to save. Download a backup before reducing large files. Nothing has been discarded.');
     const before = settingsBaselines.get(creds)!;
     if (before === encryptedData) return;
-    const sent = settingsSent.get(creds) ?? [];
-    settingsSent.set(creds, [...sent, sha(encryptedData)].slice(-SENT_MEMORY * 4));
     async function put(base: string | null) {
       const response = await api.put<{ ok: boolean }>('/api/settings', {
         encryptedData, expectedHash: base === null ? null : sha(base),

@@ -13,6 +13,7 @@ export interface AuditionEngine {
       offsetSec?: number;
       durationSec?: number;
       onEnded: () => void;
+      onReleased: () => void;
     },
   ) => Promise<PlayResult>;
   stop: (opts: { fadeMs: number }) => void;
@@ -32,6 +33,10 @@ const PREVIEW_FADE_MS = 120;
  * and stop() cancels a play still in that stage. Counting from the press meant
  * a short trim on a slow load was stopped before it began: no sound, button
  * back to "Hear it", and a producer concluding the trim was broken.
+ *
+ * Once anything else takes the engine, the audition is over: the cap and the
+ * row's own stop are disarmed. Left armed, they faded out whatever was playing
+ * when they fired — a walk-on pad pressed after "Hear it", cut off mid-entrance.
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function auditionTrim(
@@ -55,6 +60,7 @@ export function auditionTrim(
       offsetSec: trim.startSec,
       durationSec: trim.lengthSec ?? undefined,
       onEnded: finish,
+      onReleased: finish,
     })
     .then((result) => {
       if (over) return;

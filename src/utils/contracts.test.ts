@@ -503,6 +503,14 @@ describe('the Instagram question on a contract', () => {
     expect(fields).toHaveLength(2);
     expect(fields[0].required).toBeUndefined();
   });
+
+  it('does not mistake a Canadian social insurance number either', () => {
+    expect(isInstagramField({ id: 'sin', label: 'Social insurance number' })).toBe(false);
+
+    const fields = withInstagramField([{ id: 'sin', label: 'Social insurance number' }]);
+    expect(fields).toHaveLength(2);
+    expect(fields[0].required).toBeUndefined();
+  });
 });
 
 /**

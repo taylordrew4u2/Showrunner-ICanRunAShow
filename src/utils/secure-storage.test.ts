@@ -2,15 +2,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import CryptoJS from 'crypto-js';
 import {
   exportUserData,
+  heldOverCurrentSettings,
   loadEncryptedSettings,
   saveEncryptedSettings,
   loadEncryptedShows,
   rebaseLoadedShows,
   saveEncryptedShows,
+  settingsBaselineHash,
+  settingsSentHashes,
   showBaselineHashes,
+  showSentHashes,
   type EncryptedShowRow,
 } from './secure-storage';
 import { encryptWithKey } from './encryption';
+import { recoverShowDraft } from './recoverShowDraft';
 import { stripLegacyShowMedia } from './stripMedia';
 import { DEFAULT_SETTINGS, type Show } from '../types';
 import type { SessionCredentials } from './session-vault';
@@ -338,5 +343,82 @@ describe('settings save protection', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ encryptedData: null }) }));
     await loadEncryptedSettings(creds);
     await expect(saveEncryptedSettings(DEFAULT_SETTINGS, creds)).rejects.toThrow('did not confirm');
+  });
+});
+
+describe('a copy held while this tab’s own save was still on its way', () => {
+  // The held copy says what it was made over. That used to be only the
+  // version the tab had loaded, and it moves when a save lands — so a copy
+  // held mid-save carried the version from before, and when the page died
+  // before its own save, the next launch read the tab's own landed save as
+  // somebody else's. Shows came back twice; settings were parked with a
+  // notice that another device had saved first.
+
+  /** Every PUT waits until the test lets it through, then the server keeps what it sent. */
+  function heldPuts() {
+    const releases: (() => void)[] = [];
+    const sent: Record<string, unknown>[] = [];
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_path: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string);
+      return new Promise((resolve) => releases.push(() => {
+        sent.push(body);
+        resolve({ ok: true, status: 200, json: async () => ({ ok: true }) });
+      }));
+    }));
+    return { releases, sent };
+  }
+
+  it('recovers the edited show over that save instead of forking it', async () => {
+    const creds = { ...CREDS };
+    mockGet([row(show({ id: 'a', name: 'Loaded' }))]);
+    const loaded = await loadEncryptedShows(creds);
+    const { releases, sent } = heldPuts();
+    const first = { ...loaded.shows[0], name: 'First edit' };
+    const saving = saveEncryptedShows([first], creds);
+    const held = { draft: [{ ...first, name: 'Second edit' }], showHashes: showBaselineHashes(creds), showsSent: showSentHashes(creds) };
+    releases[0]();
+    await saving;
+
+    // The page dies before the second edit is saved. The next launch:
+    const changes = sent[0].changes as { id: string; encryptedData: string }[];
+    mockGet(changes.map(({ id, encryptedData }) => ({ id, encryptedData })));
+    const server = (await loadEncryptedShows({ ...CREDS })).shows;
+    const recovered = recoverShowDraft(held.draft, server, held.showHashes, held.showsSent);
+    expect(recovered.map((s) => s.name)).toEqual(['Second edit']);
+  });
+
+  it('recovers settings over that save, even one still queued when the copy was held', async () => {
+    const creds = { ...CREDS };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ encryptedData: null }) }));
+    await loadEncryptedSettings(creds);
+    const { releases, sent } = heldPuts();
+    const first = saveEncryptedSettings({ ...DEFAULT_SETTINGS, brandName: 'First' }, creds);
+    const second = saveEncryptedSettings({ ...DEFAULT_SETTINGS, brandName: 'Second' }, creds);
+    // A third edit is held now: the first save in flight, the second waiting its turn.
+    const held = { settingsHash: settingsBaselineHash(creds), settingsSent: settingsSentHashes(creds) };
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    releases[0]();
+    await first;
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    releases[1]();
+    await second;
+
+    const relaunch = { ...CREDS };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ encryptedData: sent[1].encryptedData }) }));
+    await loadEncryptedSettings(relaunch);
+    expect(heldOverCurrentSettings(held, relaunch)).toBe(true);
+  });
+
+  it('still does not recover settings over a version its tab never sent', async () => {
+    const creds = { ...CREDS };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ encryptedData: null }) }));
+    await loadEncryptedSettings(creds);
+    const held = { settingsHash: settingsBaselineHash(creds), settingsSent: settingsSentHashes(creds) };
+
+    const relaunch = { ...CREDS };
+    const elsewhere = encryptWithKey({ ...DEFAULT_SETTINGS, brandName: 'Saved on the laptop' }, CREDS.key);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ encryptedData: elsewhere }) }));
+    await loadEncryptedSettings(relaunch);
+    expect(heldOverCurrentSettings(held, relaunch)).toBe(false);
   });
 });

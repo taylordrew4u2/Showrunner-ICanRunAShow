@@ -138,10 +138,19 @@ export function segmentLength(seconds: number): string {
  * cues with someone on stage. Doors and turnarounds are meant to be short, so
  * including them would report every show as wildly uneven.
  *
+ * The host's cues are left out for the same reason. The generator puts the
+ * host on the welcome, on a one-minute handover before every act and on the
+ * outro, so the shortest "set" was always a handover: an even bill read "Ada
+ * has 10× the time of Hal".
+ *
  * Null when there's nothing to compare — fewer than two sets.
  */
-export function billBalance(segments: TimelineSegment[]): { ratio: number; longest: TimelineSegment; shortest: TimelineSegment } | null {
-  const sets = segments.filter((s) => s.kind === 'set');
+export function billBalance(
+  segments: TimelineSegment[],
+  host?: string,
+): { ratio: number; longest: TimelineSegment; shortest: TimelineSegment } | null {
+  const hostKey = host?.trim().toLowerCase();
+  const sets = segments.filter((s) => s.kind === 'set' && (!hostKey || s.performer?.toLowerCase() !== hostKey));
   if (sets.length < 2) return null;
   let longest = sets[0];
   let shortest = sets[0];

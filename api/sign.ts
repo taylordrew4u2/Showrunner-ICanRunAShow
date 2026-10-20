@@ -114,6 +114,10 @@ export default async function handler(req: Request): Promise<Response> {
       if ((await signTokenOwnership(db, token as string, userId)) === 'other') return json({ error: 'forbidden' }, 403);
       await db.execute({ sql: `DELETE FROM sign_request WHERE token = ?`, args: [token as string] });
       await db.execute({ sql: `DELETE FROM sign_doc WHERE token = ?`, args: [token as string] });
+      // /api/profile-photo takes chunks from whoever holds any unanswered
+      // link, a contract's included, and only profile links ever cleared them.
+      // Every withdrawal clears all three, so none outlive the link.
+      await db.execute({ sql: `DELETE FROM profile_photo WHERE token = ?`, args: [token as string] });
       return json({ ok: true });
     }
 

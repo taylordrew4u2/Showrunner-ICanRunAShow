@@ -34,4 +34,15 @@ describe('naming the fields on the staff form for a screen reader', () => {
     expect(named.length).toBeGreaterThanOrEqual(7);
     for (const tag of named) expect(tag).toMatch(/aria-label=/);
   });
+
+  it('says who the delete button deletes, rather than reading out "times"', () => {
+    // The button's only content is a ×. Without a name of its own, a list of
+    // staff is a column of identical "times" buttons.
+    const html = renderToStaticMarkup(createElement(StaffSection, {
+      staff: [{ id: 's1', role: 'Sound', personName: 'Dana Cole' }],
+      onChange: () => undefined,
+    }));
+    const remove = html.match(/<button[^>]*section-list-item__delete[^>]*>/)?.[0] ?? '';
+    expect(remove).toMatch(/aria-label="Delete Dana Cole \(Sound\)"/);
+  });
 });

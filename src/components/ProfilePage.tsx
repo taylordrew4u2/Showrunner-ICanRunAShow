@@ -4,14 +4,14 @@ import type { ProfileSubmission } from '../types';
 import { Icon } from './Icon';
 import { collectFieldAnswers, missingRequiredFields } from '../utils/contracts';
 import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
+import { openFilePickerOnKey } from '../utils/filePickerKey';
 import { readFileAsDataURL } from '../utils/media';
 import { clearSignerDraft, loadSignerDraft, saveSignerDraft } from '../utils/signerDraft';
 import { isEmail } from '../utils/social';
 import { submitFailureMessage } from '../utils/submitFailure';
 import {
   fetchProfileRequest,
-  submitProfile,
-  uploadProfilePhoto,
+  sendProfile,
   type ProfilePayload,
 } from '../utils/profileLink';
 import './SigningPage.css';
@@ -130,46 +130,27 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
     if (!name || missing.length > 0 || emailProblem || photoBusy) return;
     setPhase('sending');
     setError(null);
-    try {
-      // The photo goes first, because the answers are accepted once and seal
-      // the link. If the photo fails, nothing is sent and they can try again —
-      // sending the answers without it would mean the photo can never follow.
-      let photoChunks = 0;
-      if (headshot) {
-        try {
-          photoChunks = await uploadProfilePhoto(token, profileKey, headshot);
-        } catch {
-          setPhase('ready');
-          setError('Your photo did not go through. Try again, or remove it and send without — nothing has been sent yet.');
-          return;
-        }
-      }
-      const record = await submitProfile(
-        token,
-        profileKey,
-        name,
-        collectFieldAnswers(payload.fields, values),
-        photoChunks,
-      );
-      setSubmitted(record);
+    // Photo first, then the answers; see sendProfile for why, and for why a
+    // failure is checked against the link before it is reported.
+    const result = await sendProfile(
+      token,
+      profileKey,
+      name,
+      collectFieldAnswers(payload.fields, values),
+      headshot,
+    );
+    if ('submitted' in result) {
+      setSubmitted(result.submitted);
       clearSignerDraft(token);
       setPhase('done');
-    } catch (err) {
-      // Same as the signing page: a write that lost its answer is not a write
-      // that failed. "Nothing has been sent yet" was a claim this code was in
-      // no position to make.
-      const landed = await fetchProfileRequest(token, profileKey!).catch(() => null);
-      if (landed?.submitted) {
-        setSubmitted(landed.submitted);
-        clearSignerDraft(token);
-        setPhase('done');
-        return;
-      }
-      setPhase('ready');
+      return;
+    }
+    setPhase('ready');
+    setError('photoFailed' in result
+      ? 'Your photo did not go through. Try again, or remove it and send without — nothing has been sent yet.'
       // Say which thing went wrong, not "check your connection" for all of
       // them — half the reasons have nothing to do with the connection.
-      setError(submitFailureMessage(err));
-    }
+      : submitFailureMessage(result.failed));
   }
 
   if (phase === 'nokey' || phase === 'missing') {
@@ -307,7 +288,12 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
                   <span className="signing__photo-empty" aria-hidden="true"><Icon name="user" size={24} /></span>
                 )}
                 <div className="signing__photo-actions">
-                  <label className="btn btn--secondary btn--sm signing__photo-pick">
+                  <label
+                    role="button"
+                    tabIndex={0}
+                    className="btn btn--secondary btn--sm signing__photo-pick"
+                    onKeyDown={openFilePickerOnKey}
+                  >
                     {photoBusy ? 'Adding…' : headshot ? 'Choose a different one' : 'Add a photo'}
                     <input
                       type="file"

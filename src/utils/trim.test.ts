@@ -21,6 +21,13 @@ describe('parseTimecode', () => {
     expect(parseTimecode('1:23.5')).toBe(83.5);
   });
 
+  it('takes the last half second of a minute', () => {
+    // 59.5 is still inside the minute; only a whole 60 or more is a typo.
+    expect(parseTimecode('1:59.5')).toBe(119.5);
+    expect(parseTimecode('2:59.5')).toBe(179.5);
+    expect(parseTimecode('1:60')).toBeNull();
+  });
+
   it('rejects what is not a time rather than guessing at it', () => {
     expect(parseTimecode('')).toBeNull();
     expect(parseTimecode('chorus')).toBeNull();
@@ -43,9 +50,23 @@ describe('formatTimecode', () => {
   });
 
   it('round-trips with the parser', () => {
-    for (const s of ['0:47', '1:23', '10:00', '1:02:03']) {
+    for (const s of ['0:47', '1:23', '10:00', '1:02:03', '1:23.5', '2:59.5', '0:00.25', '1:02:03.5']) {
       expect(formatTimecode(parseTimecode(s)!)).toBe(s);
     }
+  });
+
+  it('keeps a fraction of a second rather than rounding it away', () => {
+    // The trim fields show this and commit it again on every blur. Printed
+    // as 1:24, an in-point of 1:23.5 became 84 the next time the producer
+    // tapped out of the box, and the box showed a time the button never played.
+    expect(formatTimecode(83.5)).toBe('1:23.5');
+    expect(formatTimecode(47.05)).toBe('0:47.05');
+    expect(parseTimecode(formatTimecode(83.5))).toBe(83.5);
+  });
+
+  it('carries a fraction that rounds up into the next second', () => {
+    expect(formatTimecode(59.9996)).toBe('1:00');
+    expect(formatTimecode(3599.9999)).toBe('1:00:00');
   });
 });
 

@@ -205,6 +205,9 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
             ) : (
               <div
                 className={`perf-profile__dropzone${audioDrag ? ' perf-profile__dropzone--active' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-label="Upload walk-on audio file"
                 onDragOver={e => e.preventDefault()}
                 onDragEnter={() => setAudioDrag(true)}
                 onDragLeave={() => setAudioDrag(false)}
@@ -212,6 +215,13 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
                   onChange({ ...artist, walkOnMusic: result, walkOnMusicName: file.name }), setAudioDrag)}
                 onClick={() => pickFile('audio/*', (result, file) =>
                   onChange({ ...artist, walkOnMusic: result, walkOnMusicName: file.name }))}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    pickFile('audio/*', (result, file) =>
+                      onChange({ ...artist, walkOnMusic: result, walkOnMusicName: file.name }));
+                  }
+                }}
               >
                 <span className="perf-profile__dropzone-label">
                   {audioDrag ? 'Drop audio file' : 'Drag & drop or click to upload'}
@@ -223,8 +233,9 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
 
           {/* Video */}
           <div className="perf-profile__media-tile">
-            <p className="perf-profile__media-label">Video</p>
+            <label className="perf-profile__media-label" htmlFor={`${fieldId}-video-link`}>Video link</label>
             <input
+              id={`${fieldId}-video-link`}
               className="perf-profile__input perf-profile__video-link"
               value={artist.videoLink || ''}
               onChange={e => onChange({ ...artist, videoLink: e.target.value.trim() || undefined })}

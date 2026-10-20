@@ -45,18 +45,33 @@ interface Token {
 }
 
 /**
- * A time, as loosely as one gets written: "9", "9:", "9:00", "9pm", "9:00 P.M.".
+ * A time, as loosely as one gets written: "9", "9:", "9:00", "9pm", "9:00 P.M.",
+ * and the way the rest of the world writes it, "7.30pm", "20.30", "19h30".
+ * Read with only the colon, "7.30pm" lost its minutes and its pm: the 7 was
+ * taken as a bare hour and the "30pm" thrown away as hour thirty.
  *
  * One pattern rather than several, because two passes let "9:00" be matched by
  * the colon rule and its " PM" then be read as a separate thing — which turns
  * a nine o'clock show into a nine in the morning one.
  *
  * The edges rule out the numbers that share a field with a show time and are
- * not one: "$10" is the ticket, "21+" the age limit, "9/12" and "12th" the
- * date. Left in, the last of them wins as the show and the field rewrites
- * itself to nine or ten at night.
+ * not one: "$10" is the ticket, "21+" the age limit, "9/12", "19.10.2026"
+ * and "12th" the date. Left in, the last of them wins as the show and the
+ * field rewrites itself to nine or ten at night.
+ *
+ * The leading edge is checked in timeMatches rather than written here as a
+ * lookbehind: Safari before 16.4 cannot parse one, and a regex it cannot parse
+ * stops the whole script this file is bundled into from running.
+ *
+ * Groups: hour, then the minutes after a colon, a dot or an h, then am/pm.
  */
-const TOKEN = /(?<![\d$/])(\d{1,2})(?:\s*:\s*(\d{2})?)?\s*(a\.?m\.?|p\.?m\.?)?(?![\d+%/]|(?:st|nd|rd|th)\b)/gi;
+const TOKEN = /(\d{1,2})(?:\s*:\s*(\d{2})?|\.(\d{2})(?!\d|\.\d)|h(\d{2})(?!\d))?\s*(a\.?m\.?|p\.?m\.?)?(?![\d+%/]|\.\d|(?:st|nd|rd|th)\b)/gi;
+
+/**
+ * What may not sit right before a time: a digit, the "$", "£", "€" or "/" of
+ * a price or date, or the "7." of "$7.15", whose cents are not a quarter past.
+ */
+const NOT_AFTER = /(?:[\d$£€/]|\d\.)$/;
 
 /** "Sept 12" or "12 Sept": the number beside a month is a day, not a time. */
 const MONTH = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
@@ -66,8 +81,15 @@ const MONTH_AFTER = new RegExp(`^\\s*${MONTH}\\b`, 'i');
 /** What joins the two ends of a range: "8-10pm", "8 to 10pm", "8pm – 10". */
 const RANGE_JOIN = /^\s*(?:[-–—]|to|till|until|thru|through)\s*$/i;
 
-const DOORS_WORDS = /doors?|house\s*opens?/gi;
-const SHOW_WORDS = /show(?:time)?|starts?|curtain|first\s*act|begins?/gi;
+/**
+ * A label takes the little words that lead from it to its own time — "doors
+ * open at 7", "show @ 8" — as part of itself. Left outside it, they put
+ * distance between a label and its time: in "Doors at 7pm, show at 8pm" the
+ * 7pm sat nearer "show" than "Doors", both times were called the show, the
+ * first one won, and the night was saved an hour early.
+ */
+const DOORS_WORDS = /(?:doors?(?:\s+open(?:s|ing)?)?|house\s*opens?)(?:\s+(?:at|from)\b|\s*@)?/gi;
+const SHOW_WORDS = /(?:show(?:time)?|starts?|curtain|first\s*act|begins?)(?:\s+(?:at|from)\b|\s*@)?/gi;
 
 const LABEL_REACH = 16;
 
@@ -118,14 +140,38 @@ function roleFor(labels: Label[], from: number, to: number): Token['role'] {
   return best?.role ?? null;
 }
 
+/**
+ * Every match of TOKEN that does not start right after one of NOT_AFTER. A
+ * match that does is retried one character on, which finds exactly what a
+ * lookbehind on the pattern itself would have.
+ */
+function* timeMatches(text: string): Generator<RegExpExecArray> {
+  const pattern = new RegExp(TOKEN.source, TOKEN.flags);
+  let m: RegExpExecArray | null;
+  while ((m = pattern.exec(text))) {
+    if (NOT_AFTER.test(text.slice(Math.max(0, m.index - 2), m.index))) {
+      pattern.lastIndex = m.index + 1;
+      continue;
+    }
+    yield m;
+  }
+}
+
 function readTokens(text: string): Token[] {
   const labels = readLabels(text);
   const found: Token[] = [];
 
-  for (const m of text.matchAll(TOKEN)) {
+  for (const m of timeMatches(text)) {
     const hour = parseInt(m[1], 10);
-    const minutes = m[2] ? parseInt(m[2], 10) : 0;
+    const written = m[2] ?? m[3] ?? m[4];
+    const minutes = written ? parseInt(written, 10) : 0;
+    const meridiem = m[5];
     if (hour > 23 || minutes > 59) continue;
+    // A dot writes the date as well as the time: "19.10" is as likely the
+    // nineteenth of October as ten past seven. Past :12 it cannot be a month,
+    // and with a pm beside it it cannot be a date; otherwise it is left alone
+    // rather than read as a show time nobody meant.
+    if (m[3] && !meridiem && minutes >= 1 && minutes <= 12) continue;
     const from = m.index ?? 0;
     // The meridiem is optional but the space before it is not, so "8:30 Show"
     // matches with a trailing space — which pushes the token's span up against
@@ -139,7 +185,7 @@ function readTokens(text: string): Token[] {
       // "PM", "p.m." and "p" all mean the same thing; only the first letter
       // carries it. Comparing the written form against 'pm' matches nothing
       // and quietly turns a nine o'clock show into nine in the morning.
-      meridiem: m[3] ? (m[3][0].toLowerCase() === 'p' ? 'pm' : 'am') : null,
+      meridiem: meridiem ? (meridiem[0].toLowerCase() === 'p' ? 'pm' : 'am') : null,
       role: roleFor(labels, from, to),
       rangeEnd: !!previous && !previous.rangeEnd && RANGE_JOIN.test(text.slice(previous.to, from)),
       to,

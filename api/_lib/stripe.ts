@@ -56,7 +56,7 @@ export function encodeForm(params: Record<string, unknown>, prefix = ''): string
   return out;
 }
 
-export async function stripe<T>(method: 'GET' | 'POST', path: string, params?: Record<string, unknown>): Promise<T> {
+export async function stripe<T>(method: 'GET' | 'POST' | 'DELETE', path: string, params?: Record<string, unknown>): Promise<T> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new BillingNotConfiguredError();
   const body = params ? encodeForm(params).join('&') : undefined;
@@ -128,11 +128,22 @@ export interface StripeSubscription {
   customer: string;
   status: string;
   metadata?: Record<string, string>;
+  /** When Stripe made it, in Unix seconds. */
+  created?: number;
   /** Top-level on older API versions; moved onto each item in 2025. */
   current_period_end?: number;
   items?: { data?: { current_period_end?: number }[] };
+  /** Set by the portal's default cancel: still active, but stops at the period's end. */
+  cancel_at_period_end?: boolean;
+  /** When a subscription set to stop will stop, if that is a date of its own. */
+  cancel_at?: number | null;
 }
 
 export function periodEnd(sub: StripeSubscription): number | null {
   return sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end ?? null;
+}
+
+/** When a subscription that has been cancelled stops, or null while it renews. */
+export function cancelAt(sub: StripeSubscription): number | null {
+  return sub.cancel_at ?? (sub.cancel_at_period_end ? periodEnd(sub) : null);
 }

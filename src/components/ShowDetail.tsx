@@ -23,12 +23,14 @@ import { Modal } from './Modal';
 import { exportShowToPDF } from '../utils/pdfExport';
 import { parseShowDate, formatShowTime, showStartISO } from '../utils/showDate';
 import { daysUntil } from '../utils/showsOverview';
-import { joinNames, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
-import { publishLiveView, type LiveViewPayload } from '../utils/liveView';
+import { joinNames, performersSummary, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
+import { boardHoldsRoom, fetchLiveView, livePublisher, publicLineup, type LiveViewPayload } from '../utils/liveView';
+import { isSurpriseGuest, SURPRISE_GUEST_LABEL } from '../utils/surpriseGuests';
 import { loadColorScheme } from '../utils/theme';
 import { useMediaUrl } from '../utils/useMediaUrl';
 import { BrandMark } from './BrandMark';
 import { showDJSongs } from '../utils/musicLibrary';
+import { withWalkOnSongs, withoutRemovedWalkOns } from '../utils/walkOnSongs';
 import { getRolodexTerm } from '../utils/terminology';
 import { hostChoices } from '../utils/hostChoices';
 import { refreshSignatures, signerStatus } from '../utils/contracts';
@@ -42,7 +44,7 @@ import {
   type RecurrencePattern,
 } from '../utils/recurrence';
 import type { SessionCredentials } from '../utils/session-vault';
-import { loadViewerKey, viewerUrl as buildViewerUrl } from '../utils/viewerAudio';
+import { ensureViewerKey, loadViewerKey, viewerUrl as buildViewerUrl } from '../utils/viewerAudio';
 import './ShowDetail.css';
 import { useConfirm } from './useConfirm';
 import { ProducerLock } from './ProducerLock';
@@ -120,7 +122,7 @@ function LineupPreview({ performer, onOpen }: { performer: Performer; onOpen: ()
   const photo = useMediaUrl(performer.photo);
   return <button className="show-workspace__person" onClick={onOpen} aria-label={`Open ${performer.name}'s profile`}>
     {photo ? <img src={photo} alt="" /> : <span className="show-workspace__initial avatar-tint" style={avatarTint(performer.name)}>{performer.name.charAt(0).toUpperCase()}</span>}
-    <span><strong>{performer.name}</strong>{performer.socialMedia && <small>{performer.socialMedia}</small>}{performer.walkOnMusicName && <small>{performer.walkOnMusicName}</small>}{!performer.socialMedia && !performer.walkOnMusicName && <small>Edit profile & headshot</small>}</span>
+    <span><strong>{performer.name}</strong>{isSurpriseGuest(performer) && <small className="surprise-mark">{SURPRISE_GUEST_LABEL}</small>}{performer.socialMedia && <small>{performer.socialMedia}</small>}{performer.walkOnMusicName && <small>{performer.walkOnMusicName}</small>}{!performer.socialMedia && !performer.walkOnMusicName && <small>Edit profile & headshot</small>}</span>
     <Icon name="edit" size={15} />
   </button>;
 }
@@ -208,6 +210,11 @@ export function ShowDetail({
   // section to open that profile. Counted rather than remembered: the section
   // used to be keyed on the id, which remounted it — and dropped an open
   // profile's unsaved edits — every time any other section was toggled.
+  //
+  // Withdrawn whenever the section closes. Its content unmounts while it is
+  // shut and mounts again on whatever request is still standing, so a face
+  // tapped long ago opened that profile again on every later visit, over the
+  // add form the producer had come for.
   const [openProfile, setOpenProfile] = useState<{ id: string; seq: number } | undefined>();
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(startInRunShow);
@@ -284,17 +291,40 @@ export function ShowDetail({
 
   // Keep the public viewer's pre-show lineup current: whenever an upcoming show's
   // lineup or details change, re-publish the scheduled payload (debounced). Skipped
-  // while running so it never clobbers the live on-stage state RunShow publishes.
+  // while running so it never clobbers the live on-stage state RunShow publishes —
+  // and that includes a board on another device, which "upcoming" and this
+  // device's Run Show being closed say nothing about. See boardHoldsRoom.
   useEffect(() => {
     if (!show.viewToken || show.status !== 'upcoming' || runShowOpen) return;
-    const timeout = setTimeout(() => {
-      if (session) {
-        publishLiveView(show.viewToken!, buildScheduledPayload(show.viewNote), session).catch(() => {});
-      }
+    const token = show.viewToken;
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      if (!session) return;
+      const publisher = livePublisher(token);
+      // Unreachable means unknown, and the pre-show screen can wait for the
+      // next edit; a board on stage that it covered could not.
+      const current = await fetchLiveView(token).catch(() => undefined);
+      if (cancelled || current === undefined || boardHoldsRoom(current, Date.now(), publisher.last())) return;
+      publisher.publish(buildScheduledPayload(show.viewNote), session);
     }, 1000);
-    return () => clearTimeout(timeout);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers, session]);
+
+  // A key this device made before keys travelled with the show goes onto the
+  // show as soon as the show is opened here — not only once the viewer link
+  // panel is. Until it does, a device that never had it makes a key of its own
+  // the first time it needs one, every device then uses that, and every link
+  // this device already handed out stops decoding. See ensureViewerKey.
+  useEffect(() => {
+    if (!show.viewToken || show.viewerKey) return;
+    const own = loadViewerKey(show.viewToken);
+    if (own) onUpdate({ ...show, viewerKey: own });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show.viewToken, show.viewerKey]);
 
   // Show the recap once the show is done — either explicitly marked completed
   // or its date has passed. By local day: `new Date('YYYY-MM-DD')` is UTC
@@ -328,6 +358,12 @@ export function ShowDetail({
   const runnableDJSongs = djSongs;
 
   function openViewer() {
+    // A link made before the audio key travelled with the show gets one now —
+    // this device's own if it has one, so the links it already gave out keep
+    // working — before anybody copies it.
+    if (show.viewToken && !show.viewerKey) {
+      onUpdate({ ...show, viewerKey: ensureViewerKey(show.viewToken) });
+    }
     setViewerNoteDraft(show.viewNote ?? '');
     setViewerCopied(false);
     setViewerCopyFailed(false);
@@ -406,49 +442,18 @@ export function ShowDetail({
     const base = showRef.current;
     const merged = { ...base, ...updates };
 
-    // Auto-add walk-on music to DJ list when performers/artists get new songs
+    // Keep each performer's and artist's walk-on on the DJ list, in step with
+    // their song and their name, and off it once they are off the show.
     if (updates.performers || updates.artists) {
-      const previousPerformers = base.performers;
-      const previousArtists = base.artists;
-      const newPerformers = merged.performers;
-      const newArtists = merged.artists;
-      const newDJSongs = [...merged.djSongs];
-
-      for (const p of newPerformers) {
-        const prev = previousPerformers.find((pp) => pp.id === p.id);
-        if (p.walkOnMusicName && p.walkOnMusicName !== prev?.walkOnMusicName) {
-          const alreadyExists = newDJSongs.some(
-            (s) => s.notes === `Walk-on: ${p.name}`,
-          );
-          if (!alreadyExists) {
-            newDJSongs.push({
-              id: generateId(),
-              title: p.walkOnMusicName.replace(/\.[^.]+$/, ''),
-              artist: p.name,
-              notes: `Walk-on: ${p.name}`,
-            });
-          }
-        }
-      }
-
-      for (const a of newArtists) {
-        const prev = previousArtists.find((pa) => pa.id === a.id);
-        if (a.walkOnMusicName && a.walkOnMusicName !== prev?.walkOnMusicName) {
-          const alreadyExists = newDJSongs.some(
-            (s) => s.notes === `Walk-on: ${a.name}`,
-          );
-          if (!alreadyExists) {
-            newDJSongs.push({
-              id: generateId(),
-              title: a.walkOnMusicName.replace(/\.[^.]+$/, ''),
-              artist: a.name,
-              notes: `Walk-on: ${a.name}`,
-            });
-          }
-        }
-      }
-
-      merged.djSongs = newDJSongs;
+      merged.djSongs = withoutRemovedWalkOns(
+        withWalkOnSongs(
+          withWalkOnSongs(merged.djSongs, base.performers, merged.performers),
+          base.artists,
+          merged.artists,
+        ),
+        [...base.performers, ...base.artists],
+        [...merged.performers, ...merged.artists],
+      );
     }
 
     // Two edits in the same tick — the generator writing a running order and
@@ -461,6 +466,7 @@ export function ShowDetail({
 
   function handleHideSection(sectionKey: SectionKey) {
     const hidden = show.hiddenSections || [];
+    if (sectionKey === 'performers') setOpenProfile(undefined);
     if (!hidden.includes(sectionKey)) {
       onUpdate({ ...show, hiddenSections: [...hidden, sectionKey] });
     }
@@ -500,6 +506,7 @@ export function ShowDetail({
     const newExpanded = new Set(expandedSections);
     if (newExpanded.has(sectionKey)) {
       newExpanded.delete(sectionKey);
+      if (sectionKey === 'performers') setOpenProfile(undefined);
     } else {
       newExpanded.add(sectionKey);
     }
@@ -523,19 +530,19 @@ export function ShowDetail({
   }
 
   function viewerUrl(token: string): string {
-    // Carries this show's audio key in the fragment once Run Show has published
-    // a board to the viewer — without it the viewer can still show the running
-    // order, it just can't decode the music. The fragment never leaves the
-    // browser, so the server storing that audio still can't read it.
-    return buildViewerUrl(window.location.origin, token, loadViewerKey(token));
+    // Carries this show's audio key in the fragment — without it the viewer
+    // can still show the running order, it just can't decode the music. The
+    // key is saved with the show from the moment there is a link, so a link
+    // copied in the afternoon plays what the board sends at doors, from
+    // whichever device sends it. The fragment never leaves the browser, so the
+    // server storing that audio still can't read it.
+    return buildViewerUrl(window.location.origin, token, show.viewerKey ?? loadViewerKey(token));
   }
 
-  // The lineup the public viewer shows pre-show — performers in their list order.
+  // The lineup the public viewer shows pre-show — performers in their list
+  // order, surprise guests left off (see publicLineup).
   function buildLineup(): LiveViewPayload['lineup'] {
-    return show.performers.map((p) => ({
-      name: p.name,
-      credits: p.credits,
-    }));
+    return publicLineup(show.performers);
   }
 
   function buildScheduledPayload(note: string | undefined): LiveViewPayload {
@@ -550,7 +557,7 @@ export function ShowDetail({
     };
   }
 
-  async function handleSaveViewer() {
+  function handleSaveViewer() {
     let token = show.viewToken;
     let updates: Partial<Show> = { viewNote: viewerNoteDraft.trim() || undefined };
     if (!token) {
@@ -560,10 +567,10 @@ export function ShowDetail({
       token = generateId();
       updates = { ...updates, viewToken: token };
     }
+    // The audio key is made with the link — see viewerUrl.
+    if (!show.viewerKey) updates = { ...updates, viewerKey: ensureViewerKey(token) };
     onUpdate({ ...show, ...updates });
-    try {
-      if (session) await publishLiveView(token, buildScheduledPayload(viewerNoteDraft), session);
-    } catch { /* ignore */ }
+    if (session) livePublisher(token).publish(buildScheduledPayload(viewerNoteDraft), session);
   }
 
   function handleCopyViewer() {
@@ -621,7 +628,7 @@ export function ShowDetail({
       subtitle: 'Names, walk-on music, and social media.',
       accent: 'rose',
       count: show.performers.length,
-      preview: joinNames(show.performers.map((p) => p.name)),
+      preview: performersSummary(show.performers),
       content: <PerformersSection
         openProfile={openProfile}
         performers={show.performers}
@@ -683,6 +690,7 @@ export function ShowDetail({
       count: show.schedule.length,
       preview: scheduleSummary(show.schedule),
       content: <ScheduleSection
+        showId={show.id}
         schedule={show.schedule}
         showName={show.name}
         showTime={show.time}
@@ -941,7 +949,7 @@ export function ShowDetail({
         <div className="show-workspace__brand"><BrandMark /><span>I Can Run A Show</span></div>
         <button className="show-workspace__nav-back" onClick={onBack}>← All shows</button>
         <nav aria-label="Show sections">
-          <button onClick={() => { setExpandedSections(new Set()); heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><Icon name="file" size={17} />Overview</button>
+          <button onClick={() => { setExpandedSections(new Set()); setOpenProfile(undefined); heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><Icon name="file" size={17} />Overview</button>
           {visibleSections.map(section => <button key={section.key} aria-expanded={expandedSections.has(section.key)} aria-controls={`show-section-panel-${section.key}`} onClick={() => jumpToSection(section.key)}>
             <Icon name={SECTION_ICONS[section.key] ?? 'file'} size={17} />{section.title}
           </button>)}
@@ -1158,7 +1166,7 @@ export function ShowDetail({
         </div>
         {renderSection(scheduleSection)}
         {!expandedSections.has('schedule') && <>
-        {show.schedule.length > 0 && <ShowTimeline schedule={show.schedule} showTime={show.time} />}
+        {show.schedule.length > 0 && <ShowTimeline schedule={show.schedule} showTime={show.time} host={show.host} />}
         {show.schedule.length ? <ol>
           {show.schedule.map((cue, index) => <li key={cue.id}>
             <span className="show-workspace__cue-number">{String(index + 1).padStart(2, '0')}</span>
@@ -1185,6 +1193,8 @@ export function ShowDetail({
           showName={show.name}
           showId={show.id}
           viewToken={show.viewToken}
+          viewerKey={show.viewerKey}
+          onViewerKey={(viewerKey) => onUpdate({ ...show, viewerKey })}
           schedule={show.schedule}
           performers={show.performers}
           djSongs={runnableDJSongs}
@@ -1348,11 +1358,15 @@ export function ShowDetail({
                 </button>
               </div>
             ) : null}
-            {show.viewToken && viewerCopyFailed ? (
+            {show.viewToken && viewerCopyFailed && (
               <p className="viewer-link-modal__hint" role="status">
                 Couldn't reach the clipboard — the link is selected above, so copy it by hand.
               </p>
-            ) : (
+            )}
+            {/* Only while there is no link, and only for someone who can make
+                one. Under an existing link it read as if the link were not
+                there yet; on the free plan there is no save button to press. */}
+            {!show.viewToken && !producerLocked && (
               <p className="viewer-link-modal__hint">
                 Save to generate the link.
               </p>

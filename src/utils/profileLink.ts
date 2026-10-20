@@ -233,6 +233,54 @@ export async function submitProfile(
 }
 
 /**
+ * What pressing Send came to. `photoFailed` means the headshot did not go
+ * through and, the link being still unanswered, nothing else was sent either.
+ */
+export type ProfileSendResult =
+  | { submitted: ProfileSubmission }
+  | { photoFailed: true }
+  | { failed: unknown };
+
+/**
+ * Send the photo, then the answers, and settle what actually happened.
+ *
+ * The photo goes first, because the answers are accepted once and seal the
+ * link. If the photo fails, nothing is sent and they can try again — sending
+ * the answers without it would mean the photo can never follow.
+ *
+ * Whichever step fails, the link is read back before a failure is reported,
+ * as the signing page does: a write that lost its answer is not a write that
+ * failed. That includes the photo. Once an earlier press has sealed the link,
+ * the server refuses the photo, so a reply lost on the way back used to turn
+ * every later press into "nothing has been sent yet" while the producer
+ * already had the answers.
+ */
+export async function sendProfile(
+  token: string,
+  key: string,
+  typedName: string,
+  fields: { label: string; value: string }[],
+  headshot: string | null,
+): Promise<ProfileSendResult> {
+  const landed = () => fetchProfileRequest(token, key).then((view) => view?.submitted ?? null, () => null);
+  let photoChunks = 0;
+  if (headshot) {
+    try {
+      photoChunks = await uploadProfilePhoto(token, key, headshot);
+    } catch {
+      const submitted = await landed();
+      return submitted ? { submitted } : { photoFailed: true };
+    }
+  }
+  try {
+    return { submitted: await submitProfile(token, key, typedName, fields, photoChunks) };
+  } catch (err) {
+    const submitted = await landed();
+    return submitted ? { submitted } : { failed: err };
+  }
+}
+
+/**
  * Pull the headshot back and open it, for the producer.
  *
  * Null when there is none, or when any chunk fails — a photo with a chunk

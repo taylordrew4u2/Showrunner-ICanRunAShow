@@ -52,6 +52,22 @@ export function showMediaRefs(show: Show): string[] {
 }
 
 /**
+ * Every media reference a show would still play, borrowed or not.
+ *
+ * `showMediaRefs` answers "what did this show own", which is the right set of
+ * candidates when it goes. It is the wrong set for "is this file still in
+ * use": a library row trimmed in a show is copied into it with its libraryId
+ * kept, and once the track leaves the library that copy is the only thing
+ * holding the audio. Removing the track keeps the file precisely because the
+ * show still plays it, so liveness counts every DJ song whoever owns it.
+ */
+function showLiveRefs(show: Show): string[] {
+  const refs = new Set(showMediaRefs(show));
+  for (const song of show.djSongs ?? []) push(refs, song.music);
+  return [...refs];
+}
+
+/**
  * Every media reference reachable from account-level data.
  *
  * Trash counts: a show in the trash can be restored, and restoring it to find
@@ -74,7 +90,7 @@ export function settingsMediaRefs(settings: AppSettings): string[] {
   // picture years later does not rewrite what they signed.
   for (const request of settings.signatureRequests ?? []) push(refs, request.signed?.headshot);
   for (const item of settings.trash ?? []) {
-    if (item.data) for (const ref of showMediaRefs(item.data)) refs.add(ref);
+    if (item.data) for (const ref of showLiveRefs(item.data)) refs.add(ref);
   }
   return [...refs];
 }
@@ -93,7 +109,7 @@ export function orphanedRefs(
 ): string[] {
   const live = new Set<string>(settingsMediaRefs(settings));
   for (const show of shows) {
-    for (const ref of showMediaRefs(show)) live.add(ref);
+    for (const ref of showLiveRefs(show)) live.add(ref);
   }
   const seen = new Set<string>();
   return candidates.filter((ref) => {
@@ -135,7 +151,7 @@ export function liveMediaIds(shows: Show[], settings: AppSettings): Set<string> 
     if (parsed) ids.add(parsed.id);
   };
   for (const ref of settingsMediaRefs(settings)) add(ref);
-  for (const show of shows) for (const ref of showMediaRefs(show)) add(ref);
+  for (const show of shows) for (const ref of showLiveRefs(show)) add(ref);
   return ids;
 }
 

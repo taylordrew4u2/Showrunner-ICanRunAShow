@@ -3,6 +3,7 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { sharedLinkPage, sharedLinkPageName, type SharedLinkKind } from './src/utils/sharedLink'
+import { NAVIGATE_FALLBACK_DENYLIST } from './src/utils/navigationFallback'
 
 /**
  * Emit one page per kind of sent link beside `index.html`: the same app, with
@@ -76,14 +77,27 @@ export default defineConfig({
         // than a request to Google — without it in the precache, an offline
         // launch would fall back to a system face and every weight, width and
         // line-height in the design would shift.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        //
+        // mjs and wasm are PDF.js's worker and its image decoders. Without
+        // them, reading a PDF for the first time offline failed with PDF.js's
+        // own error, though the rest of the import was precached. The worker
+        // is about 1.3MB, under Workbox's 2MiB limit per file.
+        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,woff2,wasm}'],
         // ...but not all seven subsets. Precaching every script cost 217KiB on
         // every install to guarantee glyphs almost no one here will render —
         // this is an app for comedy, drag and burlesque producers, and latin
         // plus latin-ext covers the names they book. The other four are still
         // served by this origin and still cached once fetched; they are simply
         // not paid for up front by everybody.
-        globIgnores: ['**/fonts/inter-{greek,greek-ext,cyrillic,cyrillic-ext,vietnamese}.woff2'],
+        globIgnores: [
+          '**/fonts/inter-{greek,greek-ext,cyrillic,cyrillic-ext,vietnamese}.woff2',
+          // The iOS shell's error page (server.errorPath in capacitor.config.ts).
+          // The shell serves it from its own bundle, never through this
+          // worker, so precaching it would be a download nobody uses.
+          'offline.html',
+        ],
+        // Addresses the host answers itself, not the app. See navigationFallback.
+        navigateFallbackDenylist: NAVIGATE_FALLBACK_DENYLIST,
       },
     }),
     sharedLinkPagePlugin(),

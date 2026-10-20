@@ -2,7 +2,9 @@
 
 ## Security model
 
-- Passwords are never stored. A PBKDF2-derived key is used for encryption, and a separate hash is used for authentication
+- Passwords are never stored or sent. A PBKDF2-derived key is used for encryption. Authentication uses a separate credential: PBKDF2-SHA256 in WebCrypto, 210k iterations, salted per account and labelled apart from the encryption key, so it is never a cheaper way to the password than the ciphertext is
+- Accounts made before that credential held a single SHA-256 of the password. Each moves over at its next sign-in from a current build: the old hash is sent once, checked, and replaced. From then on it opens nothing, and a device still holding it is sent back to sign-in with its unsaved work kept
+- New accounts need a password of at least 8 characters
 - All show data and settings are encrypted with AES (crypto-js) in the browser before being written to Turso
 - The database is reached only through server-side API routes; the Turso credential is a server environment variable and never ships in the client bundle
 - The stored auth credential is a per-user salted, slow PBKDF2 hash (the client hash is never stored verbatim), compared in constant time, with legacy rows upgraded transparently on next login
@@ -26,6 +28,7 @@ A full keyboard, ARIA and color-contrast audit is still to do.
 
 - The encryption KDF uses a static (non-per-user) salt and 100k SHA-256 iterations, capped by pure-JS crypto-js, rather than the OWASP-recommended 600k. Improving both needs a move to native WebCrypto or Argon2
 - No password recovery: losing the password means losing access to the data. This is the cost of client-side encryption
+- An account nobody has signed in to since the per-account credential shipped still opens with the old SHA-256 hash, and a session saved before then keeps sending it, until someone signs in to that account from a current build. Accounts made under the old 3-character minimum keep their short passwords
 - Photo import is OCR plus a line parser. A clean printed run sheet imports well; a handwritten or crooked one may need rows fixed by hand
 - The OCR worker and language data load from a CDN at runtime, so import-from-photo needs a connection even though the rest of the app works offline
 - The stage remote is any Bluetooth clicker that pairs as a keyboard. A phone cannot serve as one from the web app: no browser can advertise as a Bluetooth peripheral, and iOS Safari has no Web Bluetooth

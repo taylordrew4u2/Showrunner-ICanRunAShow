@@ -38,13 +38,13 @@ test.describe('storage', () => {
       route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"boom"}' }),
     );
 
-    // No onboarding to walk: a launch that could not load the account shows
-    // the shows page with the error on it, not the first-run questions.
+    // No onboarding to walk, and no app to walk around: a launch that could
+    // not load the account shows the error and a retry, and nothing that acts
+    // on an account it cannot see — Settings and its sweep included.
     await signUp(page);
     await expect(page.getByRole('alert')).toContainText("Couldn't load your shows");
-    await gotoTab(page, 'Settings');
-    await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
-    // The sweep's whole section is withheld, not just its button.
+    await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+    await expect(page.locator('.app-main')).toHaveCount(0);
     await expect(page.locator('summary:has-text("Unused files")')).toHaveCount(0);
     await expect(page.locator('button:has-text("Find unused files")')).toHaveCount(0);
   });

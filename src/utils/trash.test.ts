@@ -79,6 +79,12 @@ describe('stripShowMediaForTrash', () => {
     expect(show.performers[0].photo).toBe('data:image/jpeg;base64,AA');
   });
 
+  it('keeps a surprise guest a surprise guest, so a restored show still keeps the secret', () => {
+    const show = makeShow();
+    show.performers[0].surpriseGuest = true;
+    expect(stripShowMediaForTrash(show).performers[0].surpriseGuest).toBe(true);
+  });
+
   it('exports a sane trash cap', () => {
     expect(MAX_TRASH_ITEMS).toBeGreaterThan(0);
     expect(MAX_TRASH_ITEMS).toBeLessThanOrEqual(50);

@@ -60,6 +60,18 @@ export function AnnouncePost({ show, onClose }: AnnouncePostProps) {
           aria-label="Post caption"
         />
 
+        {/* Said, so a guest missing from the caption reads as the app keeping
+            the secret rather than as someone the post forgot. */}
+        {post.withheld.length > 0 && (
+          <p className="announce__withheld">
+            <Icon name="lock" size={14} aria-hidden />
+            <span>
+              Left off as {post.withheld.length === 1 ? 'a surprise guest' : 'surprise guests'}:{' '}
+              {post.withheld.join(', ')}.
+            </span>
+          </p>
+        )}
+
         {post.untagged.length > 0 && (
           <p className="announce__missing">
             <Icon name="alert" size={14} aria-hidden />

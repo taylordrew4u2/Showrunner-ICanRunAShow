@@ -11,6 +11,19 @@ interface ShowRecapSectionProps {
   onDeleteTodo: (todoId: string) => void;
 }
 
+/**
+ * A recap note as it is stored, or nothing for a blank one.
+ *
+ * Kept as typed, not trimmed. Every keystroke is saved and the saved value is
+ * written back into the field, so a trimmed save took away the space after a
+ * word the moment a deletion left one at the end, and the next word ran into
+ * it. The PDF trims when it prints.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function storedNote(text: string): string | undefined {
+  return text.trim() ? text : undefined;
+}
+
 export function ShowRecapSection({
   recap,
   expenses,
@@ -48,8 +61,8 @@ export function ShowRecapSection({
     const updated: ShowRecap = {
       attendance: Number(a) || undefined,
       merchSales: Number(m) || undefined,
-      performerNotes: pn.trim() || undefined,
-      improvementNotes: in_.trim() || undefined,
+      performerNotes: storedNote(pn),
+      improvementNotes: storedNote(in_),
       profitLoss: rev - totalExpenses,
     };
     onChange(updated);
