@@ -9,9 +9,11 @@ import type { PlayResult } from '../utils/audioEngine';
 function slowEngine() {
   let answer: ((result: PlayResult) => void) | null = null;
   let onEnded: (() => void) | undefined;
+  let onReleased: (() => void) | undefined;
   const engine: AuditionEngine = {
     play: vi.fn((_src, opts) => {
       onEnded = opts.onEnded;
+      onReleased = opts.onReleased;
       return new Promise<PlayResult>((resolve) => { answer = resolve; });
     }),
     stop: vi.fn(),
@@ -26,6 +28,8 @@ function slowEngine() {
     },
     /** The track ran to its own end. */
     ended() { onEnded?.(); },
+    /** Another press — a pad, another row's preview — took the engine. */
+    takenOver() { onReleased?.(); },
   };
 }
 
@@ -106,6 +110,34 @@ describe('hearing a trim', () => {
     await vi.advanceTimersByTimeAsync(60000);
     expect(engine.stop).toHaveBeenCalledTimes(1);
     expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('leaves alone a walk-on that took the engine after the audition started', async () => {
+    // Hear it on a 45s trim, then a walk-on pad ten seconds later. The
+    // audition's cap used to fire on schedule and fade out whatever was
+    // playing by then — the walk-on, mid-entrance.
+    const { engine, loaded, takenOver } = slowEngine();
+    const onDone = vi.fn();
+    auditionTrim(engine, 'media:song', { lengthSec: 45 }, onDone);
+    await loaded('started');
+    await vi.advanceTimersByTimeAsync(10000);
+    takenOver();
+    // The button comes back as soon as the audition is no longer playing.
+    expect(onDone).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(engine.stop).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not stop the next track when the row goes away after being taken over', async () => {
+    // Run Show sits on top of the show page, so a row whose audition a pad
+    // took over is still mounted, and can unmount with the pad still playing.
+    const { engine, loaded, takenOver } = slowEngine();
+    const stop = auditionTrim(engine, 'media:song', { lengthSec: 45 }, () => {});
+    await loaded('started');
+    takenOver();
+    stop();
+    expect(engine.stop).not.toHaveBeenCalled();
   });
 
   it('gives the button back when the trim runs to its end on its own', async () => {

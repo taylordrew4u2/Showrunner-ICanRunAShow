@@ -400,3 +400,44 @@ describe('typing a different name over a booked slot', () => {
     expect(rebooked.credits).toBeUndefined();
   });
 });
+
+describe('a surprise guest and the Rolodex', () => {
+  const guest = performer({
+    id: 'slot', comicId: 'miles', name: 'Miles Trent', socialMedia: '@miles', surpriseGuest: true,
+  });
+
+  it('files the person, not the surprise: the flag never reaches their entry', () => {
+    const filed = performerToComic(guest);
+    expect(filed).toMatchObject({ id: 'miles', name: 'Miles Trent', socialMedia: '@miles' });
+    expect(Object.hasOwn(filed, 'surpriseGuest')).toBe(false);
+    const added = addPerformersToRolodex([], [{ ...guest, comicId: undefined }]);
+    expect(added).toHaveLength(1);
+    expect(Object.hasOwn(added![0], 'surpriseGuest')).toBe(false);
+  });
+
+  it('books them off the Rolodex as a regular, whatever they were on another night', () => {
+    const booked = comicToPerformer(comic({ id: 'miles', name: 'Miles Trent', socialMedia: '@miles' }));
+    expect(booked.surpriseGuest).toBeUndefined();
+  });
+
+  it('does not write switching the flag back to their entry as a profile change', () => {
+    const before = { ...guest, surpriseGuest: undefined };
+    expect(getComicProfilePatch(before, guest)).toEqual({});
+  });
+
+  it('keeps the flag on the booking when the Rolodex refreshes it, and nowhere else', () => {
+    const comics = [comic({ id: 'miles', name: 'Miles Trent', socialMedia: '@milestrent' })];
+    const elsewhere = performer({ id: 'other-slot', comicId: 'miles', name: 'Miles Trent' });
+    const synced = syncShowsWithRolodex(comics, [show('tonight', [guest]), show('next-week', [elsewhere])]);
+    expect(synced[0].performers[0]).toMatchObject({ socialMedia: '@milestrent', surpriseGuest: true });
+    expect(synced[1].performers[0].surpriseGuest).toBeUndefined();
+    const reconciled = reconcileRolodexProfiles(comics, [show('tonight', [guest])]);
+    expect(reconciled.shows[0].performers[0].surpriseGuest).toBe(true);
+    expect(Object.hasOwn(reconciled.comics[0], 'surpriseGuest')).toBe(false);
+  });
+
+  it('keeps a guest slot a guest slot when a different act is typed over it', () => {
+    const rebooked = reassignSlot({ ...guest, name: 'Rae Sun' }, guest);
+    expect(rebooked).toMatchObject({ name: 'Rae Sun', surpriseGuest: true });
+  });
+});

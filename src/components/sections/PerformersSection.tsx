@@ -1,14 +1,26 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useId } from 'react';
 import type { Performer, PotentialComic } from '../../types';
 import { generateId } from '../../utils/id';
 import { comicToPerformer, rolodexKey } from '../../utils/rolodex';
 import { socialLink } from '../../utils/social';
 import { LineupActions } from '../LineupActions';
-import { lineupProgress } from '../../utils/lineupTarget';
+import { bookedTowardTarget, lineupProgress } from '../../utils/lineupTarget';
 import { describeGaps, lineupGaps } from '../../utils/performerReadiness';
+import {
+  billedPerformers,
+  isSurpriseGuest,
+  moveWithinGroup,
+  surpriseGuests,
+} from '../../utils/surpriseGuests';
 import { PerformerProfile, ProfileDrawer } from './PerformerProfile';
+import { LineupTabs, lineupTabIds, SurpriseGuestsIntro, type LineupTab } from './LineupTabs';
 import { Icon } from '../Icon';
 import type { SignerStatus } from '../../utils/contracts';
+
+/** The tab someone is listed on. */
+function tabFor(performer: Performer | undefined): LineupTab {
+  return isSurpriseGuest(performer) ? 'guests' : 'performers';
+}
 
 interface PerformersSectionProps {
   /** A request to open one profile. `seq` makes the same face tappable twice. */
@@ -49,12 +61,25 @@ export function PerformersSection({
   const [instagram, setInstagram] = useState('');
   const [email, setEmail] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(openProfile?.id ?? null);
+  /**
+   * Which half of the lineup is showing. Surprise guests are booked on their
+   * own tab, beside the bill rather than inside it, so that the list a
+   * producer reads as "the lineup" is the one the public will see.
+   */
+  const [tab, setTab] = useState<LineupTab>(() =>
+    tabFor(performers.find((p) => p.id === openProfile?.id)),
+  );
+  const tabsId = useId();
   // Each tap on a face is a new request, even for the profile already open.
   // Answered during render, the way React adjusts state to a changed prop.
   const [answeredRequest, setAnsweredRequest] = useState(openProfile?.seq);
   if (openProfile && openProfile.seq !== answeredRequest) {
     setAnsweredRequest(openProfile.seq);
     setSelectedId(openProfile.id);
+    // Onto the tab they are listed on, so the row the drawer belongs to is
+    // the one on screen when it closes.
+    const requested = performers.find((p) => p.id === openProfile.id);
+    if (requested) setTab(tabFor(requested));
   }
   const [showRolodex, setShowRolodex] = useState(false);
   /**
@@ -92,6 +117,8 @@ export function PerformersSection({
     return () => clearTimeout(timer);
   }, [filed]);
 
+  const guestsTab = tab === 'guests';
+
   function addPerformer() {
     if (!name.trim()) return;
     const p: Performer = {
@@ -99,6 +126,9 @@ export function PerformersSection({
       name: name.trim(),
       socialMedia: instagram.trim() || undefined,
       email: email.trim() || undefined,
+      // Booked from the guests tab is booked as a guest: that is the whole of
+      // how someone becomes one, short of the switch on their profile.
+      ...(guestsTab ? { surpriseGuest: true } : {}),
     };
     onChange([...performers, p]);
     // Stay open. Adding the first performer makes the list non-empty, which
@@ -115,15 +145,23 @@ export function PerformersSection({
   }
 
   function addFromRolodex(comic: PotentialComic) {
-    onChange([...performers, comicToPerformer(comic)]);
+    // The flag goes on this booking only — comicToPerformer copies the
+    // person, and being a surprise is not a fact about the person.
+    const booked = comicToPerformer(comic);
+    onChange([...performers, guestsTab ? { ...booked, surpriseGuest: true } : booked]);
     setShowRolodex(false);
     setAddingOpen(true); // same reason as addPerformer: the flow isn't over
     setFiled(null); // they came from the Rolodex; nothing was filed
   }
 
   function updatePerformer(updated: Performer) {
+    const before = performers.find(p => p.id === updated.id);
     onChange(performers.map(p => p.id === updated.id ? updated : p));
     // keep selectedId so profile stays open with fresh data
+    // Switched between performer and surprise guest on their profile: the tab
+    // follows them, or closing the drawer would land on a list they have just
+    // left.
+    if (before && isSurpriseGuest(before) !== isSurpriseGuest(updated)) setTab(tabFor(updated));
   }
 
   function deletePerformer(id: string) {
@@ -131,31 +169,35 @@ export function PerformersSection({
     setSelectedId(null);
   }
 
-  // Reorder the lineup — the order shown here is the order the viewer link shows.
-  function movePerformer(index: number, dir: -1 | 1) {
-    const target = index + dir;
-    if (target < 0 || target >= performers.length) return;
-    const next = [...performers];
-    [next[index], next[target]] = [next[target], next[index]];
-    onChange(next);
+  // Reorder the lineup — the order shown here is the order the viewer link
+  // shows. Within the tab on screen: see moveWithinGroup.
+  function movePerformer(id: string, dir: -1 | 1) {
+    const next = moveWithinGroup(performers, id, dir);
+    if (next !== performers) onChange(next);
   }
 
+  // The two tabs, each in bill order.
+  const regulars = billedPerformers(performers);
+  const guests = surpriseGuests(performers);
+  const shown = guestsTab ? guests : regulars;
+
   // Shared with the show card on the grid so the two can't disagree about
-  // whether a bill is full.
-  const progress = lineupProgress(performers.length, performerTarget);
+  // whether a bill is full. Surprise guests are on top of the target.
+  const progress = lineupProgress(bookedTowardTarget(performers), performerTarget);
 
   // Who on the bill is missing something that will fail quietly later: no
   // address to send a contract to, no handle to tag in the announcement.
-  // Asked of the whole lineup at once, because that is when it is fixable.
-  const gaps = lineupGaps(performers);
+  // Asked of the whole list on screen at once, because that is when it is
+  // fixable — guests need their paperwork as much as anyone.
+  const gaps = lineupGaps(shown);
 
   // Only where the producer uses contracts at all: an account with no
   // agreements uploaded has no way to sign anything, and telling them nobody
   // is booked would be a scold about a feature they have not opted into.
-  const booking = contractStatus && performers.length > 0
+  const booking = contractStatus && shown.length > 0
     ? {
-        signed: performers.filter((p) => contractStatus(p) === 'signed').length,
-        total: performers.length,
+        signed: shown.filter((p) => contractStatus(p) === 'signed').length,
+        total: shown.length,
       }
     : null;
 
@@ -167,17 +209,36 @@ export function PerformersSection({
     [potentialComics],
   );
 
-  const showAddForm = addingOpen || performers.length === 0;
+  const showAddForm = addingOpen || shown.length === 0;
+  const panelIds = lineupTabIds(tabsId, tab);
+  // The other tab's panel, left empty: there for its tab to point at, without
+  // a second list on the page.
+  const otherIds = lineupTabIds(tabsId, guestsTab ? 'performers' : 'guests');
 
   return (
     <div className="section-body">
+      <LineupTabs
+        active={tab}
+        counts={{ performers: regulars.length, guests: guests.length }}
+        idBase={tabsId}
+        onChange={setTab}
+      />
+
+      <div
+        role="tabpanel"
+        id={panelIds.panel}
+        aria-labelledby={panelIds.tab}
+        className="lineup-tabs__panel"
+      >
       {/* No "No performers yet — add the first below." An empty lineup always
           opens with the add form showing (see showAddForm), so that line was
           120px of italics telling you that the empty field directly beneath it
-          is empty. The field says it. */}
+          is empty. The field says it. The guests tab is the exception — see
+          SurpriseGuestsIntro. */}
+      {guestsTab && <SurpriseGuestsIntro count={guests.length} />}
 
       <ul className="section-list">
-        {performers.map((p, idx) => (
+        {shown.map((p, idx) => (
           <li key={p.id} className={`section-list-item ${selectedId === p.id ? 'section-list-item--active' : ''}`}>
             <div className="section-list-item__content">
               <div className="section-list-item__body">
@@ -249,7 +310,7 @@ export function PerformersSection({
               <div className="section-list-item__buttons">
                 <button
                   className="btn btn--ghost btn--sm"
-                  onClick={() => movePerformer(idx, -1)}
+                  onClick={() => movePerformer(p.id, -1)}
                   disabled={idx === 0}
                   aria-label={`Move ${p.name} up`}
                   title="Move up"
@@ -258,8 +319,8 @@ export function PerformersSection({
                 </button>
                 <button
                   className="btn btn--ghost btn--sm"
-                  onClick={() => movePerformer(idx, 1)}
-                  disabled={idx === performers.length - 1}
+                  onClick={() => movePerformer(p.id, 1)}
+                  disabled={idx === shown.length - 1}
                   aria-label={`Move ${p.name} down`}
                   title="Move down"
                 >
@@ -307,9 +368,15 @@ export function PerformersSection({
           do to this section; the bill is what the section is. */}
       {gaps.length > 0 && (
         <div className="lineup-gaps">
+          {/* Guests are the people kept off the bill, so on their tab the
+              line says who it means rather than calling them the bill. */}
           <span className="lineup-gaps__head">
             <Icon name="alert" size={13} aria-hidden />
-            {gaps.length} on this bill {gaps.length === 1 ? 'is' : 'are'} missing details
+            {gaps.length}{' '}
+            {guestsTab
+              ? `surprise guest${gaps.length === 1 ? ' is' : 's are'}`
+              : `on this bill ${gaps.length === 1 ? 'is' : 'are'}`}{' '}
+            missing details
           </span>
           <ul className="lineup-gaps__list">
             {gaps.map(({ performer, readiness }) => (
@@ -325,15 +392,18 @@ export function PerformersSection({
               </li>
             ))}
           </ul>
+          {/* No "tag them" for guests: the post leaves them out on purpose,
+              so a handle is not what stands between them and the caption. */}
           <span className="lineup-gaps__hint">
-            Share a contract link without an email. They fill in their details when they open it. Add a social handle to tag them.
+            Share a contract link without an email. They fill in their details when they open it.
+            {guestsTab ? '' : ' Add a social handle to tag them.'}
           </span>
         </div>
       )}
 
       <LineupActions performers={performers} showName={showName} onAnnounce={onAnnounce} />
 
-      {performers.length > 0 && (
+      {shown.length > 0 && (
         <div className="lineup-add">
           <button
             type="button"
@@ -341,7 +411,7 @@ export function PerformersSection({
             onClick={() => setAddingOpen((v) => !v)}
             aria-expanded={addingOpen}
           >
-            {addingOpen ? 'Done adding' : '+ Add performer'}
+            {addingOpen ? 'Done adding' : guestsTab ? '+ Add surprise guest' : '+ Add performer'}
           </button>
         </div>
       )}
@@ -360,8 +430,8 @@ export function PerformersSection({
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}
-              placeholder="Performer name"
-              aria-label="Performer name"
+              placeholder={guestsTab ? 'Surprise guest name' : 'Performer name'}
+              aria-label={guestsTab ? 'Surprise guest name' : 'Performer name'}
             />
             <button className="btn btn--primary btn--sm lineup-add__submit" onClick={addPerformer}>
               Add
@@ -417,8 +487,9 @@ export function PerformersSection({
               "full", so the count is just a number that keeps going up. It
               rides with the add controls because setting a target is part of
               booking — and the readiness bar on the show page keeps reporting
-              against it whether or not this form is open. */}
-          <div className="lineup-target">
+              against it whether or not this form is open. Not on the guests
+              tab: guests are on top of the target, never toward it. */}
+          {!guestsTab && <div className="lineup-target">
             <label className="lineup-target__label" htmlFor="performer-target">
               Performers wanted
             </label>
@@ -445,7 +516,7 @@ export function PerformersSection({
                 {progress.label}
               </span>
             )}
-          </div>
+          </div>}
 
         </div>
       )}
@@ -466,7 +537,9 @@ export function PerformersSection({
 
       {showRolodex && (
         <div className="section-rolodex-picker">
-          <p className="section-rolodex-picker__label">Pick from Rolodex</p>
+          <p className="section-rolodex-picker__label">
+            {guestsTab ? 'Book a surprise guest from Rolodex' : 'Pick from Rolodex'}
+          </p>
           {potentialComics.length === 0 ? (
             <p className="section-rolodex-picker__empty">
               Nobody on file yet. Everyone you add to a show is filed here
@@ -489,8 +562,13 @@ export function PerformersSection({
           )}
         </div>
       )}
-
-
+      </div>
+      <div
+        role="tabpanel"
+        id={otherIds.panel}
+        aria-labelledby={otherIds.tab}
+        hidden
+      />
 
       {selectedPerformer && (
         <ProfileDrawer
@@ -505,6 +583,7 @@ export function PerformersSection({
             onSaveToRolodex={onSaveToRolodex}
             inRolodex={filedInRolodex.has(rolodexKey(selectedPerformer.name))}
             contracts={renderContracts?.(selectedPerformer)}
+            canBeSurpriseGuest
           />
         </ProfileDrawer>
       )}

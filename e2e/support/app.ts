@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { decryptWithKey, deriveKey } from '../../src/utils/encryption';
 
 /**
  * Getting to the part of the app a test is actually about.
@@ -108,6 +109,26 @@ export async function createShow(page: Page, name: string, date = daysFromNow(10
 /** Open one of the collapsible sections on a show page by its title. */
 export async function openSection(page: Page, title: string): Promise<void> {
   await page.locator('button, [role=button]').filter({ hasText: title }).first().click();
+}
+
+/** This browser's held copies of unsaved shows, exactly as they are stored. */
+export async function storedShowDrafts(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    Object.keys(localStorage).filter((k) => k.startsWith('showrunner:pendingShows')).map((k) => localStorage.getItem(k)!),
+  );
+}
+
+/**
+ * Those copies opened, the way the next launch opens them. Each show is sealed
+ * with the account's key, which comes from the password: a test knows it, and
+ * whoever uses the browser after the producer signs out does not.
+ */
+export function openShowDrafts(stored: string[]): unknown[] {
+  const key = deriveKey(PASSWORD);
+  return stored.map((raw) => {
+    const draft = JSON.parse(raw) as { sealed?: string[]; data?: unknown };
+    return draft.sealed ? draft.sealed.map((show) => decryptWithKey(show, key)) : draft.data;
+  });
 }
 
 export async function gotoTab(page: Page, label: string) {

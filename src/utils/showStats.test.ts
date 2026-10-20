@@ -60,6 +60,20 @@ describe('buildShowStats — progress', () => {
     expect(find(stats, 'lineup')).toMatchObject({ done: 2, total: 5 });
   });
 
+  it('measures it the way the Performers section does, with surprise guests on top', () => {
+    const stats = buildShowStats(show({
+      performers: [
+        { id: 'p1', name: 'Ada' },
+        { id: 'g1', name: 'Miles', surpriseGuest: true },
+        { id: 'p2', name: 'Bea' },
+      ],
+      performerTarget: 3,
+    }));
+    expect(find(stats, 'lineup')).toMatchObject({ done: 2, total: 3 });
+    // Still on the show, and still counted as booked people on it.
+    expect(stats.counts.performers).toBe(3);
+  });
+
   // With no target there is no "full", so the bar has nothing to say and the
   // zero-total filter drops it.
   it('gives the lineup a zero total when no target is set', () => {

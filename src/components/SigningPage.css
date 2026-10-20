@@ -347,6 +347,10 @@
   margin: var(--space-0-5) 0 0;
   color: var(--text);
   white-space: pre-wrap;
+  /* Breaks anywhere: a pasted link is wider than a phone, and this receipt is
+     where the signer checks what they sent. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ── The headshot, asked for while they are already here ──────────────────

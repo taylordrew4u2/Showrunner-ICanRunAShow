@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { fetchLiveView, type LiveViewPayload } from '../utils/liveView';
+import { cueInitial, fetchLiveView, isRevealedGuest, type LiveViewPayload } from '../utils/liveView';
 import { applyColorScheme } from '../utils/theme';
 import { audioEngine } from '../utils/audioEngine';
 import { MEDIA_RETRY_DELAYS_MS } from '../utils/useMediaUrl';
+import { holdScreenAwake } from './RunShow';
+import { SURPRISE_GUEST_LABEL } from '../utils/surpriseGuests';
 import {
   fetchViewerTrack,
   nextPlaybackAction,
@@ -110,6 +112,17 @@ export function createTrackLoader(
   function pump() {
     if (busy || disposed) return;
     if (timer !== undefined) { clearTimeout(timer); timer = undefined; }
+    // Every pad that plays the same song shares one upload (see
+    // planViewerUploads), and the board lists those pads side by side. Once
+    // the file is here every one of them has it, rather than each fetching
+    // the same megabytes again ahead of the walk-ons still to come.
+    for (const t of missing()) {
+      const copy = [...ready.values()].find((r) => r.version === version(t));
+      if (copy) {
+        ready.set(t.key, copy);
+        failed.delete(t.key);
+      }
+    }
     const now = Date.now();
     const queue = missing();
     const next = queue.find((t) => (failed.get(t.key)?.notBefore ?? 0) <= now);
@@ -179,6 +192,7 @@ export function LiveViewer({ token }: LiveViewerProps) {
   // set up the room) taps once to arm this screen.
   const [soundOn, setSoundOn] = useState(false);
   const playingRef = useRef<string | null>(null);
+  const lastFadeOutMs = useRef(0);
   const loader = useRef<TrackLoader | null>(null);
 
   const hasAudio = !!viewerKey && !!payload?.audio?.length;
@@ -216,9 +230,16 @@ export function LiveViewer({ token }: LiveViewerProps) {
     }
     tick();
     const id = window.setInterval(tick, pollMs);
+    // A hidden page has its timers slowed to a crawl, or stopped. Coming back
+    // into view is the moment to catch up, not up to a minute later.
+    function onVisible() {
+      if (document.visibilityState === 'visible') tick();
+    }
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       alive = false;
       window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [token, pollMs]);
 
@@ -257,11 +278,17 @@ export function LiveViewer({ token }: LiveViewerProps) {
 
   // Follow the board. `playback.key` is the whole instruction — which track,
   // or null for silence — so the screen simply matches whatever it last said.
+  // A payload with no instruction at all is silence as well: see
+  // nextPlaybackAction.
   useEffect(() => {
     if (!soundOn || !viewerKey) return;
     const playback = payload?.playback;
     const tracks = loader.current;
-    if (!playback || !tracks) return;
+    if (!tracks) return;
+    // The operator's fade, as the board last sent it. A board that has gone
+    // quiet without saying so sends none, and the song still fades out the
+    // way they set it rather than cutting dead.
+    if (playback) lastFadeOutMs.current = playback.fadeOutMs;
     const next = nextPlaybackAction(playingRef.current, playback, (k) => tracks.has(k));
     // 'wait' deliberately leaves playingRef alone — the next poll retries and
     // the track starts the moment its download lands. The cue is also the
@@ -270,8 +297,8 @@ export function LiveViewer({ token }: LiveViewerProps) {
       tracks.want(next.key);
     } else if (next.action === 'stop') {
       playingRef.current = null;
-      audioEngine.stop({ fadeMs: playback.fadeOutMs });
-    } else if (next.action === 'play') {
+      audioEngine.stop({ fadeMs: lastFadeOutMs.current });
+    } else if (next.action === 'play' && playback) {
       playingRef.current = next.key;
       // The producer's trim, as the loader last synced it: a walk-on cut to
       // its drop used to play whole through the PA while the operator's own
@@ -288,6 +315,14 @@ export function LiveViewer({ token }: LiveViewerProps) {
 
   // Never leave a track running on a screen nobody is looking at.
   useEffect(() => () => audioEngine.stopNow(), []);
+
+  // Once this screen is carrying the sound it is the PA's, and it has to stay
+  // awake for the board the way the board does — see holdScreenAwake. A
+  // tablet that auto-locks between walk-ons stops polling and stops playing,
+  // and a laptop whose display sleeps hears about the next press a minute
+  // late. Only once armed: an audience phone just watching the clock keeps
+  // its own sleep settings.
+  useEffect(() => (soundOn ? holdScreenAwake(navigator, document) : undefined), [soundOn]);
 
   function armSound() {
     audioEngine.init();
@@ -404,6 +439,10 @@ export function LiveViewer({ token }: LiveViewerProps) {
    */
   const warning = remaining <= 60 && payload.status === 'running';
   const showCountdown = payload.status === 'countdown' && payload.countdown && payload.countdown > 0;
+  // A surprise guest who has walked on. Until then the board sends only the
+  // words "Surprise guest", which already say it; once they are on, the name
+  // arrives and the reveal is said over it.
+  const revealedGuest = isRevealedGuest(seg);
 
   return (
     <div className={`live-viewer${warning ? ' live-viewer--alarm' : ''}`}>
@@ -424,6 +463,15 @@ export function LiveViewer({ token }: LiveViewerProps) {
           Sound on — this screen plays the walk-ons
         </div>
       )}
+      {/* The board is sending sound and this link has no key to play it
+          with: one copied before the show had a key. It used to look exactly
+          like a show with no sound at all, while the board said the PA was
+          playing — so the screen says how to get the sound. */}
+      {!viewerKey && !!payload.audio?.length && (
+        <div className="live-viewer__sound live-viewer__sound--on" role="status">
+          This link can't play the show's sound. Copy the viewer link from the show again and open that one here.
+        </div>
+      )}
 
       <div className={`live-viewer__timer ${isOver ? 'live-viewer__timer--over' : ''} ${warning ? 'live-viewer__timer--warning' : ''}`}>
         {fmtCountdown(remaining)}
@@ -435,10 +483,12 @@ export function LiveViewer({ token }: LiveViewerProps) {
 
       <div className="live-viewer__cards">
         <div className="live-viewer__card">
-          <div className="live-viewer__label">On stage</div>
+          <div className="live-viewer__label">
+            {revealedGuest ? `On stage — ${SURPRISE_GUEST_LABEL}` : 'On stage'}
+          </div>
           <div className="live-viewer__person">
             <div className="live-viewer__photo live-viewer__photo--placeholder">
-              {(seg.name || '·').charAt(0).toUpperCase()}
+              {cueInitial(seg, '·')}
             </div>
             <div className="live-viewer__info">
               <div className="live-viewer__name">{seg.name || seg.description || '—'}</div>
@@ -451,7 +501,7 @@ export function LiveViewer({ token }: LiveViewerProps) {
           <div className="live-viewer__label">Up next</div>
           <div className="live-viewer__person">
             <div className="live-viewer__photo live-viewer__photo--placeholder">
-              {(next.name || '—').charAt(0).toUpperCase()}
+              {cueInitial(next, '—')}
             </div>
             <div className="live-viewer__info">
               <div className="live-viewer__name">{next.name || next.description || 'End of show'}</div>

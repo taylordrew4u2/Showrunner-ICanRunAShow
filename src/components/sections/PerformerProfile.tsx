@@ -33,6 +33,11 @@ interface PerformerProfileProps {
    * no idea about settings or the session, and does not need one.
    */
   contracts?: React.ReactNode;
+  /**
+   * Offer the switch between the posted bill and the surprise guests. Only
+   * the Performers section passes it; an artist has no second tab to go to.
+   */
+  canBeSurpriseGuest?: boolean;
 }
 
 /**
@@ -137,12 +142,12 @@ export function ProfileDrawer({ label, onClose, children }: {
   );
 }
 
-export function PerformerProfile({ performer, onBack, backLabel = 'Performers', onChange, onDelete, onSaveToRolodex, inRolodex, contracts }: PerformerProfileProps) {
+export function PerformerProfile({ performer, onBack, backLabel = 'Performers', onChange, onDelete, onSaveToRolodex, inRolodex, contracts, canBeSurpriseGuest }: PerformerProfileProps) {
   // Labels have to point at the field they name: written as a plain <label>
   // beside an input they are decoration — not announced as the field's name,
   // and not tappable to focus it.
   const fieldId = useId();
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, ask, confirmDialog } = useConfirm();
   const { draft, setField, dirty, save: handleSave, update } = useComicProfileDraft(performer, onChange);
   const { name, socialMedia, email, phone, notes, credits,
     walkOnMusicName: songName, walkOnMusicArtist: songArtist,
@@ -158,11 +163,15 @@ export function PerformerProfile({ performer, onBack, backLabel = 'Performers', 
    * old one's headshot. Only the producer knows which they meant, so they
    * are asked: the same person under a new name keeps everything; a
    * different act starts this spot clean and leaves the old entry alone.
+   *
+   * Backing out of the question answers neither, and saves nothing: the
+   * edit stays in the form. Taken as "Same person", an Escape renamed the old
+   * act's Rolodex entry and every show that books them.
    */
   async function saveProfile() {
     const typed = draft.name.trim();
     if (performer.comicId && typed && slotReassigned(performer, { name: typed })) {
-      const different = await confirm({
+      const different = await ask({
         title: 'Same person, or someone else?',
         message:
           `You changed the name from ${performer.name} to ${typed}. If it's the same person, ` +
@@ -173,6 +182,7 @@ export function PerformerProfile({ performer, onBack, backLabel = 'Performers', 
         cancelLabel: 'Same person',
         danger: false,
       });
+      if (different === null) return;
       if (different) {
         handleSave((next) => reassignSlot(next, performer));
         return;
@@ -258,6 +268,29 @@ export function PerformerProfile({ performer, onBack, backLabel = 'Performers', 
           name, and the page you land on should say whose it is. */}
       <h3 className="perf-profile__heading">{performer.name.trim() || 'Performer Profile'}</h3>
       <p className="perf-profile__sync-hint">Changes update this comic in the Rolodex and every show.</p>
+
+      {/* Saved the moment it is ticked, like the headshot: it moves them to
+          the other tab, and a switch that only took effect after "Save
+          Changes" would leave them listed where they no longer belong. Only
+          the flag is written, so a field half-typed below it is still there
+          to save, and everything else about the booking stays as it was. */}
+      {canBeSurpriseGuest && (
+        <label className="perf-profile__surprise">
+          <input
+            type="checkbox"
+            className="perf-profile__surprise-check"
+            checked={!!performer.surpriseGuest}
+            onChange={(e) => update({ surpriseGuest: e.target.checked || undefined })}
+            aria-describedby={`${fieldId}-surprise-hint`}
+          />
+          <span className="perf-profile__surprise-text">
+            <span className="perf-profile__surprise-title">Surprise guest</span>
+            <span id={`${fieldId}-surprise-hint`} className="perf-profile__surprise-hint">
+              Kept off the post copy and the viewer link until they're on stage. This show only.
+            </span>
+          </span>
+        </label>
+      )}
 
       {/* Main card: fields + photo */}
       <div className="perf-profile__card">

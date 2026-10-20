@@ -23,6 +23,16 @@
 
   <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/cormorant-garamond-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <!-- The iOS app is a shell around this site, and this page opens inside it
+       from the sign-in screen and the guides. App Store guideline 3.1.1 keeps
+       the app from showing what the plan costs or pointing at Stripe, so there
+       everything marked web-only is left out. Capacitor puts its bridge on the
+       page before any of the page's own scripts run. -->
+  <script>
+    if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+      document.documentElement.classList.add('native-shell');
+    }
+  </script>
 
   <script type="application/ld+json">
   {
@@ -246,6 +256,7 @@
     .chip { background: transparent; border: 1px solid var(--border-strong); border-radius: 2px; padding: 9px 16px; font-weight: 500; font-size: 0.95rem; }
 
     /* Pricing */
+    .native-shell .web-only { display: none; }
     .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 880px; }
     .plan { background: var(--surface); border: 1px solid var(--border); border-radius: 2px; padding: 36px 34px; display: flex; flex-direction: column; }
     .plan--pro { position: relative; border-top: 2px solid var(--text); border-radius: 0 0 2px 2px; }
@@ -290,7 +301,7 @@
     <a class="nav__brand" href="/tour/"><picture><source srcset="/brand/mark-ivory.svg" media="(prefers-color-scheme: dark)" /><img src="/brand/mark-ink.svg" width="24" height="24" alt="" /></picture><span>I Can Run A Show</span></a>
     <nav class="nav__links" aria-label="Main">
       <a class="hide-sm" href="#features">Features</a>
-      <a class="hide-sm" href="#pricing">Pricing</a>
+      <a class="hide-sm web-only" href="#pricing">Pricing</a>
       <a class="hide-sm" href="/guides/">Guides</a>
       <a href="/">Sign in</a>
       <a class="btn btn--primary" href="/">Start free</a>
@@ -328,11 +339,11 @@
 
   <div class="trust" aria-label="How your data and payments are handled">
     <div class="wrap">
-      <span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Payments by Stripe</span>
+      <span class="web-only"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Payments by Stripe</span>
       <span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Encrypted on your device</span>
       <span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg> Works with no signal</span>
       <span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> No ads, no trackers</span>
-      <span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Cancel anytime</span>
+      <span class="web-only"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Cancel anytime</span>
     </div>
   </div>
 
@@ -481,7 +492,7 @@
     </div>
   </section>
 
-  <section id="pricing" class="band">
+  <section id="pricing" class="band web-only">
     <div class="wrap">
       <div class="section-head">
         <p class="eyebrow">Pricing</p>
@@ -559,7 +570,7 @@
         </details>
         <details>
           <summary>How do I get help?</summary>
-          <p>Email <a href="mailto:skatematesnyc@gmail.com">skatematesnyc@gmail.com</a> for anything. For billing, you can also change your card or cancel yourself from Settings → Manage billing.</p>
+          <p>Email <a href="mailto:skatematesnyc@gmail.com">skatematesnyc@gmail.com</a> for anything.<span class="web-only"> For billing, you can also change your card or cancel yourself from Settings → Manage billing.</span></p>
         </details>
       </div>
     </div>

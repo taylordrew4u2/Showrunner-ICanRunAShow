@@ -8,6 +8,7 @@ import {
   SEARCH_LIST_FROM,
   showDJSongs,
   songFromTrack,
+  songsWithOwnAudio,
   songsWithoutAudio,
   trackMatches,
 } from '../../utils/musicLibrary';
@@ -197,21 +198,8 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
       // point at stays untouched for everyone else. An upload this song owned
       // is likewise left to the app's update path, which frees it only once
       // no cue or other show still plays it.
-      const audio = { music: ref, musicName: file.name, libraryId: undefined };
-      if (isAutoLibrarySong(song)) {
-        // The row was the library's; giving it this show's own file makes it
-        // this show's, and hides the library original so it isn't listed twice.
-        onUpdate({
-          djSongs: materialize(song, audio),
-          djHiddenLibraryIds: song.libraryId
-            ? [...new Set([...hiddenRef.current, song.libraryId])]
-            : hiddenRef.current,
-        });
-      } else {
-        onUpdate({
-          djSongs: ownRef.current.map((s) => (s.id === song.id ? { ...s, ...audio } : s)),
-        });
-      }
+      const audio = { music: ref, musicName: file.name };
+      onUpdate(songsWithOwnAudio(ownRef.current, hiddenRef.current, song, library, generateId(), audio));
       setStatus(song.id, null);
     } catch {
       setStatus(song.id, 'Could not upload that audio file. Check your connection and try again.');
@@ -252,8 +240,13 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
     const a = document.createElement('a');
     a.href = url;
     a.download = `DJ-List-${show.name.replace(/[/\\:*?"<>|]+/g, '').replace(/\s+/g, '-')}.txt`;
+    // In the page, and the URL left alive for a while: Firefox and iOS Safari
+    // start the download after click() returns, and a URL revoked before then
+    // gave no file at all.
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   return (
@@ -400,7 +393,13 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
                   </button>
                 )}
                 <button className="btn btn--ghost btn--sm" onClick={() => startEdit(s)}>Edit</button>
-                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteSong(s.id)}>×</button>
+                <button
+                  className="btn btn--ghost btn--sm section-list-item__delete"
+                  onClick={() => deleteSong(s.id)}
+                  aria-label={`Remove ${s.title} from this show`}
+                >
+                  ×
+                </button>
               </div>
             )}
             {/* Only for a row that has audio — there is nothing to cut up

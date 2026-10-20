@@ -2831,6 +2831,100 @@ select.show-detail__status--select {
   border: 0;
 }
 
+/* ─── Lineup tabs ───────────────────────────────────────────────────────────
+   Performers and Surprise guests, side by side over the list. Underlined
+   rather than a segmented chip: two labels on one hairline, the selected one
+   in ink with an ink rule under it, and nothing coloured — a tab is
+   navigation, not a status. */
+.lineup-tabs {
+  display: flex;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Everything the section used to hold now sits in the panel, and keeps the
+   spacing .section-body gave it. Only the panel on show takes this: the empty
+   one for the other tab stays display: none under its hidden attribute. */
+.lineup-tabs__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lineup-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+  min-height: var(--tap-min);
+  /* The selected tab's rule lies on the strip's hairline, not under it. */
+  margin-bottom: -1px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lineup-tabs__tab:hover {
+  color: var(--text);
+}
+
+.lineup-tabs__tab--active {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+.lineup-tabs__tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.lineup-tabs__count {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-soft);
+}
+
+.lineup-tabs__tab--active .lineup-tabs__count {
+  color: var(--text-muted);
+}
+
+.lineup-tabs__empty {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.lineup-tabs__note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* "Surprise guest", beside a name wherever the two halves of the lineup are
+   shown together. A hairline tag in the muted ink, never a colour. */
+.surprise-mark {
+  display: inline-block;
+  padding: 0 var(--space-1-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* ─── Lineup target ─────────────────────────────────────────────────────────
    How many performers this show is booking for. A lineup with no target has no
    "full", so the count alone can't answer the only question worth asking about
@@ -3374,6 +3468,7 @@ select.show-detail__status--select {
 .show-workspace__person > span:not(.show-workspace__initial) { flex: 1; min-width: 0; }
 .show-workspace__person strong { display: block; font-size: var(--text-md); font-weight: 600; overflow-wrap: anywhere; }
 .show-workspace__person small { display: block; margin-top: 4px; font-size: var(--text-xs); line-height: 1.5; color: var(--text-muted); overflow-wrap: anywhere; }
+.show-workspace__person small.surprise-mark { display: table; }
 .show-workspace__person img, .show-workspace__initial { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
 .show-workspace__initial { display: grid; place-items: center; background: var(--primary-soft); color: var(--primary-text); font-weight: 600; }
 .show-workspace .cue { background: var(--surface); border-color: var(--border); border-radius: var(--radius-lg); box-shadow: none; }

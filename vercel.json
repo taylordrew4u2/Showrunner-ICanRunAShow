@@ -11,7 +11,7 @@
     { "source": "/details", "destination": "/link-profile.html" },
     { "source": "/live", "destination": "/link-view.html" },
     { "source": "/tour", "destination": "/tour/index.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
@@ -36,7 +36,7 @@
     {
       "source": "/icons/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
       ]
     },
     {

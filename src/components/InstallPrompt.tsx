@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { isIOS, isMobile, isStandalone } from '../utils/installPrompt';
+import {
+  dismissInstallPrompt,
+  heldInstallPrompt,
+  installPromptDismissed,
+  isIOS,
+  isMobile,
+  isStandalone,
+  onInstallPrompt,
+  releaseInstallPrompt,
+  type BeforeInstallPromptEvent,
+} from '../utils/installPrompt';
 import './InstallPrompt.css';
-
-const DISMISSED_KEY = 'showrunner:installPromptDismissed';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
 
 /**
  * Nudges mobile-browser visitors to install the PWA, where it runs full-screen
@@ -26,41 +29,28 @@ interface InstallPromptProps {
 }
 
 export function InstallPrompt({ onShownChange }: InstallPromptProps = {}) {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [dismissed, setDismissed] = useState(() => {
-    try {
-      return localStorage.getItem(DISMISSED_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
+  // Chrome's offer is held from boot (see holdInstallPrompt), because it is
+  // usually made before this banner exists; one made later is passed on.
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(heldInstallPrompt);
+  const [dismissed, setDismissed] = useState(installPromptDismissed);
   // Computed once at mount (not in an effect) — iOS has no install event to
   // listen for, so there's no external state to synchronize here.
   const [showIOSHint] = useState(() => !isStandalone() && isMobile() && isIOS());
 
   useEffect(() => {
-    if (dismissed || isStandalone() || !isMobile() || isIOS()) return;
-
-    function onBeforeInstallPrompt(e: Event) {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    }
-    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    if (dismissed) return;
+    return onInstallPrompt(setDeferredPrompt);
   }, [dismissed]);
 
   function dismiss() {
     setDismissed(true);
     setDeferredPrompt(null);
-    try {
-      localStorage.setItem(DISMISSED_KEY, '1');
-    } catch {
-      /* ignore */
-    }
+    dismissInstallPrompt();
   }
 
   async function install() {
     if (!deferredPrompt) return;
+    releaseInstallPrompt();
     await deferredPrompt.prompt();
     await deferredPrompt.userChoice;
     setDeferredPrompt(null);

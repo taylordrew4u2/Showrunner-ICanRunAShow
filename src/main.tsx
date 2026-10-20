@@ -12,9 +12,14 @@ import './luxe.css'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { applyColorScheme, loadColorScheme } from './utils/theme'
 import { updateReady } from './utils/appUpdate'
+import { holdInstallPrompt } from './utils/installPrompt'
 
 // Apply the saved color scheme before the first paint to avoid a flash.
 applyColorScheme(loadColorScheme())
+
+// Chrome offers the install once per page load, usually before sign-in is
+// done and the banner that offers it exists. Held from here until then.
+holdInstallPrompt()
 
 // A new version waits until asked for (see utils/appUpdate): taking over on
 // its own reloaded the page whenever the download happened to finish, and on

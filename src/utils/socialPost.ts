@@ -7,10 +7,16 @@
  * from the booking itself and cannot drift out of date the way a hand-written
  * post does. Anyone with no handle saved is named rather than silently dropped,
  * because a missing tag is only noticed by the person who was missed.
+ *
+ * Surprise guests are the one deliberate exception: a post is the most public
+ * thing the app writes, and naming or tagging them in it is the spoiler the
+ * flag exists to prevent. They are left out of the caption, the tags and the
+ * untagged list, and reported separately so the producer can see why.
  */
 
 import type { Artist, Performer, Show } from '../types';
 import { formatShowTime, parseShowDate } from './showDate';
+import { billedPerformers, surpriseGuests } from './surpriseGuests';
 
 /** Anyone who appears on the bill and can be tagged. */
 type Billed = Pick<Performer, 'id' | 'name' | 'socialMedia'>;
@@ -22,6 +28,8 @@ export interface SocialPost {
   tags: string[];
   /** People on the bill with no handle saved. */
   untagged: string[];
+  /** Surprise guests, left out of all of the above on purpose. */
+  withheld: string[];
 }
 
 /**
@@ -57,13 +65,14 @@ export function hostLine(show: Show): string | null {
   return `Hosted by ${withHandle.join(' & ')}`;
 }
 
+/** Everyone the post may name: the bill without its surprise guests. */
 function billedFrom(show: Show): Billed[] {
-  const performers: Billed[] = show.performers.map((person) => ({
+  const performers: Billed[] = billedPerformers(show.performers).map((person) => ({
     id: person.id,
     name: person.name,
     socialMedia: person.socialMedia,
   }));
-  const artists: Billed[] = (show.artists ?? []).map((artist: Artist) => ({
+  const artists: Billed[] = billedPerformers(show.artists ?? []).map((artist: Artist) => ({
     id: artist.id,
     name: artist.name,
     socialMedia: artist.socialMedia,
@@ -139,5 +148,8 @@ export function buildSocialPost(show: Show): SocialPost {
     lines.push(tags.join(' '));
   }
 
-  return { text: lines.join('\n'), tags, untagged: untaggedNames(show) };
+  const withheld = surpriseGuests([...show.performers, ...(show.artists ?? [])])
+    .map((person) => person.name.trim())
+    .filter(Boolean);
+  return { text: lines.join('\n'), tags, untagged: untaggedNames(show), withheld };
 }

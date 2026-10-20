@@ -8,17 +8,21 @@
 // replace the document behind it, or wipe a show's soundboard mid-show.
 //
 // Ownership is the account that first wrote under the token. Rows made before
-// ownership was recorded have none; the first authenticated write claims
-// them, which is the same rule api/live.ts already uses for live_view — the
-// producer is the only account writing under their own token at that point.
-// Not a route (underscore-prefixed).
+// ownership was recorded have none: they are 'legacy'. A viewer link's row is
+// claimed by the next authenticated publish (api/live.ts), because the board
+// keeps publishing to the same token and the producer is the one doing it.
+// A signing or profile link's row never is: every send makes a fresh token,
+// so the producer never writes under an old one again, and the next account
+// to try is the one the link was sent to. Not a route (underscore-prefixed).
 import type { Client } from '@libsql/client';
 
-export type Ownership = 'free' | 'mine' | 'other';
+/** 'free': no row names the token yet. 'legacy': a row does, but no account. */
+export type Ownership = 'free' | 'mine' | 'other' | 'legacy';
 
 async function ownership(db: Client, table: 'sign_request' | 'live_view', token: string, userId: string): Promise<Ownership> {
   const result = await db.execute({ sql: `SELECT user_id FROM ${table} WHERE token = ?`, args: [token] });
-  if (result.rows.length === 0 || result.rows[0][0] == null) return 'free';
+  if (result.rows.length === 0) return 'free';
+  if (result.rows[0][0] == null) return 'legacy';
   return String(result.rows[0][0]) === userId ? 'mine' : 'other';
 }
 
@@ -34,7 +38,9 @@ export function liveTokenOwnership(db: Client, token: string, userId: string): P
 
 /**
  * Create or replace a signing request under its owner. False when the token
- * belongs to another account, in which case nothing was written.
+ * belongs to another account, or to none (a legacy row, which whoever holds
+ * the link could otherwise rewrite and claim, shutting its producer out of
+ * withdrawing it), in which case nothing was written.
  *
  * Deliberately does not clear `signature` / `signed_at`: re-sending the same
  * token must never quietly erase an agreement someone already made.
@@ -43,9 +49,8 @@ export async function upsertSignRequest(db: Client, token: string, userId: strin
   const result = await db.execute({
     sql: `INSERT INTO sign_request (token, user_id, payload) VALUES (?, ?, ?)
           ON CONFLICT(token) DO UPDATE SET
-            payload = excluded.payload,
-            user_id = excluded.user_id
-          WHERE sign_request.user_id IS NULL OR sign_request.user_id = excluded.user_id`,
+            payload = excluded.payload
+          WHERE sign_request.user_id = excluded.user_id`,
     args: [token, userId, payload],
   });
   return result.rowsAffected > 0;

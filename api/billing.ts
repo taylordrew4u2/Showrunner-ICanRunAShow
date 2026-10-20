@@ -1,34 +1,85 @@
 // /api/billing — the signed-in producer's plan, and the way into Stripe.
-//   GET                          → { configured, plan, founder, status, renewsAt, canManage }
+//   GET                          → { configured, plan, founder, status, renewsAt, endsAt, canManage }
 //   POST { action: 'checkout' }  → { url } of a Stripe Checkout page for the Producer plan
 //   POST { action: 'portal' }    → { url } of the Stripe customer portal (change card, cancel)
 // Card details never touch this server: both URLs are Stripe-hosted pages.
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson } from './_lib/http';
-import { BillingNotConfiguredError, isBillingConfigured, isPaidStatus, stripe, StripeError } from './_lib/stripe';
+import {
+  BillingNotConfiguredError,
+  isBillingConfigured,
+  isPaidStatus,
+  stripe,
+  StripeError,
+  type StripeSubscription,
+} from './_lib/stripe';
 
 interface SubscriptionRow {
   customerId: string | null;
+  subscriptionId: string | null;
   status: string | null;
   periodEnd: number | null;
+  cancelAt: number | null;
 }
 
 async function loadRow(userId: string): Promise<SubscriptionRow | null> {
   const result = await getDb().execute({
-    sql: `SELECT customer_id, status, current_period_end FROM subscription WHERE user_id = ?`,
+    sql: `SELECT customer_id, subscription_id, status, current_period_end, cancel_at FROM subscription WHERE user_id = ?`,
     args: [userId],
   });
   if (result.rows.length === 0) return null;
   const row = result.rows[0];
   const customerId = row[0];
-  const status = row[1];
-  const periodEnd = row[2];
+  const subscriptionId = row[1];
+  const status = row[2];
+  const periodEnd = row[3];
+  const cancelAt = row[4];
   return {
     customerId: customerId != null ? String(customerId) : null,
+    subscriptionId: subscriptionId != null ? String(subscriptionId) : null,
     status: status != null ? String(status) : null,
     periodEnd: periodEnd != null ? Number(periodEnd) : null,
+    cancelAt: cancelAt != null ? Number(cancelAt) : null,
   };
+}
+
+/**
+ * The account's Stripe customer, made now if it has none yet.
+ *
+ * Made before the first checkout rather than left to Checkout, which makes a
+ * new customer every time it isn't handed one. The row only learns of a
+ * subscription when the webhook lands, so a producer who came back before it
+ * did, or had checkout open in two tabs, paid again as a second customer with
+ * a second subscription, and the app only ever tracked one of the two.
+ */
+async function ensureCustomer(userId: string, row: SubscriptionRow | null): Promise<string> {
+  if (row?.customerId) return row.customerId;
+  const customer = await stripe<{ id: string }>('POST', '/customers', { metadata: { user_id: userId } });
+  // Two checkouts racing here both make one; the first to be written is the
+  // one every later checkout uses, and the spare is a customer with nothing on it.
+  await getDb().execute({
+    sql: `INSERT INTO subscription (user_id, customer_id) VALUES (?, ?)
+          ON CONFLICT(user_id) DO UPDATE SET customer_id = COALESCE(subscription.customer_id, excluded.customer_id)`,
+    args: [userId, customer.id],
+  });
+  return (await loadRow(userId))?.customerId ?? customer.id;
+}
+
+/** Statuses of a subscription that is paid for, or on its way to being. */
+const LIVE_STATUSES = new Set(['active', 'trialing', 'past_due', 'incomplete']);
+
+/**
+ * Whether Stripe already has a subscription for this customer, whatever the
+ * row says. Asked of Stripe because the row is the webhook's, and it can be
+ * seconds — or, when a delivery failed, hours — behind.
+ */
+async function hasLiveSubscription(customerId: string): Promise<boolean> {
+  const list = await stripe<{ data: StripeSubscription[] }>(
+    'GET',
+    `/subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=10`,
+  );
+  return list.data.some((sub) => LIVE_STATUSES.has(sub.status));
 }
 
 /**
@@ -73,8 +124,14 @@ export default async function handler(req: Request): Promise<Response> {
         plan: founder || isPaidStatus(row?.status) ? 'producer' : 'free',
         founder,
         status: row?.status ?? null,
-        renewsAt: row?.periodEnd ? new Date(row.periodEnd * 1000).toISOString() : null,
-        canManage: Boolean(row?.customerId),
+        // A subscription cancelled in the portal stays active to the end of
+        // its period. It does not renew, and the card has to say when it ends.
+        renewsAt: row?.periodEnd && !row.cancelAt ? new Date(row.periodEnd * 1000).toISOString() : null,
+        endsAt: row?.cancelAt ? new Date(row.cancelAt * 1000).toISOString() : null,
+        // The portal is for a subscription. A customer is made before the
+        // first checkout, so one that was never finished leaves a customer
+        // with nothing on it to manage.
+        canManage: Boolean(row?.customerId && row.subscriptionId),
       });
     }
 
@@ -86,16 +143,18 @@ export default async function handler(req: Request): Promise<Response> {
       if (action === 'checkout') {
         if (founder) return json({ error: 'founding_member' }, 409);
         if (isPaidStatus(row?.status)) return json({ error: 'already_subscribed' }, 409);
+        const customer = await ensureCustomer(userId, row);
+        if (await hasLiveSubscription(customer)) return json({ error: 'already_subscribed' }, 409);
         const session = await stripe<{ url: string }>('POST', '/checkout/sessions', {
           mode: 'subscription',
           line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
           // The account is identified three ways so the webhook can always
           // find it: on the session, on the subscription it creates, and by
-          // the customer once one exists. Usernames never go to Stripe —
-          // only the opaque, derived account id.
+          // the customer. Usernames never go to Stripe — only the opaque,
+          // derived account id.
           client_reference_id: userId,
           subscription_data: { metadata: { user_id: userId } },
-          ...(row?.customerId ? { customer: row.customerId } : {}),
+          customer,
           allow_promotion_codes: true,
           success_url: `${origin}/?billing=success`,
           cancel_url: `${origin}/?billing=cancelled`,

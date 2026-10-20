@@ -103,6 +103,44 @@ describe('reading a signed contract as a profile', () => {
     );
     expect(profile).toEqual({ socialMedia: '@monasable', phone: '555 0142' });
   });
+
+  it('does not take someone else’s number, or an ID number, as theirs', () => {
+    // A performer agreement asks for these too. Each one has "phone" or
+    // "number" in it, and none of them is how to reach the performer.
+    const profile = profileFromAnswers(
+      answers(
+        ['Emergency contact phone', 'Mum 07700 900123'],
+        ['Next of kin phone', '07700 900456'],
+        ['Agent phone', '555 0100'],
+        ['Equity membership number', 'M123456'],
+        ['Social insurance number', '046 454 286'],
+        ['IRD number', '49-091-850'],
+        ['Invoice number', 'INV-0042'],
+      ),
+    );
+    expect(profile).toEqual({});
+  });
+
+  it('does not take the photographer’s credit as the performer’s introduction', () => {
+    const profile = profileFromAnswers(
+      answers(['Headshot photo credit', 'Photo by Jane Smith'], ['Photographer’s Instagram', '@janesmithphoto']),
+    );
+    expect(profile).toEqual({});
+  });
+
+  it('still reads a number that asks how to reach them', () => {
+    expect(profileFromAnswers(answers(['Contact number', '555 0142'])).phone).toBe('555 0142');
+    expect(profileFromAnswers(answers(['Best number to call you on', '555 0143'])).phone).toBe('555 0143');
+    expect(profileFromAnswers(answers(['Cell', '555 0144'])).phone).toBe('555 0144');
+    // Read as a phone before bare "number" stopped counting; still one.
+    expect(profileFromAnswers(answers(['Best number for show-day texts', '555 0145'])).phone).toBe('555 0145');
+    expect(profileFromAnswers(answers(['Number for calling on the night', '555 0146'])).phone).toBe('555 0146');
+    expect(profileFromAnswers(answers(['WhatsApp number', '555 0147'])).phone).toBe('555 0147');
+  });
+
+  it('does not read a question about cancellation as a cell number', () => {
+    expect(profileFromAnswers(answers(['Cancellation notice given', 'Yes, a week'])).phone).toBeUndefined();
+  });
 });
 
 describe('deciding what to offer the producer', () => {
@@ -307,6 +345,16 @@ describe('what a signed contract fills in by itself', () => {
         { label: 'Social Security Number', value: '123-45-6789' },
         { label: 'Bank account number', value: '00012345678' },
       ])],
+      comics, key, () => 'new',
+    )).toBeNull();
+  });
+
+  it('does not fill their phone with the emergency contact they gave', () => {
+    // Phone was optional and skipped; the emergency contact was required.
+    // Their mother's number is not who the show-day texts should go to.
+    const comics = [{ id: 'c', name: 'Ada Cole' }];
+    expect(fillRolodexFromSignatures(
+      [signed([{ label: 'Emergency contact phone', value: 'Mum 07700 900123' }])],
       comics, key, () => 'new',
     )).toBeNull();
   });

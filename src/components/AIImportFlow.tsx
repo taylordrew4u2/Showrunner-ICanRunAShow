@@ -35,6 +35,10 @@ interface ReviewItem extends ScheduleItem {
   selected: boolean;
 }
 
+/** What Tab can land on inside the sheet; the same list Modal traps Tab within. */
+const FOCUSABLE =
+  'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
 const AI_STEPS = [
   { label: 'Reading file', subFor: { photo: 'On-device OCR', pdf: 'PDF text', paste: 'Text parse' } },
   { label: 'Detecting times', sub: '12h / 24h / informal' },
@@ -67,6 +71,12 @@ export function AIImportFlow({
   const sheetRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const cancelledRef = useRef(false);
+  // Where the pointer went down, as in Modal. A click is delivered to the
+  // common ancestor of where a press started and ended, so a text selection
+  // dragged out of a field and released over the backdrop counted as a tap on
+  // the backdrop — and closed the sheet, the pasted text and every review
+  // edit with it.
+  const pressedBackdropRef = useRef(false);
 
   useEffect(() => {
     // Cleared on the way in, not only set on the way out: StrictMode runs
@@ -92,10 +102,33 @@ export function AIImportFlow({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return;
-      // A dialog opened over this one answers to Escape first.
+      if (e.key !== 'Escape' && e.key !== 'Tab') return;
+      // A dialog opened over this one answers to these keys first.
       const above = document.activeElement?.closest('[role="dialog"]');
       if (above && above !== sheetRef.current) return;
+      const sheet = sheetRef.current;
+      if (e.key === 'Tab' && sheet) {
+        // Tab stays inside, as in Modal: aria-modal alone does not keep a
+        // keyboard out of the page behind the backdrop, and the Schedule
+        // section's buttons there still worked when tabbed onto.
+        const controls = [...sheet.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+          (el) => el.getClientRects().length > 0,
+        );
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (!first) {
+          e.preventDefault();
+          sheet.focus();
+          return;
+        }
+        const active = document.activeElement;
+        if (!sheet.contains(active) || active === sheet || (e.shiftKey ? active === first : active === last)) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        }
+        return;
+      }
+      if (e.key !== 'Escape') return;
       e.stopPropagation();
       onClose();
     }
@@ -226,7 +259,15 @@ export function AIImportFlow({
   const aiStepProgress = Math.min(AI_STEPS.length - 1, Math.floor((progress / 100) * AI_STEPS.length));
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div
+      className="sheet-backdrop"
+      onPointerDown={(e) => { pressedBackdropRef.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        const pressedHere = pressedBackdropRef.current && e.target === e.currentTarget;
+        pressedBackdropRef.current = false;
+        if (pressedHere) onClose();
+      }}
+    >
       {/* The sheet is the dialog, not the backdrop: a tap on the backdrop
           closes it, and a screen reader had been announcing the close
           target as the thing that was open. */}
@@ -399,7 +440,7 @@ export function AIImportFlow({
                       className="review-edit__check"
                       onClick={() => toggle(i.id)}
                       aria-label={i.selected ? 'Exclude cue' : 'Include cue'}
-                      title={i.selected ? 'Excluded from add' : 'Included'}
+                      title={i.selected ? 'Exclude from add' : 'Include'}
                     >
                       {i.selected && <Icon name="check" size={12} />}
                     </button>

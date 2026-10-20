@@ -4,6 +4,12 @@ import './ErrorBoundary.css';
 
 interface Props {
   children: ReactNode;
+  /**
+   * What to show instead, for a boundary around one part of the page. Without
+   * it the whole app is replaced, which is right at the top and wrong for a
+   * sheet that failed to open.
+   */
+  fallback?: ReactNode;
 }
 
 interface State {
@@ -27,6 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback !== undefined) return this.props.fallback;
       return (
         <div className="error-boundary">
           <h1 className="error-boundary__heading">Something went wrong</h1>

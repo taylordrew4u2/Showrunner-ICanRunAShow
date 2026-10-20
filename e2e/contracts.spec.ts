@@ -150,14 +150,19 @@ test.describe('contracts', () => {
     await truncated.close();
 
     // A PDF that cannot render must never reveal fields or a signing action.
-    const broken = await signerContext.newPage();
+    // In a context of its own with no service worker: the pdf.js worker is
+    // precached so PDFs open offline, and a page the worker controls would be
+    // handed the cached copy without the request ever reaching this route.
+    const brokenContext = await browser.newContext({ viewport: page.viewportSize()!, serviceWorkers: 'block' });
+    await installFakeApi(brokenContext, state);
+    const broken = await brokenContext.newPage();
     await broken.route('**/*pdf.worker*', (route) => route.abort());
     await broken.goto(link);
     await expect(broken.getByRole('alert')).toContainText('full contract could not be displayed');
     await expect(broken.locator('.signing__field input')).toHaveCount(0);
     await expect(broken.getByRole('button', { name: 'Continue to signature' })).toHaveCount(0);
     await expect(broken.getByRole('button', { name: 'Agree and sign' })).toHaveCount(0);
-    await broken.close();
+    await brokenContext.close();
 
     // Sent from a name the producer already had, so the name arrives filled in
     // — and the signature does not. A contract that opens already signed is

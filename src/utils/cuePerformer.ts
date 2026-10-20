@@ -26,8 +26,11 @@ function escapeRegExp(value: string): string {
  * Longest match wins: with both "Ada" and "Ada Cole" on file, a line reading
  * "Ada Cole — 10 min" is Ada Cole. Ties go to whoever appears first in the
  * line, which is the one being introduced rather than one mentioned later.
+ *
+ * `minLength` is for a caller whose wrong guess costs less than a miss, the
+ * way keeping a surprise guest secret does: there a short name has to count.
  */
-export function matchKnownName(text: string, names: string[]): string | null {
+export function matchKnownName(text: string, names: string[], minLength = MIN_NAME_LENGTH): string | null {
   const haystack = text?.trim();
   if (!haystack) return null;
 
@@ -35,7 +38,7 @@ export function matchKnownName(text: string, names: string[]): string | null {
 
   for (const raw of names) {
     const name = raw?.trim();
-    if (!name || name.length < MIN_NAME_LENGTH) continue;
+    if (!name || name.length < minLength) continue;
 
     // \b won't do: a name can start or end with punctuation or a non-ASCII
     // letter, where \b sits in the wrong place. Look for a non-letter (or the

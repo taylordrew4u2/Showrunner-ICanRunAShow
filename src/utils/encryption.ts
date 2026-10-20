@@ -124,10 +124,63 @@ export function decryptWithKeys<T>(encrypted: string, keys: string[]): T {
 }
 
 /**
- * Verify password by checking against stored hash. This is the client-side hash
- * the browser sends as its credential; the server additionally slow-hashes it
- * before storage (see api/_lib/credentials).
+ * The legacy (v1) credential: one SHA-256 of the password and the global salt.
+ *
+ * It used to go to the server on every request. Anyone who saw one request
+ * could test guesses against it at raw SHA-256 speed, billions a second, and a
+ * password found that way also gives the data key. It is no longer sent as a
+ * session's credential (see deriveAuthKey). Sign-in still sends it, once, for an
+ * account that has not moved to the new credential yet: the server checks it
+ * against the stored verifier and replaces that verifier with the new one.
  */
 export function hashPassword(password: string): string {
   return CryptoJS.SHA256(password + PASSWORD_SALT).toString();
+}
+
+// The account credential (v2). The salt is per account and carries a label
+// that nothing else uses, so its output is independent of the data key and of
+// v1 even though the same password goes into all three. A guess against it
+// costs 210,000 PBKDF2 rounds, more than a guess against the data key's
+// 100,000, so seeing the credential is never a cheaper way to the password
+// than holding the ciphertext.
+const AUTH_SALT_LABEL = 'icanrunashow-auth-v2:';
+const AUTH_ITERATIONS = 210_000;
+
+// Sign-in derives this to check the password and then again for the session
+// it starts. Cached in memory so the cost is paid once, like keyCache.
+const authKeyCache = new Map<string, string>();
+
+/**
+ * The credential a session sends as x-auth: PBKDF2-SHA256 of the password,
+ * salted with the account's userId. The server stores only a slow hash of it
+ * (api/_lib/credentials). Changing anything here changes every credential and
+ * locks every account out, so the parameters are pinned by a test.
+ */
+export async function deriveAuthKey(password: string, userId: string): Promise<string> {
+  const salt = AUTH_SALT_LABEL + userId;
+  const cacheKey = `${salt}\n${password}`;
+  const cached = authKeyCache.get(cacheKey);
+  if (cached) return cached;
+  let key: string;
+  if (globalThis.crypto?.subtle) {
+    const encoder = new TextEncoder();
+    const material = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt: encoder.encode(salt), iterations: AUTH_ITERATIONS, hash: 'SHA-256' },
+      material,
+      256,
+    );
+    key = Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, '0')).join('');
+  } else {
+    // Browsers hide WebCrypto on a page that is not served securely, such as
+    // the dev server opened over the LAN from a phone. The same derivation in
+    // crypto-js takes seconds, which is better than a sign-in that can't work.
+    key = CryptoJS.PBKDF2(password, salt, {
+      keySize: 256 / 32,
+      iterations: AUTH_ITERATIONS,
+      hasher: CryptoJS.algo.SHA256,
+    }).toString();
+  }
+  authKeyCache.set(cacheKey, key);
+  return key;
 }

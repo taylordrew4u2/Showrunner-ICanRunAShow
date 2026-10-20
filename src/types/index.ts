@@ -30,6 +30,13 @@ export interface Performer {
   walkOnEndSec?: number;
   credits?: string;
   videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
+  /**
+   * Booked, but kept off anything the public sees until they are on stage:
+   * the post copy, the viewer link's lineup and its "up next". A fact about
+   * this booking rather than about the person, so it stays on the show's slot
+   * and never travels to their Rolodex entry or their other shows.
+   */
+  surpriseGuest?: boolean;
 }
 
 /** Artists booked from the Rolodex share its profile while keeping their role. */
@@ -286,6 +293,14 @@ export interface Show {
   host?: string; // host name (free text, or set from a performer)
   todos?: TodoItem[];
   viewToken?: string; // public read-only viewer link token
+  /**
+   * The key the viewer link's audio is encrypted under (see viewerAudio.ts).
+   * Kept with the show, so every device the producer runs it from publishes
+   * under the same key and every link handed out keeps decoding. Never sent
+   * anywhere readable: it travels inside the encrypted show and in the
+   * fragment of the viewer link.
+   */
+  viewerKey?: string;
   viewNote?: string; // optional note shown on the viewer page before the show starts
   /** Made by "Try a sample show" — kept out of the Season report and the venue pitch. */
   sample?: boolean;

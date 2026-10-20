@@ -34,6 +34,9 @@ test('comic headshots upload, preview, download, persist, and replace by drop', 
   expect(download.suggestedFilename()).toBe('Mona Sable-headshot.jpg');
   expect(await download.failure()).toBeNull();
   await dialog.getByRole('button', { name: 'Close preview' }).click();
+  // The profile is a dialog, and the status rail steps aside for any dialog,
+  // so the save is read once the profile has closed.
+  await page.getByRole('dialog', { name: "Mona Sable's profile" }).getByRole('button', { name: '← Back' }).click();
   await expect(page.locator('.sync-status--saved')).toBeVisible();
   await page.reload();
   await gotoTab(page, 'Rolodex');

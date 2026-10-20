@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildOverview, whenLabel, daysUntil, showsOnDay, showReadiness, completePastShows } from './showsOverview';
+import { buildOverview, whenLabel, daysUntil, showsOnDay, showReadiness, completePastShows, sortShows } from './showsOverview';
 import type { Show } from '../types';
 
 const TODAY = new Date(2026, 7, 14); // Fri 14 Aug 2026, local midnight
@@ -255,5 +255,38 @@ describe('completePastShows', () => {
   it('returns the same array when nothing needs completing', () => {
     const shows = [show({ id: 'tonight', date: '2026-08-14' })];
     expect(completePastShows(shows, TODAY)).toBe(shows);
+  });
+});
+
+describe('sortShows', () => {
+  // Created second, so first in the list: new shows go on the front.
+  const late = show({ id: 'late', name: 'Late show', date: '2026-08-20', time: '9:30 PM' });
+  const early = show({ id: 'early', name: 'Early show', date: '2026-08-20', time: '7:00 PM' });
+  const nextWeek = show({ id: 'next-week', name: 'Next week', date: '2026-08-27', time: '8:00 PM' });
+  const undated = show({ id: 'undated', name: 'Undated', date: '' });
+  const ids = (shows: Show[]) => shows.map((s) => s.id);
+
+  it('lists two shows on one night by start time under Soonest, as Next up and the calendar do', () => {
+    expect(ids(sortShows([late, early], 'date-asc'))).toEqual(['early', 'late']);
+  });
+
+  it('lists the later start first under Latest', () => {
+    expect(ids(sortShows([early, late], 'date-desc'))).toEqual(['late', 'early']);
+  });
+
+  it('keeps undated shows at the back whichever way the dates run', () => {
+    expect(ids(sortShows([undated, nextWeek, late, early], 'date-asc'))).toEqual(['early', 'late', 'next-week', 'undated']);
+    expect(ids(sortShows([undated, early, late, nextWeek], 'date-desc'))).toEqual(['next-week', 'late', 'early', 'undated']);
+  });
+
+  it('leaves Recent in list order and sorts A–Z by name', () => {
+    expect(ids(sortShows([late, undated, early], 'added'))).toEqual(['late', 'undated', 'early']);
+    expect(ids(sortShows([late, undated, early], 'name'))).toEqual(['early', 'late', 'undated']);
+  });
+
+  it('does not reorder the array it was given', () => {
+    const shows = [late, early];
+    sortShows(shows, 'date-asc');
+    expect(ids(shows)).toEqual(['late', 'early']);
   });
 });

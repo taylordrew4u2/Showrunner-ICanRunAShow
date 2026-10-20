@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createClient, type Client } from '@libsql/client';
 import { liveTokenOwnership, signTokenOwnership, upsertSignRequest } from '../../api/_lib/tokenOwnership';
 import { rateLimit, rateLimitPeek } from '../../api/_lib/ratelimit';
@@ -43,11 +43,14 @@ describe('who may write under a signing link', () => {
     expect(row.rows[0].signature).toBe('sig');
   });
 
-  it('lets the next producer write claim a request made before owners were recorded', async () => {
+  it('is not claimed by the next account to write under a request made before owners were recorded', async () => {
+    // The producer never writes under an existing token again, so the next
+    // writer is whoever was sent the link.
     await db.execute({ sql: `INSERT INTO sign_request (token, payload) VALUES ('old', 'legacy')` });
-    expect(await signTokenOwnership(db, 'old', 'producer')).toBe('free');
-    expect(await upsertSignRequest(db, 'old', 'producer', 'resent')).toBe(true);
-    expect(await signTokenOwnership(db, 'old', 'someone-else')).toBe('other');
+    expect(await signTokenOwnership(db, 'old', 'performer')).toBe('legacy');
+    expect(await upsertSignRequest(db, 'old', 'performer', 'replaced')).toBe(false);
+    const row = await db.execute('SELECT user_id, payload FROM sign_request');
+    expect(Array.from(row.rows[0])).toEqual([null, 'legacy']);
   });
 });
 
@@ -69,6 +72,20 @@ describe('a limit that counts only failures', () => {
     expect((await rateLimitPeek(db, 'b', 3, 300)).allowed).toBe(true);
     await rateLimit(db, 'b', 3, 300);
     expect((await rateLimitPeek(db, 'b', 3, 300)).allowed).toBe(false);
+  });
+
+  it('sweeps out buckets whose window ended long ago, now and then', async () => {
+    // A login under a made-up account name makes a new bucket every time, and
+    // nothing else ever removes one.
+    await db.execute(`INSERT INTO rate_limit (bucket, count, window_start) VALUES ('stale', 1, datetime('now', '-2 days'))`);
+    await db.execute(`INSERT INTO rate_limit (bucket, count, window_start) VALUES ('recent', 1, datetime('now', '-1 hour'))`);
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    await rateLimit(db, 'b', 3, 300);
+    expect((await db.execute('SELECT bucket FROM rate_limit ORDER BY bucket')).rows.map((r) => r[0])).toEqual(['b', 'recent', 'stale']);
+    random.mockReturnValue(0);
+    await rateLimit(db, 'b', 3, 300);
+    expect((await db.execute('SELECT bucket FROM rate_limit ORDER BY bucket')).rows.map((r) => r[0])).toEqual(['b', 'recent']);
+    random.mockRestore();
   });
 
   it('forgets failures once the window has passed', async () => {

@@ -20,23 +20,38 @@ export function parseTimecode(input: string): number | null {
     if (!/^\d*\.?\d+$/.test(part)) return null;
     const value = Number(part);
     if (!Number.isFinite(value)) return null;
-    // Only the leading group may exceed 59. Bare "90" is a minute and a half,
-    // and "90:00" is a long recording, but "1:90" is someone mistyping.
-    if (parts.length > 1 && i > 0 && value > 59) return null;
+    // Only the leading group may reach 60. Bare "90" is a minute and a half,
+    // and "90:00" is a long recording, but "1:90" is someone mistyping. The
+    // bound is 60, not 59: "1:59.5" is a real half second before the minute.
+    if (parts.length > 1 && i > 0 && value >= 60) return null;
     seconds = seconds * 60 + value;
   }
   return seconds < 0 ? null : seconds;
 }
 
-/** Print seconds as mm:ss, or h:mm:ss past an hour. */
+/**
+ * Print seconds as mm:ss, or h:mm:ss past an hour.
+ *
+ * A fraction of a second is printed, not rounded away. The trim fields show
+ * this text and commit it again on every blur, so an in-point of 1:23.5
+ * printed as "1:24" moved half a second the next time the producer tapped
+ * out of the box, and the box showed a time the button did not play. Whole
+ * seconds still read "1:23"; a fraction keeps up to milliseconds, with
+ * trailing zeros dropped.
+ */
 export function formatTimecode(seconds: number | undefined): string {
   if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return '';
-  const total = Math.round(seconds);
+  // Counted in whole milliseconds, so a fraction that rounds up carries into
+  // the next second: 59.9996 is "1:00", not "0:60".
+  const ms = Math.round(seconds * 1000);
+  const total = Math.floor(ms / 1000);
+  const frac = ms % 1000;
   const s = total % 60;
   const m = Math.floor(total / 60) % 60;
   const h = Math.floor(total / 3600);
   const pad = (n: number) => n.toString().padStart(2, '0');
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+  const fraction = frac ? `.${frac.toString().padStart(3, '0').replace(/0+$/, '')}` : '';
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}${fraction}` : `${m}:${pad(s)}${fraction}`;
 }
 
 /**

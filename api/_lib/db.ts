@@ -38,12 +38,16 @@ export function getDb(): Client {
 
 // Idempotent schema bootstrap — proven DDL, run once per warm instance.
 const DDL: string[] = [
+  // `auth_version` is how the server wraps the stored verifier;
+  // `client_hash_version` is which client credential it wraps. See
+  // _lib/credentials.ts.
   `CREATE TABLE IF NOT EXISTS users (
-     id            TEXT PRIMARY KEY,
-     password_hash TEXT NOT NULL,
-     auth_salt     TEXT,
-     auth_version  INTEGER NOT NULL DEFAULT 1,
-     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+     id                  TEXT PRIMARY KEY,
+     password_hash       TEXT NOT NULL,
+     auth_salt           TEXT,
+     auth_version        INTEGER NOT NULL DEFAULT 1,
+     client_hash_version INTEGER NOT NULL DEFAULT 1,
+     created_at          TEXT NOT NULL DEFAULT (datetime('now'))
    )`,
   `CREATE TABLE IF NOT EXISTS rate_limit (
      bucket       TEXT PRIMARY KEY,
@@ -154,12 +158,14 @@ const DDL: string[] = [
   // One row per account that has ever started a Stripe checkout. Stripe is
   // the source of truth; this is the last state its webhook reported, so the
   // app can answer "is this account paid?" without calling Stripe per request.
+  // `cancel_at` is when a cancelled subscription that is still active stops.
   `CREATE TABLE IF NOT EXISTS subscription (
      user_id            TEXT PRIMARY KEY,
      customer_id        TEXT,
      subscription_id    TEXT,
      status             TEXT,
      current_period_end INTEGER,
+     cancel_at          INTEGER,
      updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
    )`,
 ];
@@ -176,13 +182,21 @@ const MIGRATIONS: string[] = [
   // producer whose show it is — nobody else has the token in a state where
   // they could publish it. See api/live.ts.
   `ALTER TABLE live_view ADD COLUMN user_id TEXT`,
-  // Same story for signing and profile links: requests made before the
-  // producer's account was recorded on them are claimed by the next
-  // authenticated write to the token. See api/_lib/tokenOwnership.ts.
+  // Signing and profile links made before this name no account, and unlike
+  // a viewer link nobody may claim one: the producer never writes under an
+  // old token again, so the next account to try is whoever was sent it.
+  // See api/_lib/tokenOwnership.ts.
   `ALTER TABLE sign_request ADD COLUMN user_id TEXT`,
   // Parked copies were ordinary rows before, and were pruned like them.
   `ALTER TABLE user_settings_backup ADD COLUMN parked INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE user_shows_backup ADD COLUMN parked INTEGER NOT NULL DEFAULT 0`,
+  // Cancelling in the portal leaves a subscription active to the end of its
+  // period, and the plan card said "Renews" over it until then.
+  `ALTER TABLE subscription ADD COLUMN cancel_at INTEGER`,
+  // Every verifier stored before this column wraps the original SHA-256 client
+  // hash, which is what the default says. Each moves to the per-account
+  // credential at its account's next sign-in.
+  `ALTER TABLE users ADD COLUMN client_hash_version INTEGER NOT NULL DEFAULT 1`,
 ];
 
 async function runMigrations(db: Client): Promise<void> {
@@ -195,18 +209,25 @@ async function runMigrations(db: Client): Promise<void> {
   }
 }
 
+/**
+ * Create every table and add the columns that came later. Safe to repeat.
+ * Exported so the server tests run against the real schema and migrations —
+ * the account-deletion test in particular notices a table added later that
+ * deletion does not know about.
+ */
+export async function applySchema(db: Client): Promise<void> {
+  await db.batch(DDL, 'write');
+  await runMigrations(db);
+}
+
 let _schemaReady: Promise<void> | null = null;
 
 export function ensureSchema(): Promise<void> {
   if (!_schemaReady) {
-    const db = getDb();
-    _schemaReady = db
-      .batch(DDL, 'write')
-      .then(() => runMigrations(db))
-      .catch((err) => {
-        _schemaReady = null; // allow a later retry on a fresh request
-        throw err;
-      });
+    _schemaReady = applySchema(getDb()).catch((err) => {
+      _schemaReady = null; // allow a later retry on a fresh request
+      throw err;
+    });
   }
   return _schemaReady;
 }

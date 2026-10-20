@@ -79,6 +79,18 @@ describe('the printed runsheet', () => {
     expect(ruleFor(html, '.badge')).toContain('print-color-adjust: exact');
   });
 
+  it('prints recap notes without the trailing space and blank lines they were typed with', () => {
+    // Notes are stored as typed, so the field can be edited without losing
+    // the space after a word. The printed page is where they are tidied.
+    const recapped = {
+      ...show,
+      recap: { performerNotes: 'Great room\n\n', improvementNotes: 'Start on time ' },
+    } as Show;
+    const html = captureExport(() => exportShowToPDF(recapped, settings));
+    expect(html).toContain('<strong>Performer Notes:</strong>\nGreat room</div>');
+    expect(html).toContain('<strong>Improvement Notes:</strong>\nStart on time</div>');
+  });
+
   it('keeps the DJ list headers when the printer strips background colours', () => {
     const html = captureExport(() => exportDJListToPDF(show, []));
     const th = ruleFor(html, 'th');
@@ -117,5 +129,44 @@ describe('the printed runsheet', () => {
     expect(frame.remove).not.toHaveBeenCalled();
     listeners.afterprint();
     expect(frame.remove).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a long introduction from printing over the walk-on cue', () => {
+    // The card is a fixed height and its foot sits at the bottom. Credits
+    // that ran six lines used to print straight over the walk-on line, so the
+    // host could read neither.
+    const credits = 'As seen on Comedy Central’s Up Next, Just For Laughs New Faces, opening for Maria Bamford on tour, host of the #1 comedy podcast Loud & Clear, Edinburgh Fringe and Melbourne International Comedy Festival alum.';
+    const longShow = { ...show, performers: [{ ...show.performers[0], credits }] } as Show;
+    const html = captureExport(() => exportShowToPDF(longShow, settings));
+
+    // The credits get a box of their own that stops short of the foot.
+    expect(html).toContain('class="card card--foot"');
+    expect(ruleFor(html, '.card')).toContain('flex-direction: column');
+    expect(ruleFor(html, '.card--foot')).toMatch(/padding-bottom: \d+px/);
+    expect(ruleFor(html, '.card__credits')).toContain('min-height: 0');
+    expect(ruleFor(html, '.card__credits')).toContain('overflow: hidden');
+  });
+
+  it('gives the credits the whole card when there is no foot to clear', () => {
+    const bare = { ...show, performers: [{ id: 'p1', name: 'Ada Cole', credits: 'Netflix' }] } as unknown as Show;
+    const html = captureExport(() => exportShowToPDF(bare, settings));
+    expect(html).toContain('class="card"');
+    expect(html).not.toContain('card--foot"');
+  });
+
+  it('keeps a surprise guest on the producer’s sheet and the host’s card, marked', () => {
+    // The runsheet is the producer's and the cards are the host's: the two
+    // people who need the name. Both say it is a surprise.
+    const withGuest = {
+      ...show,
+      performers: [
+        ...show.performers,
+        { id: 'g1', name: 'Miles Trent', socialMedia: '@milestrent', surpriseGuest: true },
+      ],
+    } as Show;
+    const html = captureExport(() => exportShowToPDF(withGuest, settings));
+    expect(html).toMatch(/<td>Miles Trent<span class="badge">Surprise guest<\/span><\/td>/);
+    expect(html).toMatch(/<td>Ada Cole<\/td>/);
+    expect(html).toMatch(/<span class="card__kind">Surprise guest · @milestrent<\/span>/);
   });
 });

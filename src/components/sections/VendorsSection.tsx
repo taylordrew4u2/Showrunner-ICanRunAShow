@@ -227,8 +227,9 @@ export function VendorsSection({ vendors, onChange }: VendorsSectionProps) {
                     <button
                       className="btn btn--ghost btn--sm section-list-item__delete"
                       onClick={() => deleteVendor(v.id)}
+                      aria-label={`Delete vendor ${v.name}`}
                     >
-                      ×
+                      <span aria-hidden="true">×</span>
                     </button>
                   </div>
                 </>

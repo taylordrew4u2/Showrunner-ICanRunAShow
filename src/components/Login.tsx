@@ -1,5 +1,6 @@
 import { BrandMark } from './BrandMark';
 import { useId, useState } from 'react';
+import { isNativeShell } from '../utils/nativeShell';
 import './Login.css';
 
 interface LoginProps {
@@ -7,17 +8,28 @@ interface LoginProps {
   onSignUp: (username: string, password: string) => void;
   loading?: boolean;
   errorMessage?: string;
+  /** Filled in when the app signed someone out itself, so they sign back in to the same account. */
+  defaultUsername?: string;
 }
 
-export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }: LoginProps) {
+// New accounts need eight characters. Accounts made when three was enough
+// still sign in with the password they chose.
+const MIN_NEW_PASSWORD = 8;
+const MIN_PASSWORD = 3;
+
+export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '', defaultUsername = '' }: LoginProps) {
   // Labels have to point at the field they name: written as a plain <label>
   // beside an input they are decoration — not announced as the field's name,
   // and not tappable to focus it.
   const fieldId = useId();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(defaultUsername);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  // The sales page opens inside the iOS app, where App Store guideline 3.1.1
+  // keeps the plan's price out of sight (public/tour/index.html hides it
+  // there), so the links there don't promise pricing.
+  const native = isNativeShell();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,8 +52,9 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
       return;
     }
 
-    if (password.length < 3) {
-      setError('Password must be at least 3 characters');
+    const minimum = mode === 'signup' ? MIN_NEW_PASSWORD : MIN_PASSWORD;
+    if (password.length < minimum) {
+      setError(`Password must be at least ${minimum} characters`);
       return;
     }
 
@@ -72,7 +85,9 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
           <li><span>02</span> Set the cues</li>
           <li><span>03</span> Run the show</li>
         </ol>
-        <a className="landing__tour" href="/tour/">See everything it does, and pricing →</a>
+        <a className="landing__tour" href="/tour/">
+          {native ? 'See everything it does →' : 'See everything it does, and pricing →'}
+        </a>
         </div>
 
         <div className="login__container">
@@ -152,7 +167,7 @@ export function Login({ onSignIn, onSignUp, loading = false, errorMessage = '' }
               </p>
             </details>
             <p className="login__legal">
-              <a href="/tour/">Features &amp; pricing</a>
+              <a href="/tour/">{native ? 'Features' : 'Features & pricing'}</a>
               <a href="/guides/">Guides</a>
               <a href="/privacy.html">Privacy</a>
               <a href="/terms.html">Terms</a>

@@ -138,6 +138,39 @@ export function fillCueDurations(
   return { schedule: filled > 0 ? next : schedule, filled };
 }
 
+/**
+ * A cue's time adjustment after a +/- press in Run Show.
+ *
+ * The length on screen never goes below MIN_CUE_SECONDS, so neither does the
+ * stored adjustment: presses past the floor used to be kept where nobody
+ * could see them, and the + buttons then did nothing until every one of them
+ * had been paid back — mid-show, buttons that look broken.
+ */
+export function nudgeAdjustment(current: number, baseSec: number, delta: number): number {
+  return Math.max(MIN_CUE_SECONDS - baseSec, current + delta);
+}
+
+/**
+ * The clock of the cue Run Show auto-advances to: started when the cue before
+ * it was due to end, which is not when the board noticed.
+ *
+ * Starting it from "now" lost the few milliseconds between the tick that saw
+ * the cue run out and the advance — a whole second on the next reading, so
+ * every auto-advanced cue ran a second long and a long show drifted to
+ * "Behind" while on plan. It also lost all the time a phone spent locked past
+ * the end of a cue: unlocked, the board moved on one cue and started it at
+ * full length, however long ago it should have begun. Called again while the
+ * remainder still covers the next cue, it moves on as far as the time says.
+ */
+export function carryCueClock(
+  cueStartedAt: number,
+  totalSec: number,
+  now: number,
+): { cueStartedAt: number; elapsed: number } {
+  const next = cueStartedAt + totalSec * 1000;
+  return { cueStartedAt: next, elapsed: Math.max(0, Math.floor((now - next) / 1000)) };
+}
+
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
 }

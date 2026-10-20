@@ -38,27 +38,35 @@ describe('replacing a running order with a generated or template one', () => {
 
 describe('the way back after a running order was replaced', () => {
   const previous = [cue({ id: 'old-1' }), cue({ id: 'old-2' })];
-  const stash = { cues: previous, byIds: ['new-1', 'new-2', 'new-3'] };
+  const stash = { showId: 'show-a', cues: previous, byIds: ['new-1', 'new-2', 'new-3'] };
 
   it('is still offered when the section is opened again on the replaced order', () => {
     // The section unmounts when it is collapsed, so this is what survives a
     // look at the bill in between.
     const now = [cue({ id: 'new-1' }), cue({ id: 'new-2' }), cue({ id: 'new-3' })];
-    expect(undoableReplace(now, stash)).toBe(stash);
+    expect(undoableReplace(now, stash, 'show-a')).toBe(stash);
   });
 
   it('survives the producer editing the new order a little', () => {
     const now = [cue({ id: 'new-1' }), cue({ id: 'added' })];
-    expect(undoableReplace(now, stash)).toBe(stash);
+    expect(undoableReplace(now, stash, 'show-a')).toBe(stash);
   });
 
   it('is not offered on a different show, whose cues it would overwrite', () => {
     const otherShow = [cue({ id: 'x' }), cue({ id: 'y' })];
-    expect(undoableReplace(otherShow, stash)).toBeNull();
+    expect(undoableReplace(otherShow, stash, 'show-b')).toBeNull();
+  });
+
+  it('is not offered on a copy of the show, even though its cues kept their ids', () => {
+    // Duplicate and Repeat clone the running order cue for cue, ids and all.
+    // "Put them back" there would write the original's old cues, linked to
+    // the original's cast, over the copy's.
+    const copy = [cue({ id: 'new-1' }), cue({ id: 'new-2' }), cue({ id: 'new-3' })];
+    expect(undoableReplace(copy, stash, 'show-a-copy')).toBeNull();
   });
 
   it('is not offered once the replaced order is itself gone', () => {
-    expect(undoableReplace([], stash)).toBeNull();
-    expect(undoableReplace([cue({ id: 'new-1' })], null)).toBeNull();
+    expect(undoableReplace([], stash, 'show-a')).toBeNull();
+    expect(undoableReplace([cue({ id: 'new-1' })], null, 'show-a')).toBeNull();
   });
 });

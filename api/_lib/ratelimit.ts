@@ -5,6 +5,12 @@
 // best-effort limit (fine for throttling brute-force / abuse, not for billing).
 import type { Client } from '@libsql/client/web';
 
+// Buckets are reset in place but never removed, and a failed login under a
+// made-up account name makes a new one each time. One write in this many also
+// sweeps out every bucket whose window ended over a day ago, well past the
+// longest window any caller uses (an hour).
+const PRUNE_ONE_IN = 100;
+
 /**
  * Record one hit against `bucket` and report whether it is still within `max`
  * hits per `windowSeconds`. Fails open (allows) if the limiter query errors, so
@@ -32,6 +38,10 @@ export async function rateLimit(
       args: [bucket],
     });
     const count = result.rows.length > 0 ? Number(result.rows[0][0]) : 0;
+    if (Math.random() < 1 / PRUNE_ONE_IN) {
+      // Housekeeping: failing at it must not change the answer above.
+      await db.execute(`DELETE FROM rate_limit WHERE window_start < datetime('now', '-1 day')`).catch(() => undefined);
+    }
     return { allowed: count <= max };
   } catch {
     return { allowed: true };

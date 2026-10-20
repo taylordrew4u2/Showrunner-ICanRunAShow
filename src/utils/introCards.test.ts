@@ -123,4 +123,17 @@ describe('buildIntroCards', () => {
     const [card] = buildIntroCards(show({ performers: [p({ id: 'p1', name: '  Ada Cole ' })] }));
     expect(card.name).toBe('Ada Cole');
   });
+
+  it('keeps a surprise guest in the host’s stack, in running order, marked as the surprise', () => {
+    // The host is the one person who has to know: theirs is the intro the
+    // room has not been warned about.
+    const cards = buildIntroCards(show({
+      performers: [p({ id: 'p1', name: 'Ada Cole' }), p({ id: 'g1', name: 'Miles Trent', surpriseGuest: true })],
+      schedule: [cue('Miles Trent'), cue('Ada Cole')],
+    }));
+    expect(cards.map((c) => [c.name, c.surprise])).toEqual([
+      ['Miles Trent', true],
+      ['Ada Cole', false],
+    ]);
+  });
 });

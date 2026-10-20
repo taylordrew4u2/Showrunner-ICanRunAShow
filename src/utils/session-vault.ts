@@ -1,4 +1,4 @@
-import { deriveUserId, deriveSessionKeys, hashPassword } from './encryption';
+import { deriveUserId, deriveSessionKeys, deriveAuthKey } from './encryption';
 
 /**
  * Where a signed-in session lives between visits.
@@ -31,7 +31,13 @@ export interface SessionCredentials {
   username: string;
   /** Row key for this account's data. Derived from the username. */
   userId: string;
-  /** The credential sent to the server. Derived from the password. */
+  /**
+   * The credential sent to the server, derived from the password with a salt
+   * of its own (see deriveAuthKey). A session saved by an earlier build holds
+   * the old SHA-256 hash here instead. That keeps working until the account
+   * signs in somewhere with this build; after that the server refuses it, and
+   * the app asks for the password again.
+   */
   authHash: string;
   /** Current (v2) data-encryption key. */
   key: string;
@@ -90,12 +96,13 @@ export function sameAccount(stored: unknown, username: string): boolean {
 }
 
 /** Everything derivable from a password, computed once so it need not be kept. */
-export function credentialsFrom(username: string, password: string): SessionCredentials {
+export async function credentialsFrom(username: string, password: string): Promise<SessionCredentials> {
   const { key, legacyKey } = deriveSessionKeys(password);
+  const userId = deriveUserId(normalizeUsername(username));
   return {
     username,
-    userId: deriveUserId(normalizeUsername(username)),
-    authHash: hashPassword(password),
+    userId,
+    authHash: await deriveAuthKey(password, userId),
     key,
     legacyKey,
   };
@@ -138,7 +145,8 @@ function idbPut(db: IDBDatabase, id: string, value: CryptoKey): Promise<void> {
  * `create: false` is for reads — if the key is gone (cleared site data, a new
  * browser profile) we must not mint a fresh one, because a new key can't
  * decrypt the old record and would turn a recoverable "sign in again" into a
- * confusing silent failure.
+ * confusing silent failure. A read that fails throws instead of answering
+ * null: null means the key is gone, and only that may cost the session.
  */
 async function getWrapKey(create: boolean): Promise<CryptoKey | null> {
   if (typeof indexedDB === 'undefined' || !crypto?.subtle) return null;
@@ -155,10 +163,15 @@ async function getWrapKey(create: boolean): Promise<CryptoKey | null> {
     ]);
     await idbPut(db, WRAP_KEY_ID, key);
     return key;
-  } catch {
+  } catch (error) {
     // Private browsing, disabled storage, a blocked upgrade — fall back to an
     // unwrapped record rather than locking the user out of their own app.
-    return null;
+    if (create) return null;
+    // Reading, though, a failure is not a missing key. WebKit drops its
+    // IndexedDB connection now and then, and answering null for that deleted
+    // the session and the key with it: signed out for good over a hiccup, at
+    // a venue with no signal to sign back in.
+    throw error;
   }
 }
 
@@ -233,7 +246,10 @@ export async function loadSession(): Promise<SessionCredentials | null> {
   // there, so convert it and delete it before doing anything else.
   const legacy = readLegacySession();
   if (legacy) {
-    const creds = credentialsFrom(legacy.username, legacy.password);
+    // The new credential, even though the account may not have moved to it
+    // yet. If it hasn't, the server refuses this session and the app asks for
+    // the password, and that sign-in moves the account over.
+    const creds = await credentialsFrom(legacy.username, legacy.password);
     await saveSession(creds);
     return creds;
   }
@@ -249,7 +265,15 @@ export async function loadSession(): Promise<SessionCredentials | null> {
 
   try {
     if (!record.wrapped) return JSON.parse(record.data) as SessionCredentials;
-    const wrapKey = await getWrapKey(false);
+    let wrapKey: CryptoKey | null;
+    try {
+      // Once more on failure: a dropped connection is usually back by the next open.
+      wrapKey = await getWrapKey(false).catch(() => getWrapKey(false));
+    } catch {
+      // IndexedDB could not be read this time. The record and its key are
+      // both still there for the next launch; this one shows the sign-in.
+      return null;
+    }
     if (!wrapKey || !record.iv) {
       // The key is gone but the record isn't. Nothing can read this again.
       clearSession();

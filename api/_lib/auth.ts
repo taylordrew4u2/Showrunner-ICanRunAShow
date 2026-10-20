@@ -1,9 +1,12 @@
 // Authorizes a request by matching the `x-user-id` + `x-auth` headers against
 // the stored credential. The browser computes both client-side (the raw
 // password / encryption key never leave the device). Returns the userId when
-// authorized, or null. Not a route (underscore-prefixed).
+// authorized, or null when the credential is missing or wrong; throws
+// TooManyRequestsError (429) when the failures below are used up. Not a route
+// (underscore-prefixed).
 import { ensureSchema, getDb } from './db';
 import { verifyCredential, type StoredCredential } from './credentials';
+import { TooManyRequestsError } from './http';
 import { clientAddress, rateLimit, rateLimitPeek } from './ratelimit';
 
 // Failed authorizations per account and address before the rest are refused
@@ -21,9 +24,13 @@ export async function authorize(req: Request): Promise<string | null> {
   await ensureSchema();
   const db = getDb();
   const failures = `authz:${userId}:${clientAddress(req)}`;
-  if (!(await rateLimitPeek(db, failures, MAX_FAILURES, FAILURE_WINDOW_SECONDS)).allowed) return null;
+  // Refused unread, but as 429 rather than 401: the credential was never
+  // looked at, so this must not read as "wrong credential" and sign out a
+  // valid session that shares an address with, say, a stale device still
+  // sending the old hash.
+  if (!(await rateLimitPeek(db, failures, MAX_FAILURES, FAILURE_WINDOW_SECONDS)).allowed) throw new TooManyRequestsError();
   const result = await db.execute({
-    sql: `SELECT password_hash, auth_salt, auth_version FROM users WHERE id = ?`,
+    sql: `SELECT password_hash, auth_salt, auth_version, client_hash_version FROM users WHERE id = ?`,
     args: [userId],
   });
   if (result.rows.length === 0) return null;
@@ -32,17 +39,24 @@ export async function authorize(req: Request): Promise<string | null> {
     passwordHash: String(row[0]),
     authSalt: row[1] != null ? String(row[1]) : null,
     authVersion: Number(row[2] ?? 1),
+    clientVersion: Number(row[3] ?? 1),
   };
+  // Whichever client credential the row wraps is the only one that opens it:
+  // the old hash until the account signs in from a current build, the
+  // per-account key after that. Nothing here moves a row between the two.
   const { ok, upgrade } = await verifyCredential(stored, auth);
   if (!ok) {
     await rateLimit(db, failures, MAX_FAILURES, FAILURE_WINDOW_SECONDS);
     return null;
   }
   // Transparently upgrade a legacy row to a salted slow hash on first use.
+  // Only over the verifier just checked: a sign-in that moved the account to
+  // the new credential in the meantime must not get the old one written back
+  // over it.
   if (upgrade) {
     await db.execute({
-      sql: `UPDATE users SET password_hash = ?, auth_salt = ?, auth_version = 2 WHERE id = ?`,
-      args: [upgrade.hash, upgrade.salt, userId],
+      sql: `UPDATE users SET password_hash = ?, auth_salt = ?, auth_version = 2 WHERE id = ? AND password_hash = ?`,
+      args: [upgrade.hash, upgrade.salt, userId, stored.passwordHash],
     });
   }
   return userId;

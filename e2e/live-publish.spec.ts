@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { deriveUserId, hashPassword } from '../src/utils/encryption';
+import { deriveAuthKey, deriveUserId } from '../src/utils/encryption';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
 import { createShow, openSection, PASSWORD, signUpAndOnboard } from './support/app';
 
@@ -64,7 +64,7 @@ test.describe('publishing to the live viewer', () => {
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'signup', userId: 'someone-else', passwordHash: 'their-credential' }),
+        body: JSON.stringify({ action: 'signup', userId: 'someone-else', authKey: 'their-credential' }),
       });
       return res.status;
     });
@@ -152,7 +152,7 @@ test.describe('publishing to the live viewer', () => {
       },
       {
         token,
-        headers: { 'x-user-id': deriveUserId('producer'), 'x-auth': hashPassword(PASSWORD) },
+        headers: { 'x-user-id': deriveUserId('producer'), 'x-auth': await deriveAuthKey(PASSWORD, deriveUserId('producer')) },
         lastUpdateMs: held - 5_000,
       },
     );

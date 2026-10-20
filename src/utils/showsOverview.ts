@@ -159,6 +159,38 @@ export function compareByWhen(a: Show, b: Show): number {
   return aTime < bTime ? -1 : 1;
 }
 
+/** The orders the Shows grid offers. */
+export type ShowSort = 'added' | 'date-asc' | 'date-desc' | 'name';
+
+/**
+ * The Shows grid, in the order picked. Undated shows go last for date sorts.
+ *
+ * Soonest and Latest go by start time within a day, as Next up and the
+ * calendar do. Comparing the dates alone left an early and a late show on one
+ * night in creation order, so the grid put the 9:30 show above the 7:00 one
+ * that the dashboard, a few lines up, said was next.
+ */
+export function sortShows(shows: Show[], sortBy: ShowSort): Show[] {
+  return [...shows].sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'date-asc':
+        return compareByWhen(a, b);
+      case 'date-desc': {
+        // Reversed, an undated show would lead as the "latest" one. It is
+        // not late, just not dated yet, so it stays at the back here too.
+        const aDated = sortKey(a) !== Number.POSITIVE_INFINITY;
+        const bDated = sortKey(b) !== Number.POSITIVE_INFINITY;
+        if (aDated !== bDated) return aDated ? -1 : 1;
+        return compareByWhen(b, a);
+      }
+      default:
+        return 0; // 'added' — preserve existing newest-first order
+    }
+  });
+}
+
 /**
  * The next show's state of readiness, as the few lines worth reading before
  * you walk into the room.

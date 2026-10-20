@@ -156,5 +156,39 @@ describe('buildSocialPost', () => {
 
     expect(post.text).not.toContain('Tickets:');
     expect(post.tags).toEqual([]);
+    expect(post.withheld).toEqual([]);
+  });
+});
+
+describe('a post with a surprise guest on the bill', () => {
+  const booked = show({
+    performers: [
+      { id: 'p1', name: 'Renata Cruz', socialMedia: '@renatadoesbits' },
+      { id: 'g1', name: 'Miles Trent', socialMedia: '@milestrent', surpriseGuest: true },
+      { id: 'g2', name: 'Rae Sun', surpriseGuest: true },
+    ],
+  });
+
+  it('names and tags nobody kept for a surprise, anywhere in the caption', () => {
+    const post = buildSocialPost(booked);
+    expect(post.text).toContain('Renata Cruz @renatadoesbits');
+    expect(post.text).not.toMatch(/Miles Trent|milestrent|Rae Sun/);
+    expect(post.tags).toEqual(['@renatadoesbits']);
+    expect(postTags(booked)).toEqual(['@renatadoesbits']);
+  });
+
+  it('does not list a guest with no handle as someone to chase for one', () => {
+    expect(untaggedNames(booked)).toEqual([]);
+    expect(buildSocialPost(booked).untagged).toEqual([]);
+  });
+
+  it('tells the producer who it left off, so a missing name reads as kept back, not forgotten', () => {
+    expect(buildSocialPost(booked).withheld).toEqual(['Miles Trent', 'Rae Sun']);
+  });
+
+  it('does not hand the host the handle of a guest who shares their name', () => {
+    const post = buildSocialPost({ ...booked, host: 'Miles Trent' });
+    expect(post.text).toContain('Hosted by Miles Trent');
+    expect(post.text).not.toContain('@milestrent');
   });
 });

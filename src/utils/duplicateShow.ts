@@ -41,6 +41,7 @@ export function duplicateShow(original: Show, options: { name?: string; date?: s
     // is the app's prompt to pick one.
     date: options.date ?? '',
     viewToken: undefined,
+    viewerKey: undefined,
     viewNote: undefined,
     recap: undefined,
     // A copy of the sample is someone turning the demo into a real night.

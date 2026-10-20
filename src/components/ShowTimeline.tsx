@@ -8,6 +8,8 @@ interface ShowTimelineProps {
   schedule: ScheduleItem[];
   /** The show's start time, used when no cue carries one of its own. */
   showTime?: string;
+  /** Who's hosting, whose welcome and handovers are not a set on the bill. */
+  host?: string;
 }
 
 /**
@@ -18,13 +20,13 @@ interface ShowTimelineProps {
  * you can reach with a keyboard. Someone who can't see the proportions loses
  * the shape of the night but no information.
  */
-export function ShowTimeline({ schedule, showTime }: ShowTimelineProps) {
+export function ShowTimeline({ schedule, showTime, host }: ShowTimelineProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const timeline = buildTimeline(schedule, showTime);
   if (!timeline) return null;
 
   const { segments, totalSec, startMinutes, endMinutes, longestId, elapsed } = timeline;
-  const balance = billBalance(segments);
+  const balance = billBalance(segments, host);
   const setCount = segments.filter((s) => s.kind === 'set').length;
   const open = segments.find((s) => s.id === openId) ?? null;
 

@@ -1,5 +1,6 @@
 import { buildIntroCards, type IntroCard } from "./introCards";
 import { showDJSongs } from "./musicLibrary";
+import { isSurpriseGuest, SURPRISE_GUEST_LABEL } from "./surpriseGuests";
 import type {
   Show,
   AppSettings,
@@ -123,7 +124,9 @@ function introCardsSection(show: Show): string {
 
 /** Only drawn when it has something to say — an empty foot is a stray rule. */
 function renderCardFoot(card: IntroCard): string {
-  const right = card.social ? esc(card.social) : card.kind === "artist" ? "Artist" : "";
+  const handle = card.social ? esc(card.social) : card.kind === "artist" ? "Artist" : "";
+  // A surprise guest's card says so first, where the host's thumb is.
+  const right = card.surprise ? [SURPRISE_GUEST_LABEL, handle].filter(Boolean).join(" · ") : handle;
   if (!card.walkOn && !right) return "";
   return `
         <div class="card__foot">
@@ -133,14 +136,15 @@ function renderCardFoot(card: IntroCard): string {
 }
 
 function renderIntroCard(card: IntroCard): string {
+  const foot = renderCardFoot(card);
   return `
-      <div class="card">
+      <div class="card${foot ? " card--foot" : ""}">
         <div class="card__num">${card.order}</div>
         <div class="card__name">${esc(card.name)}</div>
         <div class="card__credits${card.credits ? "" : " card__credits--none"}">${
           card.credits ? esc(card.credits) : "No credits on file"
         }</div>
-        ${renderCardFoot(card)}
+        ${foot}
       </div>`;
 }
 
@@ -223,7 +227,13 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       overflow: hidden;
       page-break-inside: avoid;
       break-inside: avoid;
+      /* A column, so the credits can be given a box that ends where the foot
+         begins; see .card__credits. */
+      display: flex;
+      flex-direction: column;
     }
+    /* Room for the foot, which is pinned to the bottom of the card. */
+    .card--foot { padding-bottom: 36px; }
     .card__num {
       position: absolute;
       top: 10px;
@@ -250,6 +260,11 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       line-height: 28px;
       color: #141413;
       word-break: break-word;
+      /* Long credits used to run on under the foot and print over the
+         walk-on cue, so the host could read neither. They now stop above it. */
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
     }
     .card__credits--none { color: #6b675f; font-style: italic; }
     .card__foot {
@@ -299,7 +314,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     ${show.performers.map((p: Performer, i: number) => `
     <tr>
       <td>${i + 1}</td>
-      <td>${esc(p.name)}</td>
+      <td>${esc(p.name)}${isSurpriseGuest(p) ? `<span class="badge">${SURPRISE_GUEST_LABEL}</span>` : ""}</td>
       <td>${esc(p.socialMedia)}</td>
       <td>${p.walkOnMusicName ? esc(p.walkOnMusicName) : "—"}</td>
       <td>${esc(p.walkOnMusicTimestamp)}</td>
@@ -424,8 +439,8 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       ${show.recap.merchSales != null ? `<div class="recap-stat"><div class="recap-stat__label">Merch Sales</div><div class="recap-stat__value">${formatCurrency(Number(show.recap.merchSales))}</div></div>` : ""}
       ${show.recap.profitLoss != null ? `<div class="recap-stat"><div class="recap-stat__label">Profit / Loss</div><div class="recap-stat__value">${formatCurrency(Number(show.recap.profitLoss))}</div></div>` : ""}
     </div>
-    ${show.recap.performerNotes ? `<div class="recap-notes"><strong>Performer Notes:</strong>\n${esc(show.recap.performerNotes)}</div>` : ""}
-    ${show.recap.improvementNotes ? `<div class="recap-notes" style="margin-top:8px;"><strong>Improvement Notes:</strong>\n${esc(show.recap.improvementNotes)}</div>` : ""}
+    ${show.recap.performerNotes ? `<div class="recap-notes"><strong>Performer Notes:</strong>\n${esc(show.recap.performerNotes.trim())}</div>` : ""}
+    ${show.recap.improvementNotes ? `<div class="recap-notes" style="margin-top:8px;"><strong>Improvement Notes:</strong>\n${esc(show.recap.improvementNotes.trim())}</div>` : ""}
   </div>`
       : ""
   }

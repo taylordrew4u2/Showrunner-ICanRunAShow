@@ -21,6 +21,9 @@ vi.mock('../../api/_lib/auth', () => ({
 const SECRET = 'whsec_test';
 let dir: string;
 let stripeCalls: { url: string; body: string }[];
+// What Stripe itself currently holds, by subscription id. Events carry a
+// snapshot; this is the live object behind it.
+let stripeSubs: Record<string, Record<string, unknown>>;
 
 function signed(payload: string, at = Math.floor(Date.now() / 1000), secret = SECRET): string {
   const sig = createHmac('sha256', secret).update(`${at}.${payload}`).digest('hex');
@@ -38,7 +41,10 @@ const sendEvent = (event: unknown, signature?: string) => {
 
 const plan = async (user = 'producer') => {
   const res = await billing(new Request('https://example.test/api/billing', { headers: { 'x-user-id': user } }));
-  return res.json() as Promise<{ plan: string; founder: boolean; status: string | null; canManage: boolean; configured: boolean }>;
+  return res.json() as Promise<{
+    plan: string; founder: boolean; status: string | null; canManage: boolean; configured: boolean;
+    renewsAt: string | null; endsAt: string | null;
+  }>;
 };
 
 const post = (action: string, user = 'producer') =>
@@ -53,23 +59,35 @@ beforeEach(async () => {
   connection.db = createClient({ url: `file:${join(dir, 'test.db')}` });
   await connection.db.execute(`CREATE TABLE subscription (
     user_id TEXT PRIMARY KEY, customer_id TEXT, subscription_id TEXT, status TEXT,
-    current_period_end INTEGER, updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    current_period_end INTEGER, cancel_at INTEGER, updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
   await connection.db.execute(`CREATE TABLE users (
     id TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
+  // The account the webhook saves for has to exist; one made after the
+  // founder cutoff, so it pays like anyone new.
+  await connection.db.execute(`INSERT INTO users (id, created_at) VALUES ('producer', '2026-10-10 12:00:00')`);
   vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_x');
   vi.stubEnv('STRIPE_PRICE_ID', 'price_producer');
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', SECRET);
   vi.stubEnv('APP_URL', 'https://icanrunashow.com');
   stripeCalls = [];
+  stripeSubs = {
+    // Made two days after the account, as a subscription always is.
+    sub_1: {
+      id: 'sub_1', customer: 'cus_1', status: 'active', metadata: { user_id: 'producer' }, created: 1_791_797_400,
+      items: { data: [{ current_period_end: 1_800_000_000 }] },
+    },
+  };
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     stripeCalls.push({ url, body: String(init?.body ?? '') });
     if (url.includes('/checkout/sessions')) return Response.json({ url: 'https://checkout.stripe.com/c/pay/test' });
     if (url.includes('/billing_portal/sessions')) return Response.json({ url: 'https://billing.stripe.com/p/session/test' });
-    if (url.includes('/subscriptions/sub_1')) {
-      return Response.json({ id: 'sub_1', customer: 'cus_1', status: 'active', items: { data: [{ current_period_end: 1_800_000_000 }] } });
-    }
+    if (url.endsWith('/customers')) return Response.json({ id: `cus_new_${stripeCalls.filter((c) => c.url.endsWith('/customers')).length}` });
+    const list = /\/subscriptions\?customer=([^&]+)/.exec(url);
+    if (list) return Response.json({ data: Object.values(stripeSubs).filter((s) => s.customer === decodeURIComponent(list[1])) });
+    const sub = /\/subscriptions\/([^/?]+)$/.exec(url);
+    if (sub && stripeSubs[sub[1]]) return Response.json(stripeSubs[sub[1]]);
     return Response.json({ error: { message: 'unexpected' } }, { status: 400 });
   }));
 });
@@ -110,7 +128,7 @@ describe('a producer subscribing', () => {
   it('is sent to a Stripe-hosted checkout that knows which account is paying', async () => {
     const res = await post('checkout');
     expect(await res.json()).toEqual({ url: 'https://checkout.stripe.com/c/pay/test' });
-    const body = decodeURIComponent(stripeCalls[0].body);
+    const body = decodeURIComponent(stripeCalls.find((c) => c.url.includes('/checkout/sessions'))!.body);
     expect(body).toContain('mode=subscription');
     expect(body).toContain('line_items[0][price]=price_producer');
     expect(body).toContain('client_reference_id=producer');
@@ -125,13 +143,41 @@ describe('a producer subscribing', () => {
 
   it('goes back to free when the subscription is cancelled', async () => {
     await sendEvent({ type: 'checkout.session.completed', data: { object: { client_reference_id: 'producer', subscription: 'sub_1' } } });
+    stripeSubs.sub_1.status = 'canceled';
     await sendEvent({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'canceled', metadata: {} } } });
     expect(await plan()).toMatchObject({ plan: 'free', status: 'canceled' });
   });
 
   it('keeps paid features through a failed card while Stripe retries it', async () => {
+    stripeSubs.sub_1.status = 'past_due';
     await sendEvent({ type: 'customer.subscription.updated', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'past_due', metadata: { user_id: 'producer' } } } });
     expect((await plan()).plan).toBe('producer');
+  });
+
+  it('is told when the plan renews', async () => {
+    await sendEvent({ type: 'checkout.session.completed', data: { object: { client_reference_id: 'producer', subscription: 'sub_1' } } });
+    expect(await plan()).toMatchObject({ renewsAt: '2027-01-15T08:00:00.000Z', endsAt: null });
+  });
+
+  it('is told when a cancelled plan ends, rather than that it renews', async () => {
+    // The portal's cancel keeps the subscription active to the end of the
+    // period it was paid for, and marks it to stop there.
+    stripeSubs.sub_1.cancel_at_period_end = true;
+    stripeSubs.sub_1.cancel_at = 1_800_000_000;
+    await sendEvent({ type: 'customer.subscription.updated', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'active', metadata: { user_id: 'producer' } } } });
+    expect(await plan()).toMatchObject({ plan: 'producer', status: 'active', renewsAt: null, endsAt: '2027-01-15T08:00:00.000Z' });
+
+    // And renews again once the cancellation is taken back.
+    stripeSubs.sub_1.cancel_at_period_end = false;
+    stripeSubs.sub_1.cancel_at = null;
+    await sendEvent({ type: 'customer.subscription.updated', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'active', metadata: { user_id: 'producer' } } } });
+    expect(await plan()).toMatchObject({ renewsAt: '2027-01-15T08:00:00.000Z', endsAt: null });
+  });
+
+  it('is told when a plan set to end on a date of its own ends', async () => {
+    stripeSubs.sub_1.cancel_at = 1_790_000_000;
+    await sendEvent({ type: 'customer.subscription.updated', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'active', metadata: { user_id: 'producer' } } } });
+    expect(await plan()).toMatchObject({ renewsAt: null, endsAt: new Date(1_790_000_000 * 1000).toISOString() });
   });
 
   it('is not sent to checkout twice', async () => {
@@ -168,9 +214,99 @@ describe('a producer subscribing', () => {
   });
 });
 
+describe('paying twice', () => {
+  // Until Stripe's webhook lands, the account's own row still says free: a
+  // producer back from checkout before it, or with checkout open in two tabs,
+  // is offered Upgrade again.
+  it('cannot make a second Stripe customer: the first checkout pins one, and the next reuses it', async () => {
+    await post('checkout');
+    await post('checkout');
+    const customers = stripeCalls.filter((c) => c.url.endsWith('/customers'));
+    expect(customers).toHaveLength(1);
+    expect(decodeURIComponent(customers[0].body)).toContain('metadata[user_id]=producer');
+    const checkouts = stripeCalls.filter((c) => c.url.includes('/checkout/sessions')).map((c) => decodeURIComponent(c.body));
+    expect(checkouts).toHaveLength(2);
+    for (const body of checkouts) expect(body).toContain('customer=cus_new_1');
+  });
+
+  it('is refused while Stripe holds a subscription the webhook has not reported yet', async () => {
+    await post('checkout');
+    stripeSubs.sub_2 = { id: 'sub_2', customer: 'cus_new_1', status: 'active', metadata: { user_id: 'producer' } };
+    const res = await post('checkout');
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'already_subscribed' });
+    expect(stripeCalls.filter((c) => c.url.includes('/checkout/sessions'))).toHaveLength(1);
+  });
+
+  it('does not offer Manage billing for a checkout that was never finished', async () => {
+    await post('checkout');
+    expect((await plan()).canManage).toBe(false);
+  });
+
+  it('does not let news of another subscription replace the one being paid for', async () => {
+    await sendEvent({ type: 'checkout.session.completed', data: { object: { client_reference_id: 'producer', subscription: 'sub_1' } } });
+    stripeSubs.sub_2 = { id: 'sub_2', customer: 'cus_1', status: 'canceled', metadata: { user_id: 'producer' } };
+    await sendEvent({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_2', customer: 'cus_1', status: 'canceled', metadata: { user_id: 'producer' } } } });
+    expect(await plan()).toMatchObject({ plan: 'producer', status: 'active' });
+  });
+});
+
+describe('an account that has been deleted', () => {
+  it('is not brought back by the Stripe event its cancellation sends', async () => {
+    // Deleting an account cancels its subscription, and Stripe says so
+    // afterwards. Saving that would leave the old customer waiting behind
+    // Manage billing for whoever next signs up under the same name.
+    stripeSubs.sub_9 = { id: 'sub_9', customer: 'cus_9', status: 'canceled', metadata: { user_id: 'deleted-account' } };
+    await sendEvent({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_9', customer: 'cus_9', status: 'canceled', metadata: { user_id: 'deleted-account' } } } });
+    await sendEvent({ type: 'checkout.session.completed', data: { object: { client_reference_id: 'deleted-account', subscription: 'sub_9' } } });
+    const rows = await connection.db!.execute(`SELECT user_id FROM subscription`);
+    expect(rows.rows).toHaveLength(0);
+  });
+
+  it('does not hand its subscription to whoever signs up under the same name later', async () => {
+    // A delivery that failed is retried for days. By then the name may be
+    // taken again, and the account made with it has the same id. 'producer'
+    // signed up on 10 October; this subscription is from September, when the
+    // account it belonged to was deleted along with it.
+    stripeSubs.sub_old = {
+      id: 'sub_old', customer: 'cus_old', status: 'canceled', metadata: { user_id: 'producer' }, created: 1_788_253_200,
+    };
+    await sendEvent({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_old', customer: 'cus_old', status: 'canceled', metadata: { user_id: 'producer' } } } });
+    expect((await connection.db!.execute(`SELECT user_id FROM subscription`)).rows).toHaveLength(0);
+
+    // Nor over the customer the new account has pinned for its own checkout.
+    await post('checkout');
+    await sendEvent({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_old', customer: 'cus_old', status: 'canceled', metadata: { user_id: 'producer' } } } });
+    const row = await connection.db!.execute(`SELECT customer_id, subscription_id FROM subscription WHERE user_id = 'producer'`);
+    expect(Array.from(row.rows[0])).toEqual(['cus_new_1', null]);
+    expect((await plan()).canManage).toBe(false);
+  });
+});
+
+describe('Stripe events that arrive late or out of order', () => {
+  // Stripe does not promise to deliver events in order, and retries a failed
+  // delivery for days with the payload it first sent.
+  it('do not undo a payment with the "created" event that was delivered after it', async () => {
+    await sendEvent({ type: 'customer.subscription.updated', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'active', metadata: { user_id: 'producer' } } } });
+    await sendEvent({ type: 'customer.subscription.created', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'incomplete', metadata: { user_id: 'producer' } } } });
+    expect(await plan()).toMatchObject({ plan: 'producer', status: 'active' });
+  });
+
+  it('do not bring back a cancelled subscription with a retried renewal', async () => {
+    await sendEvent({ type: 'checkout.session.completed', data: { object: { client_reference_id: 'producer', subscription: 'sub_1' } } });
+    stripeSubs.sub_1.status = 'canceled';
+    await sendEvent({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'canceled', metadata: { user_id: 'producer' } } } });
+    await sendEvent({ type: 'customer.subscription.updated', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'active', metadata: { user_id: 'producer' } } } });
+    expect(await plan()).toMatchObject({ plan: 'free', status: 'canceled' });
+  });
+});
+
 describe('accounts from before subscriptions', () => {
   const signedUp = (user: string, at: string) =>
-    connection.db!.execute({ sql: `INSERT INTO users (id, created_at) VALUES (?, ?)`, args: [user, at] });
+    connection.db!.execute({
+      sql: `INSERT INTO users (id, created_at) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET created_at = excluded.created_at`,
+      args: [user, at],
+    });
 
   it('keep every Producer feature free, without a subscription', async () => {
     await signedUp('early', '2026-03-14 20:15:00');
@@ -197,6 +333,7 @@ describe('accounts from before subscriptions', () => {
 
   it('do not lose the plan when a founder also subscribes and then cancels', async () => {
     await signedUp('producer', '2026-01-01 00:00:00');
+    stripeSubs.sub_1.status = 'canceled';
     await sendEvent({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'canceled', metadata: { user_id: 'producer' } } } });
     expect(await plan()).toMatchObject({ plan: 'producer', founder: true });
   });

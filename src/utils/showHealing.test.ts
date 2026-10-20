@@ -41,6 +41,13 @@ describe('healShow', () => {
     expect(healed!.performers).toBe(performers);
   });
 
+  it('leaves a surprise guest flagged on the way in from storage', () => {
+    // Nothing to migrate: the flag is optional, and a show from before it
+    // existed reads as a bill with no surprises.
+    const healed = healShow({ id: 'a', performers: [{ id: 'g', name: 'Miles Trent', surpriseGuest: true }] });
+    expect(healed!.performers[0].surpriseGuest).toBe(true);
+  });
+
   it('replaces a status it cannot render with one it can', () => {
     expect(healShow({ id: 'a', status: 'archived' })!.status).toBe('upcoming');
   });

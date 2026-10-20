@@ -118,19 +118,52 @@ export function songsWithoutAudio(
   library: MusicTrack[],
   newId: string,
 ): Pick<Show, 'djSongs' | 'djHiddenLibraryIds'> {
-  const silent = { music: undefined, musicName: undefined, libraryId: undefined };
+  return detachFromLibrary(own, hidden, song, library, newId, { music: undefined, musicName: undefined });
+}
+
+/**
+ * A show's DJ list once one of its rows is given an upload of its own.
+ *
+ * The audio is now this show's, so the row stops pointing at the library, and
+ * the shared reference it used to play stays untouched for everyone else.
+ */
+export function songsWithOwnAudio(
+  own: DJSong[],
+  hidden: string[],
+  song: DJSong,
+  library: MusicTrack[],
+  newId: string,
+  audio: { music: string; musicName?: string },
+): Pick<Show, 'djSongs' | 'djHiddenLibraryIds'> {
+  return detachFromLibrary(own, hidden, song, library, newId, audio);
+}
+
+/**
+ * Change a row's audio and cut it loose from the library.
+ *
+ * The library original is hidden whenever the row pointed at it, not only for
+ * a row the library fills in. A row already copied into the show by a trim or
+ * an edit keeps its libraryId, and that id is all that keeps the original out
+ * of the list. Clearing it without hiding the original listed the song twice,
+ * and the show kept a soundboard pad for a track the producer had just taken
+ * off it.
+ */
+function detachFromLibrary(
+  own: DJSong[],
+  hidden: string[],
+  song: DJSong,
+  library: MusicTrack[],
+  newId: string,
+  audio: Pick<DJSong, 'music' | 'musicName'>,
+): Pick<Show, 'djSongs' | 'djHiddenLibraryIds'> {
+  const patch = { ...audio, libraryId: undefined };
+  const djHiddenLibraryIds = song.libraryId ? [...new Set([...hidden, song.libraryId])] : hidden;
   if (!isAutoLibrarySong(song)) {
-    return {
-      djSongs: own.map((s) => (s.id === song.id ? { ...s, ...silent } : s)),
-      djHiddenLibraryIds: hidden,
-    };
+    return { djSongs: own.map((s) => (s.id === song.id ? { ...s, ...patch } : s)), djHiddenLibraryIds };
   }
   const track = library.find((t) => t.id === song.libraryId);
   const base = track ? songFromTrack(track, newId) : { ...song, id: newId };
-  return {
-    djSongs: [...own, { ...base, ...silent }],
-    djHiddenLibraryIds: song.libraryId ? [...new Set([...hidden, song.libraryId])] : hidden,
-  };
+  return { djSongs: [...own, { ...base, ...patch }], djHiddenLibraryIds };
 }
 
 /**

@@ -1,13 +1,20 @@
 // Server-side credential hashing. Not a route (underscore-prefixed).
 //
-// The browser sends a fast client hash (x-auth / passwordHash = a SHA-256 of
-// the password). Historically that exact value was ALSO what we stored in the
+// The browser sends a client credential (x-auth, and authKey / passwordHash at
+// sign-in). Historically that exact value was ALSO what we stored in the
 // `users` table, which meant a database leak handed an attacker both a directly
 // replayable bearer credential AND a fast hash that cracks to the real password
-// offline. We now store a *salted, slow* PBKDF2 hash of that client hash with a
-// per-user random salt, so a leaked row is neither replayable nor cheap to
-// crack. Verification is constant-time. Legacy rows (auth_version 1) are
+// offline. We now store a *salted, slow* PBKDF2 hash of that client credential
+// with a per-user random salt, so a leaked row is neither replayable nor cheap
+// to crack. Verification is constant-time. Legacy rows (auth_version 1) are
 // verified the old way and transparently upgraded on the next successful auth.
+//
+// Which client credential a row wraps is a separate question, recorded in
+// `client_hash_version`. Version 1 is the original SHA-256 of the password with
+// a global salt; whoever saw it on the wire could crack it at SHA-256 speed.
+// Version 2 is PBKDF2 of the password with a per-account salt (see
+// src/utils/encryption deriveAuthKey). A v1 row moves to v2 at its next
+// sign-in from a current build, and from then on only v2 opens it.
 //
 // Uses the Web Crypto API (available on Vercel's edge runtime) — native PBKDF2
 // is fast enough to run on every authorized request.
@@ -70,6 +77,8 @@ export interface StoredCredential {
   passwordHash: string;
   authSalt: string | null;
   authVersion: number;
+  /** Which client credential the verifier wraps: 1 = the SHA-256 hash, 2 = the per-account key. */
+  clientVersion: number;
 }
 
 export interface VerifyResult {
@@ -94,4 +103,52 @@ export async function verifyCredential(
   // Legacy v1: the stored value IS the client hash.
   if (!timingSafeEqual(stored.passwordHash, clientHash)) return { ok: false };
   return { ok: true, upgrade: await hashCredential(clientHash) };
+}
+
+/** What a sign-in carries. A current build sends authKey; a build from before it sent only passwordHash. */
+export interface SignInCredentials {
+  /** v2: PBKDF2 of the password, salted per account. */
+  authKey?: string;
+  /** v1: the SHA-256 hash. Only needed to move a v1 account over. */
+  passwordHash?: string;
+}
+
+export interface SignInResult {
+  ok: boolean;
+  /**
+   * The sign-in did not carry the credential this account takes, so nothing
+   * about the password was tested, and it is not a failed guess. 'passwordHash':
+   * a v1 account signed in to by a current build, which sends again with the
+   * old hash. 'authKey': a v2 account signed in to by a build from before it,
+   * which has nothing else to send.
+   */
+  missing?: 'authKey' | 'passwordHash';
+  /** A verifier to store in place of the one that matched, and the client version it wraps. */
+  store?: { salt: string; hash: string; clientVersion: number };
+}
+
+/**
+ * Check a sign-in against the stored credential, and say what to store when it
+ * should change.
+ *
+ * A v2 account is checked against authKey alone. The v1 hash no longer opens it,
+ * even beside a right authKey. A v1 account is checked against the v1 hash. When
+ * that matches and an authKey came with it, the authKey is stored in its place.
+ * The server cannot tell whether the two came from the same password, so it
+ * trusts the browser that has just proved the old one.
+ */
+export async function verifySignIn(
+  stored: StoredCredential,
+  sent: SignInCredentials,
+): Promise<SignInResult> {
+  if (stored.clientVersion >= 2) {
+    if (!sent.authKey) return { ok: false, missing: 'authKey' };
+    const { ok, upgrade } = await verifyCredential(stored, sent.authKey);
+    return ok && upgrade ? { ok, store: { ...upgrade, clientVersion: 2 } } : { ok };
+  }
+  if (!sent.passwordHash) return { ok: false, missing: 'passwordHash' };
+  const { ok, upgrade } = await verifyCredential(stored, sent.passwordHash);
+  if (!ok) return { ok: false };
+  if (sent.authKey) return { ok: true, store: { ...(await hashCredential(sent.authKey)), clientVersion: 2 } };
+  return upgrade ? { ok: true, store: { ...upgrade, clientVersion: 1 } } : { ok: true };
 }

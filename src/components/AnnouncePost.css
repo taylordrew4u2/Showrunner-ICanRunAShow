@@ -56,6 +56,20 @@
   line-height: 1.45;
 }
 
+/* Not a problem to fix, so no colour: a hairline note in the muted ink. */
+.announce__withheld {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
 .announce__actions {
   display: flex;
   flex-wrap: wrap;

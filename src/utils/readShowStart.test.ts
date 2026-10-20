@@ -45,6 +45,23 @@ describe('reading the start time a producer actually typed', () => {
     expect(morning?.doorsMin).toBe(30);
   });
 
+  // "at" and "open" sit between a label and its time, which used to put the
+  // next label closer to the doors time than its own: both times were called
+  // the show, the first won, and the night was booked an hour early.
+  it('reads doors and show when each is followed by "at"', () => {
+    expect(readShowStart('Doors at 7pm, show at 8pm')).toMatchObject({ startMinutes: at(20), doorsMin: 60 });
+    expect(readShowStart('Doors at 7, show at 8')).toMatchObject({ startMinutes: at(20), doorsMin: 60 });
+    expect(readShowStart('Doors at 19:00, show at 19:30')).toMatchObject({ startMinutes: at(19, 30), doorsMin: 30 });
+    expect(readShowStart('Doors open at 7pm, show at 8pm')).toMatchObject({ startMinutes: at(20), doorsMin: 60 });
+    expect(readShowStart('Doors open 7pm, show 8pm')).toMatchObject({ startMinutes: at(20), doorsMin: 60 });
+    expect(readShowStart('doors at 7:30, show at 8')).toMatchObject({ startMinutes: at(20), doorsMin: 30 });
+    expect(readShowStart('Doors @ 7, show @ 8')).toMatchObject({ startMinutes: at(20), doorsMin: 60 });
+    expect(readShowStart('Show starts at 8pm, doors open at 7:30pm')).toMatchObject({
+      startMinutes: at(20),
+      doorsMin: 30,
+    });
+  });
+
   it('picks the show when the line names both, not just the last number', () => {
     expect(readShowStart('Show 9:00 PM (doors 8:15 PM)')?.startMinutes).toBe(at(21));
   });

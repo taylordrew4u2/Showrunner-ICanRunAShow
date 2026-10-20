@@ -54,9 +54,29 @@ const LABELS: Record<keyof ImportedProfile, string> = {
  * goes to. "Number" and "social" are right there in the label, and because
  * gaps fill themselves with no offer, one wrong match puts the answer on a
  * show's performer and tags it in the next announcement.
+ *
+ * The same goes for details about somebody else. An emergency contact's phone
+ * or the photographer's credit is a real answer on a performer agreement, and
+ * filed as the performer's own it sends the show-day texts to their mother and
+ * reads the photographer's name out at the mic.
  */
 const NOT_A_CONTACT_DETAIL =
-  /social security|\bssn\b|national insurance|bank|routing|sort code|account number|card number|credit card|debit card|\btax\b|passport|licen[cs]e number|driver'?s licen[cs]e|date of birth|\bdob\b/;
+  /social security|\bssn\b|national insurance|\bsin\b|\bird\b|insurance|bank|routing|sort code|account number|card number|credit card|debit card|\btax\b|passport|licen[cs]e number|driver'?s licen[cs]e|date of birth|\bdob\b|\bmember|emergency|next of kin|contact person|\bagent\b|manager|photo ?credit|photographer/;
+
+/**
+ * A question asking how to reach them by phone.
+ *
+ * "Number" on its own is not one: a release also asks for a membership,
+ * invoice or policy number. It counts only beside a word about reaching them,
+ * as in "Number we can text on the night", "Best number for texts" or
+ * "Contact number"; those words are matched from their start, so "texts" and
+ * "calling" count too. A WhatsApp number is a phone number. "Cell" is a whole
+ * word, so "cancellation" is not a phone question.
+ */
+function asksForPhone(label: string): boolean {
+  return /phone|mobile|\bcell\b|text me|whats ?app/.test(label)
+    || (/\bnumber\b/.test(label) && /\b(text|call|reach|contact)/.test(label));
+}
 
 /**
  * Read a contract's answers as profile fields.
@@ -87,7 +107,7 @@ export function profileFromAnswers(
       if (isEmail(value)) out.email = value;
       continue;
     }
-    if (!out.phone && /phone|mobile|cell|number|text me/.test(label)) {
+    if (!out.phone && asksForPhone(label)) {
       out.phone = value;
       continue;
     }

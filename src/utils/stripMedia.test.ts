@@ -91,6 +91,12 @@ describe('stripLegacyShowMedia', () => {
     expect(stripped.artists[0].walkOnMusic).toBe('media:def456');
     expect(stripped.schedule[0].music).toBe('media:ghi789');
   });
+
+  it('keeps a surprise guest flagged through the scrub on load', () => {
+    const show = legacyShow();
+    show.performers[0].surpriseGuest = true;
+    expect(stripLegacyShowMedia(show).performers[0].surpriseGuest).toBe(true);
+  });
 });
 
 describe('stripLegacySettingsMedia', () => {

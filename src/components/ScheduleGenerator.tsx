@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Performer, ScheduleItem } from '../types';
 import {
   generateSchedule,
@@ -58,6 +58,21 @@ export function settleActMinutes(edit: ActMinutesEdit, id: string): ActMinutesEd
   const drafts = { ...edit.drafts };
   delete drafts[id];
   return { ...edit, drafts };
+}
+
+/**
+ * The React key for a row of the preview.
+ *
+ * Not the cue's id: the preview is rebuilt on every keystroke and every move,
+ * and each rebuild mints new ids. Keyed by those, every digit typed into an
+ * act's minutes replaced the whole list — the box being typed in included,
+ * so it lost focus after one digit and a phone's keypad closed on it. An act
+ * is keyed by who it is, which survives both; the other rows hold nothing
+ * that takes focus, so their place in the list will do.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function previewRowKey(item: ScheduleItem, index: number): string {
+  return item.performerId ? `act-${item.performerId}` : `cue-${index}`;
 }
 
 /** What an act's minutes box shows: the text being typed, else its minutes. */
@@ -159,11 +174,30 @@ export function ScheduleGenerator({
   const handover = handoverRuntime(items);
   const canApply = items.length > 0;
 
+  /** The move button just pressed, to give focus back to once the rows settle. */
+  const movedRef = useRef<{ id: string; dir: -1 | 1 } | null>(null);
+  const cuesRef = useRef<HTMLOListElement>(null);
+
+  // Moving an act later moves its row in the page, and a moved row drops the
+  // focus inside it — so "Move X later" worked once from the keyboard and then
+  // left focus nowhere. Focus goes back to the button pressed, or to the other
+  // one once the act reaches the end and the pressed one is disabled.
+  useEffect(() => {
+    const moved = movedRef.current;
+    movedRef.current = null;
+    if (!moved) return;
+    const buttons = [...(cuesRef.current?.querySelectorAll<HTMLButtonElement>('[data-move-act]') ?? [])].filter(
+      (button) => button.dataset.moveAct === moved.id && !button.disabled,
+    );
+    (buttons.find((button) => button.dataset.moveDir === String(moved.dir)) ?? buttons[0])?.focus();
+  }, [order]);
+
   function moveAct(index: number, dir: -1 | 1) {
     const ids = ordered.map((person) => person.id);
     const to = index + dir;
     if (to < 0 || to >= ids.length) return;
     [ids[index], ids[to]] = [ids[to], ids[index]];
+    movedRef.current = { id: ids[to], dir };
     setOrder(ids);
   }
 
@@ -288,14 +322,14 @@ export function ScheduleGenerator({
                   Move an act or change its minutes right here — the running times follow.
                 </p>
 
-                <ol className="gen__cues">
-                  {items.map((item) => {
+                <ol className="gen__cues" ref={cuesRef}>
+                  {items.map((item, row) => {
                     const isHandover = item.description.startsWith('Intro — ');
                     const index = item.performerId ? actIndex.get(item.performerId) : undefined;
                     const editable = index !== undefined;
                     return (
                       <li
-                        key={item.id}
+                        key={previewRowKey(item, row)}
                         className={`gen__cue${isHandover ? ' gen__cue--handover' : ''}${
                           editable ? ' gen__cue--act' : ''
                         }`}
@@ -315,6 +349,8 @@ export function ScheduleGenerator({
                                 className="gen__move-btn"
                                 onClick={() => moveAct(index, -1)}
                                 disabled={index === 0}
+                                data-move-act={item.performerId}
+                                data-move-dir="-1"
                                 aria-label={`Move ${item.performer} earlier`}
                                 title="Move earlier"
                               >
@@ -325,6 +361,8 @@ export function ScheduleGenerator({
                                 className="gen__move-btn"
                                 onClick={() => moveAct(index, 1)}
                                 disabled={index === ordered.length - 1}
+                                data-move-act={item.performerId}
+                                data-move-dir="1"
                                 aria-label={`Move ${item.performer} later`}
                                 title="Move later"
                               >

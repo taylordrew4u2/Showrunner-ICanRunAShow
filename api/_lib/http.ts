@@ -29,10 +29,24 @@ export function tooLarge(): Response {
   return json({ error: 'payload_too_large' }, 413);
 }
 
+/**
+ * Thrown when a caller has used up its failed attempts, and answered 429. A
+ * 401 tells the app its credential is wrong and it signs out; a valid session
+ * that merely shares an address with someone else's failures must not hear
+ * that.
+ */
+export class TooManyRequestsError extends Error {
+  constructor() {
+    super('Too many failed attempts');
+    this.name = 'TooManyRequestsError';
+  }
+}
+
 export function handleError(err: unknown): Response {
   if (err instanceof ServerNotConfiguredError) {
     return json({ error: 'server_not_configured', message: err.message }, 503);
   }
+  if (err instanceof TooManyRequestsError) return json({ error: 'too_many_requests' }, 429);
   console.error('API error:', err);
   // Surface the real error off production so previews are debuggable.
   const detail =

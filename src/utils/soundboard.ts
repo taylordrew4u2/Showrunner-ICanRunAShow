@@ -1,4 +1,5 @@
 import type { DJSong, Performer, ScheduleItem } from '../types';
+import { isSurpriseGuest } from './surpriseGuests';
 
 /**
  * The Run Show soundboard.
@@ -29,6 +30,11 @@ export interface SoundboardTrack {
   photo?: string;
   /** Position in the running order, when the track belongs to a cue. */
   cueIndex?: number;
+  /**
+   * The walk-on of a surprise guest. Said on the pad, so the operator knows
+   * this is the name the room has not been told.
+   */
+  surprise?: boolean;
   /** Trim points, in seconds. Set by whoever owns the song — the library
    *  track, the show's DJ list, the performer's walk-on, or the cue upload. */
   startSec?: number;
@@ -111,6 +117,7 @@ export function buildSoundboard(
           initial: initialOf(performer.name),
           photo: performer.photo,
           cueIndex: i,
+          ...(isSurpriseGuest(performer) ? { surprise: true } : {}),
           startSec: cue.musicStartSec,
           // musicDuration is the older way of saying "stop after N seconds",
           // measured from the top. With no explicit out-point, honour it.
@@ -127,6 +134,7 @@ export function buildSoundboard(
           initial: initialOf(performer.name),
           photo: performer.photo,
           cueIndex: i,
+          ...(isSurpriseGuest(performer) ? { surprise: true } : {}),
           startSec: performer.walkOnStartSec,
           endSec: performer.walkOnEndSec,
         });
@@ -160,6 +168,7 @@ export function buildSoundboard(
       sublabel: [p.walkOnMusicName, p.walkOnMusicArtist].filter(Boolean).join(' — ') || undefined,
       initial: initialOf(p.name),
       photo: p.photo,
+      ...(isSurpriseGuest(p) ? { surprise: true } : {}),
       startSec: p.walkOnStartSec,
       endSec: p.walkOnEndSec,
     });

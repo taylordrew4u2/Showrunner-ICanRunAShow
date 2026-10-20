@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   joinNames,
   formatRuntime,
+  performersSummary,
   scheduleSpan,
   scheduleSummary,
   staffSummary,
   vendorsSummary,
 } from './sectionSummary';
-import type { ScheduleItem, StaffMember, Vendor } from '../types';
+import type { Performer, ScheduleItem, StaffMember, Vendor } from '../types';
 
 const cue = (over: Partial<ScheduleItem>): ScheduleItem => ({
   id: 'c', time: '', description: '', ...over,
@@ -33,6 +34,30 @@ describe('joinNames', () => {
 
   it('counts the overflow against real entries only', () => {
     expect(joinNames(['Alice', 'Bea', 'Cal', '', 'Dee'], 3)).toBe('Alice, Bea, Cal +1');
+  });
+});
+
+describe('performersSummary', () => {
+  const ada: Performer = { id: 'a', name: 'Ada' };
+  const bea: Performer = { id: 'b', name: 'Bea' };
+  const guest = (id: string, name: string): Performer => ({ id, name, surpriseGuest: true });
+
+  it('is just the bill when nobody is being kept back', () => {
+    expect(performersSummary([ada, bea])).toBe('Ada, Bea');
+  });
+
+  it('counts the surprise guests after the bill, without naming them', () => {
+    expect(performersSummary([ada, guest('g', 'Miles Trent'), bea])).toBe('Ada, Bea · 1 surprise guest');
+    expect(performersSummary([ada, guest('g', 'Miles Trent'), guest('h', 'Rae Sun')]))
+      .toBe('Ada · 2 surprise guests');
+  });
+
+  it('still says there are guests when they are all that is booked', () => {
+    expect(performersSummary([guest('g', 'Miles Trent')])).toBe('1 surprise guest');
+  });
+
+  it('is silent for an empty lineup', () => {
+    expect(performersSummary([])).toBeNull();
   });
 });
 

@@ -79,3 +79,26 @@ it('still keeps both when it knows the server moved under it', () => {
   expect(recoverShowDraft([local], [remote], { a: hash(base) }).map(s => s.name))
     .toEqual(['Remote', 'Local (recovered edits)']);
 });
+
+it('does not read this device’s own save, landed after the copy was held, as somebody else’s', () => {
+  // Run Show saves on every tick. One save is in flight, the next edit holds
+  // a copy measured against the version loaded before it, the save lands and
+  // the phone dies. The server then has this device's own first edit, and
+  // the next launch put the show on the list twice.
+  const loaded = show('Loaded'); const first = show('First edit'); const second = show('Second edit');
+  const recovered = recoverShowDraft([second], [first], { a: hash(loaded) }, { a: [hash(first)] });
+  expect(recovered.map(s => s.name)).toEqual(['Second edit']);
+});
+
+it('keeps a show deleted while its last edit was still being saved deleted', () => {
+  const kept = { ...show('Kept'), id: 'k' };
+  const loaded = show('Loaded'); const edited = show('Edited, then deleted');
+  const recovered = recoverShowDraft([kept], [kept, edited], { k: hash(kept), a: hash(loaded) }, { a: [hash(edited)] });
+  expect(recovered.map(s => s.id)).toEqual(['k']);
+});
+
+it('keeps a show made and deleted here deleted, though it was never loaded', () => {
+  const kept = { ...show('Kept'), id: 'k' }; const made = show('Made, then deleted');
+  const recovered = recoverShowDraft([kept], [kept, made], { k: hash(kept) }, { a: [hash(made)] });
+  expect(recovered.map(s => s.id)).toEqual(['k']);
+});
