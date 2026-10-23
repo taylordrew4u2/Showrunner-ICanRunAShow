@@ -5,8 +5,9 @@ import type { ApiError } from './api';
  * may keep under them (api/_lib/linkStorage.ts).
  *
  * Its own words rather than "check your connection": sending again cannot
- * fit, and only the producer can make room. Withdrawing a contract or turning
- * a show's viewer audio off gives the space back.
+ * fit, and only the producer can make room. Withdrawing a contract or a
+ * profile link, turning a show's viewer audio off, or deleting a show for good
+ * gives the space back.
  */
 export const LINK_STORAGE_FULL_MESSAGE =
   "You've reached the storage limit for links — withdraw old contracts or viewer links to free space.";

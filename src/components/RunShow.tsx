@@ -384,6 +384,9 @@ export function RunShow({
   // file failed to send, and those past what one viewer link holds. Those
   // pads play on this device only.
   const [publishShort, setPublishShort] = useState<{ failed: number; skipped: number; full: boolean } | null>(null);
+  // The room's state itself was refused because the account's links are full:
+  // a viewer link that never went up, so the room's page shows nothing.
+  const [liveFull, setLiveFull] = useState(false);
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
   // The fade audition — see auditionFade(). Held in a ref so any press can call
   // the test off before its scheduled stop lands on somebody else's track.
@@ -938,6 +941,11 @@ export function RunShow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewToken, idx, running, totalSec, showName, playingKey, viewerAudio, cueResets]);
 
+  useEffect(() => {
+    if (!viewToken) return;
+    return livePublisher(viewToken).subscribe((refusal) => setLiveFull(isLinkStorageFull(refusal)));
+  }, [viewToken]);
+
   // What the room is shown once the board closes. The close effect below runs
   // its cleanup once, with whatever it closed over on the first render — read
   // from there, the "final" cue of every show was cue one. So the latest cue is
@@ -1192,7 +1200,7 @@ export function RunShow({
                 <span className="rs-fade__viewer-note">
                   {publishState === 'error'
                     ? "Couldn't send the audio — check your connection and try again."
-                    : publishState === 'full'
+                    : publishState === 'full' || liveFull
                       ? LINK_STORAGE_FULL_MESSAGE
                       : viewerAudio && publishShort
                         ? describePublishShort(publishShort)

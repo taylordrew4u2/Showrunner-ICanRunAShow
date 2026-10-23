@@ -16,6 +16,10 @@
 // server needs it to enforce that a request is signed exactly once, and the
 // producer needs it to see status without decrypting every row.
 //
+// A request is a link like any other, so it takes a place among the links its
+// producer may hold, and the signature that comes back counts against that
+// producer's storage — see _lib/linkStorage.ts.
+//
 //   GET    ?token=…              → { payload, signedAt, signature } (public)
 //   PUT    { token, payload }    → create or replace a request (producer, authed)
 //   POST   { token, signature }  → sign once; acknowledge exact retries (public)
@@ -23,6 +27,7 @@
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { exceedsSize, handleError, json, readJson, tooLarge } from './_lib/http';
+import { hasLinkRoom, linkStorageFull } from './_lib/linkStorage';
 import { signTokenOwnership, upsertSignRequest } from './_lib/tokenOwnership';
 
 // Request metadata is small, but signatures and profile submissions can also
@@ -68,11 +73,27 @@ export default async function handler(req: Request): Promise<Response> {
         return json({ error: 'bad_request' }, 400);
       }
       if (exceedsSize(signature, MAX_SIGNATURE_BYTES)) return tooLarge();
+
+      // The signature counts against the producer who made the link. Making a
+      // link costs nothing, so a few megabytes a link would otherwise be as
+      // much as an account liked, readable by anyone holding the links. Only
+      // an open link is checked: an exact retry of a signature already on
+      // file is acknowledged below whatever room is left. A link from before
+      // links named an account counts against nobody, as it always has.
+      const link = await db.execute({
+        sql: `SELECT user_id FROM sign_request WHERE token = ? AND signed_at IS NULL`,
+        args: [token],
+      });
+      const owner = link.rows.length > 0 && link.rows[0][0] != null ? String(link.rows[0][0]) : null;
+      if (owner && !(await hasLinkRoom(db, owner, { table: 'sign_request', token, bytes: signature.length }))) {
+        return linkStorageFull();
+      }
+
       const result = await db.execute({
         sql: `UPDATE sign_request
-                 SET signature = ?, signed_at = datetime('now')
+                 SET signature = ?, signed_at = datetime('now'), bytes = ?
                WHERE token = ? AND signed_at IS NULL`,
-        args: [signature, token],
+        args: [signature, signature.length, token],
       });
       if (result.rowsAffected === 0) {
         // A phone can lose the response after its signature has landed. An
@@ -104,6 +125,9 @@ export default async function handler(req: Request): Promise<Response> {
         return json({ error: 'bad_request' }, 400);
       }
       if (exceedsSize(payload, MAX_PAYLOAD_BYTES)) return tooLarge();
+      // A contract's document is uploaded first, and already holds the
+      // link's place; a profile link has nothing before its request.
+      if (!(await hasLinkRoom(db, userId, { table: 'sign_request', token, bytes: 0 }))) return linkStorageFull();
       if (!(await upsertSignRequest(db, token, userId, payload))) return json({ error: 'forbidden' }, 403);
       return json({ ok: true });
     }

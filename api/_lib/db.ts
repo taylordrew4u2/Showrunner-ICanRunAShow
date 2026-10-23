@@ -116,13 +116,17 @@ const DDL: string[] = [
   // key that only ever exists in the link's fragment and in the producer's own
   // encrypted settings — the server stores the fact that a signature happened
   // and when, and can read nothing else about it.
+  //
+  // `bytes` is the signature's size, which counts against the producer who
+  // made the link — see _lib/linkStorage.ts.
   `CREATE TABLE IF NOT EXISTS sign_request (
      token      TEXT PRIMARY KEY,
      user_id    TEXT,
      payload    TEXT NOT NULL,
      signature  TEXT,
      signed_at  TEXT,
-     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+     bytes      INTEGER
    )`,
   // The contract PDF itself, re-encrypted under that same per-request key and
   // chunked exactly like live_media. One document per token.
@@ -233,6 +237,15 @@ const MIGRATIONS: string[] = [
   // every cue the board published.
   `CREATE INDEX IF NOT EXISTS sign_doc_by_token ON sign_doc (token, user_id)`,
   `CREATE INDEX IF NOT EXISTS live_media_by_token ON live_media (token, user_id)`,
+  // The link rows count too: a signing or profile link, and a viewer link,
+  // each take a place among an account's links, and a signature's size
+  // counts against the producer who made the link. Signatures stored before
+  // this column count for nothing. `user_id` sits after the payload and the
+  // signature on a row from before owners were recorded, so the allowance
+  // reads these indexes, never the rows.
+  `ALTER TABLE sign_request ADD COLUMN bytes INTEGER`,
+  `CREATE INDEX IF NOT EXISTS sign_request_by_user ON sign_request (user_id, token, bytes)`,
+  `CREATE INDEX IF NOT EXISTS live_view_by_user ON live_view (user_id, token)`,
 ];
 
 async function runMigrations(db: Client): Promise<void> {
