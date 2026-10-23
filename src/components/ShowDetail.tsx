@@ -25,6 +25,7 @@ import { parseShowDate, formatShowTime, showStartISO } from '../utils/showDate';
 import { daysUntil } from '../utils/showsOverview';
 import { joinNames, performersSummary, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
 import { boardHoldsRoom, fetchLiveView, livePublisher, publicLineup, type LiveViewPayload } from '../utils/liveView';
+import { isLinkStorageFull, LINK_STORAGE_FULL_MESSAGE } from '../utils/linkStorage';
 import { isSurpriseGuest, SURPRISE_GUEST_LABEL } from '../utils/surpriseGuests';
 import { loadColorScheme } from '../utils/theme';
 import { useMediaUrl } from '../utils/useMediaUrl';
@@ -223,6 +224,9 @@ export function ShowDetail({
   const [viewerNoteDraft, setViewerNoteDraft] = useState('');
   const [viewerCopied, setViewerCopied] = useState(false);
   const [viewerCopyFailed, setViewerCopyFailed] = useState(false);
+  // The server refused the link because the account's links are full, so the
+  // room's page has nothing on it however often this saves.
+  const [viewerFull, setViewerFull] = useState(false);
   const viewerUrlRef = useRef<HTMLInputElement>(null);
   const [tempShowName, setTempShowName] = useState(show.name);
   // Adding and removing sections happens in one deliberate place, so a stray tap
@@ -313,6 +317,11 @@ export function ShowDetail({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers, session]);
+
+  useEffect(() => {
+    if (!show.viewToken) return;
+    return livePublisher(show.viewToken).subscribe((refusal) => setViewerFull(isLinkStorageFull(refusal)));
+  }, [show.viewToken]);
 
   // A key this device made before keys travelled with the show goes onto the
   // show as soon as the show is opened here — not only once the viewer link
@@ -1370,6 +1379,9 @@ export function ShowDetail({
               <p className="viewer-link-modal__hint">
                 Save to generate the link.
               </p>
+            )}
+            {show.viewToken && viewerFull && (
+              <p className="viewer-link-modal__error" role="alert">{LINK_STORAGE_FULL_MESSAGE}</p>
             )}
 
             <label className="section-field__label" htmlFor="pre-show-note" style={{ marginTop: 14 }}>Pre-show note (optional)</label>

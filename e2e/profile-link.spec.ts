@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { deriveUserId } from '../src/utils/encryption';
+import { LINK_STORAGE_FULL_MESSAGE } from '../src/utils/linkStorage';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
 import { gotoTab, signUpAndOnboard } from './support/app';
 
@@ -94,5 +96,27 @@ test.describe('waving a reply off', () => {
     await expect(row.locator('.rolodex__import')).toHaveCount(0);
     await expect(row.locator('.rolodex__gaps')).toContainText('Needs email');
     await expect(row.locator('button').filter({ hasText: /^Ask for details$/ })).toBeVisible();
+  });
+});
+
+test.describe('asking when the account’s links are full', () => {
+  test('says what to do about it rather than blaming the connection', async ({ page, context }) => {
+    // Five thousand viewer links already out: every place among the account's
+    // links is taken (MAX_LINK_TOKENS in api/_lib/linkStorage.ts).
+    const state = emptyState();
+    for (let i = 0; i < 5000; i++) {
+      state.live[`held-viewer-link-${i}`] = { userId: deriveUserId('producer'), payload: {} };
+    }
+    await installFakeApi(context, state);
+    await signUpAndOnboard(page);
+
+    await gotoTab(page, 'Rolodex');
+    await page.locator('.rolodex__input').first().fill('Mona Sable');
+    await page.locator('.rolodex__form button[type="submit"]').click();
+    const row = page.locator('.rolodex__item').filter({ hasText: 'Mona Sable' });
+    await row.locator('button').filter({ hasText: /^Ask for details$/ }).click();
+    await expect(row.locator('.rolodex__link-error')).toHaveText(LINK_STORAGE_FULL_MESSAGE);
+    expect(state.sign).toEqual({});
+    await expect(row.locator('.rolodex__link-url')).toHaveCount(0);
   });
 });

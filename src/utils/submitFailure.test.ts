@@ -35,6 +35,19 @@ describe('why a submission did not go through', () => {
     expect(submitFailureMessage(err(413), { hasPhoto: false })).not.toMatch(/photo/i);
   });
 
+  it('tells a signer the sender is out of room, not that their photo is too big', () => {
+    // A signature counts against the storage of whoever sent the link.
+    const full = Object.assign(new Error('link_storage_full'), { status: 413, code: 'link_storage_full' });
+    for (const hasPhoto of [true, false]) {
+      const message = submitFailureMessage(full, { hasPhoto });
+      expect(message).toMatch(/whoever sent this link/i);
+      expect(message).toMatch(/let them know/i);
+      expect(message).toMatch(/still here/i);
+      expect(message).not.toMatch(/smaller|shrunk|shorten/i);
+      expect(message).not.toMatch(/your connection/i);
+    }
+  });
+
   it('says a server problem is not their fault', () => {
     expect(submitFailureMessage(err(500))).toMatch(/not your fault/i);
     expect(submitFailureMessage(err(502))).toMatch(/not your fault/i);

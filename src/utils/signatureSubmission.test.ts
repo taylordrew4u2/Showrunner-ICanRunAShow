@@ -4,13 +4,14 @@ import { join } from 'node:path';
 import { createClient, type Client } from '@libsql/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler from '../../api/sign';
+import { applySchema } from '../../api/_lib/db';
 import { decryptWithKey, encryptWithKey } from './encryption';
 
 const connection = vi.hoisted(() => ({ db: null as Client | null }));
-vi.mock('../../api/_lib/db', () => ({
+vi.mock('../../api/_lib/db', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/_lib/db')>()),
   ensureSchema: async () => {},
   getDb: () => connection.db,
-  ServerNotConfiguredError: class extends Error {},
 }));
 vi.mock('../../api/_lib/auth', () => ({ authorize: async () => 'test-producer' }));
 
@@ -26,9 +27,8 @@ const post = (signature: string) => handler(new Request('https://example.test/ap
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'showrunner-sign-'));
   connection.db = createClient({ url: `file:${join(dir, 'test.db')}` });
-  await connection.db.execute(`CREATE TABLE sign_request (
-    token TEXT PRIMARY KEY, payload TEXT NOT NULL, signature TEXT, signed_at TEXT
-  )`);
+  await applySchema(connection.db);
+  // A link from before links named an account: its signature counts against nobody.
   await connection.db.execute({
     sql: 'INSERT INTO sign_request (token, payload) VALUES (?, ?)',
     args: [token, encryptWithKey({ contractName: 'Test agreement', createdAt: '2026-09-06' }, key)],

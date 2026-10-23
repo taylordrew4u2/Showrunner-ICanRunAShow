@@ -89,6 +89,11 @@ export interface LivePublisher {
   publish(payload: LiveViewPayload, creds: SessionCredentials): void;
   /** The latest state this device has published to the link, as first stamped. */
   last(): LiveViewPayload | null;
+  /**
+   * Hear the server's answer to the latest state: its refusal, or null once
+   * one lands. Told the answer so far straight away. Returns the unsubscribe.
+   */
+  subscribe(listener: (refusal: ApiError | null) => void): () => void;
 }
 
 /**
@@ -104,7 +109,9 @@ export interface LivePublisher {
  * So the latest state is kept and sent again, spaced out, until the server
  * takes it. Only the latest: once the board has moved on, the newer state is
  * what gets sent. A refusal (the session has gone, the link is someone
- * else's) is an answer, and asking again will not change it.
+ * else's, the account's links are full) is an answer, and asking again will
+ * not change it — it goes to whoever is subscribed, so the one the producer
+ * can act on can be shown.
  *
  * Nothing is sent while things are going well beyond what the board asks
  * for: a board left open on a second device must not keep pushing its old
@@ -118,6 +125,15 @@ export function createLivePublisher(
   let latest = 0;
   let lastPayload: LiveViewPayload | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let refusal: ApiError | null = null;
+  const listeners = new Set<(refusal: ApiError | null) => void>();
+
+  /** The answer to the latest state. One to a state the board has moved on from says nothing. */
+  function answered(id: number, answer: ApiError | null) {
+    if (id !== latest) return;
+    refusal = answer;
+    for (const listener of listeners) listener(answer);
+  }
 
   function attempt(id: number, payload: LiveViewPayload, creds: SessionCredentials, tries: number) {
     const retry = () => {
@@ -129,8 +145,15 @@ export function createLivePublisher(
       }, delay);
     };
     send(token, payload, creds).then(
-      (res) => { if (res.stale) retry(); },
-      (err) => { if ((err as ApiError).status === undefined || (err as ApiError).status! >= 500) retry(); },
+      (res) => {
+        if (res.stale) retry();
+        else answered(id, null);
+      },
+      (err) => {
+        const status = (err as ApiError).status;
+        if (status === undefined || status >= 500) retry();
+        else answered(id, err as ApiError);
+      },
     );
   }
 
@@ -145,7 +168,23 @@ export function createLivePublisher(
       attempt(latest, payload, creds, 0);
     },
     last: () => lastPayload,
+    subscribe(listener) {
+      listeners.add(listener);
+      listener(refusal);
+      return () => { listeners.delete(listener); };
+    },
   };
+}
+
+/**
+ * Withdraw a viewer link: the room's page goes blank, the audio sent under it
+ * goes with it, and the link stops counting among the account's links.
+ */
+export async function withdrawLiveView(token: string, creds: SessionCredentials): Promise<void> {
+  await api.del(`/api/live?token=${encodeURIComponent(token)}`, {
+    authUserId: creds.userId,
+    authHash: creds.authHash,
+  });
 }
 
 /**

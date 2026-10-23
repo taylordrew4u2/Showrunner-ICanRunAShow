@@ -89,7 +89,9 @@ import { deleteMedia } from './utils/mediaStore';
 import { mergePendingShows } from './utils/mergePending';
 import { duplicateShow } from './utils/duplicateShow';
 import { buildSampleShow } from './utils/sampleShow';
-import { forgetViewerKey, unpublishAll } from './utils/viewerAudio';
+import { forgetViewerKey } from './utils/viewerAudio';
+import { withdrawLiveView } from './utils/liveView';
+import { isLinkStorageFull, LINK_STORAGE_FULL_MESSAGE } from './utils/linkStorage';
 import { MusicLibrary } from './components/MusicLibrary';
 import { InstallPrompt } from './components/InstallPrompt';
 import { MorePage } from './components/MorePage';
@@ -1531,11 +1533,20 @@ export default function App() {
     for (const ref of orphanedRefs(candidates, remainingShows, remainingSettings)) {
       deleteMedia(ref);
     }
-    // Soundboard audio published for the viewer link lives under the show's
-    // token rather than in the media store, so it needs its own sweep.
+    // The viewer link, and the soundboard audio published under it, live under
+    // the show's token rather than in the media store, so they need their own
+    // sweep. Withdrawing the link gives its place among the account's links
+    // back — see api/_lib/linkStorage.ts. A show still here, or still in the
+    // trash, under the same token is still using it.
     if (session) {
+      const kept = new Set([
+        ...remainingShows.map((show) => show.viewToken),
+        ...(remainingSettings.trash ?? []).map((item) => item.data?.viewToken),
+      ]);
       for (const show of removed) {
-        if (show.viewToken) void unpublishAll(show.viewToken, session).catch(() => {});
+        if (show.viewToken && !kept.has(show.viewToken)) {
+          void withdrawLiveView(show.viewToken, session).catch(() => {});
+        }
       }
     }
   }
@@ -1831,11 +1842,13 @@ export default function App() {
       saveSettings(updatedSettings);
       setFreshLink({ contactId: comic.id, url });
       try { await navigator.clipboard?.writeText(url); } catch { /* shown on the row anyway */ }
-    } catch {
-      // Venue wifi. Nothing was filed, so the row goes back to offering the
-      // ask rather than pretending a link exists somewhere.
+    } catch (err) {
+      // Venue wifi, usually. Nothing was filed, so the row goes back to
+      // offering the ask rather than pretending a link exists somewhere.
       setLinkErrorFor(comic.id);
-      setLinkError('That link could not be made. Check your connection and try again.');
+      setLinkError(isLinkStorageFull(err)
+        ? LINK_STORAGE_FULL_MESSAGE
+        : 'That link could not be made. Check your connection and try again.');
     } finally {
       setLinkBusyFor(null);
     }

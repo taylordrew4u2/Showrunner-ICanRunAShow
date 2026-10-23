@@ -9,13 +9,14 @@ function onStage(name: string, lastUpdateMs: number, status: LiveViewPayload['st
 }
 
 /** A fake server: each call takes the next answer off the list. */
-function server(...answers: Array<'ok' | 'stale' | 'offline' | 403>) {
+function server(...answers: Array<'ok' | 'stale' | 'offline' | 403 | 'full'>) {
   const sent: LiveViewPayload[] = [];
   const send = vi.fn(async (_token: string, payload: LiveViewPayload) => {
     sent.push(payload);
     const answer = answers.shift() ?? 'ok';
     if (answer === 'offline') throw new Error('Failed to fetch');
-    if (answer === 403) throw Object.assign(new Error('forbidden'), { status: 403 });
+    if (answer === 403) throw Object.assign(new Error('forbidden'), { status: 403, code: 'forbidden' });
+    if (answer === 'full') throw Object.assign(new Error('link_storage_full'), { status: 413, code: 'link_storage_full' });
     return { stale: answer === 'stale' };
   });
   return { send, sent };
@@ -91,6 +92,54 @@ describe('getting the board to the room', () => {
     publisher.publish(onStage('Headliner', 100_000), creds);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells the page a link the account had no room for, and that it went up once it does', async () => {
+    // The link is made while the account's links are full; the producer makes
+    // room and saves again.
+    const { send } = server('full', 'ok');
+    const publisher = createLivePublisher('tok', send, [1_000]);
+    const heard: (string | null)[] = [];
+    const stop = publisher.subscribe((refusal) => heard.push(refusal?.code ?? null));
+    publisher.publish(onStage('Host', 100_000, 'scheduled'), creds);
+    await vi.advanceTimersByTimeAsync(60_000);
+    // Refused for good: not asked again.
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(heard).toEqual([null, 'link_storage_full']);
+
+    // A page opened after the answer is told it at once.
+    const late: (string | null)[] = [];
+    publisher.subscribe((refusal) => late.push(refusal?.code ?? null));
+    expect(late).toEqual(['link_storage_full']);
+
+    publisher.publish(onStage('Host', 101_000, 'scheduled'), creds);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(heard).toEqual([null, 'link_storage_full', null]);
+    expect(late).toEqual(['link_storage_full', null]);
+
+    stop();
+    publisher.publish(onStage('Host', 102_000, 'scheduled'), creds);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(heard).toHaveLength(3);
+  });
+
+  it('says nothing of an answer to a state the board has moved on from', async () => {
+    let answer!: (value: { stale: boolean }) => void;
+    let refuse!: (err: unknown) => void;
+    const send = vi.fn()
+      .mockImplementationOnce(() => new Promise((_, reject) => { refuse = reject; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { answer = resolve; }));
+    const publisher = createLivePublisher('tok', send, [1_000]);
+    const heard: (string | null)[] = [];
+    publisher.subscribe((refusal) => heard.push(refusal?.code ?? null));
+    publisher.publish(onStage('Opener', 100_000), creds);
+    publisher.publish(onStage('Headliner', 100_500), creds);
+    refuse(Object.assign(new Error('forbidden'), { status: 403, code: 'forbidden' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(heard).toEqual([null]);
+    answer({ stale: false });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(heard).toEqual([null, null]);
   });
 });
 

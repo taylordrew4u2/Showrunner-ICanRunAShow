@@ -34,16 +34,29 @@
 // not hold even one of those, and four ordinary boards left published would
 // have filled it.
 //
-// The count is of chunks that are there now, so withdrawing a contract,
-// turning a board's viewer audio off, deleting a show or deleting the account
-// gives the space back. Chunks stored before chunks named an account count
-// against nobody. Not a route (underscore-prefixed).
+// The links themselves count too. A signing or profile link's request
+// (/api/sign) and a viewer link's live state (/api/live) are rows rather than
+// chunks, but a fresh token makes a fresh one of either, and anyone holding
+// the link can read it back — a signature as large as 3 MB, sent in by whoever
+// holds the link, included. So each link row takes its place in the count of
+// links, beside any chunks under the same token, and a signature's size counts
+// against the producer who made the link, as a headshot does. What else those
+// rows hold is not counted in bytes: a request's terms (32 KB at most) and a
+// viewer link's live state (64 KB) are held to a few hundred megabytes by the
+// count of links, and the live state is written on every cue the board sends,
+// which is no place to add up an account.
+//
+// The count is of what is there now, so withdrawing a contract, turning a
+// board's viewer audio off, deleting a show for good or deleting the account
+// gives the space back. Chunks stored before chunks named an account, and
+// signatures stored before signatures were sized, count against nobody. Not a
+// route (underscore-prefixed).
 import type { Client } from '@libsql/client';
 import { json } from './http';
 
-/** Distinct links, across all three routes, that may hold chunks for one account. */
+/** Distinct links one account may hold anything under: a link row, chunks, or both. */
 export const MAX_LINK_TOKENS = 5_000;
-/** What all of one account's link chunks may add up to, in characters of ciphertext. */
+/** What all of one account's link chunks and signatures may add up to, in characters of ciphertext. */
 export const MAX_LINK_BYTES = 10 * 1024 ** 3;
 
 /** One chunk about to be written under a link. */
@@ -58,6 +71,17 @@ export interface LinkChunk {
   bytes: number;
 }
 
+/** A write to a link's own row: a signing or profile request, or a viewer link's live state. */
+export interface LinkRow {
+  table: 'sign_request' | 'live_view';
+  token: string;
+  /**
+   * What the write adds: a signature's `length`, which is what
+   * sign_request's `bytes` stores. Nothing for anything else on either row.
+   */
+  bytes: number;
+}
+
 /**
  * The answer when there is no room. 413 like the per-token caps, with its own
  * code so the app can say what to do about it: free space, not a smaller file.
@@ -67,7 +91,7 @@ export function linkStorageFull(): Response {
 }
 
 /**
- * Whether `userId` has room for this chunk.
+ * Whether `userId` has room for this write.
  *
  * A link the account holds nothing under yet needs room under the count of
  * links. Bytes are counted as they would stand after the write, so a chunk
@@ -78,23 +102,36 @@ export function linkStorageFull(): Response {
  * first chunk leaves nothing behind that the producer would have to find and
  * remove. Every later chunk is still checked for itself, which is the real
  * limit: `total` is the client's word, and a client can say anything.
+ *
+ * A link row replaces nothing: a signature is written once, and nothing else
+ * on either row is counted.
  */
-export async function hasLinkRoom(db: Client, userId: string, chunk: LinkChunk): Promise<boolean> {
-  const file = chunk.table === 'live_media' ? 'token = ? AND id = ?' : 'token = ?';
-  const fileArgs = chunk.table === 'live_media' ? [chunk.token, chunk.id ?? ''] : [chunk.token];
+export async function hasLinkRoom(db: Client, userId: string, write: LinkChunk | LinkRow): Promise<boolean> {
+  const chunk = 'seq' in write ? write : null;
+  let replaced: { sql: string; args: (string | number)[] } = { sql: '0', args: [] };
+  if (chunk) {
+    const file = chunk.table === 'live_media' ? 'token = ? AND id = ?' : 'token = ?';
+    const fileArgs = chunk.table === 'live_media' ? [chunk.token, chunk.id ?? ''] : [chunk.token];
+    replaced = {
+      sql: `(SELECT COALESCE(SUM(bytes), 0) FROM ${chunk.table}
+              WHERE user_id = ? AND ${file} AND (seq = ? OR ? = 0))`,
+      args: [userId, ...fileArgs, chunk.seq, chunk.seq],
+    };
+  }
   const result = await db.execute({
     sql: `SELECT COUNT(DISTINCT token),
                  COALESCE(SUM(bytes), 0),
                  COALESCE(SUM(token = ?), 0),
-                 (SELECT COALESCE(SUM(bytes), 0) FROM ${chunk.table}
-                   WHERE user_id = ? AND ${file} AND (seq = ? OR ? = 0))
+                 ${replaced.sql}
             FROM (SELECT token, bytes FROM sign_doc WHERE user_id = ?
                   UNION ALL SELECT token, bytes FROM live_media WHERE user_id = ?
-                  UNION ALL SELECT token, bytes FROM profile_photo WHERE user_id = ?)`,
-    args: [chunk.token, userId, ...fileArgs, chunk.seq, chunk.seq, userId, userId, userId],
+                  UNION ALL SELECT token, bytes FROM profile_photo WHERE user_id = ?
+                  UNION ALL SELECT token, bytes FROM sign_request WHERE user_id = ?
+                  UNION ALL SELECT token, NULL FROM live_view WHERE user_id = ?)`,
+    args: [write.token, ...replaced.args, userId, userId, userId, userId, userId],
   });
-  const [tokens, bytes, here, replaced] = Array.from(result.rows[0]).map(Number);
+  const [tokens, bytes, here, replacedBytes] = Array.from(result.rows[0]).map(Number);
   if (here === 0 && tokens >= MAX_LINK_TOKENS) return false;
-  const adding = chunk.seq === 0 ? chunk.bytes * chunk.total : chunk.bytes;
-  return bytes - replaced + adding <= MAX_LINK_BYTES;
+  const adding = chunk?.seq === 0 ? chunk.bytes * chunk.total : write.bytes;
+  return bytes - replacedBytes + adding <= MAX_LINK_BYTES;
 }

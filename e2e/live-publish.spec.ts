@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { deriveAuthKey, deriveUserId } from '../src/utils/encryption';
+import { LINK_STORAGE_FULL_MESSAGE } from '../src/utils/linkStorage';
 import { emptyState, installFakeApi } from './support/fake-api.mjs';
 import { createShow, openSection, PASSWORD, signUpAndOnboard } from './support/app';
 
@@ -25,6 +26,31 @@ async function publishViewerLink(page: Page): Promise<string> {
  * screen showed mid-show.
  */
 test.describe('publishing to the live viewer', () => {
+  test('a viewer link made while the account’s links are full says so, and goes up once there is room', async ({ page, context }) => {
+    // Five thousand links already out: every place among the account's links
+    // is taken (MAX_LINK_TOKENS in api/_lib/linkStorage.ts).
+    const state = emptyState();
+    for (let i = 0; i < 5000; i++) {
+      state.sign[`held-profile-link-${String(i).padStart(5, '0')}`] = {
+        payload: 'cipher', signature: null, signedAt: null, userId: deriveUserId('producer'),
+      };
+    }
+    await installFakeApi(context, state);
+    await signUpAndOnboard(page);
+    await createShow(page, 'Basement Comedy Hour');
+    await page.locator('button[aria-label="More"], .more-menu__trigger').first().click();
+    await page.getByText('Viewer link', { exact: true }).click();
+    await page.locator('.viewer-link-modal__actions .btn--primary').click();
+    await expect(page.locator('.viewer-link-modal__error')).toHaveText(LINK_STORAGE_FULL_MESSAGE);
+    expect(state.live).toEqual({});
+
+    // An old link withdrawn makes room, and saving again puts the page up.
+    delete state.sign['held-profile-link-00000'];
+    await page.locator('.viewer-link-modal__actions .btn--primary').click();
+    await expect.poll(() => Object.keys(state.live).length).toBe(1);
+    await expect(page.locator('.viewer-link-modal__error')).toHaveCount(0);
+  });
+
   test('a viewer link does not let its holder overwrite the page', async ({ page, context, browser }) => {
     const state = emptyState();
     await installFakeApi(context, state);

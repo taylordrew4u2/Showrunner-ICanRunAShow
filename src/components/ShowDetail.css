@@ -2701,6 +2701,7 @@ select.show-detail__status--select {
 .viewer-link-modal__url-row { display: flex; gap: 8px; align-items: center; }
 .viewer-link-modal__url-row .section-field__input { flex: 1; font-family: var(--font-mono); font-size: var(--text-xs); }
 .viewer-link-modal__hint { margin: 4px 0 0; font-size: var(--text-sm); color: var(--text-muted); }
+.viewer-link-modal__error { margin: 4px 0 0; font-size: var(--text-sm); color: var(--danger-text); }
 .viewer-link-modal__actions { display: flex; gap: 8px; margin-top: 14px; }
 
 /* ── Show name editing ────────────────────────────────────────────────
