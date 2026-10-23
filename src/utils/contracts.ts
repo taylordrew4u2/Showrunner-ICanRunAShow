@@ -305,33 +305,42 @@ export async function sendForSignature(
   const auth = { authUserId: creds.userId, authHash: creds.authHash };
   const chunks = splitIntoChunks(dataUrl);
 
-  for (let seq = 0; seq < chunks.length; seq++) {
-    await api.put(
-      '/api/sign-doc',
-      { token, seq, total: chunks.length, data: encryptWithKey(chunks[seq], key) },
-      auth,
-    );
+  try {
+    for (let seq = 0; seq < chunks.length; seq++) {
+      await api.put(
+        '/api/sign-doc',
+        { token, seq, total: chunks.length, data: encryptWithKey(chunks[seq], key) },
+        auth,
+      );
+    }
+
+    // Asked here rather than only in the editor, so a contract uploaded before
+    // the question existed still comes back with a handle on it.
+    const fields = withInstagramField(contract.fields);
+
+    const payload: SigningPayload = {
+      contractName: contract.name,
+      signerName: signer.name,
+      fromName,
+      fileName: contract.fileName,
+      total: chunks.length,
+      createdAt: new Date().toISOString(),
+      fields,
+      prefill: (() => {
+        const filled = prefillFromShow(fields, show);
+        return Object.keys(filled).length ? filled : undefined;
+      })(),
+      cancellationRule: DAY_OF_CANCELLATION_RULE.body,
+    };
+    await api.put('/api/sign', { token, payload: encryptWithKey(payload, key) }, auth);
+  } catch (err) {
+    // A send that stops part-way leaves its chunks under a token that no
+    // filed request names, so the producer can neither see nor withdraw them
+    // — and they count against the account's storage for links. Best effort:
+    // the failure is what the producer needs to hear about.
+    await api.del(`/api/sign?token=${encodeURIComponent(token)}`, auth).catch(() => {});
+    throw err;
   }
-
-  // Asked here rather than only in the editor, so a contract uploaded before
-  // the question existed still comes back with a handle on it.
-  const fields = withInstagramField(contract.fields);
-
-  const payload: SigningPayload = {
-    contractName: contract.name,
-    signerName: signer.name,
-    fromName,
-    fileName: contract.fileName,
-    total: chunks.length,
-    createdAt: new Date().toISOString(),
-    fields,
-    prefill: (() => {
-      const filled = prefillFromShow(fields, show);
-      return Object.keys(filled).length ? filled : undefined;
-    })(),
-    cancellationRule: DAY_OF_CANCELLATION_RULE.body,
-  };
-  await api.put('/api/sign', { token, payload: encryptWithKey(payload, key) }, auth);
 
   return {
     id: token.slice(0, 12),

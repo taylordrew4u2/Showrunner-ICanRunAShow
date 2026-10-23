@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createClient, type Client } from '@libsql/client';
+import { applySchema } from '../../api/_lib/db';
 import { liveTokenOwnership, signTokenOwnership, upsertSignRequest } from '../../api/_lib/tokenOwnership';
 import { rateLimit, rateLimitPeek } from '../../api/_lib/ratelimit';
 
@@ -11,13 +12,8 @@ let dir: string;
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'token-owner-test-'));
   db = createClient({ url: `file:${join(dir, 'test.db')}` });
-  await db.executeMultiple(`
-    CREATE TABLE sign_request (token TEXT PRIMARY KEY, user_id TEXT, payload TEXT NOT NULL,
-      signature TEXT, signed_at TEXT);
-    CREATE TABLE live_view (token TEXT PRIMARY KEY, user_id TEXT, payload TEXT NOT NULL);
-    CREATE TABLE rate_limit (bucket TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0,
-      window_start TEXT NOT NULL DEFAULT (datetime('now')));
-  `);
+  // The real schema: who owns a token now reads the chunk tables as well.
+  await applySchema(db);
 });
 afterEach(() => { db.close(); rmSync(dir, { recursive: true, force: true }); });
 
@@ -43,6 +39,20 @@ describe('who may write under a signing link', () => {
     expect(row.rows[0].signature).toBe('sig');
   });
 
+  it('is the uploader’s once its document is there, before any request names it', async () => {
+    // Every build uploads the document first. Chunks from before chunks named
+    // anyone leave the token free, as it always was.
+    await db.execute({ sql: `INSERT INTO sign_doc (token, seq, total, data) VALUES ('doc', 0, 2, 'old')` });
+    expect(await signTokenOwnership(db, 'doc', 'performer')).toBe('free');
+    await db.execute({ sql: `INSERT INTO sign_doc (token, seq, total, data, user_id, bytes) VALUES ('doc', 1, 2, 'new', 'producer', 3)` });
+    expect(await signTokenOwnership(db, 'doc', 'producer')).toBe('mine');
+    expect(await signTokenOwnership(db, 'doc', 'performer')).toBe('other');
+    expect(await upsertSignRequest(db, 'doc', 'performer', 'taken')).toBe(false);
+    expect(await upsertSignRequest(db, 'doc', 'producer', 'terms')).toBe(true);
+    const row = await db.execute('SELECT user_id, payload FROM sign_request');
+    expect(Array.from(row.rows[0])).toEqual(['producer', 'terms']);
+  });
+
   it('is not claimed by the next account to write under a request made before owners were recorded', async () => {
     // The producer never writes under an existing token again, so the next
     // writer is whoever was sent the link.
@@ -61,6 +71,12 @@ describe('who may write under a viewer link', () => {
     expect(await liveTokenOwnership(db, 'view', 'producer')).toBe('mine');
     // Someone in the audience who signed up for a free account.
     expect(await liveTokenOwnership(db, 'view', 'audience')).toBe('other');
+  });
+
+  it('follows whoever sent audio under it, until the live state names someone', async () => {
+    await db.execute({ sql: `INSERT INTO live_media (token, id, seq, total, data, user_id, bytes) VALUES ('board', 'walk-on-1', 0, 1, 'x', 'producer', 1)` });
+    expect(await liveTokenOwnership(db, 'board', 'producer')).toBe('mine');
+    expect(await liveTokenOwnership(db, 'board', 'audience')).toBe('other');
   });
 });
 

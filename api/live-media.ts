@@ -19,10 +19,13 @@
 // Writes require a login, and the login has to be the account that published
 // the token's live state (see /api/live) — the token is in every audience
 // member's hands and accounts are free, so "has both" is not the producer.
-// Reads are open, because that's the point of a viewer link.
+// Before any live state is there, the first account to send audio under the
+// token is the one it belongs to. Reads are open, because that's the point of
+// a viewer link.
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, tooLarge } from './_lib/http';
+import { hasLinkRoom, linkStorageFull } from './_lib/linkStorage';
 import { liveTokenOwnership } from './_lib/tokenOwnership';
 
 // Matches /api/media: the client slices at ~1.5M chars before encryption.
@@ -31,6 +34,8 @@ const MAX_CHUNKS = 64;
 // A board is a handful of walk-ons, not a library. Caps what one token can
 // hold so a shared link can't be turned into free storage. The board plans
 // its uploads to this number (MAX_VIEWER_TRACKS in src/utils/viewerAudio.ts).
+// A fresh token is free to make, so what all of an account's tokens may hold
+// together is capped as well — see _lib/linkStorage.ts.
 const MAX_TRACKS_PER_TOKEN = 60;
 
 export default async function handler(req: Request): Promise<Response> {
@@ -90,14 +95,19 @@ export default async function handler(req: Request): Promise<Response> {
         });
         if (Number(count.rows[0][0]) >= MAX_TRACKS_PER_TOKEN) return tooLarge();
       }
+      if (!(await hasLinkRoom(db, userId, { table: 'live_media', token, id, seq, total, bytes: data.length }))) {
+        return linkStorageFull();
+      }
 
       await db.execute({
-        sql: `INSERT INTO live_media (token, id, seq, total, data)
-              VALUES (?, ?, ?, ?, ?)
+        sql: `INSERT INTO live_media (token, id, seq, total, data, user_id, bytes)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
               ON CONFLICT(token, id, seq) DO UPDATE SET
                 data = excluded.data,
-                total = excluded.total`,
-        args: [token, id, seq, total, data],
+                total = excluded.total,
+                user_id = excluded.user_id,
+                bytes = excluded.bytes`,
+        args: [token, id, seq, total, data, userId, data.length],
       });
       return json({ ok: true });
     }

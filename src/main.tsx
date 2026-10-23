@@ -1,7 +1,5 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-// @ts-expect-error - virtual module provided by vite-plugin-pwa
-import { registerSW } from 'virtual:pwa-register'
 import './fonts.css'
 import './index.css'
 import App from './App.tsx'
@@ -11,7 +9,8 @@ import './polish.css'
 import './luxe.css'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { applyColorScheme, loadColorScheme } from './utils/theme'
-import { updateReady } from './utils/appUpdate'
+import { registerAppUpdates } from './utils/appUpdate'
+import { sharedLinkRoute } from './utils/sharedLink'
 import { holdInstallPrompt } from './utils/installPrompt'
 
 // Apply the saved color scheme before the first paint to avoid a flash.
@@ -23,13 +22,9 @@ holdInstallPrompt()
 
 // A new version waits until asked for (see utils/appUpdate): taking over on
 // its own reloaded the page whenever the download happened to finish, and on
-// venue wifi that was mid-show.
-const updateServiceWorker = registerSW({
-  immediate: true,
-  onNeedRefresh() {
-    updateReady(() => { void updateServiceWorker(true) })
-  },
-})
+// venue wifi that was mid-show. Asking for it reloads the tab that asked and
+// no other. A sent link, which has nowhere to ask, takes it as it opens.
+registerAppUpdates({ linkPage: sharedLinkRoute(window.location.search, window.location.pathname) !== null })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

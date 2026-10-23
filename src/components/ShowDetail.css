@@ -2262,6 +2262,55 @@ select.show-detail__status--select {
   }
 }
 
+/* ─── Recap money (lives inside Recap section) ──────────────────────────── */
+
+/* A ledger, laid out like the season report's money panel: what came in,
+   what went out, and the bottom line under a firmer rule. */
+.recap-financial {
+  margin: 0;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
+}
+
+.recap-financial__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+
+.recap-financial__row:first-child { border-top: 0; }
+
+.recap-financial dt { color: var(--text-muted); }
+
+.recap-financial dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.recap-financial__row--total { border-top-color: var(--border-strong); }
+
+.recap-financial__row--total dt,
+.recap-financial__row--total dd {
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* A night that lost money reads that way at a glance, as on the season
+   report's Net tile. */
+.recap-financial__row--loss dd { color: var(--danger-text); }
+
+.recap-financial__note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 /* ─── Recap To-Do List (lives inside Recap section) ─────────────────────── */
 
 .recap-todo {

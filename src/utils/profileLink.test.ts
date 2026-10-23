@@ -164,6 +164,18 @@ describe('pressing Send with a photo attached', () => {
     expect(post).not.toHaveBeenCalled();
   });
 
+  it('says when there is no room for the photo, which sending again cannot fix', async () => {
+    // The producer who made the link has used up their storage for links.
+    vi.spyOn(api, 'put').mockRejectedValue(Object.assign(new Error('link_storage_full'), { status: 413, code: 'link_storage_full' }));
+    vi.spyOn(api, 'get').mockResolvedValue(link(null) as never);
+    const post = vi.spyOn(api, 'post');
+
+    const result = await sendProfile('tok', key, 'Mona Sable', fields, 'data:image/jpeg;base64,AAAA');
+
+    expect(result).toEqual({ photoFailed: true, noRoom: true });
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it('sends the photo first and then the answers, with the photo counted on the record', async () => {
     vi.spyOn(api, 'put').mockResolvedValue({ ok: true } as never);
     const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);

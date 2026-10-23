@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import type { ShowRecap, Expense, TodoItem } from '../../types';
+import type { ShowRecap, TodoItem, Vendor } from '../../types';
+import { recapMoney } from '../../utils/recapMoney';
+import { formatMoney } from '../../utils/seasonReport';
 
 interface ShowRecapSectionProps {
   recap: ShowRecap | undefined;
-  expenses: Expense[];
+  /** The show's vendors, whose costs are the night's vendor spend. */
+  vendors: Vendor[];
   todos: TodoItem[];
   onChange: (recap: ShowRecap) => void;
   onAddTodo: (text: string) => void;
@@ -26,7 +29,7 @@ export function storedNote(text: string): string | undefined {
 
 export function ShowRecapSection({
   recap,
-  expenses,
+  vendors,
   todos,
   onChange,
   onAddTodo,
@@ -34,37 +37,48 @@ export function ShowRecapSection({
   onDeleteTodo,
 }: ShowRecapSectionProps) {
   const [attendance, setAttendance] = useState(recap?.attendance?.toString() || '');
+  const [ticketSales, setTicketSales] = useState(recap?.ticketSales?.toString() || '');
   const [merchSales, setMerchSales] = useState(recap?.merchSales?.toString() || '');
+  const [otherCosts, setOtherCosts] = useState(recap?.otherCosts?.toString() || '');
   const [performerNotes, setPerformerNotes] = useState(recap?.performerNotes || '');
   const [improvementNotes, setImprovementNotes] = useState(recap?.improvementNotes || '');
   const [newTodoText, setNewTodoText] = useState('');
 
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.cost, 0);
-  const totalRevenue = Number(merchSales) || 0;
-  const profitLoss = totalRevenue - totalExpenses;
+  // From what is in the boxes and the vendor list as they are now, so the
+  // bottom line moves with a vendor's cost as well as with a figure typed here.
+  const money = recapMoney({
+    ticketSales: Number(ticketSales) || undefined,
+    merchSales: Number(merchSales) || undefined,
+    otherCosts: Number(otherCosts) || undefined,
+  }, vendors);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setAttendance(recap?.attendance?.toString() || '');
+    setTicketSales(recap?.ticketSales?.toString() || '');
     setMerchSales(recap?.merchSales?.toString() || '');
+    setOtherCosts(recap?.otherCosts?.toString() || '');
     setPerformerNotes(recap?.performerNotes || '');
     setImprovementNotes(recap?.improvementNotes || '');
-  }, [recap?.attendance, recap?.merchSales, recap?.performerNotes, recap?.improvementNotes]);
+  }, [recap?.attendance, recap?.ticketSales, recap?.merchSales, recap?.otherCosts, recap?.performerNotes, recap?.improvementNotes]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  function commitChanges(overrides: Partial<{ attendance: string; merchSales: string; performerNotes: string; improvementNotes: string }>) {
+  function commitChanges(overrides: Partial<{ attendance: string; ticketSales: string; merchSales: string; otherCosts: string; performerNotes: string; improvementNotes: string }>) {
     const a = overrides.attendance ?? attendance;
+    const t = overrides.ticketSales ?? ticketSales;
     const m = overrides.merchSales ?? merchSales;
+    const o = overrides.otherCosts ?? otherCosts;
     const pn = overrides.performerNotes ?? performerNotes;
     const in_ = overrides.improvementNotes ?? improvementNotes;
-    const rev = Number(m) || 0;
     const updated: ShowRecap = {
       attendance: Number(a) || undefined,
+      ticketSales: Number(t) || undefined,
       merchSales: Number(m) || undefined,
+      otherCosts: Number(o) || undefined,
       performerNotes: storedNote(pn),
       improvementNotes: storedNote(in_),
-      profitLoss: rev - totalExpenses,
     };
+    updated.profitLoss = recapMoney(updated, vendors).profitLoss;
     onChange(updated);
   }
 
@@ -94,6 +108,18 @@ export function ShowRecapSection({
         </label>
 
         <label className="section-field">
+          <span className="section-field__label">Ticket Sales ($)</span>
+          <input
+            className="section-field__input"
+            type="number"
+            value={ticketSales}
+            onChange={(e) => { setTicketSales(e.target.value); commitChanges({ ticketSales: e.target.value }); }}
+            placeholder="0.00"
+            step="0.01"
+          />
+        </label>
+
+        <label className="section-field">
           <span className="section-field__label">Merchandise Sales ($)</span>
           <input
             className="section-field__input"
@@ -105,24 +131,45 @@ export function ShowRecapSection({
           />
         </label>
 
+        <label className="section-field">
+          <span className="section-field__label">Other Costs ($)</span>
+          <input
+            className="section-field__input"
+            type="number"
+            value={otherCosts}
+            onChange={(e) => { setOtherCosts(e.target.value); commitChanges({ otherCosts: e.target.value }); }}
+            placeholder="Door split, performer pay, anything else"
+            step="0.01"
+          />
+        </label>
+
         <div className="section-field">
-          <strong className="recap-financial__title">Financial Summary</strong>
-          <div className="recap-financial">
+          <span className="section-field__label">Financial Summary</span>
+          <dl className="recap-financial">
             <div className="recap-financial__row">
-              <span className="recap-financial__label">Total Revenue (Merch):</span>
-              <span className="recap-financial__value">${totalRevenue.toFixed(2)}</span>
+              <dt>Ticket sales</dt>
+              <dd>{formatMoney(money.ticketSales)}</dd>
             </div>
             <div className="recap-financial__row">
-              <span className="recap-financial__label">Total Expenses:</span>
-              <span className="recap-financial__value recap-financial__value--negative">-${totalExpenses.toFixed(2)}</span>
+              <dt>Merch sales</dt>
+              <dd>{formatMoney(money.merchSales)}</dd>
             </div>
-            <div className="recap-financial__row recap-financial__row--total">
-              <span className="recap-financial__label recap-financial__label--strong">Profit/Loss:</span>
-              <span className={`recap-financial__value recap-financial__value--total ${profitLoss >= 0 ? 'recap-financial__value--positive' : 'recap-financial__value--negative'}`}>
-                {profitLoss >= 0 ? '+' : ''}${profitLoss.toFixed(2)}
-              </span>
+            <div className="recap-financial__row">
+              <dt>Vendors{vendors.length > 0 ? ` (${vendors.length})` : ''}</dt>
+              <dd>{formatMoney(-money.vendorCosts)}</dd>
             </div>
-          </div>
+            <div className="recap-financial__row">
+              <dt>Other costs</dt>
+              <dd>{formatMoney(-money.otherCosts)}</dd>
+            </div>
+            <div className={`recap-financial__row recap-financial__row--total${money.profitLoss < 0 ? ' recap-financial__row--loss' : ''}`}>
+              <dt>Profit / loss</dt>
+              <dd>{formatMoney(money.profitLoss)}</dd>
+            </div>
+          </dl>
+          <p className="recap-financial__note">
+            Vendors are added up from the Vendors section, booked or not.
+          </p>
         </div>
 
         <div className="section-field">

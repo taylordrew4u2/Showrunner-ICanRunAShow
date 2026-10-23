@@ -24,6 +24,7 @@ import {
 } from '../utils/contracts';
 import type { ApiError } from '../utils/api';
 import { generateId } from '../utils/id';
+import { isLinkStorageFull, LINK_STORAGE_FULL_MESSAGE } from '../utils/linkStorage';
 import { dataUrlToFile } from '../utils/media';
 import { uploadMedia, deleteMedia, isMediaRef } from '../utils/mediaStore';
 import { rolodexKey, resolvePerformerComic } from '../utils/rolodex';
@@ -438,8 +439,10 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
         setPicking(false);
         // Straight to the link — the producer's next move is always to send it.
         await copyLink(request);
-      } catch {
-        setError('That did not send. Check your connection and try again.');
+      } catch (err) {
+        setError(isLinkStorageFull(err)
+          ? LINK_STORAGE_FULL_MESSAGE
+          : 'That did not send. Check your connection and try again.');
       } finally {
         setBusy(null);
       }

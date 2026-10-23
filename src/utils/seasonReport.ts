@@ -2,6 +2,7 @@
 // venue or decide whether a night is worth keeping. Kept out of the component
 // so the arithmetic is testable on its own, like showStats.
 import type { Expense, Show } from '../types';
+import { recapMoney } from './recapMoney';
 import { rolodexKey } from './rolodex';
 import { parseShowDate } from './showDate';
 import { daysUntil } from './showsOverview';
@@ -25,7 +26,9 @@ export interface SeasonReport {
   showsWithAudience: number;
   averageAudience: number;
   bestNight?: { name: string; date: string; attendance: number };
+  /** Ticket sales and merch from the recaps of the nights that have run. */
   revenue: number;
+  /** Each night's vendors and other costs, added up the way its recap adds them. */
   showCosts: number;
   net: number;
   brandSpending: number;
@@ -106,15 +109,20 @@ export function buildSeasonReport(
         bestNight = { name: show.name, date: show.date, attendance };
       }
     }
-    revenue += num(show.recap?.merchSales);
+    revenue += recapMoney(show.recap, show.vendors ?? []).revenue;
   }
 
   // Costs from the nights that are over, cancelled ones included since their
   // deposits were still spent. An upcoming night's costs wait for it to run,
   // or a deposit paid ahead would read as a loss against income not yet earned.
+  //
+  // A night's costs are what its recap says they are: its vendors and its
+  // other costs. Not the show's old expense list: those expenses were moved
+  // onto the account's Expenses page, which is counted once below as brand
+  // spending, and adding a copy still left on a show would charge them twice.
   const showCosts = shows
     .filter((s) => hasRun(s, today) || s.status === 'cancelled')
-    .reduce((sum, s) => sum + (s.expenses ?? []).reduce((acc, e) => acc + num(e.cost), 0), 0);
+    .reduce((sum, s) => sum + recapMoney(s.recap, s.vendors ?? []).costs, 0);
 
   const brandSpending = brandExpenses
     .filter((e) => inRange(e.date, range, year))

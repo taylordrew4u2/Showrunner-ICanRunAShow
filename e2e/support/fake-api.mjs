@@ -31,10 +31,11 @@ import { createHash } from 'node:crypto';
  * @property {Record<string, string[]>} media
  * @property {Record<string, number>} mediaWrittenAt  When each media item's newest chunk landed (ms); absent for seeded rows.
  * @property {Record<string, string[]>} doc
+ * @property {Record<string, string>} docOwners  The account each document's chunks name (sign_doc.user_id); absent for seeded documents, which name nobody.
  * @property {Record<string, {payload: string, signature: string | null, signedAt: string | null, userId?: string}>} sign
- * @property {Record<string, Record<number, {data: string, total: number}>>} profilePhoto
+ * @property {Record<string, Record<number, {data: string, total: number, userId?: string | null}>>} profilePhoto  Headshot chunks, each naming the producer whose link it came through.
  * @property {Record<string, {userId: string | null, payload: unknown}>} live  Published viewer state, by token.
- * @property {Record<string, Record<string, {data: string, total: number}[]>>} liveMedia  Viewer audio chunks, by token then id.
+ * @property {Record<string, Record<string, {data: string, total: number, userId?: string}[]>>} liveMedia  Viewer audio chunks, by token then id, each naming the account that sent it.
  * @property {Record<string, {count: number, windowStart: number}>} rateLimits  The fixed-window counters behind the throttles.
  * @property {boolean} rejectedForeignPublish  Set when a publish from another account was refused.
  * @property {boolean} rejectedSecondSign  Set when a second signature was refused.
@@ -64,6 +65,9 @@ const SIGNUP_MAX = 20;
 const SIGNUP_WINDOW_SECONDS = 3600;
 const AUTHZ_MAX_FAILURES = 20;
 const AUTHZ_WINDOW_SECONDS = 300;
+// api/_lib/linkStorage.ts
+const MAX_LINK_TOKENS = 5_000;
+const MAX_LINK_BYTES = 10 * 1024 ** 3;
 // api/account.ts
 const ACCOUNT_MAX_NAMED_TOKENS = 5000;
 // api/_lib/snapshots.ts
@@ -81,6 +85,7 @@ export function emptyState(overrides = {}) {
     media: {},
     mediaWrittenAt: {},
     doc: {},
+    docOwners: {},
     sign: {},
     profilePhoto: {},
     live: {},
@@ -118,13 +123,79 @@ function badChunk(seq, total, data, maxChunks) {
 }
 
 /**
- * api/_lib/tokenOwnership.ts: whose a token is, by the row that names it.
- * 'legacy' is a row from before owners were recorded.
+ * api/_lib/tokenOwnership.ts: whose a token is, by the row that names it, or
+ * when no row names anyone, by the account its chunks name. 'legacy' is a row
+ * from before owners were recorded.
  */
-function ownership(row, userId) {
-  if (!row) return 'free';
-  if (row.userId == null) return 'legacy';
-  return row.userId === userId ? 'mine' : 'other';
+function ownership(row, userId, chunkOwner = null) {
+  const owner = row?.userId ?? chunkOwner;
+  if (owner == null) return row ? 'legacy' : 'free';
+  return owner === userId ? 'mine' : 'other';
+}
+
+/** The account a token's viewer audio names, if any chunk names one. */
+function audioOwner(state, token) {
+  for (const chunks of Object.values(state.liveMedia[token] ?? {})) {
+    for (const chunk of chunks) if (chunk?.userId) return chunk.userId;
+  }
+  return null;
+}
+
+const signOwnership = (state, token, userId) => ownership(state.sign[token], userId, state.docOwners[token] ?? null);
+const liveOwnership = (state, token, userId) => ownership(state.live[token], userId, audioOwner(state, token));
+
+/**
+ * api/_lib/linkStorage.ts hasLinkRoom: whether the account's links have room
+ * for this chunk. A link it holds nothing under yet needs room under the count
+ * of links; bytes are counted as they would stand after the write, and the
+ * first chunk of a file is checked for the whole file.
+ */
+function hasLinkRoom(state, userId, chunk) {
+  const tokens = new Set();
+  let bytes = 0;
+  let replaced = 0;
+  const count = (table, token, id, seq, size) => {
+    tokens.add(token);
+    bytes += size;
+    const sameFile = table === chunk.table && token === chunk.token && (table !== 'live_media' || id === chunk.id);
+    if (sameFile && (seq === chunk.seq || chunk.seq === 0)) replaced += size;
+  };
+  for (const [token, chunks] of Object.entries(state.doc)) {
+    if (state.docOwners[token] !== userId) continue;
+    chunks.forEach((data, seq) => { if (data) count('sign_doc', token, '', seq, data.length); });
+  }
+  for (const [token, tracks] of Object.entries(state.liveMedia)) {
+    for (const [id, chunks] of Object.entries(tracks)) {
+      chunks.forEach((c, seq) => { if (c?.userId === userId) count('live_media', token, id, seq, c.data.length); });
+    }
+  }
+  for (const [token, chunks] of Object.entries(state.profilePhoto)) {
+    for (const [seq, c] of Object.entries(chunks)) {
+      if (c?.userId === userId) count('profile_photo', token, '', Number(seq), c.data.length);
+    }
+  }
+  if (!tokens.has(chunk.token) && tokens.size >= MAX_LINK_TOKENS) return false;
+  const adding = chunk.seq === 0 ? chunk.bytes * chunk.total : chunk.bytes;
+  return bytes - replaced + adding <= MAX_LINK_BYTES;
+}
+
+/** Remove the audio chunks `drop` picks out of a token, and whatever that leaves empty. */
+function dropAudio(state, token, drop) {
+  const tracks = state.liveMedia[token];
+  if (!tracks) return;
+  for (const [id, chunks] of Object.entries(tracks)) {
+    chunks.forEach((c, seq) => { if (c && drop(c)) delete chunks[seq]; });
+    if (!chunks.some(Boolean)) delete tracks[id];
+  }
+  if (Object.keys(tracks).length === 0) delete state.liveMedia[token];
+}
+
+/** Remove the headshot chunks `drop` picks out of a token, and the token once it is empty. */
+function dropPhoto(state, token, drop) {
+  const chunks = state.profilePhoto[token];
+  if (!chunks) return;
+  for (const [seq, c] of Object.entries(chunks)) if (drop(c)) delete chunks[seq];
+  if (Object.keys(chunks).length === 0) delete state.profilePhoto[token];
 }
 
 /**
@@ -170,6 +241,8 @@ export async function installFakeApi(ctx, state) {
     const err = (status, error) =>
       route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ error }) });
     const tooLarge = () => err(413, 'payload_too_large');
+    // api/_lib/linkStorage.ts linkStorageFull.
+    const linkStorageFull = () => err(413, 'link_storage_full');
 
     // api/_lib/ratelimit.ts. Fixed windows on a shared counter: record a hit
     // and say whether the bucket is still within its allowance, or look
@@ -263,24 +336,42 @@ export async function installFakeApi(ctx, state) {
       delete state.billing[userId];
       const named = new Set(tokens);
       for (const [token, row] of Object.entries(state.sign)) {
-        if (row.userId === userId || (row.userId == null && named.has(token))) {
+        if (row.userId === userId) {
           delete state.sign[token];
           delete state.doc[token];
+          delete state.docOwners[token];
           delete state.profilePhoto[token];
         }
       }
       for (const [token, row] of Object.entries(state.live)) {
-        if (row.userId === userId || (row.userId == null && named.has(token))) {
+        if (row.userId === userId) {
           delete state.live[token];
           delete state.liveMedia[token];
         }
       }
-      for (const token of named) {
-        if (!state.sign[token]) {
+      // Chunks that name the account, whatever link they are under.
+      for (const [token, owner] of Object.entries(state.docOwners)) {
+        if (owner === userId) {
           delete state.doc[token];
-          delete state.profilePhoto[token];
+          delete state.docOwners[token];
         }
-        if (!state.live[token]) delete state.liveMedia[token];
+      }
+      for (const token of Object.keys(state.liveMedia)) dropAudio(state, token, (c) => c.userId === userId);
+      for (const token of Object.keys(state.profilePhoto)) dropPhoto(state, token, (c) => c.userId === userId);
+      // The links it names that no account owns: their legacy rows, and the
+      // chunks under them that name nobody.
+      for (const token of named) {
+        const request = state.sign[token];
+        if (request?.userId == null) {
+          if (state.docOwners[token] == null) delete state.doc[token];
+          dropPhoto(state, token, (c) => c.userId == null);
+          delete state.sign[token];
+        }
+        const view = state.live[token];
+        if (view?.userId == null) {
+          dropAudio(state, token, (c) => c.userId == null);
+          delete state.live[token];
+        }
       }
       state.shows = [];
       state.settings = null;
@@ -490,18 +581,21 @@ export async function installFakeApi(ctx, state) {
         if (badToken(token) || badChunk(seq, total, data, MAX_CHUNKS)) return err(400, 'bad_request');
         if (data.length > MAX_CHUNK_CHARS) return tooLarge();
         // The document lands before the request that names it, so a token
-        // nobody has written under is free; once the request row is there,
-        // only its account may touch the document, and a legacy request's
-        // document is nobody's to replace.
-        if (['other', 'legacy'].includes(ownership(state.sign[token], userId))) return err(403, 'forbidden');
+        // nobody has written under is free, and the first chunk claims it;
+        // from then on only that account may touch the document, and a legacy
+        // request's document is nobody's to replace.
+        if (['other', 'legacy'].includes(signOwnership(state, token, userId))) return err(403, 'forbidden');
+        if (!hasLinkRoom(state, userId, { table: 'sign_doc', token, seq, total, bytes: data.length })) return linkStorageFull();
         (state.doc[token] ||= [])[seq] = data;
+        state.docOwners[token] = userId;
         return ok({ ok: true });
       }
       if (method === 'DELETE') {
         const token = url.searchParams.get('token');
         if (!token) return err(400, 'bad_request');
-        if (ownership(state.sign[token], userId) === 'other') return err(403, 'forbidden');
+        if (signOwnership(state, token, userId) === 'other') return err(403, 'forbidden');
         delete state.doc[token];
+        delete state.docOwners[token];
         return ok({ ok: true });
       }
       return err(405, 'method_not_allowed');
@@ -518,14 +612,15 @@ export async function installFakeApi(ctx, state) {
       if (method !== 'POST') return err(405, 'method_not_allowed');
       // The viewer token is public by design, so it names the page but does
       // not grant the right to write to it: only a signed-in account may
-      // publish, and only the account that owns the row.
+      // publish, and only the account that owns the row — or, before there is
+      // one that names anyone, the account whose audio is already under it.
       const userId = authorize();
       if (!userId) return refused();
       const { token, payload } = body;
       if (!token) return err(400, 'bad_request');
       if (exceedsSize(payload, LIVE_MAX_PAYLOAD_BYTES)) return tooLarge();
       const row = state.live[token];
-      if (ownership(row, userId) === 'other') {
+      if (liveOwnership(state, token, userId) === 'other') {
         state.rejectedForeignPublish = true;
         return err(403, 'forbidden');
       }
@@ -556,7 +651,7 @@ export async function installFakeApi(ctx, state) {
       }
       // Writes are the account that published the token's live state — the
       // token is in every audience member's hands, so "has both" is not the
-      // producer.
+      // producer. Before there is any, the first account to send audio.
       const userId = authorize();
       if (!userId) return refused();
       if (method === 'PUT') {
@@ -569,20 +664,22 @@ export async function installFakeApi(ctx, state) {
           return err(400, 'bad_request');
         }
         if (data.length > MAX_CHUNK_CHARS) return tooLarge();
-        if (ownership(state.live[token], userId) === 'other') return err(403, 'forbidden');
-        const tracks = (state.liveMedia[token] ||= {});
+        if (liveOwnership(state, token, userId) === 'other') return err(403, 'forbidden');
+        const tracks = state.liveMedia[token] ?? {};
         // Only distinct tracks count, and only on the first chunk, so a track
         // already under way never trips the cap half-uploaded.
         if (seq === 0 && Object.keys(tracks).filter((other) => other !== id).length >= MAX_TRACKS_PER_TOKEN) {
           return tooLarge();
         }
-        (tracks[id] ||= [])[seq] = { data, total };
+        if (!hasLinkRoom(state, userId, { table: 'live_media', token, id, seq, total, bytes: data.length })) return linkStorageFull();
+        state.liveMedia[token] = tracks;
+        (tracks[id] ||= [])[seq] = { data, total, userId };
         return ok({ ok: true });
       }
       if (method === 'DELETE') {
         const token = url.searchParams.get('token');
         if (!token) return err(400, 'bad_request');
-        if (ownership(state.live[token], userId) === 'other') return err(403, 'forbidden');
+        if (liveOwnership(state, token, userId) === 'other') return err(403, 'forbidden');
         delete state.liveMedia[token];
         return ok({ ok: true });
       }
@@ -599,8 +696,14 @@ export async function installFakeApi(ctx, state) {
         const link = state.sign[token];
         if (!link) return err(404, 'not_found');
         if (link.signedAt) return err(409, 'not_open');
+        // It counts against the producer who made the link; a legacy link
+        // names nobody to count it against.
+        const owner = link.userId ?? null;
+        if (owner && !hasLinkRoom(state, owner, { table: 'profile_photo', token, seq, total, bytes: data.length })) {
+          return linkStorageFull();
+        }
         state.profilePhoto[token] ??= {};
-        state.profilePhoto[token][seq] = { data, total };
+        state.profilePhoto[token][seq] = { data, total, userId: owner };
         return ok({ ok: true });
       }
       // Reading is the producer's — the one who made the link, not any
@@ -611,14 +714,14 @@ export async function installFakeApi(ctx, state) {
         const token = url.searchParams.get('token');
         const seq = Number(url.searchParams.get('seq'));
         if (badToken(token) || !isSeq(seq)) return err(400, 'bad_request');
-        if (ownership(state.sign[token], userId) === 'other') return err(403, 'forbidden');
+        if (signOwnership(state, token, userId) === 'other') return err(403, 'forbidden');
         const chunk = state.profilePhoto[token]?.[seq];
-        return chunk ? ok(chunk) : err(404, 'not_found');
+        return chunk ? ok({ data: chunk.data, total: chunk.total }) : err(404, 'not_found');
       }
       if (method === 'DELETE') {
         const token = url.searchParams.get('token');
         if (badToken(token)) return err(400, 'bad_request');
-        if (ownership(state.sign[token], userId) === 'other') return err(403, 'forbidden');
+        if (signOwnership(state, token, userId) === 'other') return err(403, 'forbidden');
         delete state.profilePhoto[token];
         return ok({ ok: true });
       }
@@ -662,9 +765,10 @@ export async function installFakeApi(ctx, state) {
         if (exceedsSize(payload, SIGN_MAX_PAYLOAD_BYTES)) return tooLarge();
         const prev = state.sign[token];
         // upsertSignRequest: another account's row is left alone, and so is
-        // a legacy one — nobody may claim it. Re-sending never clears a
+        // a legacy one — nobody may claim it — and a token whose document
+        // another account uploaded is theirs. Re-sending never clears a
         // signature already made.
-        if (['other', 'legacy'].includes(ownership(prev, userId))) return err(403, 'forbidden');
+        if (['other', 'legacy'].includes(signOwnership(state, token, userId))) return err(403, 'forbidden');
         state.sign[token] = {
           payload,
           signature: prev?.signature ?? null,
@@ -676,9 +780,10 @@ export async function installFakeApi(ctx, state) {
       if (method === 'DELETE') {
         const token = url.searchParams.get('token');
         if (badToken(token)) return err(400, 'bad_request');
-        if (ownership(state.sign[token], userId) === 'other') return err(403, 'forbidden');
+        if (signOwnership(state, token, userId) === 'other') return err(403, 'forbidden');
         delete state.sign[token];
         delete state.doc[token];
+        delete state.docOwners[token];
         delete state.profilePhoto[token];
         return ok({ ok: true });
       }

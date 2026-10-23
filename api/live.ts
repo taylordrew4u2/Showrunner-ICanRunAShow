@@ -72,7 +72,11 @@ export default async function handler(req: Request): Promise<Response> {
       // The WHERE clause on the conflict is the ownership check: a token
       // already published by another account is left alone. `user_id IS NULL`
       // claims a row published before publishing required auth — only the
-      // producer whose show it is can be publishing to that token.
+      // producer whose show it is can be publishing to that token. Audio
+      // another account sent under the token first makes it theirs, and
+      // stops both the insert and the claim (see _lib/tokenOwnership.ts);
+      // `user_id != ?` is never true of audio stored before audio named
+      // anyone.
       //
       // The second condition is the late-arrival check — see
       // STALE_PUBLISH_WINDOW_MS. Either side missing a time makes the
@@ -80,7 +84,8 @@ export default async function handler(req: Request): Promise<Response> {
       // before payloads carried a clock must not block the board for good.
       const result = await db.execute({
         sql: `INSERT INTO live_view (token, user_id, payload, updated_at)
-              VALUES (?, ?, ?, datetime('now'))
+              SELECT ?, ?, ?, datetime('now')
+               WHERE NOT EXISTS (SELECT 1 FROM live_media WHERE token = ? AND user_id != ?)
               ON CONFLICT(token) DO UPDATE SET
                 user_id = excluded.user_id,
                 payload = excluded.payload,
@@ -91,7 +96,7 @@ export default async function handler(req: Request): Promise<Response> {
                     - json_extract(excluded.payload, '$.lastUpdateMs')
                     NOT BETWEEN 1 AND ?,
                   1)`,
-        args: [token, userId, JSON.stringify(payload), STALE_PUBLISH_WINDOW_MS],
+        args: [token, userId, JSON.stringify(payload), token, userId, STALE_PUBLISH_WINDOW_MS],
       });
       if (result.rowsAffected === 0) {
         // Nothing written means the row belongs to somebody else, or a newer

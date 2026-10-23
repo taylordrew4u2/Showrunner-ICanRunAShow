@@ -147,7 +147,11 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
     }
     setPhase('ready');
     setError('photoFailed' in result
-      ? 'Your photo did not go through. Try again, or remove it and send without — nothing has been sent yet.'
+      // Whoever sent the link is out of room for photos. The performer cannot
+      // change that, and "try again" would have them try forever.
+      ? result.noRoom
+        ? 'There is no room left on this link for a photo. Remove it and send without, and send the photo to whoever sent the link another way — nothing has been sent yet.'
+        : 'Your photo did not go through. Try again, or remove it and send without — nothing has been sent yet.'
       // Say which thing went wrong, not "check your connection" for all of
       // them — half the reasons have nothing to do with the connection.
       : submitFailureMessage(result.failed));

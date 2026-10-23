@@ -147,8 +147,8 @@ export function SeasonReport({ shows, brandExpenses, brandName, onBack, backLabe
           <section className="season__panel" aria-labelledby="season-money">
             <h2 id="season-money" className="season__panel-title">Money</h2>
             <dl className="season__money">
-              <div><dt>Merch &amp; sales (from recaps)</dt><dd>{formatMoney(report.revenue)}</dd></div>
-              <div><dt>Show costs</dt><dd>{formatMoney(report.showCosts)}</dd></div>
+              <div><dt>Ticket &amp; merch sales (from recaps)</dt><dd>{formatMoney(report.revenue)}</dd></div>
+              <div><dt>Show costs (vendors &amp; other costs)</dt><dd>{formatMoney(report.showCosts)}</dd></div>
               <div><dt>Brand spending</dt><dd>{formatMoney(report.brandSpending)}</dd></div>
               <div className="season__money-total">
                 <dt>Net after everything</dt>

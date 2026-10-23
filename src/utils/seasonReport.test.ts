@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildSeasonReport, formatMoney, seasonPitch } from './seasonReport';
+import { recapMoney } from './recapMoney';
 import type { Show } from '../types';
 
 const show = (over: Partial<Show>): Show => ({
@@ -44,8 +45,8 @@ describe('the season report', () => {
 
   it('takes the night’s costs from cancelled shows too, since the deposit was still spent', () => {
     const report = buildSeasonReport([
-      show({ id: 'a', date: '2026-01-01', recap: { merchSales: 300 }, expenses: [{ id: 'e', category: 'Venue', itemName: 'Room', cost: 100 }] }),
-      show({ id: 'b', date: '2026-02-01', status: 'cancelled', expenses: [{ id: 'f', category: 'Venue', itemName: 'Deposit', cost: 50 }] }),
+      show({ id: 'a', date: '2026-01-01', recap: { merchSales: 300 }, vendors: [{ id: 'e', name: 'Room', cost: 100 }] }),
+      show({ id: 'b', date: '2026-02-01', status: 'cancelled', vendors: [{ id: 'f', name: 'Deposit', cost: 50 }] }),
     ], [], 'year', TODAY);
     expect(report.revenue).toBe(300);
     expect(report.showCosts).toBe(150);
@@ -73,10 +74,62 @@ describe('the season report', () => {
 
   it('survives costs and attendance that aren’t numbers', () => {
     const report = buildSeasonReport([
-      show({ date: '2026-01-01', recap: { attendance: NaN }, expenses: [{ id: 'e', category: 'x', itemName: 'y', cost: undefined as unknown as number }] }),
+      show({ date: '2026-01-01', recap: { attendance: NaN, otherCosts: NaN }, vendors: [{ id: 'e', name: 'y', cost: NaN }] }),
     ], [], 'year', TODAY);
     expect(report.audience).toBe(0);
     expect(report.showCosts).toBe(0);
+  });
+});
+
+describe('the season report’s money, night by night', () => {
+  it('takes ticket sales and merch as revenue, and vendors and other costs as costs', () => {
+    const report = buildSeasonReport([
+      show({
+        date: '2026-03-01',
+        recap: { ticketSales: 800, merchSales: 120, otherCosts: 200 },
+        vendors: [{ id: 'v', name: 'Sound', cost: 150, booked: true }, { id: 'w', name: 'Flyers', cost: 50 }],
+      }),
+    ], [], 'year', TODAY);
+    expect(report).toMatchObject({ revenue: 920, showCosts: 400, net: 520 });
+  });
+
+  it('agrees with what each night’s recap says it made', () => {
+    const nights = [
+      show({ id: 'a', date: '2026-03-01', recap: { ticketSales: 300 }, vendors: [{ id: 'v', name: 'Room', cost: 400 }] }),
+      show({ id: 'b', date: '2026-04-01', recap: { merchSales: 90, otherCosts: 30 } }),
+    ];
+    const report = buildSeasonReport(nights, [], 'year', TODAY);
+    const perNight = nights.map((n) => recapMoney(n.recap, n.vendors).profitLoss);
+    expect(perNight).toEqual([-100, 60]);
+    expect(report.net).toBe(-40);
+  });
+
+  it('reads a recap saved before ticket sales and other costs existed', () => {
+    const report = buildSeasonReport([
+      show({ date: '2026-03-01', recap: { attendance: 60, merchSales: 200, profitLoss: 200 } }),
+    ], [], 'year', TODAY);
+    expect(report).toMatchObject({ revenue: 200, showCosts: 0, net: 200 });
+  });
+
+  it('counts each vendor once, on the show it was booked for', () => {
+    const report = buildSeasonReport([
+      show({ date: '2026-03-01', vendors: [{ id: 'v', name: 'Room', cost: 250 }] }),
+    ], [], 'year', TODAY);
+    expect(report.showCosts).toBe(250);
+    expect(report.brandSpending).toBe(0);
+  });
+
+  // Per-show expenses were moved onto the account's Expenses page when that
+  // page arrived. A copy still on a show is the same money, and the Expenses
+  // page already counts it as brand spending.
+  it('leaves a show’s old expense list to brand spending rather than charging it twice', () => {
+    const moved = { id: 'e', category: 'Venue', itemName: 'Room', cost: 100, date: '2026-03-01' };
+    const report = buildSeasonReport([
+      show({ date: '2026-03-01', recap: { ticketSales: 300 }, expenses: [moved] }),
+    ], [moved], 'year', TODAY);
+    expect(report.showCosts).toBe(0);
+    expect(report.brandSpending).toBe(100);
+    expect(report.net - report.brandSpending).toBe(200);
   });
 });
 
@@ -91,8 +144,8 @@ describe('the season report, edge cases', () => {
 
   it('does not count a deposit on a night that has not happened as a loss yet', () => {
     const report = buildSeasonReport([
-      show({ date: '2026-01-01', recap: { merchSales: 300 }, expenses: [{ id: 'a', category: 'Venue', itemName: 'Room', cost: 100 }] }),
-      show({ date: '2026-12-01', status: 'upcoming', expenses: [{ id: 'b', category: 'Venue', itemName: 'Deposit', cost: 500 }] }),
+      show({ date: '2026-01-01', recap: { merchSales: 300 }, vendors: [{ id: 'a', name: 'Room', cost: 100 }] }),
+      show({ date: '2026-12-01', status: 'upcoming', vendors: [{ id: 'b', name: 'Deposit', cost: 500 }] }),
     ], [], 'year', TODAY);
     expect(report.showCosts).toBe(100);
     expect(report.net).toBe(200);
@@ -119,7 +172,7 @@ describe('the season report, edge cases', () => {
         date: '2026-10-02',
         status: 'in-progress',
         recap: { attendance: 80, merchSales: 200 },
-        expenses: [{ id: 'e', category: 'Venue', itemName: 'Room', cost: 150 }],
+        vendors: [{ id: 'e', name: 'Room', cost: 150 }],
       }),
     ], [], 'year', TODAY);
     expect(report).toMatchObject({ run: 2, upcoming: 0, audience: 130, revenue: 200, showCosts: 150, net: 50 });
@@ -128,7 +181,7 @@ describe('the season report, edge cases', () => {
 
   it('still counts tonight’s show as on the calendar while it is in progress', () => {
     const report = buildSeasonReport([
-      show({ date: '2026-10-05', status: 'in-progress', expenses: [{ id: 'e', category: 'Venue', itemName: 'Room', cost: 150 }] }),
+      show({ date: '2026-10-05', status: 'in-progress', vendors: [{ id: 'e', name: 'Room', cost: 150 }] }),
     ], [], 'year', TODAY);
     expect(report).toMatchObject({ run: 0, upcoming: 1, showCosts: 0 });
   });
@@ -178,9 +231,9 @@ describe('money on the report', () => {
   // $0.30. A season that broke even printed "-$0.00" in red.
   it('calls a season that broke even to the cent exactly even', () => {
     const report = buildSeasonReport([
-      show({ date: '2026-01-01', expenses: [
-        { id: 'a', category: 'Venue', itemName: 'Room', cost: 0.1 },
-        { id: 'b', category: 'Venue', itemName: 'Tape', cost: 0.2 },
+      show({ date: '2026-01-01', vendors: [
+        { id: 'a', name: 'Room', cost: 0.1 },
+        { id: 'b', name: 'Tape', cost: 0.2 },
       ] }),
       show({ date: '2026-02-01', recap: { merchSales: 0.3 } }),
     ], [], 'year', TODAY);
@@ -188,9 +241,9 @@ describe('money on the report', () => {
     expect(formatMoney(report.net)).toBe('$0');
 
     const busier = buildSeasonReport([
-      show({ date: '2026-01-01', expenses: [
-        { id: 'a', category: 'Venue', itemName: 'Room', cost: 10.1 },
-        { id: 'b', category: 'Venue', itemName: 'Sound', cost: 20.2 },
+      show({ date: '2026-01-01', vendors: [
+        { id: 'a', name: 'Room', cost: 10.1 },
+        { id: 'b', name: 'Sound', cost: 20.2 },
       ] }),
       show({ date: '2026-02-01', recap: { merchSales: 30.3 } }),
     ], [], 'year', TODAY);

@@ -48,6 +48,14 @@ describe('healShow', () => {
     expect(healed!.performers[0].surpriseGuest).toBe(true);
   });
 
+  it('leaves a recap’s ticket sales and other costs as they were stored', () => {
+    // Both optional: a recap from before them reads as nothing sold at the
+    // door and nothing spent beyond the vendors.
+    const recap = { attendance: 60, ticketSales: 400, merchSales: 50, otherCosts: 75, profitLoss: 125 };
+    expect(healShow({ id: 'a', recap })!.recap).toEqual(recap);
+    expect(healShow({ id: 'b', recap: { merchSales: 50 } })!.recap).toEqual({ merchSales: 50 });
+  });
+
   it('replaces a status it cannot render with one it can', () => {
     expect(healShow({ id: 'a', status: 'archived' })!.status).toBe('upcoming');
   });

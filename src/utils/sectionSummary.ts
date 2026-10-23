@@ -95,11 +95,22 @@ export function staffSummary(staff: StaffMember[]): string | null {
   );
 }
 
+/**
+ * What a show's vendors cost: every vendor's cost added up, booked or not, and
+ * a cost that isn't a number counted as nothing.
+ *
+ * The one rule for it. The Vendors card prints this total and the recap counts
+ * it as the night's vendor spend, so the two can't disagree about a show.
+ */
+export function vendorsCost(vendors: Vendor[]): number {
+  return vendors.reduce((sum, v) => sum + (Number(v.cost) || 0), 0);
+}
+
 /** "Tacos El Sol, Sound Rental · $420" — names plus what they add up to. */
 export function vendorsSummary(vendors: Vendor[]): string | null {
   const names = joinNames(vendors.map((v) => v.name), 2);
   if (!names) return null;
-  const total = vendors.reduce((sum, v) => sum + (Number(v.cost) || 0), 0);
+  const total = vendorsCost(vendors);
   if (total <= 0) return names;
   // No decimals: this is a glance value, and "$420" reads faster than "$420.00".
   return `${names} · $${Math.round(total).toLocaleString()}`;

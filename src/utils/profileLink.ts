@@ -3,6 +3,7 @@ import type { ContractField, ProfileRequest, ProfileSubmission } from '../types'
 import { api, SUBMIT_TIMEOUT_MS, withNetworkRetry } from './api';
 import { generateSignKey, generateSignToken, splitIntoChunks } from './contracts';
 import { decryptWithKey, encryptWithKey } from './encryption';
+import { isLinkStorageFull } from './linkStorage';
 import { sharedLinkPath } from './sharedLink';
 import type { SessionCredentials } from './session-vault';
 
@@ -235,10 +236,12 @@ export async function submitProfile(
 /**
  * What pressing Send came to. `photoFailed` means the headshot did not go
  * through and, the link being still unanswered, nothing else was sent either.
+ * `noRoom` with it means the producer's storage for links is used up, so the
+ * photo will not go however many times it is sent — the answers still can.
  */
 export type ProfileSendResult =
   | { submitted: ProfileSubmission }
-  | { photoFailed: true }
+  | { photoFailed: true; noRoom?: true }
   | { failed: unknown };
 
 /**
@@ -267,9 +270,10 @@ export async function sendProfile(
   if (headshot) {
     try {
       photoChunks = await uploadProfilePhoto(token, key, headshot);
-    } catch {
+    } catch (err) {
       const submitted = await landed();
-      return submitted ? { submitted } : { photoFailed: true };
+      if (submitted) return { submitted };
+      return isLinkStorageFull(err) ? { photoFailed: true, noRoom: true } : { photoFailed: true };
     }
   }
   try {

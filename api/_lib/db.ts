@@ -126,24 +126,33 @@ const DDL: string[] = [
    )`,
   // The contract PDF itself, re-encrypted under that same per-request key and
   // chunked exactly like live_media. One document per token.
+  //
+  // Each of the three chunk tables below names the account its chunks count
+  // against (`user_id`) and how big each one is (`bytes`), so every link an
+  // account hands out draws on one allowance — see _lib/linkStorage.ts.
   `CREATE TABLE IF NOT EXISTS sign_doc (
      token      TEXT NOT NULL,
      seq        INTEGER NOT NULL,
      total      INTEGER NOT NULL,
      data       TEXT NOT NULL,
      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+     user_id    TEXT,
+     bytes      INTEGER,
      PRIMARY KEY (token, seq)
    )`,
   // A headshot sent back through a profile link. Written anonymously by the
   // performer — the one place a stranger may write chunks — and only while the
   // link is still unanswered; the once-only reply seals it. Ciphertext under
-  // the link's own key, like everything else addressed by a token.
+  // the link's own key, like everything else addressed by a token. `user_id`
+  // is the producer who made the link, not the stranger who wrote the chunk.
   `CREATE TABLE IF NOT EXISTS profile_photo (
      token      TEXT NOT NULL,
      seq        INTEGER NOT NULL,
      total      INTEGER NOT NULL,
      data       TEXT NOT NULL,
      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+     user_id    TEXT,
+     bytes      INTEGER,
      PRIMARY KEY (token, seq)
    )`,
   `CREATE TABLE IF NOT EXISTS live_media (
@@ -153,6 +162,8 @@ const DDL: string[] = [
      total      INTEGER NOT NULL,
      data       TEXT NOT NULL,
      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+     user_id    TEXT,
+     bytes      INTEGER,
      PRIMARY KEY (token, id, seq)
    )`,
   // One row per account that has ever started a Stripe checkout. Stripe is
@@ -197,6 +208,31 @@ const MIGRATIONS: string[] = [
   // hash, which is what the default says. Each moves to the per-account
   // credential at its account's next sign-in.
   `ALTER TABLE users ADD COLUMN client_hash_version INTEGER NOT NULL DEFAULT 1`,
+  // Every token used to get its own cap, and a fresh token is free to mint, so
+  // the caps added up to no limit at all. Chunks stored before these columns
+  // name no account and count against nobody — see _lib/linkStorage.ts.
+  `ALTER TABLE sign_doc ADD COLUMN user_id TEXT`,
+  `ALTER TABLE sign_doc ADD COLUMN bytes INTEGER`,
+  `ALTER TABLE live_media ADD COLUMN user_id TEXT`,
+  `ALTER TABLE live_media ADD COLUMN bytes INTEGER`,
+  `ALTER TABLE profile_photo ADD COLUMN user_id TEXT`,
+  `ALTER TABLE profile_photo ADD COLUMN bytes INTEGER`,
+  // The allowance is added up on every chunk written, so it has to come from
+  // an index of the account's own chunks, never from the chunks themselves.
+  // Here rather than with the tables: on a database from before, the columns
+  // only exist once the ALTERs above have run. IF NOT EXISTS keeps it safe to
+  // repeat like the rest.
+  `CREATE INDEX IF NOT EXISTS sign_doc_by_user ON sign_doc (user_id, token, seq, bytes)`,
+  `CREATE INDEX IF NOT EXISTS live_media_by_user ON live_media (user_id, token, id, seq, bytes)`,
+  `CREATE INDEX IF NOT EXISTS profile_photo_by_user ON profile_photo (user_id, token, seq, bytes)`,
+  // Whose a token is gets asked the other way round: by token, on every live
+  // publish and on every chunk written under a link with no row yet (see
+  // _lib/tokenOwnership.ts). A row keeps `user_id` after the chunk's data —
+  // ADD COLUMN can only put it there — so reading it from the row reads
+  // through megabytes of ciphertext to reach it: a whole board's worth on
+  // every cue the board published.
+  `CREATE INDEX IF NOT EXISTS sign_doc_by_token ON sign_doc (token, user_id)`,
+  `CREATE INDEX IF NOT EXISTS live_media_by_token ON live_media (token, user_id)`,
 ];
 
 async function runMigrations(db: Client): Promise<void> {

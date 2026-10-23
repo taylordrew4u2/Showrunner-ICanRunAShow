@@ -4,12 +4,13 @@ import { join } from 'node:path';
 import { createClient, type Client } from '@libsql/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler, { STALE_PUBLISH_WINDOW_MS } from '../../api/live';
+import { applySchema } from '../../api/_lib/db';
 
 const connection = vi.hoisted(() => ({ db: null as Client | null }));
-vi.mock('../../api/_lib/db', () => ({
+vi.mock('../../api/_lib/db', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/_lib/db')>()),
   ensureSchema: async () => {},
   getDb: () => connection.db,
-  ServerNotConfiguredError: class extends Error {},
 }));
 vi.mock('../../api/_lib/auth', () => ({
   authorize: async (req: Request) => req.headers.get('x-user-id'),
@@ -31,9 +32,7 @@ const shown = async () => {
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'showrunner-live-'));
   connection.db = createClient({ url: `file:${join(dir, 'test.db')}` });
-  await connection.db.execute(`CREATE TABLE live_view (
-    token TEXT PRIMARY KEY, user_id TEXT, payload TEXT NOT NULL, updated_at TEXT
-  )`);
+  await applySchema(connection.db);
 });
 afterEach(() => {
   connection.db?.close();
