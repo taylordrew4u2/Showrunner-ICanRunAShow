@@ -118,17 +118,23 @@ function deletions(userId: string, tokens: string[]): InStatement[] {
     { sql: `DELETE FROM sign_request WHERE user_id = ?`, args: [userId] },
     { sql: `DELETE FROM live_media WHERE token IN (SELECT token FROM live_view WHERE user_id = ?)`, args: [userId] },
     { sql: `DELETE FROM live_view WHERE user_id = ?`, args: [userId] },
+    // Chunks name the account they count against, including ones no link row
+    // of its own covers: a send that stopped before its request was made, or
+    // audio sent under a viewer link from before owners were recorded.
+    { sql: `DELETE FROM sign_doc WHERE user_id = ?`, args: [userId] },
+    { sql: `DELETE FROM profile_photo WHERE user_id = ?`, args: [userId] },
+    { sql: `DELETE FROM live_media WHERE user_id = ?`, args: [userId] },
   ];
   // The account's own rows are gone by now, so "owned by anyone" below means
-  // owned by somebody else.
+  // owned by somebody else — by a link row, or by chunks that name them.
   for (let i = 0; i < tokens.length; i += TOKENS_PER_STATEMENT) {
     const group = tokens.slice(i, i + TOKENS_PER_STATEMENT);
     const list = group.map(() => '?').join(', ');
     statements.push(
-      { sql: `DELETE FROM sign_doc WHERE token IN (${list}) AND token NOT IN (SELECT token FROM sign_request WHERE user_id IS NOT NULL)`, args: group },
-      { sql: `DELETE FROM profile_photo WHERE token IN (${list}) AND token NOT IN (SELECT token FROM sign_request WHERE user_id IS NOT NULL)`, args: group },
+      { sql: `DELETE FROM sign_doc WHERE token IN (${list}) AND user_id IS NULL AND token NOT IN (SELECT token FROM sign_request WHERE user_id IS NOT NULL)`, args: group },
+      { sql: `DELETE FROM profile_photo WHERE token IN (${list}) AND user_id IS NULL AND token NOT IN (SELECT token FROM sign_request WHERE user_id IS NOT NULL)`, args: group },
       { sql: `DELETE FROM sign_request WHERE token IN (${list}) AND user_id IS NULL`, args: group },
-      { sql: `DELETE FROM live_media WHERE token IN (${list}) AND token NOT IN (SELECT token FROM live_view WHERE user_id IS NOT NULL)`, args: group },
+      { sql: `DELETE FROM live_media WHERE token IN (${list}) AND user_id IS NULL AND token NOT IN (SELECT token FROM live_view WHERE user_id IS NOT NULL)`, args: group },
       { sql: `DELETE FROM live_view WHERE token IN (${list}) AND user_id IS NULL`, args: group },
     );
   }

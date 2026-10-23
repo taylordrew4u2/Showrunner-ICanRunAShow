@@ -41,6 +41,11 @@ export default defineConfig({
       // tab the moment it lands, and it lands whenever the download finishes
       // — which on venue wifi is mid-show. The app offers the reload instead.
       registerType: 'prompt',
+      // The app registers the worker itself (utils/appUpdate), so the plugin
+      // must not add a registration script of its own. Its registration, in
+      // prompt mode too, reloads every open tab when any one of them applies
+      // the update — the tab running the show included.
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icons/*.png', 'brand/*.svg'],
       manifest: {
         name: 'I Can Run A Show',

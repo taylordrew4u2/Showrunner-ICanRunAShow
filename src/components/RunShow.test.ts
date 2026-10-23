@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { holdScreenAwake, type ScreenAwakeNavigator, type ScreenAwakeDocument } from './RunShow';
+import { describePublishShort, holdScreenAwake, type ScreenAwakeNavigator, type ScreenAwakeDocument } from './RunShow';
 
 /** A screen wake lock the test hands out and can watch being released. */
 function sentinel() {
@@ -87,5 +87,21 @@ describe('Run Show holding the screen awake', () => {
 
   it('carries on without a lock in a browser that has none', () => {
     expect(() => holdScreenAwake({}, fakeDocument())()).not.toThrow();
+  });
+});
+
+describe('the line under viewer audio when the viewer got less than the board', () => {
+  it('says to try again when files failed to send', () => {
+    expect(describePublishShort({ failed: 2, skipped: 0 })).toBe(
+      "2 tracks play on this device only — 2 couldn't be sent. Turn this off and on again to retry.",
+    );
+  });
+
+  it('says to free space, not to try again, when the storage for links ran out', () => {
+    // Turning it off and on again sends the same files into the same full allowance.
+    expect(describePublishShort({ failed: 3, skipped: 1, full: true })).toBe(
+      "4 tracks play on this device only — you've reached the storage limit for links and a viewer link holds 60 songs." +
+        ' Withdraw old contracts or viewer links to free space.',
+    );
   });
 });

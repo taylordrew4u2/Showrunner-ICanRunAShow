@@ -6,12 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import sign from '../../api/sign';
 import signDoc from '../../api/sign-doc';
 import profilePhoto from '../../api/profile-photo';
+import { applySchema } from '../../api/_lib/db';
 
 const connection = vi.hoisted(() => ({ db: null as Client | null }));
-vi.mock('../../api/_lib/db', () => ({
+vi.mock('../../api/_lib/db', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/_lib/db')>()),
   ensureSchema: async () => {},
   getDb: () => connection.db,
-  ServerNotConfiguredError: class extends Error {},
 }));
 vi.mock('../../api/_lib/auth', () => ({
   authorize: async (req: Request) => req.headers.get('x-user-id'),
@@ -35,14 +36,7 @@ const count = async (table: string) =>
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'showrunner-signing-'));
   connection.db = createClient({ url: `file:${join(dir, 'test.db')}` });
-  await connection.db.executeMultiple(`
-    CREATE TABLE sign_request (token TEXT PRIMARY KEY, user_id TEXT, payload TEXT NOT NULL,
-      signature TEXT, signed_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
-    CREATE TABLE sign_doc (token TEXT NOT NULL, seq INTEGER NOT NULL, total INTEGER NOT NULL,
-      data TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (token, seq));
-    CREATE TABLE profile_photo (token TEXT NOT NULL, seq INTEGER NOT NULL, total INTEGER NOT NULL,
-      data TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (token, seq));
-  `);
+  await applySchema(connection.db);
 });
 afterEach(() => {
   connection.db?.close();

@@ -6,6 +6,7 @@ import {
   scheduleSpan,
   scheduleSummary,
   staffSummary,
+  vendorsCost,
   vendorsSummary,
 } from './sectionSummary';
 import type { Performer, ScheduleItem, StaffMember, Vendor } from '../types';
@@ -167,5 +168,22 @@ describe('vendorsSummary', () => {
 
   it('is silent with no vendors', () => {
     expect(vendorsSummary([])).toBeNull();
+  });
+});
+
+describe('vendorsCost', () => {
+  const vendor = (over: Partial<Vendor>): Vendor => ({ id: 'v', name: 'Vendor', ...over });
+
+  it('counts every vendor with a cost, booked or not, and nothing for the rest', () => {
+    expect(vendorsCost([
+      vendor({ cost: 220, booked: true }),
+      vendor({ cost: 200, booked: false }),
+      vendor({}),
+      vendor({ cost: NaN }),
+    ])).toBe(420);
+  });
+
+  it('is nothing with no vendors', () => {
+    expect(vendorsCost([])).toBe(0);
   });
 });

@@ -17,6 +17,7 @@ import { getComicProfilePatch, reconcileRolodexProfiles, resolvePerformerComic, 
 import { normalizeComicSettings } from './utils/sharedComicSettings';
 import { mergeSettingsEdit } from './utils/mergeSettingsEdit';
 import { mergeShowEdit } from './utils/mergeShowEdit';
+import { settleRecapProfit } from './utils/recapMoney';
 import { bulkMailto } from './utils/social';
 import { buildOverview, completePastShows, sortShows } from './utils/showsOverview';
 import { 
@@ -2056,7 +2057,10 @@ export default function App() {
         }
       }
     }
-    const updated: Show = { ...merged, updatedAt: new Date().toISOString() };
+    // A vendor's cost is part of the recap's bottom line, so an edit to either
+    // (or the two merged from different screens) brings the stored figure up
+    // to date rather than leaving the one typed with the recap.
+    const updated: Show = settleRecapProfit({ ...merged, updatedAt: new Date().toISOString() });
     const shared = reconcileRolodexProfiles(comics, currentShows.map(s => s.id === updated.id ? updated : s), { clearedPhotos });
     const nextSettings = shared.comics === currentSettings.potentialComics
       ? currentSettings : { ...currentSettings, potentialComics: shared.comics };
@@ -2330,7 +2334,9 @@ export default function App() {
             {localBackupFailed && <div className="system-notice" role="alert">This browser could not store a backup. Keep this page open and download a backup of your work.</div>}
             {/* Offered, never taken: this row is hidden with the rest of the
                 rail while Run Show is open, so a deploy can no longer restart
-                the board mid-show. Everything is saved as usual either way. */}
+                the board mid-show. Everything is saved as usual either way.
+                Reload in one tab reloads that tab only; the others show this
+                row, and wait (see utils/appUpdate). */}
             {updateWaiting && (
               <div className="system-notice" role="status">
                 <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />

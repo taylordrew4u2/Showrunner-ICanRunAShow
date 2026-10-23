@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Artist, Performer, Show } from '../types';
 import { mergeShowEdit } from './mergeShowEdit';
+import { settleRecapProfit } from './recapMoney';
 
 const ada: Performer = { id: 'ada-slot', comicId: 'ada', name: 'Ada Cole', photo: 'media:old-photo', email: 'ada@example.com' };
 const jo: Performer = { id: 'jo-slot', comicId: 'jo', name: 'Jo Park', socialMedia: '@jo' };
@@ -101,6 +102,19 @@ describe('mergeShowEdit', () => {
     expect(merged.schedule[0]).toEqual({ ...cue, time: '20:15', performer: 'Surprise guest' });
   });
 
+});
+
+describe('mergeShowEdit with the recap’s money', () => {
+  it('carries ticket sales and other costs through a merge with a concurrent vendor edit', () => {
+    const baseline = show({ vendors: [{ id: 'v', name: 'Room', cost: 100 }], recap: { merchSales: 50 } });
+    const current = { ...baseline, vendors: [{ id: 'v', name: 'Room', cost: 250 }] };
+    const incoming = { ...baseline, recap: { merchSales: 50, ticketSales: 400, otherCosts: 75, profitLoss: 275 } };
+    const merged = mergeShowEdit(baseline, incoming, current);
+    expect(merged.recap).toEqual(incoming.recap);
+    expect(merged.vendors).toBe(current.vendors);
+    // Typed against the old room cost; settled against the new one.
+    expect(settleRecapProfit(merged).recap).toEqual({ ...incoming.recap, profitLoss: 125 });
+  });
 });
 
 describe('mergeShowEdit with surprise guests', () => {

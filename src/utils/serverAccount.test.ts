@@ -32,6 +32,10 @@ const remove = (user?: string, body?: unknown) =>
 
 const run = (sql: string, ...args: (string | number | null)[]) => connection.db!.execute({ sql, args });
 
+// Tokens that do not spell out whose they are, so only `user_id` ties the
+// chunks under them to an account.
+let unnamed = 0;
+
 /** One row in every table, as an account that has used everything would have. */
 async function seed(user: string, status = 'canceled') {
   const sign = `${user}-sign-token-0001`;
@@ -43,10 +47,16 @@ async function seed(user: string, status = 'canceled') {
   await run(`INSERT INTO user_settings_backup (user_id, encrypted_data) VALUES (?, 'cipher')`, user);
   await run(`INSERT INTO user_media (user_id, id, seq, total, data) VALUES (?, ?, 0, 1, 'cipher')`, user, `${user}-track`);
   await run(`INSERT INTO live_view (token, user_id, payload) VALUES (?, ?, '{}')`, view, user);
-  await run(`INSERT INTO live_media (token, id, seq, total, data) VALUES (?, 'walk-on-1', 0, 1, 'cipher')`, view);
+  await run(`INSERT INTO live_media (token, id, seq, total, data, user_id, bytes) VALUES (?, 'walk-on-1', 0, 1, 'cipher', ?, 6)`, view, user);
   await run(`INSERT INTO sign_request (token, user_id, payload) VALUES (?, ?, 'cipher')`, sign, user);
-  await run(`INSERT INTO sign_doc (token, seq, total, data) VALUES (?, 0, 1, 'cipher')`, sign);
-  await run(`INSERT INTO profile_photo (token, seq, total, data) VALUES (?, 0, 1, 'cipher')`, sign);
+  await run(`INSERT INTO sign_doc (token, seq, total, data, user_id, bytes) VALUES (?, 0, 1, 'cipher', ?, 6)`, sign, user);
+  await run(`INSERT INTO profile_photo (token, seq, total, data, user_id, bytes) VALUES (?, 0, 1, 'cipher', ?, 6)`, sign, user);
+  // A contract whose send stopped before its request was made, and audio sent
+  // under a viewer link whose live state never landed: no link row names
+  // either, and both count against the account until they go.
+  unnamed += 1;
+  await run(`INSERT INTO sign_doc (token, seq, total, data, user_id, bytes) VALUES (?, 0, 1, 'cipher', ?, 6)`, `unsent-contract-${unnamed}`, user);
+  await run(`INSERT INTO live_media (token, id, seq, total, data, user_id, bytes) VALUES (?, 'walk-on-1', 0, 1, 'cipher', ?, 6)`, `unpublished-view-${unnamed}`, user);
   await run(`INSERT INTO subscription (user_id, customer_id, subscription_id, status) VALUES (?, ?, ?, ?)`, user, `cus_${user}`, `sub_${user}`, status);
   await run(`INSERT INTO rate_limit (bucket, count) VALUES (?, 1)`, `auth:${user}:203.0.113.7`);
   await run(`INSERT INTO rate_limit (bucket, count) VALUES (?, 1)`, `authz:${user}:203.0.113.7`);
@@ -174,13 +184,20 @@ describe('deleting an account', () => {
     await run(`INSERT INTO live_view (token, payload) VALUES ('old-viewer-link', '{}')`);
     await run(`INSERT INTO live_media (token, id, seq, total, data) VALUES ('old-viewer-link', 'walk-on-1', 0, 1, 'cipher')`);
 
-    const tokens = ['old-contract-link-01', 'old-viewer-link', 'neighbour-sign-token-0001', 'neighbour-view-token'];
+    // The neighbour's chunks that no link row covers are still the
+    // neighbour's: the chunks name them.
+    const unsent = String((await run(`SELECT token FROM sign_doc WHERE user_id = 'neighbour' AND token LIKE 'unsent-%'`)).rows[0][0]);
+    const unpublished = String((await run(`SELECT token FROM live_media WHERE user_id = 'neighbour' AND token LIKE 'unpublished-%'`)).rows[0][0]);
+
+    const tokens = ['old-contract-link-01', 'old-viewer-link', 'neighbour-sign-token-0001', 'neighbour-view-token', unsent, unpublished];
     expect((await remove('producer', { tokens })).status).toBe(200);
     for (const table of ['sign_request', 'sign_doc', 'live_view', 'live_media']) {
       expect(await everything(table), table).not.toContain('old-');
     }
     expect(await everything('sign_doc')).toContain('neighbour-sign-token-0001');
     expect(await everything('live_media')).toContain('neighbour-view-token');
+    expect(await everything('sign_doc')).toContain(unsent);
+    expect(await everything('live_media')).toContain(unpublished);
   });
 
   it('needs the account’s own sign-in', async () => {

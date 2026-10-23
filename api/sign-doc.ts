@@ -11,13 +11,15 @@
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, tooLarge } from './_lib/http';
+import { hasLinkRoom, linkStorageFull } from './_lib/linkStorage';
 import { signTokenOwnership } from './_lib/tokenOwnership';
 
 // Matches /api/media: the client slices at ~1.5M chars before encryption.
 const MAX_CHUNK_CHARS = 3_500_000;
 // A contract is a document, not a media library. 64 chunks is tens of
 // megabytes of PDF — far past any real agreement, and a hard ceiling on what
-// one token can be made to hold.
+// one token can be made to hold. What all of an account's tokens may hold
+// together is _lib/linkStorage.ts.
 const MAX_CHUNKS = 64;
 
 export default async function handler(req: Request): Promise<Response> {
@@ -41,8 +43,9 @@ export default async function handler(req: Request): Promise<Response> {
 
     // ── Producer writes ────────────────────────────────────────────────────
     // The document is uploaded before the request that names it exists, so
-    // a token nobody has written under yet is free to write under; once the
-    // request row is there, only its account may touch the document. A
+    // a token nobody has written under yet is free to write under, and the
+    // first chunk written claims it: from then on — through the request that
+    // follows, and after — only that account may touch the document. A
     // legacy request names no account, and its document is never re-sent,
     // so nobody may replace it — it can still be dropped with the request.
     const userId = await authorize(req);
@@ -68,13 +71,18 @@ export default async function handler(req: Request): Promise<Response> {
       if (data.length > MAX_CHUNK_CHARS) return tooLarge();
       const owner = await signTokenOwnership(db, token, userId);
       if (owner === 'other' || owner === 'legacy') return json({ error: 'forbidden' }, 403);
+      if (!(await hasLinkRoom(db, userId, { table: 'sign_doc', token, seq, total, bytes: data.length }))) {
+        return linkStorageFull();
+      }
 
       await db.execute({
-        sql: `INSERT INTO sign_doc (token, seq, total, data) VALUES (?, ?, ?, ?)
+        sql: `INSERT INTO sign_doc (token, seq, total, data, user_id, bytes) VALUES (?, ?, ?, ?, ?, ?)
               ON CONFLICT(token, seq) DO UPDATE SET
                 data = excluded.data,
-                total = excluded.total`,
-        args: [token, seq, total, data],
+                total = excluded.total,
+                user_id = excluded.user_id,
+                bytes = excluded.bytes`,
+        args: [token, seq, total, data, userId, data.length],
       });
       return json({ ok: true });
     }

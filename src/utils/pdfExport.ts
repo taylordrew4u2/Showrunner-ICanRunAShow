@@ -1,5 +1,6 @@
 import { buildIntroCards, type IntroCard } from "./introCards";
 import { showDJSongs } from "./musicLibrary";
+import { recapMoney } from "./recapMoney";
 import { isSurpriseGuest, SURPRISE_GUEST_LABEL } from "./surpriseGuests";
 import type {
   Show,
@@ -27,7 +28,11 @@ function esc(text: string | undefined | null): string {
 }
 
 function formatCurrency(amount: number): string {
-  return `$${amount.toFixed(2)}`;
+  // The sign before the dollar, "-$40.00" rather than "$-40.00", now that a
+  // night's profit or loss is often a loss. Taken from the amount rounded to
+  // the cent, so float dust never prints as "-$0.00".
+  const cents = Math.round(amount * 100);
+  return `${cents < 0 ? "-" : ""}$${(Math.abs(cents) / 100).toFixed(2)}`;
 }
 
 /** How long a print sheet gets before its hidden frame is tidied away regardless. */
@@ -122,29 +127,205 @@ function introCardsSection(show: Show): string {
   </div>`;
 }
 
+/*
+ * Fitting the credits on an intro card.
+ *
+ * The card is a fixed height, so credits too long for it used to stop at
+ * whatever line the card ran out on, with nothing to show there was more.
+ * Now they are set smaller until they fit, and if they still don't at the
+ * smallest size they end in an ellipsis. The sheet goes straight to the print
+ * dialog with no chance to measure anything, so the fit is worked out here
+ * from the card's text, and every estimate errs toward too many lines: the
+ * credits shrink a step early rather than run off the card.
+ */
+
+/**
+ * The sizes credits can be set in, largest first, each with its line height,
+ * which is also the pitch the credits are ruled at, so they sit on the lines
+ * at every size. 11px is the floor: the smallest a host can still read at
+ * arm's length under a stage light. The sheet's .card__credits rule and its
+ * --12 and --11 modifiers say the same.
+ */
+const CREDIT_STEPS = [
+  { px: 13, lineHeight: 28 },
+  { px: 12, lineHeight: 24 },
+  { px: 11, lineHeight: 18 },
+] as const;
+
+type CreditStep = (typeof CREDIT_STEPS)[number];
+
+/**
+ * How wide a card's text runs at the narrowest, in CSS px: half an A4 sheet
+ * inside half-inch print margins (Firefox's default), less the card's border
+ * and padding. Letter paper and narrower margins give a little more.
+ */
+const CARD_TEXT_PX = 284;
+
+/**
+ * How wide a face sets each kind of character, in ems: a space; lower case
+ * and the slim punctuation; capitals, figures and the rest; and the widest
+ * letters and signs, with anything outside Latin (an emoji, the ♪). Each is a
+ * little over the face's own average, so an estimate errs toward more lines.
+ * Capitals are counted apart because they run a third to a half wider than
+ * lower case: at one flat width per character, a name in capitals that wraps
+ * on the card was counted as one line, and the credits' last line, ellipsis
+ * and all, printed off the bottom.
+ */
+interface FaceEm {
+  space: number;
+  slim: number;
+  wide: number;
+  widest: number;
+}
+const INTER_EM: FaceEm = { space: 0.3, slim: 0.56, wide: 0.72, widest: 1 };
+const CORMORANT_EM: FaceEm = { space: 0.25, slim: 0.46, wide: 0.7, widest: 0.95 };
+
+/** The width of one character in a face, in ems. */
+function charEm(ch: string, em: FaceEm): number {
+  if (/\s/.test(ch)) return em.space;
+  if (/[MW@%—…]|[^\u0020-\u024F\u2010-\u2027]/u.test(ch)) return em.widest;
+  if (/[\p{Ll}.,:;'’‘!|()[\]-]/u.test(ch)) return em.slim;
+  return em.wide;
+}
+
+/**
+ * The card's height as the sheet lays it out, in CSS px. Change one there,
+ * change it here: the 2.5in card less its border and padding, the name over
+ * its rule (a line of 25px at 1.1, then padding, rule and margin), and the
+ * foot under its hairline (margin, hairline and padding, then its lines).
+ */
+const CARD_INNER_PX = 240 - 2 - 14 - 10;
+const NAME_PX = 25;
+const NAME_LINE_PX = 27.5;
+const UNDER_NAME_PX = 6 + 1 + 8;
+const FOOT_LINE_PX = 14;
+const OVER_FOOT_PX = 6 + 1 + 6;
+/** The name keeps clear of the card number in the corner. */
+const NAME_TEXT_PX = CARD_TEXT_PX - 28;
+/** The foot's walk-on and handle are set apart by this much. */
+const FOOT_GAP_PX = 10;
+const FOOT_PX = 11;
+
+/** The room most cards leave the credits: a name on one line, a foot on one line. */
+const USUAL_CREDITS_ROOM_PX = CARD_INNER_PX - NAME_LINE_PX - UNDER_NAME_PX - OVER_FOOT_PX - FOOT_LINE_PX;
+
+/** How wide text runs in a face at this size, in CSS px. */
+function textPx(text: string, em: FaceEm, px: number): number {
+  let width = 0;
+  for (const ch of text) width += charEm(ch, em) * px;
+  return width;
+}
+
+/**
+ * How many lines text in a face at this size wraps to across this width,
+ * breaking at spaces as the browser does, and through any word too long for
+ * a line of its own (the card sets word-break: break-word).
+ */
+function wrappedLines(text: string, em: FaceEm, px: number, widthPx: number): number {
+  const space = em.space * px;
+  let lines = 0;
+  // Full, so the first word opens the first line.
+  let used = widthPx;
+  for (const word of text.split(/\s+/)) {
+    if (!word) continue;
+    const wordPx = textPx(word, em, px);
+    if (used + space + wordPx <= widthPx) {
+      used += space + wordPx;
+      continue;
+    }
+    lines += 1;
+    used = 0;
+    for (const ch of word) {
+      const chPx = charEm(ch, em) * px;
+      if (used > 0 && used + chPx > widthPx) {
+        lines += 1;
+        used = 0;
+      }
+      used += chPx;
+    }
+  }
+  return Math.max(lines, 1);
+}
+
+/** What the right of a card's foot says: the act's handle, after "Surprise guest" for one. */
+function footRight(card: IntroCard): string {
+  const handle = card.social || (card.kind === "artist" ? "Artist" : "");
+  // A surprise guest's card says so first, where the host's thumb is.
+  return card.surprise ? [SURPRISE_GUEST_LABEL, handle].filter(Boolean).join(" · ") : handle;
+}
+
+/** The height this card leaves its credits, between its name and its foot. */
+function creditsRoomPx(card: IntroCard): number {
+  const nameLines = wrappedLines(card.name, CORMORANT_EM, NAME_PX, NAME_TEXT_PX);
+  let room = CARD_INNER_PX - nameLines * NAME_LINE_PX - UNDER_NAME_PX;
+  const right = footRight(card);
+  if (card.walkOn || right) {
+    // The handle never wraps, so a long walk-on wraps in what it leaves, and
+    // every line it takes comes off the credits.
+    const walkOnPx = CARD_TEXT_PX - FOOT_GAP_PX - textPx(right, INTER_EM, FOOT_PX);
+    const footLines = card.walkOn ? wrappedLines(`♪ ${card.walkOn}`, INTER_EM, FOOT_PX, walkOnPx) : 1;
+    room -= OVER_FOOT_PX + footLines * FOOT_LINE_PX;
+  }
+  return room;
+}
+
+/** How many whole lines of credits at this step fit in this much room. */
+function creditLines(step: CreditStep, roomPx: number): number {
+  return Math.max(1, Math.floor(roomPx / step.lineHeight));
+}
+
+/** The largest step the credits fit at in this room, or the smallest when they fit at none. */
+function creditsStep(text: string, roomPx: number): CreditStep {
+  const fits = CREDIT_STEPS.find(
+    (step) => wrappedLines(text, INTER_EM, step.px, CARD_TEXT_PX) <= creditLines(step, roomPx),
+  );
+  return fits ?? CREDIT_STEPS[CREDIT_STEPS.length - 1];
+}
+
+/**
+ * The type size for a card's credits, in CSS px: the house 13px when they fit
+ * at it, stepping down to 12px and then 11px as they get longer. Credits too
+ * long even at 11px stay at 11px and are clamped. The room is the height the
+ * card leaves them; most cards leave the default.
+ */
+export function creditsFontPx(text: string, roomPx: number = USUAL_CREDITS_ROOM_PX): number {
+  return creditsStep(text, roomPx).px;
+}
+
+function renderCardCredits(card: IntroCard): string {
+  if (!card.credits) return `<div class="card__credits card__credits--none">No credits on file</div>`;
+  const room = creditsRoomPx(card);
+  const step = creditsStep(card.credits, room);
+  const lines = creditLines(step, room);
+  const classes = ["card__credits"];
+  if (step !== CREDIT_STEPS[0]) classes.push(`card__credits--${step.px}`);
+  // Clamped to the lines there's room for whenever they might fill them, so
+  // if they run over after all, the last line says so with an ellipsis. The
+  // box stops at those lines too: one any taller can show the top of the next.
+  const clamp = wrappedLines(card.credits, INTER_EM, step.px, CARD_TEXT_PX) >= lines;
+  if (clamp) classes.push("card__credits--clamp");
+  const style = clamp ? ` style="-webkit-line-clamp: ${lines}; max-height: ${lines * step.lineHeight}px"` : "";
+  return `<div class="${classes.join(" ")}"${style}>${esc(card.credits)}</div>`;
+}
+
 /** Only drawn when it has something to say — an empty foot is a stray rule. */
 function renderCardFoot(card: IntroCard): string {
-  const handle = card.social ? esc(card.social) : card.kind === "artist" ? "Artist" : "";
-  // A surprise guest's card says so first, where the host's thumb is.
-  const right = card.surprise ? [SURPRISE_GUEST_LABEL, handle].filter(Boolean).join(" · ") : handle;
+  const right = footRight(card);
   if (!card.walkOn && !right) return "";
   return `
         <div class="card__foot">
           <span class="card__walkon">${card.walkOn ? `♪ ${esc(card.walkOn)}` : ""}</span>
-          <span class="card__kind">${right}</span>
+          <span class="card__kind">${esc(right)}</span>
         </div>`;
 }
 
 function renderIntroCard(card: IntroCard): string {
-  const foot = renderCardFoot(card);
   return `
-      <div class="card${foot ? " card--foot" : ""}">
+      <div class="card">
         <div class="card__num">${card.order}</div>
         <div class="card__name">${esc(card.name)}</div>
-        <div class="card__credits${card.credits ? "" : " card__credits--none"}">${
-          card.credits ? esc(card.credits) : "No credits on file"
-        }</div>
-        ${foot}
+        ${renderCardCredits(card)}
+        ${renderCardFoot(card)}
       </div>`;
 }
 
@@ -155,6 +336,11 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     (sum, e) => sum + (Number(e.cost) || 0),
     0,
   );
+  // Worked out here from the vendors and the recap's figures, not read from
+  // the stored profitLoss, which a vendor's later change of cost left behind.
+  const money = recapMoney(show.recap, show.vendors ?? []);
+  const recapStat = (label: string, value: string) =>
+    `<div class="recap-stat"><div class="recap-stat__label">${label}</div><div class="recap-stat__value">${value}</div></div>`;
 
   const html = `
 <!DOCTYPE html>
@@ -210,30 +396,20 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     .card {
       position: relative;
       height: 2.5in;
-      padding: 14px 16px 12px;
+      padding: 14px 16px 10px;
       border: 1px solid #c9c5bd;
       border-radius: 0;
       background: #fff;
-      /* The faint ruling. Printers strip backgrounds by default, hence the
-         print-color-adjust below — without it these cards come out blank. */
-      background-image: repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent 27px,
-        #ebe8e2 27px,
-        #ebe8e2 28px
-      );
-      background-position: 0 46px;
       overflow: hidden;
       page-break-inside: avoid;
       break-inside: avoid;
-      /* A column, so the credits can be given a box that ends where the foot
-         begins; see .card__credits. */
+      /* A column: the name, the credits, then the foot as tall as its lines.
+         The credits get what the other two leave; see .card__credits. The
+         heights here are budgeted in CARD_INNER_PX and the constants after
+         it, which work out how much of the credits fits. */
       display: flex;
       flex-direction: column;
     }
-    /* Room for the foot, which is pinned to the bottom of the card. */
-    .card--foot { padding-bottom: 36px; }
     .card__num {
       position: absolute;
       top: 10px;
@@ -265,17 +441,44 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
       flex: 1 1 auto;
       min-height: 0;
       overflow: hidden;
+      /* The faint ruling: one rule to each line of credits, along the foot
+         of the letters, where it has always printed. It is drawn on the
+         credits rather than across the whole card so it keeps to their
+         lines at any size, and wherever a two-line name leaves them.
+         Printers strip backgrounds by default, hence the print-color-adjust
+         on .card below, which this inherits — without it these cards come
+         out blank. */
+      background-image: linear-gradient(to bottom, transparent calc(100% - 1px), #ebe8e2 calc(100% - 1px));
+      background-size: 100% 28px;
+      background-position: 0 -10.5px;
+    }
+    /* Credits too long for the card at 13px are set smaller (creditsFontPx
+       picks the size) and ruled closer to match, the rule in the same place
+       on each line. */
+    .card__credits--12 { font-size: 12px; line-height: 24px; background-size: 100% 24px; background-position: 0 -8.5px; }
+    .card__credits--11 { font-size: 11px; line-height: 18px; background-size: 100% 18px; background-position: 0 -5.5px; }
+    /* Credits that may still fill the card end in an ellipsis on the last
+       line it has room for, instead of stopping mid-sentence with no sign
+       there was more. That line count, and a height to match, are set on
+       each card. Whatever room is left under them goes above the foot. */
+    .card__credits--clamp {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      margin-bottom: auto;
     }
     .card__credits--none { color: #6b675f; font-style: italic; }
     .card__foot {
-      position: absolute;
-      left: 16px;
-      right: 16px;
-      bottom: 10px;
+      /* In the column under the credits, not pinned over them with a fixed
+         space kept clear, so it is as tall as its lines: a walk-on that
+         wraps to a second line takes that line from the credits instead of
+         printing over them. */
+      flex: none;
+      margin-top: 6px;
       display: flex;
       justify-content: space-between;
       gap: 10px;
       font-size: 11px;
+      line-height: 14px;
       color: #55524c;
       border-top: 1px solid #e4e1da;
       padding-top: 6px;
@@ -435,9 +638,12 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Show Recap</h2>
   <div class="recap-box">
     <div class="recap-row">
-      ${show.recap.attendance != null ? `<div class="recap-stat"><div class="recap-stat__label">Attendance</div><div class="recap-stat__value">${show.recap.attendance}</div></div>` : ""}
-      ${show.recap.merchSales != null ? `<div class="recap-stat"><div class="recap-stat__label">Merch Sales</div><div class="recap-stat__value">${formatCurrency(Number(show.recap.merchSales))}</div></div>` : ""}
-      ${show.recap.profitLoss != null ? `<div class="recap-stat"><div class="recap-stat__label">Profit / Loss</div><div class="recap-stat__value">${formatCurrency(Number(show.recap.profitLoss))}</div></div>` : ""}
+      ${show.recap.attendance != null ? recapStat("Attendance", String(show.recap.attendance)) : ""}
+      ${show.recap.ticketSales != null ? recapStat("Ticket Sales", formatCurrency(money.ticketSales)) : ""}
+      ${show.recap.merchSales != null ? recapStat("Merch Sales", formatCurrency(money.merchSales)) : ""}
+      ${money.vendorCosts !== 0 ? recapStat("Vendor Costs", formatCurrency(money.vendorCosts)) : ""}
+      ${show.recap.otherCosts != null ? recapStat("Other Costs", formatCurrency(money.otherCosts)) : ""}
+      ${money.revenue !== 0 || money.costs !== 0 ? recapStat("Profit / Loss", formatCurrency(money.profitLoss)) : ""}
     </div>
     ${show.recap.performerNotes ? `<div class="recap-notes"><strong>Performer Notes:</strong>\n${esc(show.recap.performerNotes.trim())}</div>` : ""}
     ${show.recap.improvementNotes ? `<div class="recap-notes" style="margin-top:8px;"><strong>Improvement Notes:</strong>\n${esc(show.recap.improvementNotes.trim())}</div>` : ""}

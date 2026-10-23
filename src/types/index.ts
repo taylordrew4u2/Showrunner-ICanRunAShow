@@ -208,9 +208,26 @@ export interface EmailListEntry {
 
 export interface ShowRecap {
   attendance?: number;
+  /**
+   * What the door took. Optional, and a recap saved before it existed has
+   * none, which counts as nothing sold rather than as unreadable.
+   */
+  ticketSales?: number;
   merchSales?: number;
+  /**
+   * What the night cost beyond its vendors — the door split, performer pay,
+   * anything else. The vendors are counted from the Vendors section, so they
+   * are not typed in again here.
+   */
+  otherCosts?: number;
   performerNotes?: string;
   improvementNotes?: string;
+  /**
+   * The night's profit or loss as it stood when the show was last saved.
+   * Kept in step with the figures it comes from (see settleRecapProfit), but
+   * every screen and printout works it out afresh with recapMoney rather than
+   * trusting a stored number that a vendor's changed cost could leave behind.
+   */
   profitLoss?: number;
 }
 

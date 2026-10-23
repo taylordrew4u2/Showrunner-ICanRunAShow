@@ -20,6 +20,7 @@
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson, tooLarge } from './_lib/http';
+import { hasLinkRoom, linkStorageFull } from './_lib/linkStorage';
 import { signTokenOwnership } from './_lib/tokenOwnership';
 
 // Matches the client's slice size before encryption; a 1400px headshot is
@@ -54,16 +55,29 @@ export default async function handler(req: Request): Promise<Response> {
       // Only a link the producer made, and only while it is still open. A
       // photo arriving after the answer would be a photo nobody asked for.
       const link = await db.execute({
-        sql: `SELECT signed_at FROM sign_request WHERE token = ?`,
+        sql: `SELECT signed_at, user_id FROM sign_request WHERE token = ?`,
         args: [token],
       });
       if (link.rows.length === 0) return json({ error: 'not_found' }, 404);
       if (link.rows[0][0] !== null) return json({ error: 'not_open' }, 409);
 
+      // The photo counts against the producer who made the link. Making a
+      // link costs nothing, so four chunks a link would otherwise be as much
+      // as an account liked. A link from before links named an account
+      // counts against nobody, as it always has.
+      const owner = link.rows[0][1] == null ? null : String(link.rows[0][1]);
+      if (owner && !(await hasLinkRoom(db, owner, { table: 'profile_photo', token, seq, total, bytes: data.length }))) {
+        return linkStorageFull();
+      }
+
       await db.execute({
-        sql: `INSERT INTO profile_photo (token, seq, total, data) VALUES (?, ?, ?, ?)
-              ON CONFLICT(token, seq) DO UPDATE SET data = excluded.data, total = excluded.total`,
-        args: [token, seq, total, data],
+        sql: `INSERT INTO profile_photo (token, seq, total, data, user_id, bytes) VALUES (?, ?, ?, ?, ?, ?)
+              ON CONFLICT(token, seq) DO UPDATE SET
+                data = excluded.data,
+                total = excluded.total,
+                user_id = excluded.user_id,
+                bytes = excluded.bytes`,
+        args: [token, seq, total, data, owner, data.length],
       });
       return json({ ok: true });
     }

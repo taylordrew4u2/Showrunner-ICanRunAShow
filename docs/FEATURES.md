@@ -32,6 +32,7 @@ The full feature list. The [README](../README.md) has the short version.
 - "Email all performers" opens your mail app with the lineup BCC'd and a pre-filled confirmation
 - Global performer Rolodex: save a performer once, reuse across shows; edits sync to all matching performers
 - Vendors, staff, host, expenses, and per-section deadlines on each show
+- A recap once the night is over: attendance, ticket and merch sales, other costs (door split, performer pay), and the profit or loss after the show's vendors, on screen and on the printed runsheet
 - Post copy: the show's details, host, bill and everyone's handles composed into a caption and copied to the clipboard (nothing is posted for you)
 
 ## Schedule import

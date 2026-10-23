@@ -8,6 +8,7 @@ import {
   signingUrl,
   type ShowContext,
 } from '../../utils/contracts';
+import { isLinkStorageFull, LINK_STORAGE_FULL_MESSAGE } from '../../utils/linkStorage';
 import { uploadMedia } from '../../utils/mediaStore';
 import type { SessionCredentials } from '../../utils/session-vault';
 import { fileSignedHeadshots } from '../../utils/signedHeadshots';
@@ -120,8 +121,10 @@ export function PerformerContracts({
       );
       onUpdateSettings({ ...settings, signatureRequests: [request, ...requests] });
       await share(request);
-    } catch {
-      setError('That did not send. Check your connection and try again.');
+    } catch (err) {
+      setError(isLinkStorageFull(err)
+        ? LINK_STORAGE_FULL_MESSAGE
+        : 'That did not send. Check your connection and try again.');
     } finally {
       setBusy(null);
     }

@@ -27,6 +27,7 @@ import {
 } from '../utils/soundboard';
 import { useMediaUrl } from '../utils/useMediaUrl';
 import { getMediaCredentials } from '../utils/mediaStore';
+import { isLinkStorageFull, LINK_STORAGE_FULL_MESSAGE } from '../utils/linkStorage';
 import {
   MAX_VIEWER_TRACKS,
   ensureViewerKey,
@@ -111,16 +112,25 @@ const FAILURE_MESSAGE: Record<string, string> = {
 
 /**
  * What the operator is told when the viewer got less than the whole board.
- * Counted in pads, because pads are what the operator will press.
+ * Counted in pads, because pads are what the operator will press. `full` is
+ * the account's storage for links running out part-way, which turning this
+ * off and on again cannot fix, so it says what will.
+ *
+ * Exported so a test can read the words; it has no UI of its own.
  */
-function describePublishShort({ failed, skipped }: { failed: number; skipped: number }): string {
+// eslint-disable-next-line react-refresh/only-export-components
+export function describePublishShort(
+  { failed, skipped, full = false }: { failed: number; skipped: number; full?: boolean },
+): string {
   const left = failed + skipped;
   const why = [
-    failed > 0 ? `${failed} couldn't be sent` : '',
+    failed > 0 ? (full ? "you've reached the storage limit for links" : `${failed} couldn't be sent`) : '',
     skipped > 0 ? `a viewer link holds ${MAX_VIEWER_TRACKS} songs` : '',
   ].filter(Boolean).join(' and ');
-  return `${left} ${left === 1 ? 'track plays' : 'tracks play'} on this device only — ${why}.` +
-    (failed > 0 ? ' Turn this off and on again to retry.' : '');
+  const next = full
+    ? ' Withdraw old contracts or viewer links to free space.'
+    : failed > 0 ? ' Turn this off and on again to retry.' : '';
+  return `${left} ${left === 1 ? 'track plays' : 'tracks play'} on this device only — ${why}.${next}`;
 }
 
 type WakeLockSentinel = { release: () => Promise<void> };
@@ -365,14 +375,15 @@ export function RunShow({
   // it re-uploads every track, and it makes the show's music readable by
   // anyone holding the viewer link.
   const [viewerAudio, setViewerAudio] = useState<ViewerTrack[] | null>(null);
-  const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'error'>('idle');
+  // 'full': nothing went because the account's storage for links is used up.
+  const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'error' | 'full'>('idle');
   const [publishDone, setPublishDone] = useState(0);
   // Files to send, for the progress count — one per song, not one per pad.
   const [publishTotal, setPublishTotal] = useState(0);
   // A publish that went out without some of the board, in pads: those whose
   // file failed to send, and those past what one viewer link holds. Those
   // pads play on this device only.
-  const [publishShort, setPublishShort] = useState<{ failed: number; skipped: number } | null>(null);
+  const [publishShort, setPublishShort] = useState<{ failed: number; skipped: number; full: boolean } | null>(null);
   const notifiedStartRef = useRef(false); // whether onStart has fired this session
   // The fade audition — see auditionFade(). Held in a ref so any press can call
   // the test off before its scheduled stop lands on somebody else's track.
@@ -795,14 +806,22 @@ export function RunShow({
     await unpublishAll(viewToken, creds).catch(() => {});
     const published: ViewerTrack[] = [];
     let failed = 0;
+    let full = false;
     for (const upload of uploads) {
+      // Once the account's storage for links is used up, every file after
+      // would be refused the same way; sending them only costs the uplink.
+      if (full) {
+        failed += upload.pads.length;
+        continue;
+      }
       let total: number;
       try {
         total = await publishTrack(viewToken, key, upload.src, upload.mediaId, creds);
-      } catch {
+      } catch (err) {
         // One file that will not go — a dropped connection, a track missing
         // from the store — used to throw away every walk-on already sent.
         failed += upload.pads.length;
+        full = isLinkStorageFull(err);
         continue;
       }
       // The trim travels with each pad: the viewer plays the same slice this
@@ -819,12 +838,12 @@ export function RunShow({
       setPublishDone((n) => n + 1);
     }
     if (published.length === 0) {
-      setPublishState('error');
+      setPublishState(full ? 'full' : 'error');
       return;
     }
     setViewerAudio(published);
     setPublishState('idle');
-    if (failed > 0 || skipped.length > 0) setPublishShort({ failed, skipped: skipped.length });
+    if (failed > 0 || skipped.length > 0) setPublishShort({ failed, skipped: skipped.length, full });
   }
 
   async function stopViewerAudio() {
@@ -1173,11 +1192,13 @@ export function RunShow({
                 <span className="rs-fade__viewer-note">
                   {publishState === 'error'
                     ? "Couldn't send the audio — check your connection and try again."
-                    : viewerAudio && publishShort
-                      ? describePublishShort(publishShort)
-                      : viewerAudio
-                        ? 'The viewer link plays the walk-ons. Anyone with that link can hear them.'
-                        : 'Send this board to the viewer link, for the machine wired to the PA.'}
+                    : publishState === 'full'
+                      ? LINK_STORAGE_FULL_MESSAGE
+                      : viewerAudio && publishShort
+                        ? describePublishShort(publishShort)
+                        : viewerAudio
+                          ? 'The viewer link plays the walk-ons. Anyone with that link can hear them.'
+                          : 'Send this board to the viewer link, for the machine wired to the PA.'}
                 </span>
               </div>
             )}

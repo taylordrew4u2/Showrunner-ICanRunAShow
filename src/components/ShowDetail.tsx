@@ -777,7 +777,7 @@ export function ShowDetail({
       content: (
         <ShowRecapSection
           recap={show.recap}
-          expenses={show.expenses}
+          vendors={show.vendors || []}
           todos={show.todos || []}
           onChange={(recap) => handleUpdate({ recap })}
           onAddTodo={handleAddTodoText}
