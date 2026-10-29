@@ -9,5 +9,8 @@ Nothing in the app imports it. It reaches the build through
 `vite-plugin-pwa` → `workbox-build` → `@rollup/plugin-node-resolve`, and
 `package.json` `overrides` points that dependency here.
 
-When upstream publishes a fixed version, delete this folder and the
-`deepmerge` override.
+The patched build is `lib/cjs.js` (upstream ships it as `dist/cjs.js`, but
+this repository ignores every `dist` folder, so it would never be committed).
+
+When upstream publishes a fixed version, delete this folder, the `deepmerge`
+devDependency and the `deepmerge` override.

@@ -3,7 +3,7 @@
   "description": "deepmerge 4.3.1 with the fix for CVE-2026-93753 (GHSA-gcqx-w48m-w2h4), vendored until upstream publishes one. See README.md.",
   "version": "4.3.2-patched.1",
   "homepage": "https://github.com/TehShrike/deepmerge",
-  "main": "dist/cjs.js",
+  "main": "lib/cjs.js",
   "types": "index.d.ts",
   "license": "MIT"
 }
