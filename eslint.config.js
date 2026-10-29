@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // vendor/ holds third-party code kept as published (see vendor/deepmerge/README.md).
+  globalIgnores(['dist', 'vendor']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
