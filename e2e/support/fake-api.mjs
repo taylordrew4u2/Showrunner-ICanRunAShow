@@ -32,7 +32,7 @@ import { createHash } from 'node:crypto';
  * @property {Record<string, number>} mediaWrittenAt  When each media item's newest chunk landed (ms); absent for seeded rows.
  * @property {Record<string, string[]>} doc
  * @property {Record<string, string>} docOwners  The account each document's chunks name (sign_doc.user_id); absent for seeded documents, which name nobody.
- * @property {Record<string, {payload: string, signature: string | null, signedAt: string | null, userId?: string}>} sign
+ * @property {Record<string, {payload: string, signature: string | null, signedAt: string | null, userId?: string, bytes?: number}>} sign  Signing and profile requests, by token. `bytes` is the signature's size as the server recorded it when it landed (sign_request.bytes); absent for seeded rows, which count for nothing.
  * @property {Record<string, Record<number, {data: string, total: number, userId?: string | null}>>} profilePhoto  Headshot chunks, each naming the producer whose link it came through.
  * @property {Record<string, {userId: string | null, payload: unknown}>} live  Published viewer state, by token.
  * @property {Record<string, Record<string, {data: string, total: number, userId?: string}[]>>} liveMedia  Viewer audio chunks, by token then id, each naming the account that sent it.
@@ -146,18 +146,21 @@ const liveOwnership = (state, token, userId) => ownership(state.live[token], use
 
 /**
  * api/_lib/linkStorage.ts hasLinkRoom: whether the account's links have room
- * for this chunk. A link it holds nothing under yet needs room under the count
- * of links; bytes are counted as they would stand after the write, and the
- * first chunk of a file is checked for the whole file.
+ * for this write — a chunk, or a link's own row. A link it holds nothing under
+ * yet needs room under the count of links; bytes are counted as they would
+ * stand after the write, and the first chunk of a file is checked for the
+ * whole file. A link row counts in bytes only for its signature, and a write
+ * to one replaces nothing.
  */
-function hasLinkRoom(state, userId, chunk) {
+function hasLinkRoom(state, userId, write) {
+  const chunk = write.seq === undefined ? null : write;
   const tokens = new Set();
   let bytes = 0;
   let replaced = 0;
   const count = (table, token, id, seq, size) => {
     tokens.add(token);
     bytes += size;
-    const sameFile = table === chunk.table && token === chunk.token && (table !== 'live_media' || id === chunk.id);
+    const sameFile = chunk && table === chunk.table && token === chunk.token && (table !== 'live_media' || id === chunk.id);
     if (sameFile && (seq === chunk.seq || chunk.seq === 0)) replaced += size;
   };
   for (const [token, chunks] of Object.entries(state.doc)) {
@@ -174,8 +177,14 @@ function hasLinkRoom(state, userId, chunk) {
       if (c?.userId === userId) count('profile_photo', token, '', Number(seq), c.data.length);
     }
   }
-  if (!tokens.has(chunk.token) && tokens.size >= MAX_LINK_TOKENS) return false;
-  const adding = chunk.seq === 0 ? chunk.bytes * chunk.total : chunk.bytes;
+  for (const [token, row] of Object.entries(state.sign)) {
+    if (row.userId === userId) count('sign_request', token, '', 0, row.bytes ?? 0);
+  }
+  for (const [token, row] of Object.entries(state.live)) {
+    if (row.userId === userId) count('live_view', token, '', 0, 0);
+  }
+  if (!tokens.has(write.token) && tokens.size >= MAX_LINK_TOKENS) return false;
+  const adding = chunk?.seq === 0 ? chunk.bytes * chunk.total : write.bytes;
   return bytes - replaced + adding <= MAX_LINK_BYTES;
 }
 
@@ -609,6 +618,18 @@ export async function installFakeApi(ctx, state) {
         const row = state.live[token];
         return ok({ payload: row ? row.payload : null });
       }
+      if (method === 'DELETE') {
+        // Withdrawing the link, and the audio under it, gives its place among
+        // the account's links back. Scoped like publishing.
+        const userId = authorize();
+        if (!userId) return refused();
+        const token = url.searchParams.get('token');
+        if (!token) return err(400, 'bad_request');
+        if (liveOwnership(state, token, userId) === 'other') return err(403, 'forbidden');
+        delete state.liveMedia[token];
+        delete state.live[token];
+        return ok({ ok: true });
+      }
       if (method !== 'POST') return err(405, 'method_not_allowed');
       // The viewer token is public by design, so it names the page but does
       // not grant the right to write to it: only a signed-in account may
@@ -620,6 +641,11 @@ export async function installFakeApi(ctx, state) {
       if (!token) return err(400, 'bad_request');
       if (exceedsSize(payload, LIVE_MAX_PAYLOAD_BYTES)) return tooLarge();
       const row = state.live[token];
+      // A link the account already publishes to asks nothing more; one it
+      // does not hold yet takes a place among its links.
+      if (row?.userId !== userId && !hasLinkRoom(state, userId, { table: 'live_view', token, bytes: 0 })) {
+        return linkStorageFull();
+      }
       if (liveOwnership(state, token, userId) === 'other') {
         state.rejectedForeignPublish = true;
         return err(403, 'forbidden');
@@ -745,6 +771,13 @@ export async function installFakeApi(ctx, state) {
         if (exceedsSize(signature, SIGN_MAX_SIGNATURE_BYTES)) return tooLarge();
         const row = state.sign[token];
         if (!row) return err(404, 'not_found');
+        // The signature counts against the producer who made the link, and
+        // only an open link is checked: an exact retry is acknowledged below
+        // whatever room is left. A legacy link counts against nobody.
+        if (!row.signedAt && row.userId &&
+            !hasLinkRoom(state, row.userId, { table: 'sign_request', token, bytes: signature.length })) {
+          return linkStorageFull();
+        }
         if (row.signedAt && row.signature === signature) return ok({ ok: true });
         if (row.signedAt) {
           state.rejectedSecondSign = true;
@@ -752,6 +785,7 @@ export async function installFakeApi(ctx, state) {
         }
         row.signature = signature;
         row.signedAt = new Date().toISOString();
+        row.bytes = signature.length;
         return ok({ ok: true });
       }
       // Producer writes: authenticated, and scoped to the account that made
@@ -763,6 +797,9 @@ export async function installFakeApi(ctx, state) {
         const { token, payload } = body;
         if (badToken(token) || typeof payload !== 'string' || payload.length === 0) return err(400, 'bad_request');
         if (exceedsSize(payload, SIGN_MAX_PAYLOAD_BYTES)) return tooLarge();
+        // A request takes a place among the account's links — already held,
+        // for a contract, by the document uploaded before it.
+        if (!hasLinkRoom(state, userId, { table: 'sign_request', token, bytes: 0 })) return linkStorageFull();
         const prev = state.sign[token];
         // upsertSignRequest: another account's row is left alone, and so is
         // a legacy one — nobody may claim it — and a token whose document
@@ -774,6 +811,7 @@ export async function installFakeApi(ctx, state) {
           signature: prev?.signature ?? null,
           signedAt: prev?.signedAt ?? null,
           userId,
+          ...(prev?.bytes === undefined ? {} : { bytes: prev.bytes }),
         };
         return ok({ ok: true });
       }

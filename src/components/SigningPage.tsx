@@ -12,6 +12,7 @@ import {
 } from '../utils/imageResize';
 import { photoFailureMessage, photoProblem } from '../utils/photoProblem';
 import { submitFailureMessage } from '../utils/submitFailure';
+import { isLinkStorageFull } from '../utils/linkStorage';
 import {
   clearPendingSignature,
   loadPendingSignature,
@@ -216,7 +217,9 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           verificationFailed = true;
         }
         if (stopped) return;
-        if (status === 413) {
+        // Too large for the link is a smaller photo. The sender being out of
+        // room is not, and their performer's headshot is not shrunk for it.
+        if (status === 413 && !isLinkStorageFull(err)) {
           const record = decryptWithKey<SignatureRecord>(pending, signKey);
           if (record.headshot) {
             // Retry with a smaller photo, but never send the agreement without it.

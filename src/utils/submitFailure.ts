@@ -1,4 +1,5 @@
 import { ServerNotConfiguredError, type ApiError } from './api';
+import { isLinkStorageFull } from './linkStorage';
 
 /**
  * Why a submission did not go through, in words the person can act on.
@@ -18,6 +19,13 @@ export function submitFailureMessage(err: unknown, opts: { hasPhoto?: boolean } 
   }
 
   const status = (err as ApiError)?.status;
+
+  // Whoever sent the link is out of storage for their links, and a signature
+  // counts against it. Nothing the performer sends will fit until the sender
+  // makes room, so neither a smaller photo nor another try is the answer.
+  if (isLinkStorageFull(err)) {
+    return 'Whoever sent this link has run out of room for replies, so this cannot be sent yet. Nothing has been sent — let them know, and try again once they say there is room. Your answers are still here.';
+  }
 
   switch (status) {
     case 413:
