@@ -45,10 +45,20 @@ export function countHeadshots(performers: Performer[]): number {
   return performers.filter(hasHeadshot).length;
 }
 
-/** What the button says: how many it will fetch, or how far along it is. */
-export function headshotButtonLabel(count: number, progress?: { done: number; total: number } | null): string {
+/**
+ * What the button says: how many it will fetch, or how far along it is.
+ *
+ * The one that takes the surprise guests too says so on its face, because the
+ * point of leaving them out of the other is that nobody forwards them by
+ * accident.
+ */
+export function headshotButtonLabel(
+  count: number,
+  progress?: { done: number; total: number } | null,
+  { includesGuests = false }: { includesGuests?: boolean } = {},
+): string {
   if (progress) return `Preparing ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…`;
-  return `Download ${count} headshot${count === 1 ? '' : 's'}`;
+  return `Download ${count} headshot${count === 1 ? '' : 's'}${includesGuests ? ' with surprise guests' : ''}`;
 }
 
 /**
@@ -127,20 +137,29 @@ function displayName(performer: Performer, position: number): string {
 }
 
 /**
+ * The names Windows keeps for devices, in any case. Everything after the first
+ * dot is ignored when it checks, so "Aux.jpg" and "Aux.Cord.jpg" are both the
+ * AUX device, and Windows 10 will not extract either from a zip.
+ */
+const WINDOWS_DEVICE_NAME = /^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(?=\s*(?:\.|$))/i;
+
+/**
  * File names for a run of headshots, in the same order.
  *
  * Named exactly as the bill has them. A slot with no usable name is called by
  * its place in the running order, so "Performer 3" can be matched back to the
  * third act. Two acts with one name get "Jane Doe (2)" and so on, compared
  * without case because macOS and Windows treat "jane doe.jpg" and
- * "Jane Doe.jpg" as one file and the second would overwrite the first.
+ * "Jane Doe.jpg" as one file and the second would overwrite the first. An act
+ * billed as a Windows device name, "Aux" or "Con", becomes "Aux (performer)",
+ * or the venue on Windows is short one face.
  */
 export function nameHeadshotFiles(
   shots: { name: string; position: number; type: string; bytes?: Uint8Array }[],
 ): string[] {
   const taken = new Set<string>();
   return shots.map((shot) => {
-    const base = sanitizeFileName(shot.name) || `Performer ${shot.position}`;
+    const base = (sanitizeFileName(shot.name) || `Performer ${shot.position}`).replace(WINDOWS_DEVICE_NAME, '$1 (performer)');
     let name = base;
     for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${base} (${n})`;
     taken.add(name.toLowerCase());
@@ -148,10 +167,26 @@ export function nameHeadshotFiles(
   });
 }
 
-/** "Late Set headshots.zip" */
-export function zipFileName(showName?: string): string {
+/**
+ * "Late Set headshots.zip", or "Late Set headshots with surprise guests.zip"
+ * for the one that has them, so the two never land in Downloads under one
+ * name for the wrong one to be sent on.
+ */
+export function zipFileName(showName?: string, { includesGuests = false }: { includesGuests?: boolean } = {}): string {
   const show = sanitizeFileName(showName ?? '');
-  return show ? `${show} headshots.zip` : 'Headshots.zip';
+  const guests = includesGuests ? ' with surprise guests' : '';
+  return show ? `${show} headshots${guests}.zip` : `Headshots${guests}.zip`;
+}
+
+/**
+ * "José-headshot.jpg" from a profile, "Café Comedy-flyer.png" from a show.
+ *
+ * Named by the same rule as the files in the zip. The old ASCII-only rule
+ * saved José as "Jos-headshot.jpg" and 李小龙 as "comic-headshot.jpg", so the
+ * designer could not tell whose face it was.
+ */
+export function singleImageFileName(name: string, kind: 'headshot' | 'flyer', extension: string): string {
+  return `${sanitizeFileName(name) || (kind === 'headshot' ? 'comic' : 'show')}-${kind}.${extension}`;
 }
 
 /**
@@ -351,22 +386,4 @@ export function headshotZip(files: HeadshotFile[]): Blob {
   return new Blob([createZip(files.map((file) => ({ name: file.fileName, data: file.bytes })))], {
     type: 'application/zip',
   });
-}
-
-/**
- * Save a file through the browser's own download.
- *
- * In the page, and the URL left alive for a minute: Firefox and iOS Safari
- * start the download after click() returns, and a URL revoked before then
- * gives no file at all.
- */
-export function downloadFile(blob: Blob, fileName: string): void {
-  const href = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = href;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(href), 60_000);
 }

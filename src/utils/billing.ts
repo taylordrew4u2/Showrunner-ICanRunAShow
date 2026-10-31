@@ -1,6 +1,6 @@
 // The browser's side of /api/billing. Card details are never handled here:
 // checkout and the portal are Stripe-hosted pages the app hands off to.
-import { api } from './api';
+import { api, type ApiError } from './api';
 import type { SessionCredentials } from './session-vault';
 
 export type Plan = 'free' | 'producer';
@@ -42,6 +42,19 @@ export async function startCheckout(creds: SessionCredentials): Promise<string> 
 
 export async function openBillingPortal(creds: SessionCredentials): Promise<string> {
   return (await api.post<{ url: string }>('/api/billing', { action: 'portal' }, auth(creds))).url;
+}
+
+/**
+ * What to say when a Stripe page would not open, wherever the button was.
+ *
+ * Stripe can have a subscription the plan has not heard about yet: a payment
+ * that went through moments ago. Calling that a connection problem sent the
+ * producer looking for another way to pay twice.
+ */
+export function checkoutFailureMessage(err: unknown): string {
+  return (err as ApiError | undefined)?.code === 'already_subscribed'
+    ? 'You already have a Producer subscription — Stripe is still confirming it. Check back in a minute.'
+    : 'Couldn’t reach the payment page. Check your connection and try again.';
 }
 
 /** Stripe sends the producer back with ?billing=success or ?billing=cancelled. */

@@ -64,9 +64,15 @@
 .timeline__slot {
   /* flex-grow carries the proportion; the min-width keeps a 1-minute cue from
      collapsing into an unclickable sliver. Proportion is the point, but a
-     block you can't hit is worse than one that's slightly too wide. */
+     block you can't hit is worse than one that's slightly too wide.
+
+     Twelve pixels a cue stops fitting a phone at about twenty cues, and the
+     strip then ran out of its card and off the screen, closer and outro with
+     it. Past that point the floor is each cue's equal share of the strip
+     (--cues is set on the strip), so every block stays on screen and as wide
+     as the room allows. */
   flex-basis: 0;
-  min-width: 12px;
+  min-width: min(12px, calc((100% - (var(--cues, 1) - 1) * var(--space-0-5)) / var(--cues, 1)));
   display: flex;
   /* Each block sizes its own label. A width query, not a viewport query — the
      same phone shows a 24-minute headliner that easily fits a name next to a
@@ -105,6 +111,16 @@
   transition:
     border-color var(--duration-normal) var(--ease-out),
     transform var(--duration-normal) var(--ease-out);
+}
+
+/* The padding only places the label. Kept on a block too narrow for one, it
+   held each block at least 14px wide whatever its slot, so a block narrowed
+   to fit the strip spilled over its neighbours and off the end. After the
+   rule above, which would otherwise win. */
+@container (max-width: 84px) {
+  .timeline__seg {
+    padding: 0;
+  }
 }
 
 .timeline__seg-fill {

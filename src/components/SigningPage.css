@@ -394,6 +394,13 @@
   cursor: pointer;
 }
 
+/* Held while the answers send. A label cannot be :disabled, so it looks
+   the way a disabled .btn does. */
+.signing__photo-pick[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .signing__photo-error {
   margin: var(--space-1) 0 0;
   font-size: var(--text-sm);

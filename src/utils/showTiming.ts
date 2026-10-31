@@ -171,6 +171,37 @@ export function carryCueClock(
   return { cueStartedAt: next, elapsed: Math.max(0, Math.floor((now - next) / 1000)) };
 }
 
+/** The cue Run Show's clock was counting, and the length it was counting toward. */
+export interface CueCount {
+  idx: number;
+  totalSec: number;
+}
+
+/**
+ * The clock of the cue Run Show moves on to once the one on screen is out of
+ * time. `counting` is what the clock was last seen counting toward while the
+ * cue still had time left.
+ *
+ * Only a cue that ran out on the clock carries its overrun on — see
+ * carryCueClock. One whose length was cut below the time it had already run
+ * ran out on the cut, not back at its new end: "−2 min" four minutes into a
+ * five-minute slot is the operator wrapping the act now. Carried, the time
+ * they took off was charged to the next cue, so the host's two-minute
+ * transition opened a minute down, and a second press skipped it altogether.
+ * The same goes for a cut made while paused, which lands on the resume, and
+ * a running order edited from another device.
+ */
+export function advanceCueClock(
+  counting: CueCount | null,
+  idx: number,
+  totalSec: number,
+  cueStartedAt: number,
+  now: number,
+): { cueStartedAt: number; elapsed: number } {
+  const ranOut = counting !== null && counting.idx === idx && counting.totalSec === totalSec;
+  return ranOut ? carryCueClock(cueStartedAt, totalSec, now) : { cueStartedAt: now, elapsed: 0 };
+}
+
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
 }

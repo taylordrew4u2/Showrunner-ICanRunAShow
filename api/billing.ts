@@ -66,6 +66,52 @@ async function ensureCustomer(userId: string, row: SubscriptionRow | null): Prom
   return (await loadRow(userId))?.customerId ?? customer.id;
 }
 
+/** Stripe refused because it has no such customer, rather than over anything else a request names. */
+function isMissingCustomer(err: unknown): boolean {
+  return err instanceof StripeError && err.code === 'resource_missing' && err.param === 'customer';
+}
+
+/**
+ * Let go of a pinned customer Stripe no longer has, with whatever the row
+ * says about a subscription on it, so the next checkout pins a new one.
+ *
+ * Removed in the Stripe dashboard, or pinned while the server ran on test
+ * keys that have since moved to live: Stripe refuses every request that
+ * names it, and nothing else ever replaces a pinned customer, so the producer
+ * could never subscribe. Not while the row says something is being paid for,
+ * which is the webhook's to change.
+ */
+async function forgetMissingCustomer(userId: string, customerId: string): Promise<void> {
+  await getDb().execute({
+    sql: `UPDATE subscription
+             SET customer_id = NULL, subscription_id = NULL, status = NULL,
+                 current_period_end = NULL, cancel_at = NULL, updated_at = datetime('now')
+           WHERE user_id = ? AND customer_id = ?
+             AND (status IS NULL OR status NOT IN ('active', 'trialing', 'past_due'))`,
+    args: [userId, customerId],
+  });
+}
+
+/**
+ * Close every checkout still open on this customer, so the one about to be
+ * made is the only one that can be paid.
+ *
+ * A checkout page stays payable for a day, and Stripe takes a second
+ * subscription from a customer who already has one. Pinning the customer
+ * put both on one customer; it did not stop the second payment. A page left
+ * open in the laptop's tab, after the producer had paid on their phone, could
+ * still be paid, and they were billed twice for one plan.
+ */
+async function closeOpenCheckouts(customerId: string): Promise<void> {
+  const open = await stripe<{ data: { id: string }[] }>(
+    'GET',
+    `/checkout/sessions?customer=${encodeURIComponent(customerId)}&status=open&limit=100`,
+  );
+  for (const session of open.data) {
+    await stripe('POST', `/checkout/sessions/${encodeURIComponent(session.id)}/expire`);
+  }
+}
+
 /** Statuses of a subscription that is paid for, or on its way to being. */
 const LIVE_STATUSES = new Set(['active', 'trialing', 'past_due', 'incomplete']);
 
@@ -80,6 +126,32 @@ async function hasLiveSubscription(customerId: string): Promise<boolean> {
     `/subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=10`,
   );
   return list.data.some((sub) => LIVE_STATUSES.has(sub.status));
+}
+
+/**
+ * A Stripe Checkout page for the Producer plan, paid as this customer, or
+ * null when Stripe already has a subscription for it.
+ */
+async function checkoutUrl(userId: string, customer: string, origin: string): Promise<string | null> {
+  // Closed before looking for a subscription, not after: one paid for
+  // between the look and the close would be followed by another.
+  await closeOpenCheckouts(customer);
+  if (await hasLiveSubscription(customer)) return null;
+  const session = await stripe<{ url: string }>('POST', '/checkout/sessions', {
+    mode: 'subscription',
+    line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+    // The account is identified three ways so the webhook can always
+    // find it: on the session, on the subscription it creates, and by
+    // the customer. Usernames never go to Stripe — only the opaque,
+    // derived account id.
+    client_reference_id: userId,
+    subscription_data: { metadata: { user_id: userId } },
+    customer,
+    allow_promotion_codes: true,
+    success_url: `${origin}/?billing=success`,
+    cancel_url: `${origin}/?billing=cancelled`,
+  });
+  return session.url;
 }
 
 /**
@@ -144,31 +216,36 @@ export default async function handler(req: Request): Promise<Response> {
         if (founder) return json({ error: 'founding_member' }, 409);
         if (isPaidStatus(row?.status)) return json({ error: 'already_subscribed' }, 409);
         const customer = await ensureCustomer(userId, row);
-        if (await hasLiveSubscription(customer)) return json({ error: 'already_subscribed' }, 409);
-        const session = await stripe<{ url: string }>('POST', '/checkout/sessions', {
-          mode: 'subscription',
-          line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
-          // The account is identified three ways so the webhook can always
-          // find it: on the session, on the subscription it creates, and by
-          // the customer. Usernames never go to Stripe — only the opaque,
-          // derived account id.
-          client_reference_id: userId,
-          subscription_data: { metadata: { user_id: userId } },
-          customer,
-          allow_promotion_codes: true,
-          success_url: `${origin}/?billing=success`,
-          cancel_url: `${origin}/?billing=cancelled`,
-        });
-        return json({ url: session.url });
+        let url: string | null;
+        try {
+          url = await checkoutUrl(userId, customer, origin);
+        } catch (err) {
+          if (!isMissingCustomer(err)) throw err;
+          await forgetMissingCustomer(userId, customer);
+          const replacement = await ensureCustomer(userId, await loadRow(userId));
+          // Still pinned: the row says it is paid for (see forgetMissingCustomer).
+          if (replacement === customer) throw err;
+          url = await checkoutUrl(userId, replacement, origin);
+        }
+        if (url === null) return json({ error: 'already_subscribed' }, 409);
+        return json({ url });
       }
 
       if (action === 'portal') {
         if (!row?.customerId) return json({ error: 'no_customer' }, 404);
-        const session = await stripe<{ url: string }>('POST', '/billing_portal/sessions', {
-          customer: row.customerId,
-          return_url: `${origin}/`,
-        });
-        return json({ url: session.url });
+        try {
+          const session = await stripe<{ url: string }>('POST', '/billing_portal/sessions', {
+            customer: row.customerId,
+            return_url: `${origin}/`,
+          });
+          return json({ url: session.url });
+        } catch (err) {
+          if (!isMissingCustomer(err)) throw err;
+          // There is nothing left to manage there. Let it go, so Manage
+          // billing stops being offered and the next Upgrade pins a new one.
+          await forgetMissingCustomer(userId, row.customerId);
+          return json({ error: 'no_customer' }, 404);
+        }
       }
 
       return json({ error: 'bad_request' }, 400);

@@ -213,6 +213,32 @@ describe('a new account', () => {
   });
 });
 
+describe('guessing a password at sign-in', () => {
+  beforeEach(() => applySchema(db()));
+  const guess = (i: number) => signIn({ authKey: i.toString(16).padStart(64, '0') });
+
+  // The limit used to be read before the slow check and written after it,
+  // so every guess that arrived before the first failures were written got
+  // checked: sixty at once from one address were all tried.
+  it('is held to ten tries from one address, however many arrive at once', async () => {
+    await signUp({ authKey: await v2() });
+    const answers = await Promise.all(Array.from({ length: 30 }, (_, i) => guess(i)));
+    expect(answers.filter((a) => a.status === 200 && a.body.ok === false)).toHaveLength(10);
+    expect(answers.filter((a) => a.status === 429)).toHaveLength(20);
+    expect((await signIn({ authKey: await v2() })).status).toBe(429);
+  });
+
+  it('gives the try back when the password is right', async () => {
+    await signUp({ authKey: await v2() });
+    for (let i = 0; i < 12; i++) expect(await signIn({ authKey: await v2() })).toEqual({ status: 200, body: { ok: true } });
+    // Two phones and a laptop on the venue wifi, signing in together.
+    const together = await Promise.all([0, 1, 2].map(async () => signIn({ authKey: await v2() })));
+    for (const answer of together) expect(answer).toEqual({ status: 200, body: { ok: true } });
+    for (let i = 0; i < 10; i++) expect((await guess(i)).body).toEqual({ ok: false });
+    expect((await guess(10)).status).toBe(429);
+  });
+});
+
 describe('a request that is not from the app', () => {
   const buckets = async () => {
     await applySchema(db());

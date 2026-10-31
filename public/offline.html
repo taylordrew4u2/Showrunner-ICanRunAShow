@@ -66,16 +66,31 @@
   // The live site, as server.url in capacitor.config.ts. This page lives at
   // capacitor://localhost, so reloading would only bring this page back.
   const APP_URL = 'https://icanrunashow.com/';
+  const RETRIED_AT = 'offline-retried-at';
   const note = document.getElementById('note');
 
+  // Back here soon after a Retry: that load failed too. Two minutes covers
+  // one that hung on a weak signal until it timed out; a visit after that
+  // is some other failure, and an old retry says nothing about it.
+  try {
+    const at = Number(sessionStorage.getItem(RETRIED_AT));
+    sessionStorage.removeItem(RETRIED_AT);
+    if (at && Date.now() - at < 120000) note.textContent = 'Still no connection.';
+  } catch (error) {
+    // No storage: the page works the same, without the note.
+  }
+
   function retry() {
-    // With no network at all the load can only fail and land back here, so
-    // say so rather than flicker.
-    if (!navigator.onLine) {
-      note.textContent = 'Still no connection.';
-      return;
-    }
+    // Tried even with no signal. This page also appears after a load that
+    // was only cancelled, and once the app has opened here with a
+    // connection its service worker can open it with none. If it can't,
+    // the load fails and lands back here, which the note above reports.
     note.textContent = 'Trying again…';
+    try {
+      sessionStorage.setItem(RETRIED_AT, String(Date.now()));
+    } catch (error) {
+      // As above.
+    }
     // replace, so going back never returns to this page.
     location.replace(APP_URL);
   }

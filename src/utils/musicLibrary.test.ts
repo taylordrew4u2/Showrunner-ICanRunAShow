@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  djRowKeys,
   showDJSongs,
   isAutoLibrarySong,
   usageCount,
@@ -196,6 +197,30 @@ describe('showDJSongs', () => {
 
   it('is empty when there is no library and no songs', () => {
     expect(showDJSongs(show('s1', []), [])).toEqual([]);
+  });
+});
+
+describe('djRowKeys', () => {
+  const bed = track({ id: 't1', title: 'Intro Bed' });
+  const sting = track({ id: 't2', title: 'Outro Sting' });
+  const own: DJSong = { id: 'own1', title: 'Birthday song', artist: 'Dana' };
+
+  it('keeps a library row the same row once a trim copies it into the show', () => {
+    // "Starts at" on the sting committed on Tab and the row was copied into
+    // the show under a new id: a new row, mounted somewhere else, and the
+    // "Ends at" box being tabbed into was gone with what came next.
+    const before = showDJSongs(show('s1', [own]), [bed, sting]);
+    const after = showDJSongs(show('s1', [own, { ...songFromTrack(sting, 'copy1'), startSec: 42 }]), [bed, sting]);
+    const keyOf = (songs: DJSong[], title: string) => djRowKeys(songs)[songs.findIndex((s) => s.title === title)];
+    expect(keyOf(after, 'Outro Sting')).toBe(keyOf(before, 'Outro Sting'));
+    expect(keyOf(after, 'Intro Bed')).toBe(keyOf(before, 'Intro Bed'));
+    expect(keyOf(after, 'Birthday song')).toBe('own1');
+  });
+
+  it('gives each row its own key when two rows claim the same library track', () => {
+    // Added by hand twice, or copied on two devices and merged.
+    const songs = [songFromTrack(bed, 'a1'), songFromTrack(bed, 'a2'), own];
+    expect(new Set(djRowKeys(songs)).size).toBe(3);
   });
 });
 

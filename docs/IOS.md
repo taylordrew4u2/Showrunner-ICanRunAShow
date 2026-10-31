@@ -23,6 +23,14 @@ run on a simulator, install on your iPhone, or submit to the App Store.
   exports do: `openPrintable` in `src/utils/pdfExport.ts` prints from a hidden
   iframe when `window.open` gives it nothing. Reuse it rather than calling
   `window.open` again.
+- **Download links do not work in the shell either.** A click on
+  `<a download href="blob:…">` (or a `data:` URL) is a top-level navigation
+  that isn't under `server.url`, so the same delegate cancels it and nothing
+  is saved, with no error. Every file the app hands over goes through
+  `deliverFile` in `src/utils/download.ts`, which opens the share sheet in
+  the shell (Save to Files, AirDrop, Mail) and keeps the browser download on
+  the web. It says whether the file got there, so the backup is only
+  recorded as taken when it did. Use it for any new download.
 - **Swift Package Manager, no CocoaPods.** The project was scaffolded with
   `--packagemanager SPM`, so Xcode resolves Capacitor automatically on first
   open. You don't need to install CocoaPods or run `pod install`.
@@ -53,7 +61,11 @@ launch with no signal shows nothing. Three settings make it work:
   Retry is tapped or when the connection returns. It must use only files in
   the bundle: nothing on it may come from the network. Capacitor shows it
   after any failed page load, including one cancelled because another started,
-  so it can occasionally appear with a connection; Retry recovers.
+  so it can occasionally appear with a connection, or with none on a phone
+  that already has the app saved. Retry recovers in both cases: it always
+  tries the live site, even with no signal, because the service worker may
+  have it, and says there's still no connection only when that load fails
+  and lands back on the page.
 
 `ios/App/App/capacitor.config.json` is generated from `capacitor.config.ts`
 and gitignored, so a change to the TypeScript config reaches the app only

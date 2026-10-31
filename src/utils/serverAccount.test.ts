@@ -18,7 +18,7 @@ vi.mock('../../api/_lib/auth', () => ({
 
 let dir: string;
 // What Stripe holds, and what the route asked of it.
-let stripeSubs: { id: string; customer: string; status: string }[];
+let stripeSubs: { id: string; customer: string; status: string; metadata?: Record<string, string> }[];
 let openCheckouts: { id: string; customer: string }[];
 let stripeCalls: { method: string; url: string }[];
 let stripeRefusesCancel: boolean;
@@ -60,7 +60,7 @@ async function seed(user: string, status = 'canceled') {
   await run(`INSERT INTO subscription (user_id, customer_id, subscription_id, status) VALUES (?, ?, ?, ?)`, user, `cus_${user}`, `sub_${user}`, status);
   await run(`INSERT INTO rate_limit (bucket, count) VALUES (?, 1)`, `auth:${user}:203.0.113.7`);
   await run(`INSERT INTO rate_limit (bucket, count) VALUES (?, 1)`, `authz:${user}:203.0.113.7`);
-  stripeSubs.push({ id: `sub_${user}`, customer: `cus_${user}`, status });
+  stripeSubs.push({ id: `sub_${user}`, customer: `cus_${user}`, status, metadata: { user_id: user } });
 }
 
 async function tables(): Promise<string[]> {
@@ -94,6 +94,12 @@ beforeEach(async () => {
     if (method === 'DELETE' && one) {
       if (stripeRefusesCancel) return Response.json({ error: { message: 'Stripe is having a moment' } }, { status: 500 });
       return Response.json({ id: one[1], status: 'canceled' });
+    }
+    const search = /\/subscriptions\/search\?query=([^&]+)/.exec(url);
+    if (search) {
+      const account = /^metadata\['user_id'\]:'([^']*)'$/.exec(decodeURIComponent(search[1]));
+      const data = account ? stripeSubs.filter((s) => s.metadata?.user_id === account[1]) : [];
+      return Response.json({ data, has_more: false, next_page: null });
     }
     const list = /\/subscriptions\?customer=([^&]+)/.exec(url);
     if (list) return Response.json({ data: stripeSubs.filter((s) => s.customer === decodeURIComponent(list[1])) });
@@ -137,6 +143,20 @@ describe('deleting an account', () => {
     const cancelled = stripeCalls.filter((c) => c.method === 'DELETE').map((c) => c.url.split('/').pop());
     expect(cancelled.sort()).toEqual(['sub_producer', 'sub_second']);
     expect(await accountExists('producer')).toBe(false);
+  });
+
+  it('cancels a subscription paid for as another customer, from before customers were pinned', async () => {
+    await seed('producer', 'active');
+    // Checkout made a new customer each time it was not handed one, so a
+    // second payment before the webhook landed made a second customer, and
+    // the row names only the one whose news came last.
+    stripeSubs.push({ id: 'sub_first', customer: 'cus_first', status: 'active', metadata: { user_id: 'producer' } });
+    // Somebody else's, on a customer of their own.
+    stripeSubs.push({ id: 'sub_stranger', customer: 'cus_stranger', status: 'active', metadata: { user_id: 'stranger' } });
+
+    expect((await remove('producer')).status).toBe(200);
+    const cancelled = stripeCalls.filter((c) => c.method === 'DELETE').map((c) => c.url.split('/').pop());
+    expect(cancelled.sort()).toEqual(['sub_first', 'sub_producer']);
   });
 
   it('closes a checkout left open, before anything else, so it cannot start a subscription afterwards', async () => {

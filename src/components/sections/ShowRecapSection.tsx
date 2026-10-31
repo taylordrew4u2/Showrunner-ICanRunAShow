@@ -27,6 +27,20 @@ export function storedNote(text: string): string | undefined {
   return text.trim() ? text : undefined;
 }
 
+/**
+ * What a recap amount box shows once the saved figure comes back from a save.
+ *
+ * Every keystroke is saved and the saved number is written back into the box.
+ * Rewriting it as the number put "20" in place of "20.0" the moment a cent was
+ * deleted, and the next digit made it 201. So the text stays as typed while it
+ * still reads as the saved number, the same way the save reads it, and only a
+ * figure changed somewhere else replaces it.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function shownAmount(typed: string, saved: number | undefined): string {
+  return (Number(typed) || undefined) === saved ? typed : saved?.toString() || '';
+}
+
 export function ShowRecapSection({
   recap,
   vendors,
@@ -54,10 +68,10 @@ export function ShowRecapSection({
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    setAttendance(recap?.attendance?.toString() || '');
-    setTicketSales(recap?.ticketSales?.toString() || '');
-    setMerchSales(recap?.merchSales?.toString() || '');
-    setOtherCosts(recap?.otherCosts?.toString() || '');
+    setAttendance((typed) => shownAmount(typed, recap?.attendance));
+    setTicketSales((typed) => shownAmount(typed, recap?.ticketSales));
+    setMerchSales((typed) => shownAmount(typed, recap?.merchSales));
+    setOtherCosts((typed) => shownAmount(typed, recap?.otherCosts));
     setPerformerNotes(recap?.performerNotes || '');
     setImprovementNotes(recap?.improvementNotes || '');
   }, [recap?.attendance, recap?.ticketSales, recap?.merchSales, recap?.otherCosts, recap?.performerNotes, recap?.improvementNotes]);

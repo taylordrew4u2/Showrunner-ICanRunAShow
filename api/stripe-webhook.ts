@@ -3,7 +3,7 @@
 // until the Stripe-Signature header checks out against the raw body.
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json } from './_lib/http';
-import { cancelAt, periodEnd, stripe, verifyStripeSignature, type StripeSubscription } from './_lib/stripe';
+import { cancelAt, isPaidStatus, periodEnd, stripe, StripeError, verifyStripeSignature, type StripeSubscription } from './_lib/stripe';
 
 interface StripeEvent {
   type: string;
@@ -51,6 +51,52 @@ async function saveSubscription(userId: string, sub: StripeSubscription): Promis
   });
 }
 
+/** 2 while paid for and renewing, 1 while paid for but set to stop, 0 once it is neither. */
+function standing(sub: StripeSubscription): number {
+  if (!isPaidStatus(sub.status)) return 0;
+  return cancelAt(sub) === null ? 2 : 1;
+}
+
+/** When paid features from it stop, as far as anyone knows yet. */
+const lastsUntil = (sub: StripeSubscription) => cancelAt(sub) ?? periodEnd(sub) ?? 0;
+
+// The subscription the account's row should follow, given news of this one.
+//
+// News that a subscription is ending says nothing about any other the
+// account holds. The portal's cancel keeps a subscription active to the end
+// of its period, so the guard in saveSubscription let a duplicate on its way
+// out take the row from the one being kept, and when it ended the account
+// went to the free plan while the other went on charging. Cancelling the one
+// the row named did the same. So when this one is not paid for and renewing,
+// the row follows whichever subscription on its customer lasts longest: one
+// that renews, then the latest to stop.
+async function subscriptionToTrack(userId: string, sub: StripeSubscription): Promise<StripeSubscription> {
+  if (standing(sub) === 2) return sub;
+  let list: { data: StripeSubscription[] };
+  try {
+    list = await stripe<{ data: StripeSubscription[] }>(
+      'GET',
+      `/subscriptions?customer=${encodeURIComponent(sub.customer)}&status=all&limit=100`,
+    );
+  } catch (err) {
+    // A customer removed in the Stripe dashboard ends what was on it, and
+    // Stripe will not list a customer it no longer has. The news is still
+    // that this one ended: refused, it was retried for days while the
+    // account kept a plan nobody was paying for.
+    if (err instanceof StripeError && err.code === 'resource_missing') return sub;
+    throw err;
+  }
+  let best = sub;
+  for (const other of list.data) {
+    if (other.id === sub.id || standing(other) === 0) continue;
+    if (other.metadata?.user_id && other.metadata.user_id !== userId) continue;
+    if (standing(other) > standing(best) || (standing(other) === standing(best) && lastsUntil(other) > lastsUntil(best))) {
+      best = other;
+    }
+  }
+  return best;
+}
+
 // A subscription event names its account in the metadata checkout put there;
 // one made some other way (by hand in the Stripe dashboard, say) is matched by
 // its customer instead.
@@ -81,7 +127,7 @@ export default async function handler(req: Request): Promise<Response> {
         // Fetched rather than assumed: the session only says checkout
         // finished, and the subscription's own status is what counts.
         const sub = await stripe<StripeSubscription>('GET', `/subscriptions/${encodeURIComponent(session.subscription)}`);
-        await saveSubscription(session.client_reference_id, sub);
+        await saveSubscription(session.client_reference_id, await subscriptionToTrack(session.client_reference_id, sub));
       }
     } else if (
       event.type === 'customer.subscription.created' ||
@@ -97,7 +143,7 @@ export default async function handler(req: Request): Promise<Response> {
       const snapshot = event.data.object as unknown as StripeSubscription;
       const sub = await stripe<StripeSubscription>('GET', `/subscriptions/${encodeURIComponent(snapshot.id)}`);
       const userId = await accountFor(sub);
-      if (userId) await saveSubscription(userId, sub);
+      if (userId) await saveSubscription(userId, await subscriptionToTrack(userId, sub));
     }
     // Every other event is acknowledged and ignored, or Stripe retries it for days.
     return json({ received: true });

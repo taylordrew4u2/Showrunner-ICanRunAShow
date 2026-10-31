@@ -254,8 +254,8 @@ export async function installFakeApi(ctx, state) {
     const linkStorageFull = () => err(413, 'link_storage_full');
 
     // api/_lib/ratelimit.ts. Fixed windows on a shared counter: record a hit
-    // and say whether the bucket is still within its allowance, or look
-    // without spending one.
+    // and say whether the bucket is still within its allowance, give one
+    // back, or look without spending one.
     const address = headers['x-forwarded-for']?.split(',')[0].trim() || headers['x-real-ip'] || 'unknown';
     function rateLimit(bucket, max, windowSeconds) {
       const now = Date.now();
@@ -263,6 +263,10 @@ export async function installFakeApi(ctx, state) {
       if (!row || row.windowStart < now - windowSeconds * 1000) state.rateLimits[bucket] = { count: 1, windowStart: now };
       else row.count += 1;
       return state.rateLimits[bucket].count <= max;
+    }
+    function rateLimitRefund(bucket) {
+      const row = state.rateLimits[bucket];
+      if (row) row.count = Math.max(row.count - 1, 0);
     }
     function rateLimitPeek(bucket, max, windowSeconds) {
       const row = state.rateLimits[bucket];
@@ -405,8 +409,13 @@ export async function installFakeApi(ctx, state) {
       const passwordHash = credential(body.passwordHash);
       if (badCredential(userId) || authKey === null || passwordHash === null) return err(400, 'bad_request');
       if (!(authKey ?? passwordHash)) return err(400, 'bad_request');
+      // A sign-in spends a try before the check and gets it back if the
+      // check passes, so guesses sent together are held to the limit too.
       const failures = `auth:${userId}:${address}`;
-      if (!rateLimitPeek(failures, LOGIN_MAX_FAILURES, LOGIN_WINDOW_SECONDS)) return err(429, 'too_many_requests');
+      const room = action === 'login'
+        ? rateLimit(failures, LOGIN_MAX_FAILURES, LOGIN_WINDOW_SECONDS)
+        : rateLimitPeek(failures, LOGIN_MAX_FAILURES, LOGIN_WINDOW_SECONDS);
+      if (!room) return err(429, 'too_many_requests');
       if (action === 'signup') {
         if (!rateLimit(`signup:${address}`, SIGNUP_MAX, SIGNUP_WINDOW_SECONDS)) return err(429, 'too_many_requests');
         if (Object.hasOwn(state.users, userId)) return err(409, 'account_exists');
@@ -423,11 +432,12 @@ export async function installFakeApi(ctx, state) {
         // before reads as a failed sign-in rather than a wrong password.
         // Neither is a failed guess.
         const user = Object.hasOwn(state.users, userId) ? state.users[userId] : null;
+        const missing = user && (user.clientVersion < 2 ? !passwordHash : !authKey);
+        const known = !!user && !missing && user.credential === (user.clientVersion >= 2 ? authKey : passwordHash);
+        if (missing || known) rateLimitRefund(failures);
         if (user && user.clientVersion < 2 && !passwordHash) return ok({ ok: false, legacy: true });
         if (user && user.clientVersion >= 2 && !authKey) return err(426, 'update_required');
-        const known = !!user && user.credential === (user.clientVersion >= 2 ? authKey : passwordHash);
-        if (!known) rateLimit(failures, LOGIN_MAX_FAILURES, LOGIN_WINDOW_SECONDS);
-        else if (user.clientVersion < 2 && authKey) state.users[userId] = { credential: authKey, clientVersion: 2 };
+        if (known && user.clientVersion < 2 && authKey) state.users[userId] = { credential: authKey, clientVersion: 2 };
         return ok({ ok: known });
       }
       return err(400, 'bad_request');

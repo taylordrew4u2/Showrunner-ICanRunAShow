@@ -376,6 +376,41 @@ describe('shared Rolodex identities', () => {
   });
 });
 
+describe('walk-on rows on the DJ lists of other shows', () => {
+  // A new walk-on or a rename reached every booking, but only the show being
+  // edited had its DJ row kept in step. The others handed the DJ the old song,
+  // and after a rename their row was never found again.
+  const booked = performer({ id: 'b-slot', comicId: 'ada', name: 'Ada Cole', walkOnMusicName: 'Song1.mp3' });
+  const row = { id: 'row', title: 'Song1', artist: 'Ada Cole', notes: 'Walk-on: Ada Cole' };
+  const house = { id: 'house', title: 'House music', artist: 'DJ' };
+
+  it('retitles the row when the walk-on changes', () => {
+    const [synced] = syncShowsWithRolodex(
+      [comic({ id: 'ada', name: 'Ada Cole', walkOnMusicName: 'Song2.mp3' })],
+      [show('b', [booked], { djSongs: [house, row] })],
+    );
+    expect(synced.djSongs).toEqual([house, { ...row, title: 'Song2' }]);
+  });
+
+  it('relabels the row when the name changes, so it is still theirs', () => {
+    const [synced] = syncShowsWithRolodex(
+      [comic({ id: 'ada', name: 'Ada Cole-Smith', walkOnMusicName: 'Song1.mp3' })],
+      [show('b', [], { artists: [{ ...booked, artistType: 'Poetry' }], djSongs: [row] })],
+    );
+    expect(synced.djSongs).toEqual([{ ...row, artist: 'Ada Cole-Smith', notes: 'Walk-on: Ada Cole-Smith' }]);
+  });
+
+  it('leaves the DJ list as it was when nothing about the walk-on changed', () => {
+    const original = show('b', [booked], { djSongs: [house, row] });
+    const [synced] = syncShowsWithRolodex(
+      [comic({ id: 'ada', name: 'Ada Cole', walkOnMusicName: 'Song1.mp3', credits: 'New intro' })],
+      [original],
+    );
+    expect(synced.performers[0].credits).toBe('New intro');
+    expect(synced.djSongs).toBe(original.djSongs);
+  });
+});
+
 describe('typing a different name over a booked slot', () => {
   const sam = { id: 'sam', name: 'Sam Okafor', photo: 'media:sam', socialMedia: '@samokafor', credits: 'Sam credits' };
 

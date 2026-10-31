@@ -179,6 +179,29 @@ describe('the season report, edge cases', () => {
     expect(seasonPitch(report, '', 'year', TODAY)).not.toContain('on the calendar');
   });
 
+  // A past show only becomes completed when the account loads. One added
+  // with a past date, or left open past midnight, stayed upcoming until then,
+  // so the recap figures it was given were left out and it was counted as
+  // still to come, while the dashboard already had it as past.
+  it('counts a past night still marked upcoming as run, with its recap and costs', () => {
+    const report = buildSeasonReport([
+      show({
+        id: 'a',
+        date: '2026-10-03',
+        status: 'upcoming',
+        recap: { attendance: 80, ticketSales: 1200, merchSales: 100 },
+        vendors: [{ id: 'e', name: 'Room', cost: 200 }],
+      }),
+    ], [], 'year', TODAY);
+    expect(report).toMatchObject({ run: 1, upcoming: 0, audience: 80, revenue: 1300, showCosts: 200, net: 1100 });
+    expect(seasonPitch(report, 'Acme', 'year', TODAY)).not.toContain('on the calendar');
+  });
+
+  it('still counts tonight’s upcoming show as on the calendar', () => {
+    const report = buildSeasonReport([show({ date: '2026-10-05', status: 'upcoming' })], [], 'year', TODAY);
+    expect(report).toMatchObject({ run: 0, upcoming: 1 });
+  });
+
   it('still counts tonight’s show as on the calendar while it is in progress', () => {
     const report = buildSeasonReport([
       show({ date: '2026-10-05', status: 'in-progress', vendors: [{ id: 'e', name: 'Room', cost: 150 }] }),

@@ -11,6 +11,8 @@
  * already uses, and shown as ordinary images the browser cannot refuse.
  */
 
+import { webAssemblyRuns } from './webAssembly';
+
 /** One rendered page, ready to put in an <img>. */
 export interface RenderedPage {
   /** 1-based, as the page is numbered to the reader. */
@@ -68,6 +70,20 @@ export class BundledWasmFactory {
   }
 }
 
+/**
+ * A scanned page this device cannot draw, because the decoder for its image
+ * is WebAssembly and this page may not run any (see webAssemblyRuns).
+ *
+ * pdf.js does not fail such a page: it drops the image and draws the rest,
+ * so on iOS 15 a scanned agreement came out as white paper, ready to sign.
+ */
+export class ScanNeedsWebAssemblyError extends Error {
+  constructor() {
+    super("That document has scanned pages this browser can't draw.");
+    this.name = 'ScanNeedsWebAssemblyError';
+  }
+}
+
 function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -119,9 +135,21 @@ export async function renderPdfPages(
     import.meta.url,
   ).toString();
 
+  // pdf.js asks for a decoder only for a page with a scanned image on it, so
+  // being asked where WebAssembly cannot run is the one sign that the page
+  // it draws will be missing that image. Not fetched then: it could not run.
+  let undrawableScan = false;
+  class WasmFactory extends BundledWasmFactory {
+    fetch(request: { filename: string }): Promise<Uint8Array> {
+      if (webAssemblyRuns()) return super.fetch(request);
+      undrawableScan = true;
+      return Promise.reject(new ScanNeedsWebAssemblyError());
+    }
+  }
+
   const task = pdfjsLib.getDocument({
     data: bytes,
-    WasmFactory: BundledWasmFactory,
+    WasmFactory,
     // The worker cannot fetch the decoders itself without a directory URL, so
     // it asks the page, and the page answers from the bundle.
     useWorkerFetch: false,
@@ -151,6 +179,9 @@ export async function renderPdfPages(
       context.fillStyle = '#ffffff';
       context.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvas, canvasContext: context, viewport }).promise;
+      // Before the page is shown: a blank page is the one thing worse than
+      // no page.
+      if (undrawableScan) throw new ScanNeedsWebAssemblyError();
 
       const rendered: RenderedPage = {
         pageNumber: n,

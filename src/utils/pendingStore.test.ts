@@ -76,6 +76,25 @@ it('lets go of a superseded draft only once it is kept elsewhere, and only those
   expect(held()).toEqual(['new tab']);
 });
 
+it('lets go of a draft it is only parking once it is parked, not with the next save', () => {
+  // A launch finds the newest settings draft was made over a version since
+  // replaced, and parks it on the account instead of adopting it. The park
+  // can fail — too large to send, or venue wifi — and an ordinary save from
+  // the same tab, landing afterwards, must not take that draft with it.
+  const storage = memoryStorage();
+  createPendingStore(() => storage, 'earlier').write('settings', 'user', { rolodex: ['held'] }, asIs);
+  const tab = createPendingStore(() => storage, 'launch');
+  const held = tab.read<{ rolodex: string[] }>('settings', 'user', tab.list('settings', 'user', asIs))!;
+  tab.release('settings', 'user', held);
+
+  tab.write('settings', 'user', { rolodex: ['server', 'new edit'] }, asIs);
+  tab.capture('settings', 'user')();
+  expect(tab.list('settings', 'user', asIs).map(d => d.data)).toEqual([{ rolodex: ['held'] }]);
+
+  tab.discard(held);
+  expect(tab.list('settings', 'user', asIs)).toEqual([]);
+});
+
 describe('a held copy left on the device', () => {
   // Keys are supplied directly: PBKDF2 is slow and none of this is the KDF.
   const creds: SessionCredentials = { username: 'ada', userId: 'u1', authHash: 'h1', key: 'current-key', legacyKey: 'legacy-key' };

@@ -59,6 +59,14 @@ export function createBudgetedCache<V>(sizeOf: (value: V) => number, budget: num
         held -= sizeOf(oldValue);
       }
     },
+    /** Let go of every entry `keep` says no to. */
+    prune(keep: (key: string) => boolean): void {
+      for (const [key, value] of entries) {
+        if (keep(key)) continue;
+        entries.delete(key);
+        held -= sizeOf(value);
+      }
+    },
     clear(): void {
       entries.clear();
       held = 0;

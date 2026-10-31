@@ -496,6 +496,44 @@ describe('the Instagram question on a contract', () => {
     });
   });
 
+  it('keeps a space the producer has just typed into its label', () => {
+    // The editor saves every keystroke through here, so a trimmed label meant
+    // "Your IG handle" could only ever be typed as "YourIGhandle".
+    let fields = withInstagramField(undefined);
+    let typed = '';
+    for (const key of 'Your IG handle') {
+      typed = fields[0].label === 'Instagram or main social' ? key : fields[0].label + key;
+      fields = withInstagramField([{ ...fields[0], label: typed }]);
+    }
+    expect(fields[0].label).toBe('Your IG handle');
+    expect(withInstagramField([{ id: 'social', label: 'Your ' }])[0].label).toBe('Your ');
+  });
+
+  it('puts the wording back when the label is left blank', () => {
+    expect(withInstagramField([{ id: 'social', label: '   ' }])[0].label).toBe('Instagram or main social');
+  });
+
+  it('does not mistake a question asking leave to post for the handle question', () => {
+    const consent = { id: 'x1', label: 'OK to post your photo on social media?', required: true };
+    expect(isInstagramField(consent)).toBe(false);
+    expect(isInstagramField({ id: 'x2', label: 'Can we tag you on socials?' })).toBe(false);
+    expect(isInstagramField({ id: 'x3', label: 'Do you consent to us sharing your clip on Instagram?' })).toBe(false);
+
+    // A contract from before the question existed, with only a consent row
+    // mentioning socials: the handle is still asked for, and the consent row
+    // is left as the producer set it.
+    const fields = withInstagramField([{ id: 'stage', label: 'Stage name' }, consent]);
+    expect(fields.map((f) => f.label)).toEqual(['Stage name', 'OK to post your photo on social media?', 'Instagram or main social']);
+    expect(fields[1]).toEqual(consent);
+  });
+
+  it('still knows the handle question when it says why it is asked', () => {
+    expect(isInstagramField({ id: 'x3', label: 'Your IG handle, so we can tag you' })).toBe(true);
+    expect(isInstagramField({ id: 'x4', label: 'Socials to tag in the post' })).toBe(true);
+    // The canonical row is the handle question whatever the producer renamed it to.
+    expect(isInstagramField({ id: 'social', label: 'OK to leave blank if you have none' })).toBe(true);
+  });
+
   it('does not mistake a release asking for a social security number', () => {
     expect(isInstagramField({ id: 'ssn', label: 'Social Security Number' })).toBe(false);
 

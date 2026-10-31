@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ShowRecapSection, storedNote } from './ShowRecapSection';
+import { ShowRecapSection, shownAmount, storedNote } from './ShowRecapSection';
 import type { ShowRecap, Vendor } from '../../types';
 
 describe('storing a recap note while it is being typed', () => {
@@ -16,6 +16,24 @@ describe('storing a recap note while it is being typed', () => {
   it('stores nothing for a note that is only whitespace', () => {
     expect(storedNote('')).toBeUndefined();
     expect(storedNote('  \n ')).toBeUndefined();
+  });
+});
+
+describe('writing a saved recap amount back into its box', () => {
+  // Every keystroke is saved and the saved number comes back into the box.
+  // Backspacing "20.05" to "20.0" saved 20, the box was rewritten to "20",
+  // and the next digit made it 201.
+  it('keeps what is typed while it still reads as the saved number', () => {
+    expect(shownAmount('20.0', 20)).toBe('20.0');
+    expect(shownAmount('12.', 12)).toBe('12.');
+    expect(shownAmount('0', undefined)).toBe('0');
+    expect(shownAmount('', undefined)).toBe('');
+  });
+
+  it('shows the saved number when it changed somewhere else', () => {
+    expect(shownAmount('20', 25)).toBe('25');
+    expect(shownAmount('20.0', undefined)).toBe('');
+    expect(shownAmount('', 12.5)).toBe('12.5');
   });
 });
 

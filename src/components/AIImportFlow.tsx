@@ -46,6 +46,16 @@ const AI_STEPS = [
   { label: 'Final pass', sub: 'Review & dedupe' },
 ] as const;
 
+/**
+ * What a run sheet to paste looks like, shown in the empty box.
+ *
+ * A placeholder, not the box's text: a paste goes in at the caret, so a demo
+ * held as the value was read along with the producer's own lines, and its
+ * invented acts were added to their show, every one ticked.
+ */
+const PASTE_EXAMPLE =
+  'Doors 7:30 PM\n8:00 PM Maya welcome\n8:05 PM Devon Park\n8:20 PM June Ito\n8:35 PM Marisol — headliner\n8:55 PM Intermission / DJ\n9:05 PM closers\n9:30 PM outro';
+
 export function AIImportFlow({
   showName,
   performers = [],
@@ -60,9 +70,7 @@ export function AIImportFlow({
   // Pasting a schedule stays free; reading one off a photo or PDF is Producer.
   const { locked } = useProducerAccess();
   const [source, setSource] = useState<Source | null>(null);
-  const [pasted, setPasted] = useState(
-    'Doors 7:30 PM\n8:00 PM Maya welcome\n8:05 PM Devon Park\n8:20 PM June Ito\n8:35 PM Marisol — headliner\n8:55 PM Intermission / DJ\n9:05 PM closers\n9:30 PM outro',
-  );
+  const [pasted, setPasted] = useState('');
   const [progress, setProgress] = useState(0);
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -200,10 +208,10 @@ export function AIImportFlow({
       setStep('pick');
       return;
     }
-    // Match names out of the cue text before showing the review, not after it.
-    // The same pass runs on apply either way, so this changes nothing about
-    // what gets added — it changes whether you can see it and correct it while
-    // the screen is still asking you to check the import.
+    // Match names out of the cue text before showing the review, not after it,
+    // so you can see it and correct it while the screen is still asking you to
+    // check the import. This is the only pass: what the review shows is what
+    // gets added, a name cleared to "nobody" included.
     setItems(withMatchedPerformers(extracted, knownNames).map((i) => ({ ...i, selected: true })));
     window.setTimeout(() => {
       if (!cancelledRef.current) setStep('review');
@@ -367,6 +375,7 @@ export function AIImportFlow({
               className="import-paste"
               value={pasted}
               onChange={(e) => setPasted(e.target.value)}
+              placeholder={PASTE_EXAMPLE}
               aria-label="Pasted schedule"
             />
             <button

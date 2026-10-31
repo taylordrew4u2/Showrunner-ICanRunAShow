@@ -13,6 +13,7 @@ import type { ScheduleItem } from "../types";
 import { generateId } from "./id";
 import { BundledWasmFactory } from "./pdfPages";
 import { borrowMeridiem, minutesBetweenClock, parseDurationSeconds } from "./showTiming";
+import { webAssemblyRuns } from "./webAssembly";
 
 /** A whole positive number of minutes, or undefined. Anything a source can
  *  state that isn't one — a string, a fraction, a negative, a whole day — is
@@ -206,6 +207,11 @@ export async function importScheduleFromFile(
       // that, the producer would look for a problem they do not have.
       const message = error instanceof Error ? error.message : String(error);
       if (!/attempting to read image/i.test(message)) {
+        if (!webAssemblyRuns()) {
+          throw new Error(
+            "This device can't run the photo reader. It needs iOS 16 or later, or a current browser, with Lockdown Mode off. Paste the text instead.",
+          );
+        }
         throw new Error(
           "Couldn't start the photo reader. It downloads the first time it's used on this device, so it needs a connection then. Paste the text instead, or try again with signal.",
         );
@@ -297,6 +303,10 @@ export function parseScheduleManually(text: string): ScheduleItem[] {
   // length the review screen never shows, carried straight into Run Show. No
   // cue runs longer than an evening, so a "range" that does is not one.
   const MAX_RANGE_MIN = 180;
+  // It misses a date close to its time, though: "Fri Nov 6 - 8:00 PM" read as
+  // a cue from six running two hours. A number straight after a month is the
+  // day of the month.
+  const AFTER_MONTH = /(?:^|[^\p{L}])(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s*$/iu;
   // "8.30pm" is stored as "8:30pm": the rest of the app reads a colon, and
   // dropping the dots of "p.m." would otherwise leave "830pm".
   const cleanTime = (raw: string) =>
@@ -323,12 +333,33 @@ export function parseScheduleManually(text: string): ScheduleItem[] {
     return { line: [times.join(" - "), words].filter(Boolean).join(" "), columns: rest.length > 1, performer };
   };
 
-  for (const raw of lines) {
+  // A numbered sheet puts its row number where a range starts, and the length
+  // check only catches the rows numbered hours before their time: "6 - 8:50 PM
+  // Intermission" became a cue from six running 170 minutes, and the rows it
+  // did catch kept "1 -" in their text. Numbers that count up from line to
+  // line are a list's rows, so they come off before any time is read. Unless
+  // every line but the last reads as a range that ends within its hour, the
+  // way hourly ranges written "1 - 1:30 PM", "2 - 2:30 PM" do: the rows of a
+  // show sit minutes apart, so a row number is soon hours behind its time.
+  const ROW_NUMBER = /^(\d{1,3})\s*[-–—.)]\s+/;
+  const numbered = lines.filter((line) => ROW_NUMBER.test(line));
+  const first = Number(numbered[0]?.match(ROW_NUMBER)?.[1]);
+  const counts = numbered.length >= 3
+    && numbered.every((line, i) => Number(line.match(ROW_NUMBER)?.[1]) === first + i);
+  const hourly = numbered.slice(0, -1).every((line) => {
+    const found = line.match(rangePattern);
+    const span = found?.index === 0 ? minutesBetweenClock(cleanTime(found[1]), cleanTime(found[2])) : null;
+    return span != null && span <= 60;
+  });
+  const rows = counts && !hourly ? lines.map((line) => line.replace(ROW_NUMBER, "")) : lines;
+
+  for (const raw of rows) {
     const row = readCells(raw);
     const line = row.line;
     const single = line.match(timePattern);
     const found = line.match(rangePattern);
-    const span = found ? minutesBetweenClock(cleanTime(found[1]), cleanTime(found[2])) : null;
+    const dated = found && AFTER_MONTH.test(line.slice(0, found.index));
+    const span = found && !dated ? minutesBetweenClock(cleanTime(found[1]), cleanTime(found[2])) : null;
     const range = found && span != null && span <= MAX_RANGE_MIN ? found : null;
     const match = range && (!single || (range.index ?? 0) <= (single.index ?? 0)) ? range : single;
     if (!match || match.index === undefined) continue;

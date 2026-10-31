@@ -25,3 +25,15 @@ describe('the include checkbox on an imported cue', () => {
     expect(titleOff).toMatch(/^Include\b/);
   });
 });
+
+describe('the paste box', () => {
+  // The example run sheet was the box's text, not its placeholder. A paste
+  // goes in at the caret, so the demo cues were read with the producer's own
+  // and added to their show, every one ticked, invented names as performers.
+  it('starts empty, with the example shown as a placeholder', () => {
+    expect(source).toMatch(/const \[pasted, setPasted\] = useState\(''\);/);
+    const tag = source.match(/<textarea\s+className="import-paste"(?:=>|[^>])*>/)?.[0] ?? '';
+    expect(tag).toContain('value={pasted}');
+    expect(tag).toContain('placeholder={PASTE_EXAMPLE}');
+  });
+});

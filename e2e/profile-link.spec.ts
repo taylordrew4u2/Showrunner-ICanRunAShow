@@ -15,7 +15,8 @@ import { gotoTab, signUpAndOnboard } from './support/app';
  */
 test.describe('a self-serve profile link', () => {
   test('goes out from the Rolodex and comes back onto the profile', async ({ page, context }) => {
-    await installFakeApi(context, emptyState());
+    const state = emptyState();
+    await installFakeApi(context, state);
     await signUpAndOnboard(page);
 
 
@@ -64,12 +65,16 @@ test.describe('a self-serve profile link', () => {
     await expect(row).toContainText('@monasable');
     await expect(row.locator('.rolodex__gaps')).toHaveCount(0);
     await expect(row.locator('.rolodex__import')).toHaveCount(0);
+    // Retired on the server too, answers and all, so it gives its place
+    // among the account's links back.
+    await expect.poll(() => Object.keys(state.sign)).toEqual([]);
   });
 });
 
 test.describe('waving a reply off', () => {
   test('retires the link, so the producer can ask again', async ({ page, context }) => {
-    await installFakeApi(context, emptyState());
+    const state = emptyState();
+    await installFakeApi(context, state);
     await signUpAndOnboard(page);
 
     await gotoTab(page, 'Rolodex');
@@ -96,6 +101,7 @@ test.describe('waving a reply off', () => {
     await expect(row.locator('.rolodex__import')).toHaveCount(0);
     await expect(row.locator('.rolodex__gaps')).toContainText('Needs email');
     await expect(row.locator('button').filter({ hasText: /^Ask for details$/ })).toBeVisible();
+    await expect.poll(() => Object.keys(state.sign)).toEqual([]);
   });
 });
 

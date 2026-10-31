@@ -9,7 +9,7 @@
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson } from './_lib/http';
 import { hashCredential, verifySignIn, type StoredCredential } from './_lib/credentials';
-import { clientAddress, rateLimit, rateLimitPeek } from './_lib/ratelimit';
+import { clientAddress, rateLimit, rateLimitPeek, rateLimitRefund } from './_lib/ratelimit';
 
 interface AuthBody {
   action: 'signup' | 'login';
@@ -57,9 +57,17 @@ export default async function handler(req: Request): Promise<Response> {
     // minutes. Per address, and failures only — counting every attempt by
     // account alone let anyone who knew a username lock its producer out
     // from anywhere, and the right password from a new phone was refused.
+    //
+    // A sign-in spends a try before the slow check and gets it back if the
+    // check passes. Looking before and writing after a failure let through
+    // every guess that arrived before the first failures were written: sixty
+    // at once from one address were all checked.
     const address = clientAddress(req);
     const failures = `auth:${userId}:${address}`;
-    if (!(await rateLimitPeek(db, failures, 10, 300)).allowed) return json({ error: 'too_many_requests' }, 429);
+    const room = action === 'login'
+      ? await rateLimit(db, failures, 10, 300)
+      : await rateLimitPeek(db, failures, 10, 300);
+    if (!room.allowed) return json({ error: 'too_many_requests' }, 429);
 
     if (action === 'signup') {
       // Accounts are free to make. One address making dozens an hour is not a
@@ -85,10 +93,8 @@ export default async function handler(req: Request): Promise<Response> {
         sql: `SELECT password_hash, auth_salt, auth_version, client_hash_version FROM users WHERE id = ?`,
         args: [userId],
       });
-      if (result.rows.length === 0) {
-        await rateLimit(db, failures, 10, 300);
-        return json({ ok: false });
-      }
+      // Counted already, as a failed attempt.
+      if (result.rows.length === 0) return json({ ok: false });
       const row = result.rows[0];
       const stored: StoredCredential = {
         passwordHash: String(row[0]),
@@ -100,6 +106,7 @@ export default async function handler(req: Request): Promise<Response> {
       // Nothing was tested, so neither answer counts as a failed attempt. A
       // build from before the per-account key, still cached on some device,
       // would otherwise spend the producer's ten tries with the right password.
+      if (missing) await rateLimitRefund(db, failures);
       if (missing === 'passwordHash') return json({ ok: false, legacy: true });
       // That build's sign-in form reads a plain "no" as "Invalid username or
       // password", which told a producer typing the right password that it was
@@ -107,7 +114,7 @@ export default async function handler(req: Request): Promise<Response> {
       // sign in. Please try again" there instead, which is true: the same
       // password works once the app has reloaded into the current build.
       if (missing) return json({ error: 'update_required' }, 426);
-      if (!ok) await rateLimit(db, failures, 10, 300);
+      if (ok) await rateLimitRefund(db, failures);
       if (ok && store) {
         // Only over the verifier just checked. A request that replaced it in
         // the meantime checked the same password, so the account still opens

@@ -6,6 +6,7 @@ import { HeadshotExport } from './HeadshotExport';
 import { LineupActions } from './LineupActions';
 
 const performer = (name: string, photo?: string): Performer => ({ id: name, name, photo });
+const guest = (name: string, photo?: string): Performer => ({ ...performer(name, photo), surpriseGuest: true });
 
 describe('the download-all-headshots button', () => {
   it('counts only the performers who have a photo', () => {
@@ -61,5 +62,54 @@ describe('the lineup tools', () => {
     expect(html).toContain('Post copy');
     expect(html).not.toContain('headshot');
     expect(renderToStaticMarkup(createElement(LineupActions, { performers: [performer('Jane Doe')] }))).toBe('');
+  });
+});
+
+/**
+ * The headshots go to whoever makes the flyer and whoever posts the socials,
+ * so a surprise guest's face, named after them, is the spoiler the flag
+ * exists to prevent. Left out unless the producer asks for them by name.
+ */
+describe('surprise guests and the headshots', () => {
+  const bill = [performer('Jane Doe', 'media:a#1'), guest('Secret Star', 'media:b#1'), performer('Dev Okonjo', 'media:c#1')];
+
+  it('leaves a surprise guest out of the download, and out of its count', () => {
+    const html = renderToStaticMarkup(createElement(HeadshotExport, { performers: bill, showName: 'Late Set' }));
+    expect(html).toContain('Download 2 headshots<');
+    expect(html).not.toMatch(/Download 3/);
+  });
+
+  it('includes them only from the download that says so', () => {
+    const html = renderToStaticMarkup(createElement(HeadshotExport, { performers: bill, includesGuests: true }));
+    expect(html).toContain('Download 3 headshots with surprise guests');
+  });
+
+  it('offers no with-guests download when no guest has a photo', () => {
+    const html = renderToStaticMarkup(createElement(HeadshotExport, {
+      performers: [performer('Jane Doe', 'media:a#1'), guest('Secret Star')],
+      includesGuests: true,
+    }));
+    expect(html).toBe('');
+  });
+
+  it('give the lineup tools both downloads, and say the guests are left out of the first', () => {
+    const html = renderToStaticMarkup(createElement(LineupActions, { performers: bill, showName: 'Late Set' }));
+    expect(html).toContain('Download 2 headshots<');
+    expect(html).toContain('Download 3 headshots with surprise guests');
+    expect(html).toContain('Surprise guests are left out of the headshots unless you choose to include them.');
+  });
+
+  it('still offer a guest\'s photo when nobody billed has one', () => {
+    const html = renderToStaticMarkup(createElement(LineupActions, { performers: [performer('Jane Doe'), guest('Secret Star', 'media:b#1')] }));
+    expect(html).not.toContain('Download 1 headshot<');
+    expect(html).toContain('Download 1 headshot with surprise guests');
+    expect(html).toContain('Headshots come named after each performer.');
+  });
+
+  it('say nothing about guests when none of them has a photo', () => {
+    const html = renderToStaticMarkup(createElement(LineupActions, { performers: [performer('Jane Doe', 'media:a#1'), guest('Secret Star')] }));
+    expect(html).toContain('Download 1 headshot<');
+    expect(html).not.toContain('surprise guests');
+    expect(html).not.toContain('Surprise guests');
   });
 });

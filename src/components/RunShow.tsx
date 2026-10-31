@@ -4,19 +4,28 @@ import { audioEngine } from '../utils/audioEngine';
 import { assignFallbackWalkOns, withFallbackWalkOns } from '../utils/walkOnFallback';
 import { randomMusic } from '../utils/randomMusic';
 import { padColor } from '../utils/padColor';
-import { guestsOnStageBy, livePublisher, publicCue, type LiveViewPayload } from '../utils/liveView';
+import {
+  boardHoldsRoom,
+  fetchLiveView,
+  guestsOnStageBy,
+  livePublisher,
+  publicCue,
+  type LiveViewPayload,
+} from '../utils/liveView';
+import { generateId } from '../utils/id';
 import { isSurpriseGuest } from '../utils/surpriseGuests';
 import type { SessionCredentials } from '../utils/session-vault';
 import { loadColorScheme } from '../utils/theme';
 import {
   DEFAULT_CUE_SECONDS,
   MIN_CUE_SECONDS,
+  advanceCueClock,
   baseDurations,
-  carryCueClock,
   fmtCountdown,
   fmtOffset,
   fmtShowTime,
   nudgeAdjustment,
+  type CueCount,
 } from '../utils/showTiming';
 import {
   buildSoundboard,
@@ -341,6 +350,12 @@ export function RunShow({
   // including cues that ran out while it was away (see the auto-advance).
   const cueStartedAtRef = useRef<number | null>(null);
   const showStartedAtRef = useRef<number | null>(null);
+  // Exactly how far each clock had run when it was paused, to resume from.
+  // The seconds in state are floored on the last tick, and resuming from them
+  // lost whatever had passed since — up to a second off both clocks at every
+  // pause. Cleared wherever a clock is put back to zero.
+  const pausedCueMsRef = useRef<number | null>(null);
+  const pausedShowMsRef = useRef<number | null>(null);
   // Bumped when the cue clock is put back to zero without the cue changing,
   // so the audience's clock is told; it otherwise counts on from the old value.
   const [cueResets, setCueResets] = useState(0);
@@ -483,13 +498,18 @@ export function RunShow({
   // back into view, since the timer will not have run while it was hidden.
   useEffect(() => {
     if (!running) {
+      const at = Date.now();
+      if (cueStartedAtRef.current != null) pausedCueMsRef.current = at - cueStartedAtRef.current;
+      if (showStartedAtRef.current != null) pausedShowMsRef.current = at - showStartedAtRef.current;
       cueStartedAtRef.current = null;
       showStartedAtRef.current = null;
       return;
     }
     const now = Date.now();
-    cueStartedAtRef.current = now - elapsed * 1000;
-    showStartedAtRef.current = now - showElapsed * 1000;
+    cueStartedAtRef.current = now - (pausedCueMsRef.current ?? elapsed * 1000);
+    showStartedAtRef.current = now - (pausedShowMsRef.current ?? showElapsed * 1000);
+    pausedCueMsRef.current = null;
+    pausedShowMsRef.current = null;
     function read() {
       const at = Date.now();
       if (cueStartedAtRef.current != null) setElapsed(Math.floor((at - cueStartedAtRef.current) / 1000));
@@ -512,26 +532,42 @@ export function RunShow({
   /** Put the cue clock back to zero, from now if it is running. */
   function rewindCue() {
     if (cueStartedAtRef.current != null) cueStartedAtRef.current = Date.now();
+    pausedCueMsRef.current = null;
     setElapsed(0);
   }
+
+  // What the cue clock was last seen counting toward while the cue still had
+  // time left — see advanceCueClock.
+  const countingRef = useRef<CueCount | null>(null);
 
   // Auto-advance to the next cue when this segment's timer reaches zero. The
   // next cue's clock starts where this one was due to end — see carryCueClock
   // — and if that is already past the next cue too, the effect runs again on
-  // the new cue and moves on again.
+  // the new cue and moves on again. A cue whose length was cut below the time
+  // it had already run moves on from now instead: see advanceCueClock.
   useEffect(() => {
-    if (!running || isLast) return;
-    if (elapsed >= totalSec) {
-      setIdx((i) => Math.min(schedule.length - 1, i + 1));
-      if (cueStartedAtRef.current == null) {
-        setElapsed(0);
-        return;
-      }
-      const next = carryCueClock(cueStartedAtRef.current, totalSec, Date.now());
-      cueStartedAtRef.current = next.cueStartedAt;
-      setElapsed(next.elapsed);
+    if (!running) return;
+    if (isLast) {
+      countingRef.current = null;
+      return;
     }
-  }, [running, elapsed, totalSec, isLast, schedule.length]);
+    if (elapsed < totalSec) {
+      countingRef.current = { idx, totalSec };
+      return;
+    }
+    setIdx((i) => Math.min(schedule.length - 1, i + 1));
+    if (cueStartedAtRef.current == null) {
+      setElapsed(0);
+      return;
+    }
+    const next = advanceCueClock(countingRef.current, idx, totalSec, cueStartedAtRef.current, Date.now());
+    cueStartedAtRef.current = next.cueStartedAt;
+    setElapsed(next.elapsed);
+    // The next cue has been counting toward its own length since the moment
+    // its clock starts, carried or not, so time it is carried past is time
+    // that really went by.
+    countingRef.current = { idx: idx + 1, totalSec: effDurations[idx + 1] ?? DEFAULT_CUE_SECONDS };
+  }, [running, elapsed, totalSec, isLast, schedule.length, idx, effDurations]);
 
   function goTo(target: number) {
     const t = Math.max(0, Math.min(schedule.length - 1, target));
@@ -569,6 +605,8 @@ export function RunShow({
     const now = Date.now();
     if (cueStartedAtRef.current != null) cueStartedAtRef.current = now;
     if (showStartedAtRef.current != null) showStartedAtRef.current = now;
+    pausedCueMsRef.current = null;
+    pausedShowMsRef.current = null;
     setElapsed(0);
     setShowElapsed(0);
     setCueResets((n) => n + 1);
@@ -631,6 +669,9 @@ export function RunShow({
   useEffect(() => {
     audioEngine.init();
     const sources = soundboardSources(board);
+    // Songs previewed before the board opened, and pads an edit has taken off
+    // it, would otherwise hold the room these need — see retainOnly.
+    audioEngine.retainOnly(sources);
     let cancelled = false;
     // Counted from the engine rather than incremented: re-opening the board, or
     // an edit to the running order mid-show, re-runs this effect over tracks
@@ -724,12 +765,23 @@ export function RunShow({
     // and only that one should show the wait.
     setLoadingKey(audioEngine.isReady(track.src) ? null : track.key);
     setAudioError(null);
+    // A pad the viewer screen was sent plays there from its own copy, and the
+    // press has already told it to. Asked now, at the press.
+    const inRoom = !!viewerAudio?.some((t) => t.key === track.key);
     // Only report if this button is still the lit one — being superseded by a
     // later press is normal and must not raise an error.
     const failed = (reason: string) => {
       setLoadingKey((k) => (k === track.key ? null : k));
       setPlayingKey((k) => {
         if (k !== track.key) return k;
+        // This device failing to load or decode its copy says nothing about
+        // the room's. Letting the pad go would have published silence, and
+        // the PA faded the walk-on out a second after it began. The pad stays
+        // lit, so pressing it or Stop music still stops the room.
+        if (inRoom) {
+          setAudioError(`${track.label} is playing on the viewer screen only — this device couldn't play it.`);
+          return k;
+        }
         const why = FAILURE_MESSAGE[reason] ?? "it didn't play.";
         setAudioError(`${track.label} — ${why}`);
         return null;
@@ -895,6 +947,35 @@ export function RunShow({
   // them a secret again, it would only have the screen contradict the room.
   const revealedRef = useRef<Set<string>>(new Set());
 
+  // Which board this is, named in everything it sends the room — see
+  // boardHoldsRoom.
+  const [boardId] = useState(generateId);
+  // Whether this board is running the room. A board opened on a second
+  // device — the producer's phone, to glance at the clock while the laptop
+  // runs the show — used to publish the moment it opened: cue one, idle, and
+  // silence, over the act on stage and the walk-on on the PA. It takes the
+  // room once the operator runs the show from it (Start, Next, a cue picked
+  // from the running order, sending its audio to the viewer), or when, as it
+  // opens, no other board holds the room. Once taken it stays taken: stepping
+  // back to cue one before doors still has to reach the room.
+  const tookRoomRef = useRef(false);
+  const [roomFree, setRoomFree] = useState(false);
+  useEffect(() => {
+    if (!viewToken || !session) return;
+    let cancelled = false;
+    // Unreachable means unknown, and the board waits for the operator: the
+    // first press reaches the room either way.
+    fetchLiveView(viewToken).then((current) => {
+      if (cancelled || boardHoldsRoom(current, Date.now(), livePublisher(viewToken).last())) return;
+      setRoomFree(true);
+    }, () => {});
+    return () => {
+      cancelled = true;
+    };
+    // Asked once, as the board opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Publish the live state when something meaningful changes. The viewer
   // interpolates the remaining seconds between updates from lastUpdateMs, so we
   // don't need to write on every tick. The viewer link itself is configured in
@@ -904,6 +985,8 @@ export function RunShow({
       revealedRef.current.add(id);
     }
     if (!viewToken) return;
+    if (started || viewerAudio || roomFree) tookRoomRef.current = true;
+    if (!tookRoomRef.current) return;
     const liveStatus: LiveViewPayload['status'] =
       running ? 'running' : showElapsed > 0 || idx > 0 ? 'paused' : 'idle';
     // Through publicCue, not the names the board shows: the payload is public,
@@ -918,6 +1001,7 @@ export function RunShow({
       totalSec,
       remainingAtLastUpdate: totalSec - elapsed,
       lastUpdateMs: Date.now(),
+      board: boardId,
       ...(viewerAudio ? { audio: viewerAudio } : {}),
       // Sent whether or not the viewer is carrying the sound. Turning the
       // sharing off mid-song used to drop the instruction altogether, and a
@@ -938,8 +1022,10 @@ export function RunShow({
     // sound, a press has to reach it immediately rather than waiting for the
     // next cue change. cueResets likewise: a cue put back to zero changes
     // none of the others, and the room's clock would count on from before.
+    // roomFree is how a board that opens onto a free room puts its first cue
+    // up without waiting for a press.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewToken, idx, running, totalSec, showName, playingKey, viewerAudio, cueResets]);
+  }, [viewToken, idx, running, totalSec, showName, playingKey, viewerAudio, cueResets, roomFree]);
 
   useEffect(() => {
     if (!viewToken) return;
@@ -963,9 +1049,12 @@ export function RunShow({
 
   // On Run Show close, mark the live view ended so viewers see the final state.
   // Silence goes with it: closing the board, or finishing the show, stops this
-  // device's audio, and the screen wired to the PA has to stop with it.
+  // device's audio, and the screen wired to the PA has to stop with it. Only
+  // from a board that took the room, though, and only while the room is still
+  // this board's: a board closed on a second device, or on the one the show
+  // moved off, ended the night under the device still running it.
   useEffect(() => () => {
-    if (!viewToken) return;
+    if (!viewToken || !tookRoomRef.current) return;
     const payload: LiveViewPayload = {
       showName,
       status: 'ended',
@@ -974,11 +1063,14 @@ export function RunShow({
       next: {},
       remainingAtLastUpdate: 0,
       lastUpdateMs: Date.now(),
+      board: boardId,
       playback: { key: null, atMs: Date.now(), fadeInMs: 0, fadeOutMs: finalFadeOutRef.current },
     };
     // The publisher outlives the board, so a closing state that does not
-    // land at once is still sent after the screen has gone.
-    if (session) livePublisher(viewToken).publish(payload, session);
+    // land at once is still sent after the screen has gone — asking first,
+    // each time, whether the room is still showing this board.
+    const stillOurs = () => fetchLiveView(viewToken).then((current) => current?.board === boardId);
+    if (session) livePublisher(viewToken).publish(payload, session, stillOurs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -997,6 +1089,8 @@ export function RunShow({
    * away.
    */
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Whether this board is what put the page into fullscreen.
+  const enteredFullscreenRef = useRef(false);
   useEffect(() => {
     const sync = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', sync);
@@ -1004,10 +1098,23 @@ export function RunShow({
     return () => document.removeEventListener('fullscreenchange', sync);
   }, []);
 
+  // Fullscreen is for the length of the show. Left on once the board closed,
+  // it took the show page and the rest of the app with it, browser chrome
+  // hidden and nothing on screen to leave by — on a tablet, no way out but
+  // the browser's own gesture.
+  useEffect(() => () => {
+    if (enteredFullscreenRef.current && document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
+      else {
+        await document.documentElement.requestFullscreen();
+        enteredFullscreenRef.current = true;
+      }
     } catch {
       // Refused (an iframe without permission, or an unsupported browser).
       // The show runs the same either way.
@@ -1050,6 +1157,15 @@ export function RunShow({
         return;
       }
       if (e.key === 'Escape') void requestClose();
+      // A held key repeats, and these act on every keydown. Space held down
+      // started and paused the clock thirty times a second and stopped
+      // wherever the finger came off; a held arrow, or a pedal with a foot
+      // resting on it, ran through the running order and marked every
+      // surprise guest it passed as on stage. One press, one step.
+      if (e.repeat && (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+        if (e.key === ' ') e.preventDefault();
+        return;
+      }
       if (e.key === ' ') {
         e.preventDefault();
         toggleRunning();

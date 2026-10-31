@@ -1,3 +1,5 @@
+// First, ahead of every module that calls a built-in iOS 15.0 to 15.3 lack.
+import './polyfills'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './fonts.css'
@@ -12,6 +14,7 @@ import { applyColorScheme, loadColorScheme } from './utils/theme'
 import { registerAppUpdates } from './utils/appUpdate'
 import { sharedLinkRoute } from './utils/sharedLink'
 import { holdInstallPrompt } from './utils/installPrompt'
+import { markOpenDialogs } from './utils/modalOpen'
 
 // Apply the saved color scheme before the first paint to avoid a flash.
 applyColorScheme(loadColorScheme())
@@ -19,6 +22,10 @@ applyColorScheme(loadColorScheme())
 // Chrome offers the install once per page load, usually before sign-in is
 // done and the banner that offers it exists. Held from here until then.
 holdInstallPrompt()
+
+// The status rail hides under a dialog by asking CSS with :has(). Where
+// :has() doesn't work, this tells it with a class instead.
+markOpenDialogs()
 
 // A new version waits until asked for (see utils/appUpdate): taking over on
 // its own reloaded the page whenever the download happened to finish, and on

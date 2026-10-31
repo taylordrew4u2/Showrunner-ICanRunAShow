@@ -79,3 +79,27 @@ export function withMatchedPerformers(items: ScheduleItem[], names: string[]): S
 
   return changed ? next : items;
 }
+
+/**
+ * A cue with an edit applied, filling in the performer when the edit rewrote
+ * the text to name someone known.
+ *
+ * Saving a cue sends its text every time, changed or not, so "the text is in
+ * the edit" can't be read as "the text was rewritten". It was, and choosing
+ * "On stage: nobody" on a cue whose text names someone put that name straight
+ * back. So this only fills a blank that was already blank, stays blank, and
+ * sits under text that actually changed.
+ */
+export function withCueEdit(cue: ScheduleItem, patch: Partial<ScheduleItem>, names: string[]): ScheduleItem {
+  const next = { ...cue, ...patch };
+  if (
+    patch.description !== undefined &&
+    patch.description !== cue.description &&
+    !cue.performer?.trim() &&
+    !next.performer?.trim()
+  ) {
+    const named = matchKnownName(next.description, names);
+    if (named) next.performer = named;
+  }
+  return next;
+}

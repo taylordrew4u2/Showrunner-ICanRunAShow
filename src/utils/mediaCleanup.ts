@@ -14,7 +14,7 @@ import type { SessionCredentials } from './session-vault';
  *
  * The reason it can't simply be "delete what the show pointed at" is that a
  * reference is not owned by the thing holding it. Duplicating a show
- * structuredClones it, so the copy carries the *same* media ids; a library
+ * deep-copies it, so the copy carries the *same* media ids; a library
  * track appears in every show's DJ list while the audio belongs to the
  * library; and a show sitting in the trash can still be restored, so its
  * references are alive too. Deleting a file another record still points at

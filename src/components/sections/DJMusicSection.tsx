@@ -4,6 +4,7 @@ import { generateId } from '../../utils/id';
 import { audioUploadSizeError, pickFile } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
 import {
+  djRowKeys,
   isAutoLibrarySong,
   SEARCH_LIST_FROM,
   showDJSongs,
@@ -12,6 +13,7 @@ import {
   songsWithoutAudio,
   trackMatches,
 } from '../../utils/musicLibrary';
+import { deliverFile, deliveryProblem } from '../../utils/download';
 import { exportDJListToPDF } from '../../utils/pdfExport';
 import { Icon } from '../Icon';
 import { TrimControls } from '../TrimControls';
@@ -48,8 +50,9 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
   // Numbered from the full list before filtering, so a row keeps the position
   // it actually holds. Renumbering the matches would have the search inventing
   // a running order that nothing else agrees with.
+  const rowKeys = djRowKeys(songs);
   const shownSongs = songs
-    .map((song, idx) => ({ song, position: idx + 1 }))
+    .map((song, idx) => ({ song, position: idx + 1, key: rowKeys[idx] }))
     .filter(({ song }) => trackMatches(song, songQuery));
   // Library tracks this show has dropped, so they can be put back.
   const hiddenFromShow = library.filter((track) => hidden.includes(track.id));
@@ -219,7 +222,11 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
     setStatus(song.id, null);
   }
 
-  function exportDJList() {
+  // Why the text list did not save, in the iOS app, where it goes through
+  // the share sheet.
+  const [exportProblem, setExportProblem] = useState<string | null>(null);
+
+  async function exportDJList() {
     if (songs.length === 0) return;
     const lines = [
       `DJ MUSIC LIST`,
@@ -236,17 +243,8 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
     ].filter(Boolean).join('\n');
 
     const blob = new Blob([lines], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `DJ-List-${show.name.replace(/[/\\:*?"<>|]+/g, '').replace(/\s+/g, '-')}.txt`;
-    // In the page, and the URL left alive for a while: Firefox and iOS Safari
-    // start the download after click() returns, and a URL revoked before then
-    // gave no file at all.
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    const fileName = `DJ-List-${show.name.replace(/[/\\:*?"<>|]+/g, '').replace(/\s+/g, '-')}.txt`;
+    setExportProblem(deliveryProblem(await deliverFile(blob, fileName)));
   }
 
   return (
@@ -343,8 +341,8 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
       )}
 
       <ul className="section-list">
-        {shownSongs.map(({ song: s, position }) => (
-          <li key={s.id} className="section-list-item">
+        {shownSongs.map(({ song: s, position, key }) => (
+          <li key={key} className="section-list-item">
             <div className="section-list-item__body">
               {editId === s.id ? (
                 <div className="section-edit-row">
@@ -419,13 +417,18 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
 
       {songs.length > 0 && (
         <div className="section-actions">
-          <button className="btn btn--secondary" onClick={exportDJList}>
+          <button className="btn btn--secondary" onClick={() => void exportDJList()}>
             Share / Export DJ List (Text)
           </button>
           <button className="btn btn--secondary" onClick={() => exportDJListToPDF(show, library)}>
             Export DJ List (PDF)
           </button>
         </div>
+      )}
+      {exportProblem && (
+        <p className="section-error" role="alert">
+          {exportProblem}
+        </p>
       )}
       {confirmDialog}
     </div>

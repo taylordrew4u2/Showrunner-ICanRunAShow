@@ -19,11 +19,14 @@ export class BillingNotConfiguredError extends Error {
 export class StripeError extends Error {
   readonly path: string;
   readonly code: string | undefined;
-  constructor(path: string, code: string | undefined, message: string) {
+  /** Which parameter Stripe refused, when it says: `customer` for "No such customer". */
+  readonly param: string | undefined;
+  constructor(path: string, code: string | undefined, message: string, param?: string) {
     super(message);
     this.name = 'StripeError';
     this.path = path;
     this.code = code;
+    this.param = param;
   }
 }
 
@@ -68,8 +71,8 @@ export async function stripe<T>(method: 'GET' | 'POST' | 'DELETE', path: string,
     },
     body,
   });
-  const data = (await res.json()) as T & { error?: { message?: string; code?: string } };
-  if (!res.ok) throw new StripeError(path, data.error?.code, data.error?.message ?? `HTTP ${res.status}`);
+  const data = (await res.json()) as T & { error?: { message?: string; code?: string; param?: string } };
+  if (!res.ok) throw new StripeError(path, data.error?.code, data.error?.message ?? `HTTP ${res.status}`, data.error?.param);
   return data;
 }
 

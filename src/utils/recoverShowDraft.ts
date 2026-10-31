@@ -1,6 +1,7 @@
 import CryptoJS from 'crypto-js';
 import type { Show } from '../types';
 import { healShow } from './showHealing';
+import { completePastShows } from './showsOverview';
 
 const hash = (show: Show) => CryptoJS.SHA256(JSON.stringify(show)).toString();
 
@@ -14,6 +15,15 @@ function newer(local: Show, remote: Show): Show {
   const a = Date.parse(local.updatedAt ?? '');
   const b = Date.parse(remote.updatedAt ?? '');
   return Number.isFinite(b) && b > (Number.isFinite(a) ? a : 0) ? remote : local;
+}
+
+/** Whether a held show differs from the version it was made over only as
+ * completePastShows changed it: a launch, not the producer, did that. One
+ * completed by hand on its own night is still an edit. */
+function onlyCompletedOnLaunch(local: Show, madeOver: string | undefined): boolean {
+  if (madeOver === undefined || local.status !== 'completed') return false;
+  const before: Show = { ...local, status: 'upcoming' };
+  return hash(before) === madeOver && completePastShows([before])[0] !== before;
 }
 
 /** Recover local edits without treating a stale whole-list backup as truth.
@@ -35,6 +45,12 @@ export function recoverShowDraft(draft: Show[], server: Show[], baseline: Record
     const localHash = hash(local);
     const remote = result.get(local.id);
     if (localHash === baseline[local.id] || (remote && hash(remote) === localHash)) continue;
+    // Every launch marks a show whose night has passed completed, and the held
+    // copy is the whole list, so it carries that as well. Once another device
+    // had saved the show, that read as an edit made over a version since
+    // replaced, and came back as a "(recovered edits)" copy holding nothing
+    // else. It is no more this device's edit than the server's copy is.
+    if (onlyCompletedOnLaunch(local, baseline[local.id])) continue;
     if ((!remote && !baseline[local.id]) || (remote && madeOver(local.id, remote))) {
       result.set(local.id, local);
     } else if (!baseline[local.id]) {

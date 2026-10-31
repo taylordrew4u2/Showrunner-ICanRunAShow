@@ -38,6 +38,27 @@ describe('reading a signed contract as a profile', () => {
     expect(profile.socialMedia).toBe('@monasable');
   });
 
+  it('does not file a yes to posting their photo as their handle', () => {
+    // Filed as "@Yes", which the post copy then tagged.
+    const profile = profileFromAnswers(answers(
+      ['OK to post your photo on social media?', 'Yes'],
+      ['Instagram or main social', '@janedoe'],
+    ));
+    expect(profile.socialMedia).toBe('@janedoe');
+    expect(profileFromAnswers(answers(['OK to post your photo on social media?', 'Yes'])).socialMedia).toBeUndefined();
+  });
+
+  it('does not file a plain yes or no as a handle', () => {
+    expect(profileFromAnswers(answers(['Are you on Instagram?', 'No'])).socialMedia).toBeUndefined();
+    expect(profileFromAnswers(answers(['Your socials', 'yes.'])).socialMedia).toBeUndefined();
+  });
+
+  it('keeps a link it cannot read a handle from, as they typed it', () => {
+    // Filed as "@channel" before, and the link they gave was lost.
+    const profile = profileFromAnswers(answers(['Socials', 'https://youtube.com/channel/UC123']));
+    expect(profile.socialMedia).toBe('https://youtube.com/channel/UC123');
+  });
+
   it('matches the producer’s own wording for the question', () => {
     const profile = profileFromAnswers(
       answers(

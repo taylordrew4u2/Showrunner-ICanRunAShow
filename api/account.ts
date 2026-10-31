@@ -59,11 +59,44 @@ async function unlessMissing<T>(request: Promise<T>): Promise<T | null> {
   }
 }
 
+interface SubscriptionSearch {
+  data: StripeSubscription[];
+  has_more?: boolean;
+  next_page?: string | null;
+}
+
+/**
+ * Every subscription Stripe holds that checkout made for this account,
+ * whichever customer it is on. Checkout puts the account's id in each one's
+ * metadata, and before customers were pinned a second payment made before
+ * the webhook landed went to a second customer, one the row may not name.
+ */
+async function subscriptionsMadeFor(userId: string): Promise<StripeSubscription[]> {
+  // Quoted into Stripe's search language as it stands, so an id with
+  // anything in it but letters, digits, '-' and '_' is not looked up: the
+  // app's ids are hex digests, and an id that closed the quote could search
+  // for somebody else's subscriptions, which this would then cancel.
+  if (!/^[A-Za-z0-9_-]+$/.test(userId)) return [];
+  const query = encodeURIComponent(`metadata['user_id']:'${userId}'`);
+  const found: StripeSubscription[] = [];
+  let page: string | null = null;
+  do {
+    const result: SubscriptionSearch | null = await unlessMissing(stripe<SubscriptionSearch>(
+      'GET',
+      `/subscriptions/search?query=${query}&limit=100${page ? `&page=${encodeURIComponent(page)}` : ''}`,
+    ));
+    found.push(...(result?.data ?? []).filter((sub) => sub.metadata?.user_id === userId));
+    page = result?.has_more ? result.next_page ?? null : null;
+  } while (page);
+  return found;
+}
+
 /**
  * Cancel, straight away, every subscription the account could still be
- * charged for: the one its row names, and anything else on its customer —
- * a second checkout from before customers were pinned, say — and close any
- * checkout still open on that customer.
+ * charged for: the one its row names, anything else on its customer, and
+ * anything checkout made for it on another customer — a second payment from
+ * before customers were pinned — and close any checkout still open on its
+ * customer.
  */
 async function cancelSubscriptions(userId: string): Promise<void> {
   const result = await getDb().execute({
@@ -97,6 +130,11 @@ async function cancelSubscriptions(userId: string): Promise<void> {
       `/subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=100`,
     ));
     subs.push(...(list?.data ?? []));
+  }
+  // As well as the customer's own list, not instead of it: Stripe's search
+  // can take a minute to see a subscription made just now.
+  for (const sub of await subscriptionsMadeFor(userId)) {
+    if (!subs.some((known) => known.id === sub.id)) subs.push(sub);
   }
   if (subscriptionId && !subs.some((sub) => sub.id === subscriptionId)) {
     const sub = await unlessMissing(stripe<StripeSubscription>('GET', `/subscriptions/${encodeURIComponent(subscriptionId)}`));
