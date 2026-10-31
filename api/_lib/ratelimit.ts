@@ -15,6 +15,10 @@ const PRUNE_ONE_IN = 100;
  * Record one hit against `bucket` and report whether it is still within `max`
  * hits per `windowSeconds`. Fails open (allows) if the limiter query errors, so
  * a limiter hiccup never locks users out.
+ *
+ * The count is the one this hit made, read in the same statement, so hits
+ * that arrive together are each told where they stand: at most `max` of
+ * them are allowed, however many there are.
  */
 export async function rateLimit(
   db: Client,
@@ -25,17 +29,14 @@ export async function rateLimit(
   const modifier = `-${windowSeconds} seconds`;
   try {
     // Reset the window when the stored start is older than it; otherwise count up.
-    await db.execute({
+    const result = await db.execute({
       sql: `INSERT INTO rate_limit (bucket, count, window_start)
             VALUES (?, 1, datetime('now'))
             ON CONFLICT(bucket) DO UPDATE SET
               count = CASE WHEN window_start < datetime('now', ?) THEN 1 ELSE count + 1 END,
-              window_start = CASE WHEN window_start < datetime('now', ?) THEN datetime('now') ELSE window_start END`,
+              window_start = CASE WHEN window_start < datetime('now', ?) THEN datetime('now') ELSE window_start END
+            RETURNING count`,
       args: [bucket, modifier, modifier],
-    });
-    const result = await db.execute({
-      sql: `SELECT count FROM rate_limit WHERE bucket = ?`,
-      args: [bucket],
     });
     const count = result.rows.length > 0 ? Number(result.rows[0][0]) : 0;
     if (Math.random() < 1 / PRUNE_ONE_IN) {
@@ -46,6 +47,18 @@ export async function rateLimit(
   } catch {
     return { allowed: true };
   }
+}
+
+/**
+ * Give back a hit recorded by `rateLimit`, for a limit that counts failures
+ * only and spends a hit before the attempt it guards: the attempt turned out
+ * not to be a failure. Best effort, like the limiter itself.
+ */
+export async function rateLimitRefund(db: Client, bucket: string): Promise<void> {
+  await db.execute({
+    sql: `UPDATE rate_limit SET count = MAX(count - 1, 0) WHERE bucket = ?`,
+    args: [bucket],
+  }).catch(() => undefined);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { PRODUCER_PRICE_LABEL } from '../utils/billing';
+import { checkoutFailureMessage, PRODUCER_PRICE_LABEL } from '../utils/billing';
 import { isNativeShell } from '../utils/nativeShell';
 import { onPageReturn } from '../utils/pageReturn';
 import { useProducerAccess } from '../utils/producerAccess';
@@ -16,7 +16,7 @@ import { useProducerAccess } from '../utils/producerAccess';
 export function ProducerLock({ feature, compact = false }: { feature: string; compact?: boolean }) {
   const { upgrade } = useProducerAccess();
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const native = isNativeShell();
 
   // Checkout takes over the page and nothing comes back to say the producer
@@ -25,11 +25,13 @@ export function ProducerLock({ feature, compact = false }: { feature: string; co
 
   async function go() {
     setBusy(true);
-    setFailed(false);
+    setError(null);
     try {
       await upgrade();
-    } catch {
-      setFailed(true);
+    } catch (err) {
+      // The same words as the plan card. Told to check the connection and
+      // try again, a producer whose payment is still being confirmed would.
+      setError(checkoutFailureMessage(err));
       setBusy(false);
     }
   }
@@ -47,10 +49,8 @@ export function ProducerLock({ feature, compact = false }: { feature: string; co
           {busy ? 'Opening checkout…' : 'Upgrade'}
         </button>
       )}
-      {failed && (
-        <p className="producer-lock__error" role="alert">
-          Couldn’t reach the payment page. Check your connection and try again.
-        </p>
+      {error && (
+        <p className="producer-lock__error" role="alert">{error}</p>
       )}
     </div>
   );

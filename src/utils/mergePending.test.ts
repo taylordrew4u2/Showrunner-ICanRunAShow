@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import CryptoJS from 'crypto-js';
 import { mergePendingShows } from './mergePending';
+import { recoverShowDraft } from './recoverShowDraft';
 import type { DeletedItem, Show } from '../types';
 
 const show = (id: string, over: Partial<Show> = {}): Show =>
@@ -91,5 +93,39 @@ describe('mergePendingShows', () => {
       [show('b'), null as unknown as Show],
     );
     expect(merged.map((s) => s.id).sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('after recoverShowDraft has decided by what the held copy was made over', () => {
+  const hash = (s: Show) => CryptoJS.SHA256(JSON.stringify(s)).toString();
+
+  it('keeps the edit made over what the server still holds, whatever the clocks say', () => {
+    // The laptop's clock runs five minutes fast. It saved Friday at 19:55,
+    // stamped 20:00; the phone renamed it offline at 19:57 over exactly that
+    // version. The recovery kept the rename, and the stamps then gave Friday
+    // back to the server's copy, and the draft was acknowledged away.
+    const server = show('fri', { name: 'Friday', updatedAt: '2026-04-01T20:00:00.000Z' });
+    const renamed = { ...server, name: 'Friday — SOLD OUT', updatedAt: '2026-04-01T19:57:00.000Z' };
+    const baseline = { fri: hash(server) };
+    const recovered = recoverShowDraft([renamed], [server], baseline);
+    expect(recovered.map((s) => s.name)).toEqual(['Friday — SOLD OUT']);
+
+    const merged = mergePendingShows(recovered, [server], [], [], new Set(Object.keys(baseline)));
+    expect(merged.map((s) => s.name)).toEqual(['Friday — SOLD OUT']);
+  });
+
+  it('keeps a show deleted here deleted, though the record of it did not save', () => {
+    const kept = show('a');
+    const gone = show('gone');
+    const baseline = { a: hash(kept), gone: hash(gone) };
+    const recovered = recoverShowDraft([kept], [kept, gone], baseline);
+    expect(mergePendingShows(recovered, [kept, gone], [], [], new Set(Object.keys(baseline))).map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('still keeps a recovered show off the account when the record says it went', () => {
+    const kept = show('a');
+    const held = show('new');
+    const recovered = recoverShowDraft([kept, held], [kept], { a: hash(kept) });
+    expect(mergePendingShows(recovered, [kept], [trashed(held)], [], new Set(['a'])).map((s) => s.id)).toEqual(['a']);
   });
 });

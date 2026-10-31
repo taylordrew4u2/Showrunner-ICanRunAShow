@@ -14,7 +14,10 @@ beforeEach(() => {
   recognize.mockReset();
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('reading a schedule off a photo', () => {
   it('says the photo reader needs a connection when it cannot load, not that the photo is unclear', async () => {
@@ -22,6 +25,29 @@ describe('reading a schedule off a photo', () => {
     const reading = importScheduleFromFile(photo());
     await expect(reading).rejects.toThrow(/connection/);
     await expect(reading).rejects.not.toThrow(/clearly visible/);
+  });
+
+  it('says this browser cannot run the reader, not that it needs a connection, when WebAssembly is refused', async () => {
+    // iOS 15 refuses WebAssembly under the site's CSP: WebKit learned
+    // 'wasm-unsafe-eval' only in 16.0. A connection would change nothing.
+    recognize.mockRejectedValue(new Error('RuntimeError: Aborted(CompileError)'));
+    vi.stubGlobal('WebAssembly', {
+      Module: class {
+        constructor() {
+          throw new EvalError("Refused to create a WebAssembly object because 'unsafe-eval' is not an allowed source of script");
+        }
+      },
+    });
+    const reading = importScheduleFromFile(photo());
+    await expect(reading).rejects.toThrow(/iOS 16/);
+    await expect(reading).rejects.not.toThrow(/connection|signal/);
+  });
+
+  it('says the same where there is no WebAssembly at all', async () => {
+    // Lockdown Mode turns it off.
+    recognize.mockRejectedValue(new Error('WebAssembly is not defined'));
+    vi.stubGlobal('WebAssembly', undefined);
+    await expect(importScheduleFromFile(photo())).rejects.toThrow(/Lockdown Mode/);
   });
 
   it('blames the photo, not the connection, when the reader ran but could not open the file', async () => {

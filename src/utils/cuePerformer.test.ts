@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchKnownName, withMatchedPerformers } from './cuePerformer';
+import { matchKnownName, withCueEdit, withMatchedPerformers } from './cuePerformer';
 import type { ScheduleItem } from '../types';
 
 const cue = (over: Partial<ScheduleItem>): ScheduleItem => ({
@@ -116,5 +116,46 @@ describe('withMatchedPerformers', () => {
     const items = [cue({ id: 'a', description: 'Ada Cole' })];
     withMatchedPerformers(items, ROLODEX);
     expect(items[0].performer).toBeUndefined();
+  });
+});
+
+describe('withCueEdit', () => {
+  // Saving a cue sends its text every time. Reading that as "the text was
+  // rewritten" matched the name straight back in after "On stage: nobody",
+  // so Run Show still put Ada on stage at intermission.
+  it('keeps "On stage: nobody" when the text names someone known', () => {
+    const before = cue({ description: "Intermission — Ada Cole's merch at the back", performer: 'Ada Cole' });
+    const out = withCueEdit(before, {
+      time: '', description: before.description, performer: undefined, performerId: undefined,
+    }, ROLODEX);
+    expect(out.performer).toBeUndefined();
+  });
+
+  it('keeps a cleared performer cleared when the text is reworded in the same edit', () => {
+    const before = cue({ description: 'Ada Cole merch', performer: 'Ada Cole', performerId: 'p1' });
+    const out = withCueEdit(before, {
+      description: "Intermission — Ada Cole's merch at the back", performer: undefined, performerId: undefined,
+    }, ROLODEX);
+    expect(out.performer).toBeUndefined();
+    expect(out.performerId).toBeUndefined();
+  });
+
+  it('does not fill a blank again when the text is saved unchanged', () => {
+    const before = cue({ description: 'Ada Cole merch' });
+    const out = withCueEdit(before, { time: '9:00 PM', description: 'Ada Cole merch', performer: undefined }, ROLODEX);
+    expect(out.performer).toBeUndefined();
+    expect(out.time).toBe('9:00 PM');
+  });
+
+  it('still fills a blank when the text is rewritten to name someone', () => {
+    const before = cue({ description: 'Opener' });
+    const out = withCueEdit(before, { description: 'Opener — Ada Cole', performer: undefined }, ROLODEX);
+    expect(out.performer).toBe('Ada Cole');
+  });
+
+  it('never overwrites a performer the edit sets', () => {
+    const before = cue({ description: 'Opener' });
+    const out = withCueEdit(before, { description: 'Opener — Ada Cole', performer: 'Jo Park' }, ROLODEX);
+    expect(out.performer).toBe('Jo Park');
   });
 });

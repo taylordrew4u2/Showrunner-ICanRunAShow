@@ -25,12 +25,20 @@ import type { DeletedItem, Show } from '../types';
  *   no longer expires, so "the server has never seen it" stopped being proof
  *   that it is new. Without the record, a deletion that had aged out of the
  *   trash let a months-old held copy put the show back.
+ *
+ * `resolved` is every show recoverShowDraft has already decided by what the
+ * held copy was made over. Those are not decided again here, by clock: the
+ * version an edit was made over carried a later stamp whenever the device
+ * that saved it ran fast, and the stamps then gave the show back to the
+ * server's copy, dropping the edit; a show the recovery found deleted here
+ * came back the same way when the record of it had not saved.
  */
 export function mergePendingShows(
   pending: Show[],
   server: Show[],
   trash: DeletedItem[] = [],
   deletedShowIds: string[] = [],
+  resolved: ReadonlySet<string> = new Set(),
 ): Show[] {
   const deleted = new Set([
     ...trash.filter((item) => item?.type === 'show' && item.data?.id).map((item) => item.data.id),
@@ -43,11 +51,12 @@ export function mergePendingShows(
     if (!show?.id) continue;
     const local = held.get(show.id);
     if (!local) {
-      // Deliberately deleted on this device, and the deletion is on record.
-      if (!deleted.has(show.id)) merged.push(show);
+      // Deliberately deleted on this device: the deletion is on record, or
+      // the recovery found it from what the held copy was made over.
+      if (!deleted.has(show.id) && !resolved.has(show.id)) merged.push(show);
       continue;
     }
-    merged.push(newer(local, show));
+    merged.push(resolved.has(show.id) ? local : newer(local, show));
     held.delete(show.id);
   }
 

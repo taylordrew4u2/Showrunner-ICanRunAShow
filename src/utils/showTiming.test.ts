@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ScheduleItem } from '../types';
 import {
   DEFAULT_CUE_SECONDS,
+  advanceCueClock,
   baseDurations,
   MIN_CUE_SECONDS,
   carryCueClock,
@@ -176,6 +177,39 @@ describe('the clock of an auto-advanced cue', () => {
     const next = carryCueClock(0, 300, 600_000);
     expect(next).toEqual({ cueStartedAt: 300_000, elapsed: 300 });
     expect(carryCueClock(next.cueStartedAt, 300, 600_000)).toEqual({ cueStartedAt: 600_000, elapsed: 0 });
+  });
+});
+
+describe('moving on from a cue that is out of time', () => {
+  it('carries the overrun of a cue that ran out on the clock', () => {
+    // Counting toward 5:00 all along; the tick that saw it run out landed
+    // a second and a half late.
+    expect(advanceCueClock({ idx: 0, totalSec: 300 }, 0, 300, 0, 301_500)).toEqual({ cueStartedAt: 300_000, elapsed: 1 });
+  });
+
+  it('keeps carrying through a cue it was carried into, for a phone locked past both', () => {
+    // The carry into cue 1 counts its time from when cue 0 was due to end.
+    expect(advanceCueClock({ idx: 1, totalSec: 120 }, 1, 120, 300_000, 600_000)).toEqual({ cueStartedAt: 420_000, elapsed: 180 });
+  });
+
+  it('starts the next cue from now when the cue was cut below the time it had run', () => {
+    // 4:00 into a 5:00 slot, −2 min to wrap the act. The next cue — the
+    // host's 2:00 transition — opened a minute down, as if the act had
+    // finished at 3:00.
+    expect(advanceCueClock({ idx: 0, totalSec: 300 }, 0, 180, 0, 240_000)).toEqual({ cueStartedAt: 240_000, elapsed: 0 });
+    // Twice more at 3:20 (5:00 cut to 1:00): the 2:20 carried swallowed the
+    // transition and the board landed on the cue after it.
+    expect(advanceCueClock({ idx: 0, totalSec: 300 }, 0, 60, 0, 200_000)).toEqual({ cueStartedAt: 200_000, elapsed: 0 });
+  });
+
+  it('starts the next cue from the resume when the cut was made while paused', () => {
+    // Paused 3:20 in, cut to 1:00, resumed at 900_000: the clock resumes as
+    // if started 200 seconds before.
+    expect(advanceCueClock({ idx: 0, totalSec: 300 }, 0, 60, 700_000, 900_000)).toEqual({ cueStartedAt: 900_000, elapsed: 0 });
+  });
+
+  it('starts from now when it never saw the cue counting at all', () => {
+    expect(advanceCueClock(null, 2, 300, 0, 400_000)).toEqual({ cueStartedAt: 400_000, elapsed: 0 });
   });
 });
 

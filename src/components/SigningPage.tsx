@@ -32,7 +32,9 @@ import {
   type SigningPayload,
   DAY_OF_CANCELLATION_RULE,
 } from '../utils/contracts';
-import { renderPdfPages, type RenderedPage } from '../utils/pdfPages';
+import { renderPdfPages, ScanNeedsWebAssemblyError, type RenderedPage } from '../utils/pdfPages';
+import { deliverFile, deliveryProblem } from '../utils/download';
+import { dataUrlToFile } from '../utils/media';
 import { openFilePickerOnKey } from '../utils/filePickerKey';
 import { clearSignerDraft, loadSignerDraft, saveSignerDraft } from '../utils/signerDraft';
 import './SigningPage.css';
@@ -66,7 +68,9 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
    */
   const [pages, setPages] = useState<RenderedPage[]>([]);
   const [pageCount, setPageCount] = useState(0);
-  const [docError, setDocError] = useState(false);
+  // Why the pages could not be drawn. 'scan' is a scanned page this browser
+  // cannot decode (see ScanNeedsWebAssemblyError), which trying again won't fix.
+  const [docError, setDocError] = useState<false | 'draw' | 'scan'>(false);
   const [signed, setSigned] = useState<SignatureRecord | null>(null);
   /**
    * Their name, as the producer already has it filed. Prefilled, because they
@@ -108,6 +112,9 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
   const [notice, setNotice] = useState<'missing' | 'submit' | 'photo' | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [pendingSaved, setPendingSaved] = useState(false);
+  // Why "Save a copy" did not save, in the iOS app, where it goes through the
+  // share sheet.
+  const [copyProblem, setCopyProblem] = useState<string | null>(null);
   const retryDeliveryRef = useRef<(() => void) | null>(null);
   const busyRef = useRef(false);
 
@@ -169,7 +176,7 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           });
         } catch (err) {
           console.error('Could not render the contract:', err);
-          if (!cancelled) setDocError(true);
+          if (!cancelled) setDocError(err instanceof ScanNeedsWebAssemblyError ? 'scan' : 'draw');
         }
         if (!cancelled && !view.signed && !resumed) setPhase('ready');
       } catch {
@@ -368,17 +375,15 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
     } finally { busyRef.current = false; }
   }
 
-  function download() {
+  async function download() {
     if (!docUrl || !payload) return;
-    const a = document.createElement('a');
-    a.href = docUrl;
-    a.download = signedFileName(
+    const fileName = signedFileName(
       payload.contractName,
       signed?.signerName || signed?.typedName || payload.signerName,
     );
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const file = dataUrlToFile(docUrl, fileName);
+    if (!file) return;
+    setCopyProblem(deliveryProblem(await deliverFile(file, fileName)));
   }
 
   if (phase === 'nokey' || phase === 'missing') {
@@ -432,9 +437,23 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
           /* Drawing the pages failed — an encrypted or malformed PDF. The file
              itself is still here, so offer it rather than leaving them stuck. */
           <div className="signing__doc-fallback">
-            <p role="alert">The full contract could not be displayed. Try loading it again, or open the PDF to check the file. Your answers are kept.</p>
-            <button className="btn btn--secondary" onClick={download}>Open the PDF</button>
-            <button className="btn btn--primary" onClick={() => setLoadAttempt(value => value + 1)}>Try again</button>
+            {docError === 'scan' ? (
+              /* pdf.js draws such a page without its image, so the signer
+                 was shown white paper and asked to agree to it. */
+              <p role="alert">
+                This contract has scanned pages that this browser can't draw, so they would show up blank.
+                Open the PDF to read it, or open this link on a device with iOS 16 or later, or a current
+                browser. Your answers are kept.
+              </p>
+            ) : (
+              <p role="alert">The full contract could not be displayed. Try loading it again, or open the PDF to check the file. Your answers are kept.</p>
+            )}
+            <button className="btn btn--secondary" onClick={() => void download()}>Open the PDF</button>
+            {docError !== 'scan' && (
+              <button className="btn btn--primary" onClick={() => setLoadAttempt(value => value + 1)}>Try again</button>
+            )}
+            {/* Once signed, the receipt below says it under Save a copy. */}
+            {copyProblem && !(phase === 'done' && signed) && <p className="signing__error" role="alert">{copyProblem}</p>}
           </div>
         ) : pages.length === 0 ? (
           <p className="signing__doc-loading">Opening the document…</p>
@@ -494,9 +513,10 @@ export function SigningPage({ token, signKey }: SigningPageProps) {
             </dl>
           )}
           <p className="signing__ref">Document reference {shortHash(signed.documentHash)}</p>
-          {docUrl && <button className="btn btn--primary signing__cta" onClick={download}>
+          {docUrl && <button className="btn btn--primary signing__cta" onClick={() => void download()}>
             Save a copy
           </button>}
+          {copyProblem && <p className="signing__error" role="alert">{copyProblem}</p>}
           {photoShrunk && (
             <p className="signing__note" role="status">
               Your photo was made smaller so it would send.

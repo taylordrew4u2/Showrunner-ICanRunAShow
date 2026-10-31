@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { shouldRecheckPlan } from './billing';
+import type { ApiError } from './api';
+import { checkoutFailureMessage, shouldRecheckPlan } from './billing';
 
 describe('looking at the plan again when the producer comes back to the app', () => {
   it('looks after this page sent them to Stripe, whatever the plan was', () => {
@@ -21,5 +22,19 @@ describe('looking at the plan again when the producer comes back to the app', ()
   it('leaves the web alone when nothing here went to Stripe', () => {
     expect(shouldRecheckPlan({ sentToStripe: false, nativeShell: false, freePlan: true })).toBe(false);
     expect(shouldRecheckPlan({ sentToStripe: false, nativeShell: false, freePlan: false })).toBe(false);
+  });
+});
+
+describe('saying why Stripe’s page did not open', () => {
+  const refused = (code: string, status = 409): ApiError => Object.assign(new Error(code), { status, code });
+
+  it('says a payment is still being confirmed, not to check the connection and pay again', () => {
+    // Stripe has the subscription and its webhook has not landed yet.
+    expect(checkoutFailureMessage(refused('already_subscribed'))).toMatch(/already have a Producer subscription/);
+  });
+
+  it('blames the connection for anything else', () => {
+    expect(checkoutFailureMessage(new TypeError('Failed to fetch'))).toMatch(/Check your connection/);
+    expect(checkoutFailureMessage(refused('stripe_error', 502))).toMatch(/Check your connection/);
   });
 });

@@ -6,6 +6,7 @@ import { decryptWithKey, encryptWithKey } from './encryption';
 import { resolveMediaUrl } from './mediaStore';
 import { rolodexKey } from './rolodex';
 import { sharedLinkPath } from './sharedLink';
+import { asksPermission } from './signatureImport';
 import { formatShowTime, parseShowDate } from './showDate';
 import type { SessionCredentials } from './session-vault';
 
@@ -173,6 +174,10 @@ export function isInstagramField(field: ContractField): boolean {
   // handle, and requiring one in its place would be worse than useless. The
   // same for Canada's social insurance number.
   if (/social security|\bssn\b|social insurance/i.test(field.label)) return false;
+  // Nor is "OK to post your photo on social media?". Taken for the handle
+  // question, it became required, the real one was never asked, and the
+  // "Yes" was filed as their handle.
+  if (asksPermission(field.label)) return field.id === INSTAGRAM_FIELD_ID;
   return field.id === INSTAGRAM_FIELD_ID
     || /instagram|\big\b|social|@handle/i.test(field.label);
 }
@@ -189,9 +194,12 @@ export function withInstagramField(fields: ContractField[] | undefined): Contrac
   const list = fields ?? [];
   const at = list.findIndex(isInstagramField);
   if (at === -1) return [...list, instagramField()];
+  // The label as typed, not trimmed: the editor saves every keystroke through
+  // here, and trimming took each space away before the next letter arrived.
+  // The answers are filed with their labels trimmed.
   return list.map((f, i) => (
     i === at
-      ? { ...f, label: f.label.trim() || INSTAGRAM_FIELD_LABEL, required: true }
+      ? { ...f, label: f.label.trim() ? f.label : INSTAGRAM_FIELD_LABEL, required: true }
       : f
   ));
 }

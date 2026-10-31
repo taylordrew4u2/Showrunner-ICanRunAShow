@@ -111,6 +111,39 @@ describe('downloading the walk-ons onto the viewer screen', () => {
     expect(loader.has('a')).toBe(true);
   });
 
+  it('gives tracks sent again after sharing was turned off and on a fresh run of attempts', async () => {
+    // The board says "Turn this off and on again to retry". While it is off
+    // the files are gone, so every download fails until the loader gives up;
+    // the same tracks then come back under the same ids.
+    let online = false;
+    const seen: string[] = [];
+    const loader = createTrackLoader(async (t) => { seen.push(t.key); return online ? `data:${t.key}` : null; }, () => {}, [1_000]);
+    loader.sync([track('a'), track('b')]);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(seen).toEqual(['a', 'b', 'a', 'b']);
+    // Sharing off: the payload carries no tracks at all.
+    loader.sync([]);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(seen).toHaveLength(4);
+    // And on again.
+    online = true;
+    loader.sync([track('a'), track('b')]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(loader.has('a')).toBe(true);
+    expect(loader.has('b')).toBe(true);
+  });
+
+  it('stops fetching tracks the board has withdrawn', async () => {
+    let attempts = 0;
+    const loader = createTrackLoader(async () => { attempts++; return null; }, () => {}, [1_000, 5_000]);
+    loader.sync([track('a')]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(attempts).toBe(1);
+    loader.sync([]);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(attempts).toBe(1);
+  });
+
   it('fetches a song several pads play once, for all of them', async () => {
     // Two acts with no walk-on of their own fall back to the same library
     // song, which is on the DJ bank too: one upload, listed under each pad.

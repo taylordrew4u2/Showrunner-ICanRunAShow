@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { duplicateShow } from './duplicateShow';
+import { generateSchedule } from './generateSchedule';
+import { publicCue } from './liveView';
+import { withWalkOnSongs } from './walkOnSongs';
 import type { Show } from '../types';
 
 const original = {
@@ -154,5 +157,67 @@ describe('duplicating a show with a surprise guest', () => {
     } as Show);
     expect(copy.performers).toEqual([]);
     expect(copy.schedule).toEqual([{ id: 's1', time: '0:00', description: 'Surprise set' }]);
+  });
+});
+
+describe('duplicating a running order built from the lineup', () => {
+  const ada = { id: 'p1', name: 'Ada Cole' };
+  const miles = { id: 'g1', name: 'Miles Trent', surpriseGuest: true };
+  const built: Show = {
+    ...original,
+    performers: [ada, miles],
+    schedule: generateSchedule({ hostName: 'Hal', acts: [{ performer: ada }, { performer: miles }] }),
+  };
+
+  it('keeps the host’s handover but takes off the name of the act it introduced', () => {
+    // The intro line is the host's cue, so unlinking the old cast left it
+    // naming last night's act, a surprise guest included, on the copy's
+    // running order and in its viewer payload.
+    const copy = duplicateShow(built, { name: built.name, date: '2026-04-14' });
+    expect(copy.schedule.map((cue) => [cue.description, cue.performer, cue.durationMin])).toEqual(
+      built.schedule.map((cue) => [
+        cue.description === 'Intro — Miles Trent' ? 'Intro — next act' : cue.description,
+        cue.performer === 'Hal' ? 'Hal' : undefined,
+        cue.durationMin,
+      ]),
+    );
+    expect(JSON.stringify(copy.schedule)).not.toMatch(/Ada Cole|Miles Trent/);
+    const intro = copy.schedule.find((cue) => cue.description.startsWith('Intro — '));
+    expect(publicCue(intro, copy.performers, new Set())).toEqual({ name: 'Hal', description: 'Intro — next act' });
+  });
+
+  it('leaves a cue the producer wrote alone, and an intro of someone who was not on the bill', () => {
+    const copy = duplicateShow({
+      ...built,
+      schedule: [
+        { id: 's1', time: '0:00', description: 'Intro — Jo Park', performer: 'Hal' },
+        { id: 's2', time: '5:00', description: "Intermission — Ada Cole's merch at the back" },
+      ],
+    });
+    expect(copy.schedule.map((cue) => cue.description)).toEqual([
+      'Intro — Jo Park', "Intermission — Ada Cole's merch at the back",
+    ]);
+  });
+});
+
+describe('duplicating a show whose acts had walk-ons on the DJ list', () => {
+  const ada = { id: 'p1', name: 'Ada Cole', walkOnMusicName: 'Song A.mp3' };
+  const miles = { id: 'a1', name: 'Miles Trent', walkOnMusicName: 'Song M.mp3' };
+  const house = { id: 'house', title: 'House music', artist: 'DJ' };
+
+  it('takes the old cast’s walk-ons off the copy’s DJ list and keeps the rest', () => {
+    // Nobody is booked on the copy, so the cleanup that runs when an act
+    // leaves the bill never saw them go, and the DJ was handed their songs.
+    const withWalkOns = withWalkOnSongs(withWalkOnSongs([house], [], [ada]), [], [miles]);
+    const source: Show = { ...original, performers: [ada], artists: [miles], djSongs: withWalkOns };
+    const copy = duplicateShow(source, { name: source.name, date: '2026-04-14' });
+    expect(copy.djSongs).toEqual([house]);
+    expect(source.djSongs).toHaveLength(3);
+  });
+
+  it('keeps a walk-on row the producer put audio on', () => {
+    const owned = { id: 'own', title: 'Song A', artist: 'Ada Cole', notes: 'Walk-on: Ada Cole', music: 'media:song-a' };
+    const copy = duplicateShow({ ...original, performers: [ada], djSongs: [house, owned] });
+    expect(copy.djSongs).toEqual([house, owned]);
   });
 });

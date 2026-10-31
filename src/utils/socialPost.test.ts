@@ -34,6 +34,35 @@ describe('toHandle', () => {
     expect(toHandle('https://instagram.com/monasable')).toBe('@monasable');
     expect(toHandle('https://www.tiktok.com/@mona.sable')).toBe('@mona.sable');
     expect(toHandle('instagram.com/monasable/')).toBe('@monasable');
+    expect(toHandle('https://www.instagram.com/monasable/?hl=en')).toBe('@monasable');
+    expect(toHandle('https://x.com/monasable')).toBe('@monasable');
+    expect(toHandle('https://twitter.com/monasable')).toBe('@monasable');
+    expect(toHandle('https://www.threads.net/@monasable')).toBe('@monasable');
+    expect(toHandle('https://youtube.com/@monasable')).toBe('@monasable');
+  });
+
+  it('does not take a profile link apart where its first part is not a handle', () => {
+    // These were tagged "@channel", "@c", "@user", "@profile.php" and "@p".
+    expect(toHandle('https://youtube.com/channel/UC123')).toBeNull();
+    expect(toHandle('https://www.youtube.com/c/janecomedy')).toBeNull();
+    expect(toHandle('youtube.com/user/janecomedy')).toBeNull();
+    expect(toHandle('https://www.facebook.com/profile.php?id=1000')).toBeNull();
+    expect(toHandle('https://instagram.com/p/abc')).toBeNull();
+    expect(toHandle('https://www.instagram.com/reel/abc/')).toBeNull();
+    // TikTok's own Share button copies a link like this one. It was "@t".
+    expect(toHandle('https://www.tiktok.com/t/ZT8abc/')).toBeNull();
+    expect(toHandle('https://www.tiktok.com/@mona.sable/video/7301')).toBe('@mona.sable');
+  });
+
+  it('does not make a handle out of a link to anywhere else', () => {
+    // Was "@https://my-site.com/jane", tag and all.
+    expect(toHandle('https://my-site.com/jane')).toBeNull();
+    expect(toHandle('janecomedy.com/about')).toBeNull();
+  });
+
+  it('still reads a handle with a dot in it as a handle, not a web address', () => {
+    expect(toHandle('mona.sable')).toBe('@mona.sable');
+    expect(toHandle('@mona.sable')).toBe('@mona.sable');
   });
 
   it('treats a blank or a sentence as no handle at all', () => {

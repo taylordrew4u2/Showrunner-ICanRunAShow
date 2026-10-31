@@ -24,7 +24,7 @@ import { exportShowToPDF } from '../utils/pdfExport';
 import { parseShowDate, formatShowTime, showStartISO } from '../utils/showDate';
 import { daysUntil } from '../utils/showsOverview';
 import { joinNames, performersSummary, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
-import { boardHoldsRoom, fetchLiveView, livePublisher, publicLineup, type LiveViewPayload } from '../utils/liveView';
+import { boardHoldsRoom, fetchLiveView, livePublisher, publicLineup, publishLiveView, type LiveViewPayload } from '../utils/liveView';
 import { isLinkStorageFull, LINK_STORAGE_FULL_MESSAGE } from '../utils/linkStorage';
 import { isSurpriseGuest, SURPRISE_GUEST_LABEL } from '../utils/surpriseGuests';
 import { loadColorScheme } from '../utils/theme';
@@ -227,6 +227,13 @@ export function ShowDetail({
   // The server refused the link because the account's links are full, so the
   // room's page has nothing on it however often this saves.
   const [viewerFull, setViewerFull] = useState(false);
+  // A new link is being made, or could not be; see makeViewerLink.
+  const [viewerMaking, setViewerMaking] = useState(false);
+  const [viewerMakeError, setViewerMakeError] = useState<string | null>(null);
+  // The link being made, by show, kept until it lands. A publish that timed
+  // out may have landed all the same, and a fresh token on the next try would
+  // leave that one holding a place among the account's links, named nowhere.
+  const pendingViewerToken = useRef<{ showId: string; token: string } | null>(null);
   const viewerUrlRef = useRef<HTMLInputElement>(null);
   const [tempShowName, setTempShowName] = useState(show.name);
   // Adding and removing sections happens in one deliberate place, so a stray tap
@@ -376,6 +383,7 @@ export function ShowDetail({
     setViewerNoteDraft(show.viewNote ?? '');
     setViewerCopied(false);
     setViewerCopyFailed(false);
+    setViewerMakeError(null);
     setViewerOpen(true);
   }
 
@@ -567,19 +575,61 @@ export function ShowDetail({
   }
 
   function handleSaveViewer() {
-    let token = show.viewToken;
-    let updates: Partial<Show> = { viewNote: viewerNoteDraft.trim() || undefined };
+    const token = show.viewToken;
     if (!token) {
       // A link already handed out keeps working on the free plan — the
       // audience might be reading it tonight. Making a new one is Producer.
-      if (producerLocked) return;
-      token = generateId();
-      updates = { ...updates, viewToken: token };
+      if (!producerLocked && !viewerMaking) void makeViewerLink(viewerNoteDraft);
+      return;
     }
+    let updates: Partial<Show> = { viewNote: viewerNoteDraft.trim() || undefined };
     // The audio key is made with the link — see viewerUrl.
     if (!show.viewerKey) updates = { ...updates, viewerKey: ensureViewerKey(token) };
     onUpdate({ ...show, ...updates });
     if (session) livePublisher(token).publish(buildScheduledPayload(viewerNoteDraft), session);
+  }
+
+  /**
+   * Make the show's viewer link, and keep it only once its first publish has
+   * landed.
+   *
+   * Nobody owns a token on the server until something is published to it,
+   * and then whoever published first does (api/live.ts). The link used to be
+   * saved and shown, ready to copy, before that: made offline, or with the
+   * account's links full, it could be handed out unclaimed, and anyone
+   * holding it could publish first, take the room's screen, and lock the
+   * producer out of their own link for good.
+   */
+  async function makeViewerLink(note: string) {
+    setViewerMakeError(null);
+    const failed = 'That link could not be made. Check your connection and try again.';
+    if (!session) {
+      setViewerMakeError(failed);
+      return;
+    }
+    const showId = show.id;
+    const pending = pendingViewerToken.current;
+    const token = pending?.showId === showId ? pending.token : generateId();
+    pendingViewerToken.current = { showId, token };
+    setViewerMaking(true);
+    try {
+      await publishLiveView(token, buildScheduledPayload(note), session);
+    } catch (err) {
+      setViewerMakeError(isLinkStorageFull(err) ? LINK_STORAGE_FULL_MESSAGE : failed);
+      return;
+    } finally {
+      setViewerMaking(false);
+    }
+    pendingViewerToken.current = null;
+    // Onto the show as it is now, not as it was when the publish set off —
+    // and not onto another show this page has moved to meanwhile.
+    // The audio key is made with the link — see viewerUrl.
+    if (showRef.current.id !== showId) return;
+    handleUpdate({
+      viewNote: note.trim() || undefined,
+      viewToken: token,
+      ...(showRef.current.viewerKey ? {} : { viewerKey: ensureViewerKey(token) }),
+    });
   }
 
   function handleCopyViewer() {
@@ -1383,6 +1433,9 @@ export function ShowDetail({
             {show.viewToken && viewerFull && (
               <p className="viewer-link-modal__error" role="alert">{LINK_STORAGE_FULL_MESSAGE}</p>
             )}
+            {!show.viewToken && viewerMakeError && (
+              <p className="viewer-link-modal__error" role="alert">{viewerMakeError}</p>
+            )}
 
             <label className="section-field__label" htmlFor="pre-show-note" style={{ marginTop: 14 }}>Pre-show note (optional)</label>
             <textarea
@@ -1398,8 +1451,8 @@ export function ShowDetail({
             {!show.viewToken && producerLocked && <ProducerLock feature="A live link for your audience" />}
             <div className="viewer-link-modal__actions">
               {(show.viewToken || !producerLocked) && (
-                <button className="btn btn--primary" onClick={handleSaveViewer}>
-                  {show.viewToken ? 'Save & publish' : 'Generate link & publish'}
+                <button className="btn btn--primary" onClick={handleSaveViewer} disabled={viewerMaking}>
+                  {show.viewToken ? 'Save & publish' : viewerMaking ? 'Making the link…' : 'Generate link & publish'}
                 </button>
               )}
               <button className="btn btn--ghost" onClick={() => setViewerOpen(false)}>Close</button>

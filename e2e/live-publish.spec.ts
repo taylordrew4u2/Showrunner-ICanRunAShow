@@ -43,12 +43,16 @@ test.describe('publishing to the live viewer', () => {
     await page.locator('.viewer-link-modal__actions .btn--primary').click();
     await expect(page.locator('.viewer-link-modal__error')).toHaveText(LINK_STORAGE_FULL_MESSAGE);
     expect(state.live).toEqual({});
+    // Nor is there a link to hand out. Nobody owns it on the server until a
+    // publish lands, so whoever held it could publish first and keep it.
+    await expect(page.locator('.viewer-link-modal__url-row')).toHaveCount(0);
 
     // An old link withdrawn makes room, and saving again puts the page up.
     delete state.sign['held-profile-link-00000'];
     await page.locator('.viewer-link-modal__actions .btn--primary').click();
     await expect.poll(() => Object.keys(state.live).length).toBe(1);
     await expect(page.locator('.viewer-link-modal__error')).toHaveCount(0);
+    await expect(page.locator('.viewer-link-modal__url-row input')).toHaveValue(/\/live\?t=/);
   });
 
   test('a viewer link does not let its holder overwrite the page', async ({ page, context, browser }) => {

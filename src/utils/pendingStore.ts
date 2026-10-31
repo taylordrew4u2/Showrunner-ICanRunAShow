@@ -58,7 +58,7 @@ export function createPendingStore(storage: () => Storage, writer: string) {
     },
     // The newest of the drafts a caller has already listed, so a launch does
     // not open every draft on the device twice.
-    read<T>(key: string, username: string, entries: Array<Pending<T> & { key: string; raw: string }>): Pending<T> | null {
+    read<T>(key: string, username: string, entries: Array<Pending<T> & { key: string; raw: string }>): (Pending<T> & { key: string; raw: string }) | null {
       const latest = entries.at(-1);
       if (!latest) return null;
       claimed.set(scope(key, username), new Map([[latest.key, latest.raw]]));
@@ -78,6 +78,13 @@ export function createPendingStore(storage: () => Storage, writer: string) {
         claimed.set(scope(key, username), group);
         return true;
       } catch { return false; }
+    },
+    // Stop counting a draft as this tab's to acknowledge, without touching it.
+    // For one read only to be parked: left claimed, the next ordinary save
+    // acknowledged it along with its own draft, whether the park had landed
+    // or not, and a park that failed then had no copy left anywhere.
+    release(key: string, username: string, entry: { key: string }): void {
+      claimed.get(scope(key, username))?.delete(entry.key);
     },
     // Let go of one draft on its own, once it is kept somewhere else — parked
     // on the account, say. Only those exact bytes: a tab that has since

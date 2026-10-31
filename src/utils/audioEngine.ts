@@ -357,6 +357,21 @@ class AudioEngine {
     this.loadFailures.clear();
   }
 
+  /**
+   * Let go of every decoded track but these. Called as Run Show opens.
+   *
+   * A preview in the DJ list or the Music library, or a trim being auditioned,
+   * decodes through this same engine and keeps what it decoded, and nothing
+   * let those go before the board. Four or five songs previewed before doors
+   * filled the budget, the board's up-front decode then stopped before its
+   * first walk-on, and every one of them loaded on its press. A track
+   * already playing keeps its own copy and plays on.
+   */
+  retainOnly(srcs: readonly string[]): void {
+    const keep = new Set(srcs);
+    this.buffers.prune((src) => keep.has(src));
+  }
+
   /** Decoded and ready to start on the next press with no wait. */
   isReady(src: string): boolean {
     return this.buffers.has(src);

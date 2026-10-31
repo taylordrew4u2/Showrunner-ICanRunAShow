@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import CryptoJS from 'crypto-js';
 import { recoverShowDraft } from './recoverShowDraft';
 import { healShow } from './showHealing';
+import { toDateKey } from './showDate';
 
 const show = (name: string) => healShow({ id: 'a', name, status: 'upcoming' })!;
 const hash = (s: ReturnType<typeof show>) => CryptoJS.SHA256(JSON.stringify(s)).toString();
@@ -95,6 +96,27 @@ it('keeps a show deleted while its last edit was still being saved deleted', () 
   const loaded = show('Loaded'); const edited = show('Edited, then deleted');
   const recovered = recoverShowDraft([kept], [kept, edited], { k: hash(kept), a: hash(loaded) }, { a: [hash(edited)] });
   expect(recovered.map(s => s.id)).toEqual(['k']);
+});
+
+it('does not read a show the launch marked completed, and nothing more, as an edit made here', () => {
+  // Every launch marks a show whose night has passed completed, and the held
+  // copy is the whole list, so it carries that too. Once another device had
+  // saved the show, the next launch read the completion as an edit made over
+  // a version since replaced, and forked a "(recovered edits)" copy holding
+  // nothing else.
+  const loaded = { ...show('Friday'), date: '2020-05-01' };
+  const held = { ...loaded, status: 'completed' as const };
+  const recap = { ...loaded, name: 'Friday, recap done', status: 'completed' as const };
+  expect(recoverShowDraft([held], [recap], { a: hash(loaded) }).map(s => s.name)).toEqual(['Friday, recap done']);
+  // Deleted elsewhere since: a completion is no reason to bring it back.
+  expect(recoverShowDraft([held], [], { a: hash(loaded) })).toEqual([]);
+});
+
+it('still recovers a show marked completed by hand on its own night', () => {
+  // Not something a launch does: tonight has not passed.
+  const loaded = { ...show('Tonight'), date: toDateKey(new Date()) };
+  const done = { ...loaded, status: 'completed' as const };
+  expect(recoverShowDraft([done], [loaded], { a: hash(loaded) }).map(s => s.status)).toEqual(['completed']);
 });
 
 it('keeps a show made and deleted here deleted, though it was never loaded', () => {

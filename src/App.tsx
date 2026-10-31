@@ -23,6 +23,7 @@ import { buildOverview, completePastShows, sortShows } from './utils/showsOvervi
 import { 
   loadEncryptedShows,
   rebaseLoadedShows,
+  countAsLoaded,
   saveEncryptedShows,
   loadEncryptedSettings,
   saveEncryptedSettings,
@@ -98,6 +99,7 @@ import { MorePage } from './components/MorePage';
 import { billingReturn, loadBilling, openBillingPortal, PAID_FEATURES_LOCKED, shouldRecheckPlan, startCheckout, type BillingState } from './utils/billing';
 import { accountTokens, deleteAccount } from './utils/account';
 import { isNativeShell } from './utils/nativeShell';
+import { deliverFile, deliveryProblem, isDelivered } from './utils/download';
 import { onPageReturn } from './utils/pageReturn';
 import { ProducerLock } from './components/ProducerLock';
 import { ProducerProvider, type ProducerAccess } from './utils/producerAccess';
@@ -324,7 +326,7 @@ export default function App() {
       showHashes: key === PENDING_SHOWS_KEY ? showBaselineHashes(session) : undefined,
       // And what this tab has sent on top of that: a save still on its way
       // when this copy is written moves the baseline only when it lands.
-      settingsSent: key === PENDING_SETTINGS_KEY ? settingsSentHashes(session) : undefined,
+      settingsSent: key === PENDING_SETTINGS_KEY ? settingsSentHashes(session, data as AppSettings) : undefined,
       showsSent: key === PENDING_SHOWS_KEY ? showSentHashes(session) : undefined,
     });
     setLocalBackupFailed(!written);
@@ -507,7 +509,14 @@ export default function App() {
       locked: PAID_FEATURES_LOCKED && !!billingState?.configured && billingState.plan !== 'producer',
       upgrade: async () => {
         if (!billingActions) return;
-        window.location.assign(await billingActions.checkout());
+        try {
+          window.location.assign(await billingActions.checkout());
+        } catch (err) {
+          // Stripe has the subscription and its webhook has not landed yet.
+          // Look at the plan again, so the lock lifts once it has.
+          if ((err as ApiError).code === 'already_subscribed') setBillingRecheck((n) => n + 1);
+          throw err;
+        }
       },
     }),
     [billingState, billingActions],
@@ -579,7 +588,16 @@ export default function App() {
   // now — the stored record is decrypted with a key the browser holds and
   // won't hand over — so a failed restore has to clear the loading state
   // itself, or the app would sit on the skeleton forever.
+  //
+  // Never on a sent link. That page is the link and nothing else, but the
+  // producer opens their own links in the browser they work in: restored
+  // here, the session loaded the whole account behind the audience screen,
+  // took over the drafts an open app tab was still saving and saved them
+  // under ciphers that tab never sent — leaving it refused, mid-show, until
+  // reloaded. Every other account effect waits for a session.
+  const [linkRoute] = useState(() => sharedLinkRoute(window.location.search, window.location.pathname));
   useEffect(() => {
+    if (linkRoute) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -595,7 +613,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [linkRoute]);
 
 
   // Media store (large audio chunks) needs the session credentials for auth
@@ -654,6 +672,10 @@ export default function App() {
         // The baseline was taken from the rows as stored; the held copy of an
         // offline edit is measured against the shows as they are now.
         rebaseLoadedShows(currentSession, migratedShows);
+        // A show completePastShows marks completed below is still the row it
+        // was loaded as until it is edited: sent with every save, it made a
+        // conflict of each other device that had loaded it too.
+        countAsLoaded(currentSession, completePastShows(migratedShows).filter((show, i) => show !== migratedShows[i]));
 
         // If a previous session had unsaved edits (save failed, tab closed),
         // recover edits against their original baseline. Conflicting versions
@@ -717,10 +739,14 @@ export default function App() {
           if (heldOverCurrentSettings(heldSettings.metadata, currentSession)) {
             pendingSettings = healedHeldSettings;
           } else {
-            const acknowledge = pendingStore.capture(PENDING_SETTINGS_KEY, currentSession.username);
+            // Not this tab's draft to acknowledge: every later settings save
+            // would let go of it with its own, parked or not. Only the park
+            // lets go of it, so a park that fails leaves it here for the next
+            // launch to try again.
+            pendingStore.release(PENDING_SETTINGS_KEY, currentSession.username, heldSettings);
             void parkSettingsSnapshot(heldSettings.data, currentSession)
               .then(() => {
-                acknowledge();
+                pendingStore.discard(heldSettings);
                 // Replacing edits someone can still see on screen with an
                 // older Rolodex, silently, reads as the edits having saved.
                 // Say where they went, so they are found on purpose and not
@@ -749,6 +775,13 @@ export default function App() {
                 ...(migratedSettings.deletedShowIds ?? []),
                 ...(pendingSettings?.deletedShowIds ?? []),
               ],
+              // Every show a draft said what it was made over: recoverShowDraft
+              // has decided those on that evidence, and the clock must not
+              // decide them again.
+              new Set(showDrafts.flatMap((draft) => [
+                ...Object.keys(draft.metadata?.showHashes ?? {}),
+                ...Object.keys(draft.metadata?.showsSent ?? {}),
+              ])),
             )
           : migratedShows;
         // Recover against the actual saved version first. Automatically marking
@@ -892,6 +925,8 @@ export default function App() {
       // save — so the pill said Offline for the rest of the night, and the
       // browser asked about unsaved changes on every close. Say where the work
       // is: on the account if nothing was waiting, held here if something was.
+      // With no account loaded there is no work to be anywhere — see onOffline.
+      if (!dataLoaded.current) return;
       setSyncState((prev) => {
         if (prev !== 'offline') return prev;
         const clean = latestShowsRef.current === savedShowsRef.current && !settingsSaveFailedRef.current;
@@ -901,6 +936,11 @@ export default function App() {
     // Losing signal isn't a failure — say so plainly rather than waiting for a
     // request to time out and reporting it as an error.
     function onOffline() {
+      // Only while an account is loaded. On the sign-in screen, a sent link
+      // or a launch still fetching, a blip left the state 'retrying' with
+      // nothing held — nothing resets it but a save — and the page then
+      // asked about unsaved changes on close, and the pill said Holding.
+      if (!dataLoaded.current) return;
       setSyncState((prev) => (prev === 'blocked' ? prev : 'offline'));
     }
     window.addEventListener('online', onOnline);
@@ -1208,18 +1248,42 @@ export default function App() {
    * Delete the account for good, then leave nothing of it on this device:
    * the drafts held for it in every tab, its viewer-link keys, what was noted
    * about its saves and backups, and the session itself. Throws, with nothing
-   * deleted anywhere, when the server refused.
+   * deleted anywhere, when the server refused — and when no answer came at
+   * all, after which a refused credential is taken as the delete having gone
+   * through (see unansweredDeletionRef).
    */
   async function handleDeleteAccount(): Promise<void> {
     if (!session) return;
+    const deleting = session;
     const tokens = accountTokens(latestShowsRef.current, latestSettingsRef.current);
-    await deleteAccount(session, tokens);
+    try {
+      await deleteAccount(session, tokens);
+    } catch (error) {
+      // Refused because an earlier delete, never answered, went through: the
+      // credential listener has let go of the account already.
+      if (activeSessionRef.current !== deleting) return;
+      const status = (error as ApiError).status;
+      unansweredDeletionRef.current = status === undefined ? { session: deleting, tokens } : null;
+      throw error;
+    }
+    forgetDeletedAccount(deleting, tokens);
+  }
+
+  // An account this tab asked to delete and never heard back about, with the
+  // links it named. On venue wifi the delete can commit and its answer be
+  // lost; every request after that is refused, and the refusal signed out
+  // with a promise that unsaved changes would save on signing back in — to
+  // an account that no longer existed, its drafts and link keys left here.
+  const unansweredDeletionRef = useRef<{ session: Session; tokens: string[] } | null>(null);
+
+  function forgetDeletedAccount(gone: Session, tokens: string[]) {
+    unansweredDeletionRef.current = null;
     // Ended first, so a save still in flight stands down rather than parking
     // a fresh draft for an account that is gone.
     endSession();
-    pendingStore.clear(PENDING_SHOWS_KEY, session.username);
-    pendingStore.clear(PENDING_SETTINGS_KEY, session.username);
-    forgetAccountNotes(session.username);
+    pendingStore.clear(PENDING_SHOWS_KEY, gone.username);
+    pendingStore.clear(PENDING_SETTINGS_KEY, gone.username);
+    forgetAccountNotes(gone.username);
     for (const token of tokens) forgetViewerKey(token);
   }
 
@@ -1232,7 +1296,17 @@ export default function App() {
     dataLoaded.current = false;
     setSettingsLoaded(false);
     setShows([]);
-    setSettings(DEFAULT_SETTINGS);
+    // Straight to the defaults, not through setSettings, which applies only
+    // what differs from this render's copy of the settings. Signed out by a
+    // refused credential, that copy came from the render the session began
+    // in — the defaults themselves — so nothing differed, and the account
+    // that left stayed in state behind the sign-in screen, for the next
+    // account signed in here to be merged into.
+    resolvedSettingsRef.current = new WeakMap();
+    latestSettingsRef.current = DEFAULT_SETTINGS;
+    setSettingsState(DEFAULT_SETTINGS);
+    setProfilePhotos({});
+    setFreshLink(null);
     setView('list');
     setSelectedShow(null);
     setShowForm(false);
@@ -1255,6 +1329,11 @@ export default function App() {
     setSyncState('saved');
     setHasLocalCopy(false);
     setLocalBackupFailed(false);
+    // A save still on its way stands down for a session that is not its own,
+    // busy flag included, so a session ended mid-save — its own PUT refused,
+    // or Log out pressed — left Save and Finish disabled for the next one.
+    setSettingsSaving(false);
+    setOnboardingSaving(false);
   }
 
   /**
@@ -1290,13 +1369,21 @@ export default function App() {
     const current = session;
     onCredentialRefused((credential) => {
       if (credential !== current.authHash || activeSessionRef.current !== current) return;
+      // Refused after a delete this tab never heard back about: that delete
+      // went through, and there is no account left to sign back in to.
+      const deletion = unansweredDeletionRef.current;
+      if (deletion?.session === current) {
+        forgetDeletedAccount(current, deletion.tokens);
+        return;
+      }
       if (document.querySelector('.run-show')) return;
       handleCredentialRefused();
     });
     return () => onCredentialRefused(null);
-    // handleCredentialRefused is redeclared every render, but it closes over
-    // nothing mutable except `session`, this effect's only dependency, and
-    // refs. Listing it would re-register the listener on every render.
+    // handleCredentialRefused and forgetDeletedAccount are redeclared every
+    // render, but they close over nothing mutable except `session`, this
+    // effect's only dependency, and refs. Listing them would re-register the
+    // listener on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
@@ -1308,23 +1395,19 @@ export default function App() {
   async function handleDownloadBackup() {
     if (!session) return;
     try {
-      const url = await exportUserData(session, { shows: latestShowsRef.current, unreadable: unreadableRowsRef.current, settings,
+      const backup = await exportUserData(session, { shows: latestShowsRef.current, unreadable: unreadableRowsRef.current, settings,
         recoveryDrafts: [
           ...pendingStore.list(PENDING_SHOWS_KEY, session.username, heldCopyLock(session)).map(p => ({ kind: 'shows', at: p.at, data: p.data })),
           ...pendingStore.list(PENDING_SETTINGS_KEY, session.username, heldCopyLock(session)).map(p => ({ kind: 'settings', at: p.at, data: p.data })),
         ],
       });
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `showrunner-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      // In the page, and the URL left alive for a while: Firefox and iOS
-      // Safari start the download after click() returns, and a URL revoked
-      // before then gave no file — while the app went on to say a backup had
-      // been taken today.
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      const outcome = await deliverFile(backup, `showrunner-backup-${new Date().toISOString().slice(0, 10)}.json`);
+      const problem = deliveryProblem(outcome);
+      if (problem) setSaveError(problem);
+      // Recorded only once the file reached them. In the iOS app it goes
+      // through the share sheet, and a sheet closed without saving leaves
+      // them with no copy, whatever the settings page would then have said.
+      if (!isDelivered(outcome)) return;
       const at = new Date().toISOString();
       writeLastExport(session.username, at);
       setLastBackupAt(at);
@@ -1950,7 +2033,7 @@ export default function App() {
     handleUpdateRolodexComic(photoRef ? { ...next, photo: photoRef } : next, photoFailed ? {} : {
       profileRequests: (settings.profileRequests ?? []).filter(r => r.token !== pending.request.token),
     });
-    if (!photoFailed) void deleteProfilePhoto(pending.request, session);
+    if (!photoFailed) retireProfileLink(pending.request, session);
 
     setLinkErrorFor(photoFailed ? comic.id : null);
     setLinkError(photoFailed
@@ -1972,7 +2055,18 @@ export default function App() {
     };
     setSettings(updatedSettings);
     saveSettings(updatedSettings);
-    void deleteProfilePhoto(pending.request, session);
+    retireProfileLink(pending.request, session);
+  }
+
+  /**
+   * Withdraw a link that is coming off file, on the server too. Dropping it
+   * from settings alone left the request, the performer's answers with it,
+   * holding a place among the account's links for good: nothing on file
+   * named it any more, so nothing could ever withdraw it. Best effort; the
+   * photo goes even when the withdrawal does not.
+   */
+  function retireProfileLink(request: ProfileRequest, creds: Session) {
+    void revokeProfileLink(request, creds).catch(() => deleteProfilePhoto(request, creds));
   }
 
   function handleUpdateRolodexComic(updated: PotentialComic, extra: Partial<AppSettings> = {}) {
@@ -2018,13 +2112,21 @@ export default function App() {
     if (!session) return;
 
     const removed = settings.potentialComics.find((comic) => comic.id === id);
+    // Their profile links go with them, answered or not. Kept, they belonged
+    // to no row, so none could be withdrawn, and one still waiting was asked
+    // about every time the Rolodex opened.
+    const links = (settings.profileRequests ?? []).filter((r) => r.contactId === id);
     const updatedSettings = {
       ...settings,
       potentialComics: settings.potentialComics.filter((comic) => comic.id !== id),
+      ...(links.length > 0
+        ? { profileRequests: (settings.profileRequests ?? []).filter((r) => r.contactId !== id) }
+        : {}),
     };
 
     setSettings(updatedSettings);
     saveSettings(updatedSettings);
+    for (const link of links) retireProfileLink(link, session);
 
     // A Rolodex entry can carry a walk-on track. Filing someone onto a show
     // copies the reference rather than the audio, so this only frees it when
@@ -2197,8 +2299,9 @@ export default function App() {
   // token looks usable: everyone who arrives holding a link goes to the page
   // for that link, which can then tell them what is wrong with it. Anyone who
   // ends up past here is shown a login, and a performer has no account to log
-  // in to. See sharedLinkRoute.
-  const route = sharedLinkRoute(window.location.search, window.location.pathname);
+  // in to. See sharedLinkRoute, and the session restore above, which the
+  // same decision keeps away from these pages.
+  const route = linkRoute;
   if (route) {
     // The key rides in the fragment, which browsers never send to a server.
     const linkKey = readSignKeyFromHash(window.location.hash);

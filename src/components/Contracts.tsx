@@ -640,6 +640,9 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     const sent = requestsForContract(requests, open.id);
     const openSummary = signatureSummary(sent);
     const openFields = withInstagramField(open.fields);
+    // The one row withInstagramField settled on. Any other row that happens to
+    // mention socials is the producer's own, theirs to make optional or remove.
+    const instagramAt = openFields.findIndex(isInstagramField);
     return (
       <div className="page contracts">
         <PageHeader
@@ -751,7 +754,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                       <input
                         type="checkbox"
                         checked={!!f.required}
-                        disabled={isInstagramField(f)}
+                        disabled={i === instagramAt}
                         onChange={(e) =>
                           updateFields(
                             open,
@@ -778,7 +781,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                       />
                       <span>Long answer</span>
                     </label>
-                    {isInstagramField(f) ? (
+                    {i === instagramAt ? (
                       <span className="contracts__field-fixed">Always asked</span>
                     ) : (
                       <button

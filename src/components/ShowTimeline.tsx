@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import type { ScheduleItem } from '../types';
 import { buildTimeline, segmentLength, billBalance } from '../utils/showTimeline';
 import { clockLabel, elapsedLabel } from '../utils/elapsed';
@@ -53,8 +53,9 @@ export function ShowTimeline({ schedule, showTime, host }: ShowTimelineProps) {
       </div>
 
       {/* The strip. Each segment is a button so it can be tabbed to and opened;
-          the label underneath is what actually conveys the content. */}
-      <ul className="timeline__strip">
+          the label underneath is what actually conveys the content. The cue
+          count lets the blocks narrow to fit a long night on a phone. */}
+      <ul className="timeline__strip" style={{ '--cues': segments.length } as CSSProperties}>
         {segments.map((segment) => (
           <li
             key={segment.id}

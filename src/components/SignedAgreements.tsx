@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { AppSettings, SignedAgreement } from '../types';
 import { uploadMedia, resolveMediaUrl } from '../utils/mediaStore';
 import { dataUrlToFile } from '../utils/media';
+import { deliverFile, deliveryProblem } from '../utils/download';
 import { generateId } from '../utils/id';
 import { contractNameFromFile } from '../utils/contracts';
 
@@ -12,25 +13,18 @@ interface Props {
 
 function AgreementDownload({ agreement }: { agreement: SignedAgreement }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   async function download() {
     setBusy(true);
-    setError(false);
+    setError(null);
     try {
       const data = await resolveMediaUrl(agreement.fileRef);
       if (!data) throw new Error('File unavailable');
       const downloaded = dataUrlToFile(data, agreement.fileName);
       if (!downloaded) throw new Error('Invalid file');
-      const url = URL.createObjectURL(downloaded);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = agreement.fileName;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      setError(deliveryProblem(await deliverFile(downloaded, agreement.fileName)));
     } catch {
-      setError(true);
+      setError('Could not load the file. Check your connection and try again.');
     } finally {
       setBusy(false);
     }
@@ -39,7 +33,7 @@ function AgreementDownload({ agreement }: { agreement: SignedAgreement }) {
     <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={() => void download()}>
       {busy ? 'Loading…' : 'Download'}
     </button>
-    {error && <p role="alert">Could not load the file. Check your connection and try again.</p>}
+    {error && <p role="alert">{error}</p>}
   </div>;
 }
 

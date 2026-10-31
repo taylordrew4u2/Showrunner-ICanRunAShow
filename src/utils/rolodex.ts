@@ -1,5 +1,6 @@
 import type { Artist, Performer, PotentialComic, Show } from '../types';
 import { generateId } from './id';
+import { withWalkOnSongs } from './walkOnSongs';
 
 /** Personal fields belong to one comic; show-slot ids and contracts do not. */
 export const COMIC_PROFILE_FIELDS = [
@@ -151,8 +152,11 @@ function hydratePerformer<T extends Performer>(
 
 /**
  * Refresh only already-linked profiles. Schedule links keep their show-slot
- * ids; labels that still use the previous name follow a rename. Custom cue
- * labels and every other show field remain unchanged.
+ * ids; labels that still use the previous name follow a rename. Walk-on rows
+ * on the DJ list follow a new walk-on or a rename, as they do on the show
+ * where the edit was made, or the other shows kept handing the DJ the old
+ * song and lost track of the row after a rename. Custom cue labels and every
+ * other show field remain unchanged.
  */
 export function syncShowsWithRolodex(
   comics: PotentialComic[],
@@ -184,8 +188,16 @@ export function syncShowsWithRolodex(
       scheduleChanged = true;
       return { ...item, performer: rename.after };
     });
+    // An old saved show can have no DJ list at all.
+    const ownSongs = show.djSongs ?? [];
+    const djSongs = withWalkOnSongs(withWalkOnSongs(ownSongs, show.performers, performers), show.artists, artists);
+    const djChanged = djSongs.length !== ownSongs.length || djSongs.some((song, i) => song !== ownSongs[i]);
     changed = true;
-    return { ...show, performers, artists, ...(scheduleChanged ? { schedule } : {}) };
+    return {
+      ...show, performers, artists,
+      ...(scheduleChanged ? { schedule } : {}),
+      ...(djChanged ? { djSongs } : {}),
+    };
   });
   return changed ? synced : shows;
 }

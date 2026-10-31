@@ -165,7 +165,8 @@ function decryptShowRows(shows: EncryptedShowRow[], creds: SessionCredentials): 
   return { shows: readable, unreadable };
 }
 
-interface SavedRow { cipher: string; plain?: string }
+// `shown` is the same row as this launch shows it, unedited (see countAsLoaded).
+interface SavedRow { cipher: string; plain?: string; shown?: string }
 const showBaselines = new WeakMap<SessionCredentials, Map<string, SavedRow>>();
 export function showBaselineHashes(creds: SessionCredentials): Record<string, string> {
   return Object.fromEntries([...showBaselines.get(creds) ?? []].filter(([, row]) => row.plain !== undefined)
@@ -188,6 +189,28 @@ export function rebaseLoadedShows(creds: SessionCredentials, shows: Show[]): voi
   for (const show of shows) {
     const row = baseline.get(show.id);
     if (row?.plain !== undefined) row.plain = JSON.stringify(show);
+  }
+}
+
+/**
+ * Count these versions of loaded shows as the rows they were loaded from,
+ * until they are edited.
+ *
+ * For what every launch does to a loaded show by itself: marking one whose
+ * night has passed completed. Sent with the next save as if it were an edit,
+ * each device that loaded the show after its night sent its own cipher of
+ * that same change over the same row, and whichever saved second was refused
+ * for the whole batch — its real edit with it — and saved nothing more until
+ * reloaded. Only what a save sends moves: the held copy still carries the row
+ * as loaded (see showBaselineHashes), so recovery is measured against what
+ * the server holds, and an edit to the show still sends it, completion and all.
+ */
+export function countAsLoaded(creds: SessionCredentials, shows: Show[]): void {
+  const baseline = showBaselines.get(creds);
+  if (!baseline) return;
+  for (const show of shows) {
+    const row = baseline.get(show.id);
+    if (row?.plain !== undefined) row.shown = JSON.stringify(show);
   }
 }
 
@@ -236,9 +259,17 @@ export function showSentHashes(creds: SessionCredentials): Record<string, string
   ]));
 }
 
-/** The same for settings: every version this tab has sent, or queued to send. */
-export function settingsSentHashes(creds: SessionCredentials): string[] {
-  return [...settingsSent.get(creds) ?? []];
+/**
+ * The same for settings: every version this tab has sent, or queued to send —
+ * and `held` itself, the copy these go out with, sealed with the very cipher
+ * its save sends. Every caller holds the copy first and then saves it, so the
+ * list taken for it never had that save in it: when the save landed and the
+ * page went before it heard back, the server held exactly the held copy, and
+ * the next launch parked it as edits saved over from somewhere else.
+ */
+export function settingsSentHashes(creds: SessionCredentials, held?: AppSettings): string[] {
+  const sent = [...settingsSent.get(creds) ?? []];
+  return held ? [...sent, sha(cipherFor(settingsCiphers, held, creds))] : sent;
 }
 
 /**
@@ -312,7 +343,7 @@ export async function saveEncryptedShows(
   for (const show of shows) {
     const plain = JSON.stringify(show);
     const previous = baseline.get(show.id);
-    if (previous?.plain === plain) { desired.set(show.id, previous); continue; }
+    if (previous?.plain === plain || previous?.shown === plain) { desired.set(show.id, previous); continue; }
     desired.set(show.id, { cipher: cipherFor(showCipherCache, show, creds), plain });
   }
   for (const row of unreadable) {
@@ -370,12 +401,13 @@ export async function saveEncryptedShows(
 
 /**
  * Export all user data as a downloadable JSON blob (unencrypted).
- * Returns a Blob URL the caller can use for a download link.
+ * Returns the file itself: how it reaches the user depends on where the app
+ * is running (see utils/download).
  */
 export async function exportUserData(
   creds: SessionCredentials,
   local?: LoadedShows & { settings: AppSettings; recoveryDrafts?: unknown[] },
-): Promise<string> {
+): Promise<Blob> {
   const data = local ?? await (async () => {
     const rows = await api.get<{ shows: EncryptedShowRow[] }>("/api/shows", auth(creds));
     return { ...decryptShowRows(rows.shows, creds), settings: await loadEncryptedSettings(creds, false) };
@@ -396,8 +428,7 @@ export async function exportUserData(
     null,
     2,
   );
-  const blob = new Blob([payload], { type: "application/json" });
-  return URL.createObjectURL(blob);
+  return new Blob([payload], { type: "application/json" });
 }
 
 /**

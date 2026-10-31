@@ -97,6 +97,28 @@ describe('keeping decoded tracks within what a phone tab can hold', () => {
     expect([1, 2, 3, 4].map((n) => audioEngine.isReady(track(n)))).toEqual([false, false, false, false]);
   });
 
+  it('makes room for the board by letting go of songs previewed before it opened', async () => {
+    // Five whole songs previewed in the show's DJ list before doors. Each
+    // press kept its decode, nothing let them go, and the board opening
+    // found the budget full and decoded none of its walk-ons up front.
+    for (let n = 11; n <= 15; n++) {
+      expect(await audioEngine.play(track(n))).toBe('started');
+      audioEngine.stopNow();
+    }
+    const board = [1, 2, 3, 4].map((n) => track(n));
+    audioEngine.retainOnly(board);
+    for (const src of board) await audioEngine.preload(src);
+    expect(board.map((src) => audioEngine.isReady(src))).toEqual([true, true, true, true]);
+    expect([11, 12, 13, 14, 15].some((n) => audioEngine.isReady(track(n)))).toBe(false);
+  });
+
+  it('keeps the tracks the board already has ready when it makes room', async () => {
+    // A running order edited mid-show runs the board's decode again.
+    for (let n = 1; n <= 2; n++) await audioEngine.preload(track(n));
+    audioEngine.retainOnly([track(1), track(2), track(3)]);
+    expect([1, 2].map((n) => audioEngine.isReady(track(n)))).toEqual([true, true]);
+  });
+
   it('starts a fresh budget after the engine is disposed', async () => {
     for (let n = 1; n <= 4; n++) await audioEngine.preload(track(n));
     audioEngine.dispose();

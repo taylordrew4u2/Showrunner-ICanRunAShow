@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { downscaleImage, FLYER_MAX_DIM } from '../utils/imageResize';
+import { deliverFile, deliveryProblem } from '../utils/download';
 import { dataUrlToFile, imageUploadSizeError } from '../utils/media';
+import { singleImageFileName } from '../utils/headshotExport';
 import { uploadMedia } from '../utils/mediaStore';
 import { useMediaUrl } from '../utils/useMediaUrl';
 import { useConfirm } from './useConfirm';
@@ -61,15 +63,9 @@ export function ShowFlyer({ showName, flyer, onChange }: {
         if (!response.ok) throw new Error('Download failed');
         blob = await response.blob();
       }
-      const href = URL.createObjectURL(blob);
-      const link = document.createElement('a');
       const extension = ({ 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' } as Record<string, string>)[blob.type] || 'jpg';
-      link.href = href;
-      link.download = `${showName.replace(/[^a-z0-9 _-]/gi, '').trim() || 'show'}-flyer.${extension}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(href), 60_000);
+      const problem = deliveryProblem(await deliverFile(blob, singleImageFileName(showName, 'flyer', extension)));
+      if (problem) setError(problem);
     } catch {
       setError('Could not download the flyer. Check your connection and try again.');
     }

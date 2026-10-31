@@ -32,3 +32,20 @@ describe('naming the fields on the expenses page for a screen reader', () => {
     for (const tag of named) expect(tag).toMatch(/aria-label=/);
   });
 });
+
+describe('naming the buttons on an expense row for a screen reader', () => {
+  // The delete button's only text was "×", read out as "times, button" on
+  // every row, with nothing to say that it deletes, or which expense.
+  it('says which expense each button edits or deletes', () => {
+    const settings = {
+      expenses: [{ id: 'e1', itemName: 'Mic rental', cost: 40, category: 'Equipment', date: '' }],
+    } as unknown as AppSettings;
+    const html = renderToStaticMarkup(
+      createElement(Expenses, { settings, onBack: () => undefined, onUpdateSettings: () => undefined }),
+    );
+    expect(html).toMatch(/<button[^>]*aria-label="Edit Mic rental"[^>]*>Edit<\/button>/);
+    expect(html).toMatch(
+      /<button[^>]*aria-label="Delete expense Mic rental"[^>]*><span aria-hidden="true">×<\/span><\/button>/,
+    );
+  });
+});

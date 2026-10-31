@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { cueInitial, fetchLiveView, isRevealedGuest, type LiveViewPayload } from '../utils/liveView';
 import { applyColorScheme } from '../utils/theme';
-import { audioEngine } from '../utils/audioEngine';
+import { audioEngine, type PlayResult } from '../utils/audioEngine';
 import { MEDIA_RETRY_DELAYS_MS } from '../utils/useMediaUrl';
 import { holdScreenAwake } from './RunShow';
 import { SURPRISE_GUEST_LABEL } from '../utils/surpriseGuests';
@@ -16,6 +16,17 @@ import {
 interface LiveViewerProps {
   token: string;
 }
+
+/**
+ * What this screen says when a walk-on the board cued would not play here.
+ * 'blocked' is not in it: that one gets the tap-to-enable button back.
+ */
+const VIEWER_AUDIO_ISSUE: Partial<Record<PlayResult, string>> = {
+  'decode-failed':
+    "This screen's browser can't play the walk-on the board just sent. Re-upload it as MP3 or M4A, or play it from the board.",
+  'media-unavailable': "This screen couldn't load the walk-on the board just sent. Play it from the board.",
+  'no-audio-support': 'This browser has no audio support. Open the link in another browser to play the walk-ons here.',
+};
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
@@ -151,10 +162,17 @@ export function createTrackLoader(
 
   return {
     sync(manifest) {
+      const before = new Set(wanted.map((t) => `${t.key}=${version(t)}`));
       wanted = manifest;
       for (const t of manifest) {
         const have = ready.get(t.key);
         if (have && have.version !== version(t)) ready.delete(t.key);
+        // A track new to the manifest gets a fresh run of attempts. Turning
+        // the sharing off and on again — what the board tells the operator
+        // to do when tracks didn't go — sends the same tracks under the same
+        // ids, and every one this screen gave up on while the files were gone
+        // was otherwise never asked for again until its pad was pressed.
+        if (!before.has(`${t.key}=${version(t)}`)) failed.delete(t.key);
       }
       pump();
     },
@@ -192,6 +210,9 @@ export function LiveViewer({ token }: LiveViewerProps) {
   // set up the room) taps once to arm this screen.
   const [soundOn, setSoundOn] = useState(false);
   const playingRef = useRef<string | null>(null);
+  // A cue that reached this screen and would not play. Said on the screen,
+  // because nothing else does: the board is muted when this is the PA's.
+  const [audioIssue, setAudioIssue] = useState<PlayResult | null>(null);
   const lastFadeOutMs = useRef(0);
   const loader = useRef<TrackLoader | null>(null);
 
@@ -269,7 +290,9 @@ export function LiveViewer({ token }: LiveViewerProps) {
   // contents stops it re-syncing the downloads twice a second.
   const manifestKey = manifest?.map((t) => `${t.mediaId}:${t.total}`).join(',') ?? '';
   useEffect(() => {
-    if (manifest?.length) loader.current?.sync(manifest);
+    // No tracks is a manifest too: the board has turned the sharing off and
+    // deleted the files, and fetching them only runs down their retries.
+    loader.current?.sync(manifest ?? []);
     // manifestKey stands in for manifest — see above. soundOn, viewerKey and
     // token are here so the sync runs again once the effect above has made a
     // loader for a manifest that arrived before the screen was armed.
@@ -297,19 +320,29 @@ export function LiveViewer({ token }: LiveViewerProps) {
       tracks.want(next.key);
     } else if (next.action === 'stop') {
       playingRef.current = null;
+      setAudioIssue(null);
       audioEngine.stop({ fadeMs: lastFadeOutMs.current });
     } else if (next.action === 'play' && playback) {
-      playingRef.current = next.key;
+      const key = next.key;
+      playingRef.current = key;
+      setAudioIssue(null);
       // The producer's trim, as the loader last synced it: a walk-on cut to
       // its drop used to play whole through the PA while the operator's own
       // device played the slice.
       audioEngine
-        .play(tracks.urlOf(next.key)!, {
+        .play(tracks.urlOf(key)!, {
           fadeInMs: playback.fadeInMs,
           fadeOutMs: playback.fadeOutMs,
-          ...trimSlice(tracks.trackOf(next.key) ?? {}),
+          ...trimSlice(tracks.trackOf(key) ?? {}),
         })
-        .catch(() => {});
+        .then((result) => {
+          // The cue stays handled either way, so a file this browser cannot
+          // decode is not decoded again on every poll. What changes is that
+          // the screen says so: it used to go on reading "Sound on" while the
+          // room heard nothing, and the board, muted, looked as if it played.
+          if (result === 'started' || result === 'superseded' || playingRef.current !== key) return;
+          setAudioIssue(result);
+        }, () => {});
     }
   }, [soundOn, viewerKey, payload?.playback]);
 
@@ -327,6 +360,17 @@ export function LiveViewer({ token }: LiveViewerProps) {
   function armSound() {
     audioEngine.init();
     setSoundOn(true);
+  }
+
+  /**
+   * The browser held a cue's sound back after the screen was armed. A tap
+   * is the gesture it wants, and forgetting the cue was handled has the next
+   * poll play it, if the board still wants it.
+   */
+  function rearmSound() {
+    audioEngine.init();
+    playingRef.current = null;
+    setAudioIssue(null);
   }
 
   // Match the producer's color scheme on the public viewer (don't persist it to
@@ -458,7 +502,17 @@ export function LiveViewer({ token }: LiveViewerProps) {
           Tap to enable sound on this screen
         </button>
       )}
-      {hasAudio && soundOn && (
+      {hasAudio && soundOn && audioIssue === 'blocked' && (
+        <button className="live-viewer__sound" onClick={rearmSound}>
+          Tap to enable sound on this screen
+        </button>
+      )}
+      {hasAudio && soundOn && audioIssue && audioIssue !== 'blocked' && (
+        <div className="live-viewer__sound live-viewer__sound--on" role="status">
+          {VIEWER_AUDIO_ISSUE[audioIssue] ?? "This screen couldn't play the walk-on the board just sent."}
+        </div>
+      )}
+      {hasAudio && soundOn && !audioIssue && (
         <div className="live-viewer__sound live-viewer__sound--on" aria-live="polite">
           Sound on — this screen plays the walk-ons
         </div>

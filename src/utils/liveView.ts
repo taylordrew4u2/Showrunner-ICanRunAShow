@@ -32,6 +32,13 @@ export interface LiveViewPayload {
   remainingAtLastUpdate?: number; // seconds left when this payload was written
   lastUpdateMs: number; // host wall-clock time of the write
   /**
+   * Which Run Show wrote this: a fresh id each time a board opens, on any
+   * device. Lets a device tell its own board's state from another's without
+   * comparing two devices' clocks — see boardHoldsRoom. The show page's
+   * pre-show state carries none.
+   */
+  board?: string;
+  /**
    * Tracks the board has published for the viewer to play — just ids and chunk
    * counts, so the manifest stays inside the payload's size cap however big
    * the audio is. The audio itself is in /api/live-media, and the key to read
@@ -85,9 +92,18 @@ export function restampPayload(payload: LiveViewPayload, at: number): LiveViewPa
 export const LIVE_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000];
 
 export interface LivePublisher {
-  /** Send this state now, and again until it lands or a newer one replaces it. */
-  publish(payload: LiveViewPayload, creds: SessionCredentials): void;
-  /** The latest state this device has published to the link, as first stamped. */
+  /**
+   * Send this state now, and again until it lands or a newer one replaces it.
+   * `stillOurs`, when given, is asked before every try, and a no drops the
+   * state for good — for a board's closing state, which must not land on a
+   * room another device has taken over since. Not knowing is not a no.
+   */
+  publish(payload: LiveViewPayload, creds: SessionCredentials, stillOurs?: () => Promise<boolean>): void;
+  /**
+   * The latest state this device has published to the link, as first
+   * stamped — including one `stillOurs` is still being asked about, or held
+   * back.
+   */
   last(): LiveViewPayload | null;
   /**
    * Hear the server's answer to the latest state: its refusal, or null once
@@ -135,16 +151,22 @@ export function createLivePublisher(
     for (const listener of listeners) listener(answer);
   }
 
-  function attempt(id: number, payload: LiveViewPayload, creds: SessionCredentials, tries: number) {
+  function attempt(
+    id: number,
+    payload: LiveViewPayload,
+    creds: SessionCredentials,
+    tries: number,
+    stillOurs?: () => Promise<boolean>,
+  ) {
     const retry = () => {
       if (id !== latest) return;
       const delay = delays[Math.min(tries, delays.length - 1)];
       timer = setTimeout(() => {
         timer = undefined;
-        if (id === latest) attempt(id, restampPayload(payload, Date.now()), creds, tries + 1);
+        if (id === latest) attempt(id, restampPayload(payload, Date.now()), creds, tries + 1, stillOurs);
       }, delay);
     };
-    send(token, payload, creds).then(
+    const go = () => send(token, payload, creds).then(
       (res) => {
         if (res.stale) retry();
         else answered(id, null);
@@ -155,17 +177,27 @@ export function createLivePublisher(
         else answered(id, err as ApiError);
       },
     );
+    if (!stillOurs) {
+      void go();
+      return;
+    }
+    // Asked on every try, not only the first: a resend is exactly what used
+    // to land late, over a board that had taken the room in the meantime.
+    stillOurs().then(
+      (ours) => { if (ours && id === latest) void go(); },
+      () => { if (id === latest) void go(); },
+    );
   }
 
   return {
-    publish(payload, creds) {
+    publish(payload, creds, stillOurs) {
       latest++;
       lastPayload = payload;
       if (timer !== undefined) {
         clearTimeout(timer);
         timer = undefined;
       }
-      attempt(latest, payload, creds, 0);
+      attempt(latest, payload, creds, 0, stillOurs);
     },
     last: () => lastPayload,
     subscribe(listener) {
@@ -203,9 +235,14 @@ export const BOARD_HOLD_MS = 6 * 60 * 60 * 1000;
  * sees the change only after it syncs. A co-host opening the show on a tablet
  * mid-set flipped the room from the act on stage back to "starting soon".
  *
- * `ownLast` is what this device last published. A live state older than that
- * is this device's own board, closed a moment ago, whose closing publish has
- * not landed yet — it holds nothing.
+ * `ownLast` is what this device last published. A live state from the board
+ * that published it is this device's own board, closed a moment ago, whose
+ * closing publish has not landed yet — it holds nothing. Told by the board
+ * that wrote it rather than by the clock: a device whose clock was more than
+ * a minute behind wrote states that read as older than this device's own,
+ * and the show page put the pre-show screen back up over the show it was
+ * running. A state that names no board, from before boards named
+ * themselves, still goes by the clock.
  */
 export function boardHoldsRoom(
   current: LiveViewPayload | null,
@@ -213,7 +250,12 @@ export function boardHoldsRoom(
   ownLast: LiveViewPayload | null,
 ): boolean {
   if (!current || current.status === 'scheduled' || current.status === 'ended') return false;
-  if (ownLast && current.lastUpdateMs <= ownLast.lastUpdateMs) return false;
+  if (ownLast) {
+    const own = current.board !== undefined
+      ? current.board === ownLast.board
+      : current.lastUpdateMs <= ownLast.lastUpdateMs;
+    if (own) return false;
+  }
   return now - current.lastUpdateMs < BOARD_HOLD_MS;
 }
 

@@ -3055,6 +3055,13 @@ body:has([aria-modal='true']) .status-rail {
   display: none;
 }
 
+/* The same where :has() doesn't work (iOS before 15.4, Firefox before 121):
+   utils/modalOpen puts the class on <body>. A rule of its own, because an
+   engine that can't read :has() drops a selector list with it in whole. */
+body.has-modal .status-rail {
+  display: none;
+}
+
 .system-notice {
   display: flex;
   align-items: flex-start;

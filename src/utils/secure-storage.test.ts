@@ -7,6 +7,7 @@ import {
   saveEncryptedSettings,
   loadEncryptedShows,
   rebaseLoadedShows,
+  countAsLoaded,
   saveEncryptedShows,
   settingsBaselineHash,
   settingsSentHashes,
@@ -14,9 +15,10 @@ import {
   showSentHashes,
   type EncryptedShowRow,
 } from './secure-storage';
-import { encryptWithKey } from './encryption';
+import { decryptWithKey, encryptWithKey } from './encryption';
 import { recoverShowDraft } from './recoverShowDraft';
 import { stripLegacyShowMedia } from './stripMedia';
+import { completePastShows } from './showsOverview';
 import { DEFAULT_SETTINGS, type Show } from '../types';
 import type { SessionCredentials } from './session-vault';
 
@@ -235,6 +237,80 @@ describe('saveEncryptedShows', () => {
   });
 });
 
+describe('a show the launch marked completed', () => {
+  type Change = { id: string; expectedHash: string | null; encryptedData: string | null };
+
+  /** One account's show rows, written under the same hash check the server makes. */
+  function showServer(shows: Show[]) {
+    const rows = new Map(shows.map((s) => [s.id, encryptWithKey(s, CREDS.key)]));
+    const puts: Change[][] = [];
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_path: string, init: RequestInit) => {
+      if (init.method === 'GET') {
+        const all = [...rows].map(([id, encryptedData]) => ({ id, encryptedData }));
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ shows: all }) });
+      }
+      const { changes } = JSON.parse(init.body as string) as { changes: Change[] };
+      puts.push(changes);
+      for (const change of changes) {
+        const current = rows.get(change.id) ?? null;
+        if (current === change.encryptedData) continue;
+        if ((current === null ? null : CryptoJS.SHA256(current).toString()) !== change.expectedHash) {
+          return Promise.resolve({ ok: false, status: 409, json: async () => ({ error: 'save_conflict' }) });
+        }
+      }
+      for (const change of changes) {
+        if (change.encryptedData === null) rows.delete(change.id);
+        else rows.set(change.id, change.encryptedData);
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    }));
+    return { puts, shows: () => [...rows.values()].map((cipher) => decryptWithKey<Show>(cipher, CREDS.key)) };
+  }
+
+  /** What a launch does with the rows it loads, as far as the saver can tell. */
+  async function launch(creds: SessionCredentials): Promise<Show[]> {
+    const loaded = await loadEncryptedShows(creds);
+    rebaseLoadedShows(creds, loaded.shows);
+    const completed = completePastShows(loaded.shows);
+    countAsLoaded(creds, completed);
+    return completed;
+  }
+
+  it('is not sent with an unrelated edit, so a second device that loaded it still saves', async () => {
+    // Friday was never run through Run Show, so the account still has it as
+    // upcoming. The laptop and then the phone open the app on Saturday, and
+    // each marks it completed. The phone saves Friday's recap; the laptop then
+    // renames next week's show. The laptop sent its own cipher of Friday's
+    // completion with that rename, over the row it had loaded, and was refused
+    // for the whole batch, the rename with it, until it reloaded.
+    const server = showServer([
+      show({ id: 'fri', name: 'Friday', date: '2020-05-01' }),
+      show({ id: 'next', name: 'Next week', date: '2099-05-08' }),
+    ]);
+    const laptop = { ...CREDS };
+    const phone = { ...CREDS };
+    const onLaptop = await launch(laptop);
+    const onPhone = await launch(phone);
+    expect(onLaptop.map((s) => s.status)).toEqual(['completed', 'upcoming']);
+
+    await saveEncryptedShows(onPhone.map((s) => (s.id === 'fri' ? { ...s, name: 'Friday, recap done' } : s)), phone);
+    await saveEncryptedShows(onLaptop.map((s) => (s.id === 'next' ? { ...s, name: 'Next week, renamed' } : s)), laptop);
+
+    expect(server.shows().map((s) => s.name)).toEqual(['Friday, recap done', 'Next week, renamed']);
+  });
+
+  it('is still sent, completion and all, once the show itself is edited', async () => {
+    const server = showServer([show({ id: 'fri', name: 'Friday', date: '2020-05-01' })]);
+    const creds = { ...CREDS };
+    const shows = await launch(creds);
+
+    await saveEncryptedShows(shows, creds);
+    expect(server.puts).toEqual([]);
+    await saveEncryptedShows([{ ...shows[0], name: 'Friday, recap done' }], creds);
+    expect(server.shows()).toEqual([expect.objectContaining({ name: 'Friday, recap done', status: 'completed' })]);
+  });
+});
+
 describe('exportUserData', () => {
   /** Both GET routes the export hits, with the show rows it should carry. */
   function mockExport(rows: EncryptedShowRow[]) {
@@ -255,7 +331,6 @@ describe('exportUserData', () => {
         written.push(parts.join(''));
       }
     });
-    vi.stubGlobal('URL', { createObjectURL: () => 'blob:x' });
     return written;
   }
 
@@ -405,6 +480,28 @@ describe('a copy held while this tab’s own save was still on its way', () => {
 
     const relaunch = { ...CREDS };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ encryptedData: sent[1].encryptedData }) }));
+    await loadEncryptedSettings(relaunch);
+    expect(heldOverCurrentSettings(held, relaunch)).toBe(true);
+  });
+
+  it('recovers settings held just before their own save, once the server has them', async () => {
+    // The copy is written, then the save that sends it starts: the PUT lands
+    // and the page is gone before it hears back. The server holds exactly the
+    // held copy, which was then parked as edits "saved from somewhere else
+    // first", with a notice saying so.
+    const creds = { ...CREDS };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ encryptedData: null }) }));
+    await loadEncryptedSettings(creds);
+    const edited = { ...DEFAULT_SETTINGS, brandName: 'Held, then sent' };
+    const held = { settingsHash: settingsBaselineHash(creds), settingsSent: settingsSentHashes(creds, edited) };
+    const { releases, sent } = heldPuts();
+    const saving = saveEncryptedSettings(edited, creds);
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    releases[0]();
+    await saving;
+
+    const relaunch = { ...CREDS };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ encryptedData: sent[0].encryptedData }) }));
     await loadEncryptedSettings(relaunch);
     expect(heldOverCurrentSettings(held, relaunch)).toBe(true);
   });

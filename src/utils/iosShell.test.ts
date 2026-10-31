@@ -39,3 +39,77 @@ describe('the iOS shell offline', () => {
     expect(page.match(/https?:\/\/[^'"\s)]+/g)).toEqual([`${serverUrl}/`]);
   });
 });
+
+describe('the offline page', () => {
+  const page = readFileSync(new URL(`public/${errorPath}`, root), 'utf8');
+  const script = page.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? '';
+
+  /** The page's own script, run as it is on load. */
+  function open({ onLine, now, session = new Map<string, string>(), storageWorks = true }: {
+    onLine: boolean;
+    now: number;
+    session?: Map<string, string>;
+    storageWorks?: boolean;
+  }) {
+    const note = { textContent: '' };
+    const listeners: Record<string, () => void> = {};
+    const loads: string[] = [];
+    const refuse = () => { throw new DOMException('blocked', 'SecurityError'); };
+    const storage = storageWorks
+      ? {
+          getItem: (key: string) => session.get(key) ?? null,
+          setItem: (key: string, value: string) => void session.set(key, value),
+          removeItem: (key: string) => void session.delete(key),
+        }
+      : { getItem: refuse, setItem: refuse, removeItem: refuse };
+    const doc = {
+      getElementById: (id: string) => id === 'note'
+        ? note
+        : { addEventListener: (_type: string, fn: () => void) => { listeners.tap = fn; } },
+    };
+    const win = { addEventListener: (type: string, fn: () => void) => { listeners[type] = fn; } };
+    new Function('window', 'document', 'navigator', 'location', 'sessionStorage', 'Date', script)(
+      win, doc, { onLine }, { replace: (url: string) => loads.push(url) }, storage, { now: () => now },
+    );
+    return { note, loads, session, tap: () => listeners.tap(), online: () => listeners.online() };
+  }
+
+  it('tries the app on Retry even with no signal, since it may be saved on this device', () => {
+    // Capacitor shows this page after any failed load, a cancelled one
+    // included, and the service worker can open the app offline.
+    const shown = open({ onLine: false, now: 1_000 });
+    shown.tap();
+    expect(shown.loads).toEqual([`${serverUrl}/`]);
+    expect(shown.note.textContent).toBe('Trying again…');
+  });
+
+  it('says there is still no connection when a retry comes straight back here', () => {
+    const first = open({ onLine: false, now: 1_000 });
+    first.tap();
+    const again = open({ onLine: false, now: 4_000, session: first.session });
+    expect(again.note.textContent).toBe('Still no connection.');
+    // Never retries by itself on load, so a failing load cannot loop.
+    expect(again.loads).toEqual([]);
+  });
+
+  it('says nothing about an earlier retry the next time the page appears', () => {
+    const first = open({ onLine: true, now: 1_000 });
+    first.tap();
+    const later = open({ onLine: true, now: 1_000 + 60 * 60 * 1000, session: first.session });
+    expect(later.note.textContent).toBe('');
+    expect(open({ onLine: true, now: 1_000 }).note.textContent).toBe('');
+  });
+
+  it('still retries by itself when the connection comes back', () => {
+    const shown = open({ onLine: true, now: 1_000 });
+    shown.online();
+    expect(shown.loads).toEqual([`${serverUrl}/`]);
+  });
+
+  it('retries where the page cannot keep anything', () => {
+    const shown = open({ onLine: false, now: 1_000, storageWorks: false });
+    expect(shown.note.textContent).toBe('');
+    shown.tap();
+    expect(shown.loads).toEqual([`${serverUrl}/`]);
+  });
+});

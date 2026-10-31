@@ -24,6 +24,11 @@ let stripeCalls: { url: string; body: string }[];
 // What Stripe itself currently holds, by subscription id. Events carry a
 // snapshot; this is the live object behind it.
 let stripeSubs: Record<string, Record<string, unknown>>;
+// Checkout pages made and not yet paid, closed or expired, by customer.
+let openCheckouts: { id: string; customer: string }[];
+// Customers Stripe no longer has: removed in the dashboard, or made in the
+// other mode. It refuses anything that names one.
+let goneCustomers: string[];
 
 function signed(payload: string, at = Math.floor(Date.now() / 1000), secret = SECRET): string {
   const sig = createHmac('sha256', secret).update(`${at}.${payload}`).digest('hex');
@@ -79,9 +84,29 @@ beforeEach(async () => {
       items: { data: [{ current_period_end: 1_800_000_000 }] },
     },
   };
+  openCheckouts = [];
+  goneCustomers = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     stripeCalls.push({ url, body: String(init?.body ?? '') });
-    if (url.includes('/checkout/sessions')) return Response.json({ url: 'https://checkout.stripe.com/c/pay/test' });
+    const named = new URLSearchParams(String(init?.body ?? '')).get('customer') ?? new URL(url).searchParams.get('customer');
+    if (named && goneCustomers.includes(named)) {
+      return Response.json(
+        { error: { code: 'resource_missing', param: 'customer', message: `No such customer: '${named}'; a similar object exists in test mode` } },
+        { status: 400 },
+      );
+    }
+    if (url.endsWith('/checkout/sessions')) {
+      const customer = new URLSearchParams(String(init?.body ?? '')).get('customer') ?? '';
+      openCheckouts.push({ id: `cs_${stripeCalls.filter((c) => c.url.endsWith('/checkout/sessions')).length}`, customer });
+      return Response.json({ url: 'https://checkout.stripe.com/c/pay/test' });
+    }
+    const open = /\/checkout\/sessions\?customer=([^&]+)&status=open/.exec(url);
+    if (open) return Response.json({ data: openCheckouts.filter((c) => c.customer === decodeURIComponent(open[1])) });
+    const expire = /\/checkout\/sessions\/([^/?]+)\/expire$/.exec(url);
+    if (expire) {
+      openCheckouts = openCheckouts.filter((c) => c.id !== expire[1]);
+      return Response.json({ id: expire[1], status: 'expired' });
+    }
     if (url.includes('/billing_portal/sessions')) return Response.json({ url: 'https://billing.stripe.com/p/session/test' });
     if (url.endsWith('/customers')) return Response.json({ id: `cus_new_${stripeCalls.filter((c) => c.url.endsWith('/customers')).length}` });
     const list = /\/subscriptions\?customer=([^&]+)/.exec(url);
@@ -128,7 +153,7 @@ describe('a producer subscribing', () => {
   it('is sent to a Stripe-hosted checkout that knows which account is paying', async () => {
     const res = await post('checkout');
     expect(await res.json()).toEqual({ url: 'https://checkout.stripe.com/c/pay/test' });
-    const body = decodeURIComponent(stripeCalls.find((c) => c.url.includes('/checkout/sessions'))!.body);
+    const body = decodeURIComponent(stripeCalls.find((c) => c.url.endsWith('/checkout/sessions'))!.body);
     expect(body).toContain('mode=subscription');
     expect(body).toContain('line_items[0][price]=price_producer');
     expect(body).toContain('client_reference_id=producer');
@@ -224,7 +249,7 @@ describe('paying twice', () => {
     const customers = stripeCalls.filter((c) => c.url.endsWith('/customers'));
     expect(customers).toHaveLength(1);
     expect(decodeURIComponent(customers[0].body)).toContain('metadata[user_id]=producer');
-    const checkouts = stripeCalls.filter((c) => c.url.includes('/checkout/sessions')).map((c) => decodeURIComponent(c.body));
+    const checkouts = stripeCalls.filter((c) => c.url.endsWith('/checkout/sessions')).map((c) => decodeURIComponent(c.body));
     expect(checkouts).toHaveLength(2);
     for (const body of checkouts) expect(body).toContain('customer=cus_new_1');
   });
@@ -235,7 +260,27 @@ describe('paying twice', () => {
     const res = await post('checkout');
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: 'already_subscribed' });
-    expect(stripeCalls.filter((c) => c.url.includes('/checkout/sessions'))).toHaveLength(1);
+    expect(stripeCalls.filter((c) => c.url.endsWith('/checkout/sessions'))).toHaveLength(1);
+  });
+
+  it('closes a checkout left open before opening another, so only the newest can be paid', async () => {
+    // Upgrade on the laptop, left on Stripe's page; then Upgrade on the phone.
+    await post('checkout');
+    expect(openCheckouts).toEqual([{ id: 'cs_1', customer: 'cus_new_1' }]);
+    await post('checkout');
+    expect(openCheckouts).toEqual([{ id: 'cs_2', customer: 'cus_new_1' }]);
+  });
+
+  it('looks for a subscription only once nothing else can start one', async () => {
+    // A checkout paid for between the look and the close would otherwise
+    // go on to be followed by a second.
+    await post('checkout');
+    await post('checkout');
+    const second = stripeCalls.slice(stripeCalls.findIndex((c) => c.url.endsWith('/checkout/sessions')) + 1);
+    const expired = second.findIndex((c) => c.url.endsWith('/checkout/sessions/cs_1/expire'));
+    const looked = second.findIndex((c) => c.url.includes('/subscriptions?customer='));
+    expect(expired).toBeGreaterThan(-1);
+    expect(expired).toBeLessThan(looked);
   });
 
   it('does not offer Manage billing for a checkout that was never finished', async () => {
@@ -248,6 +293,135 @@ describe('paying twice', () => {
     stripeSubs.sub_2 = { id: 'sub_2', customer: 'cus_1', status: 'canceled', metadata: { user_id: 'producer' } };
     await sendEvent({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_2', customer: 'cus_1', status: 'canceled', metadata: { user_id: 'producer' } } } });
     expect(await plan()).toMatchObject({ plan: 'producer', status: 'active' });
+  });
+
+  // The portal's cancel keeps a subscription active to the end of its period
+  // and marks it to stop there, so news of it is news of a paid subscription.
+  const secondSubscription = () => {
+    stripeSubs.sub_2 = {
+      id: 'sub_2', customer: 'cus_1', status: 'active', metadata: { user_id: 'producer' }, created: 1_791_797_500,
+      items: { data: [{ current_period_end: 1_800_000_100 }] },
+    };
+  };
+  const updated = (id: string) =>
+    sendEvent({ type: 'customer.subscription.updated', data: { object: { id, customer: 'cus_1', status: 'active', metadata: { user_id: 'producer' } } } });
+  const deleted = (id: string) =>
+    sendEvent({ type: 'customer.subscription.deleted', data: { object: { id, customer: 'cus_1', status: 'canceled', metadata: { user_id: 'producer' } } } });
+
+  it('keeps the plan when the other subscription is cancelled at the end of its period', async () => {
+    await sendEvent({ type: 'checkout.session.completed', data: { object: { client_reference_id: 'producer', subscription: 'sub_1' } } });
+    secondSubscription();
+    stripeSubs.sub_2.cancel_at_period_end = true;
+    await updated('sub_2');
+    // Still the one that renews, not the one on its way out.
+    expect(await plan()).toMatchObject({ plan: 'producer', renewsAt: '2027-01-15T08:00:00.000Z', endsAt: null });
+
+    stripeSubs.sub_2.status = 'canceled';
+    await deleted('sub_2');
+    expect(await plan()).toMatchObject({ plan: 'producer', status: 'active' });
+  });
+
+  it('follows the subscription still being paid for when the one it tracks is cancelled', async () => {
+    await sendEvent({ type: 'checkout.session.completed', data: { object: { client_reference_id: 'producer', subscription: 'sub_1' } } });
+    secondSubscription();
+    // The second one's news came last, so it is the one the row names.
+    await updated('sub_2');
+    stripeSubs.sub_2.cancel_at_period_end = true;
+    await updated('sub_2');
+    expect(await plan()).toMatchObject({ plan: 'producer', renewsAt: '2027-01-15T08:00:00.000Z', endsAt: null });
+
+    stripeSubs.sub_2.status = 'canceled';
+    await deleted('sub_2');
+    expect(await plan()).toMatchObject({ plan: 'producer', status: 'active' });
+  });
+
+  it('still says when the plan ends once every subscription is cancelled', async () => {
+    await sendEvent({ type: 'checkout.session.completed', data: { object: { client_reference_id: 'producer', subscription: 'sub_1' } } });
+    secondSubscription();
+    stripeSubs.sub_1.cancel_at_period_end = true;
+    stripeSubs.sub_2.cancel_at_period_end = true;
+    await updated('sub_1');
+    // The later of the two, which is when paid features actually stop.
+    expect(await plan()).toMatchObject({ plan: 'producer', renewsAt: null, endsAt: new Date(1_800_000_100 * 1000).toISOString() });
+
+    stripeSubs.sub_1.status = 'canceled';
+    await deleted('sub_1');
+    expect(await plan()).toMatchObject({ plan: 'producer', status: 'active' });
+
+    stripeSubs.sub_2.status = 'canceled';
+    await deleted('sub_2');
+    expect(await plan()).toMatchObject({ plan: 'free', status: 'canceled' });
+  });
+});
+
+describe('a pinned customer Stripe no longer has', () => {
+  // Removed in the Stripe dashboard, or pinned while the server ran on test
+  // keys before they moved to live.
+  const pinned = (status: string | null, subscriptionId: string | null = null) =>
+    connection.db!.execute({
+      sql: `INSERT INTO subscription (user_id, customer_id, subscription_id, status) VALUES ('producer', 'cus_gone', ?, ?)`,
+      args: [subscriptionId, status],
+    });
+  const row = async () =>
+    Array.from((await connection.db!.execute(`SELECT customer_id, subscription_id, status FROM subscription WHERE user_id = 'producer'`)).rows[0]);
+
+  it('is replaced at the next Upgrade, rather than refusing every checkout for good', async () => {
+    goneCustomers.push('cus_gone');
+    await pinned(null);
+    const res = await post('checkout');
+    expect(await res.json()).toEqual({ url: 'https://checkout.stripe.com/c/pay/test' });
+    expect(await row()).toEqual(['cus_new_1', null, null]);
+    const created = stripeCalls.filter((c) => c.url.endsWith('/checkout/sessions')).map((c) => decodeURIComponent(c.body));
+    expect(created).toHaveLength(1);
+    expect(created[0]).toContain('customer=cus_new_1');
+  });
+
+  it('takes the subscription it ended with along with it', async () => {
+    // Deleting a customer cancels what was on it, and the webhook says so.
+    goneCustomers.push('cus_gone');
+    await pinned('canceled', 'sub_gone');
+    expect((await post('checkout')).status).toBe(200);
+    expect(await row()).toEqual(['cus_new_1', null, null]);
+  });
+
+  it('stops offering Manage billing once the portal finds it gone', async () => {
+    goneCustomers.push('cus_gone');
+    await pinned('canceled', 'sub_gone');
+    expect((await plan()).canManage).toBe(true);
+    const res = await post('portal');
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'no_customer' });
+    expect((await plan()).canManage).toBe(false);
+  });
+
+  it('is kept while the row says it is being paid for', async () => {
+    goneCustomers.push('cus_gone');
+    await pinned('active', 'sub_gone');
+    expect((await post('portal')).status).toBe(404);
+    expect(await row()).toEqual(['cus_gone', 'sub_gone', 'active']);
+  });
+
+  it('still ends the plan when the subscription on it ends with it', async () => {
+    // Removing a customer in the dashboard cancels what was on it, and
+    // Stripe will not list the subscriptions of a customer it no longer has.
+    await sendEvent({ type: 'checkout.session.completed', data: { object: { client_reference_id: 'producer', subscription: 'sub_1' } } });
+    goneCustomers.push('cus_1');
+    stripeSubs.sub_1.status = 'canceled';
+    const res = await sendEvent({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'canceled', metadata: { user_id: 'producer' } } } });
+    expect(res.status).toBe(200);
+    expect(await plan()).toMatchObject({ plan: 'free', status: 'canceled' });
+  });
+
+  it('is not taken for a price Stripe does not have', async () => {
+    // The same code, about something else: the customer is fine.
+    await pinned(null);
+    vi.stubEnv('STRIPE_PRICE_ID', 'price_missing');
+    const fetchBefore = fetch;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => (url.endsWith('/checkout/sessions')
+      ? Response.json({ error: { code: 'resource_missing', param: 'line_items[0][price]', message: "No such price: 'price_missing'" } }, { status: 400 })
+      : fetchBefore(url, init))));
+    expect((await post('checkout')).status).toBe(502);
+    expect(await row()).toEqual(['cus_gone', null, null]);
   });
 });
 

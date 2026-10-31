@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ApiError } from '../utils/api';
-import { PAID_FEATURES_LOCKED, PRODUCER_PRICE_LABEL, shouldRecheckPlan, type BillingState } from '../utils/billing';
+import {
+  checkoutFailureMessage,
+  PAID_FEATURES_LOCKED,
+  PRODUCER_PRICE_LABEL,
+  shouldRecheckPlan,
+  type BillingState,
+} from '../utils/billing';
 import { isNativeShell } from '../utils/nativeShell';
 import { onPageReturn } from '../utils/pageReturn';
 
@@ -93,12 +98,7 @@ export function PlanCard({ load, checkout, portal, returned }: BillingActions) {
       sentToStripeAt.current = Date.now();
       window.location.assign(url);
     } catch (err) {
-      // Stripe has a subscription this card hasn't heard about yet: a payment
-      // that went through moments ago. Calling that a connection problem sent
-      // the producer looking for another way to pay twice.
-      setError((err as ApiError).code === 'already_subscribed'
-        ? 'You already have a Producer subscription — Stripe is still confirming it. Check back in a minute.'
-        : 'Couldn’t reach the payment page. Check your connection and try again.');
+      setError(checkoutFailureMessage(err));
       setBusy(false);
     }
   }

@@ -46,6 +46,9 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
   // Already downscaled, as a data URL — the preview and what is sent are the
   // same bytes.
   const [headshot, setHeadshot] = useState<string | null>(null);
+  // The photo handed to sendProfile, for the receipt: the one they were
+  // looking at when they pressed Send is the one the producer gets.
+  const [sentHeadshot, setSentHeadshot] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -130,6 +133,7 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
     if (!name || missing.length > 0 || emailProblem || photoBusy) return;
     setPhase('sending');
     setError(null);
+    setSentHeadshot(headshot);
     // Photo first, then the answers; see sendProfile for why, and for why a
     // failure is checked against the link before it is reported.
     const result = await sendProfile(
@@ -210,8 +214,8 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
             </p>
             {/* Only a photo that went with the answers. One chosen after
                 pressing Send was never uploaded, and the link is sealed. */}
-            {headshot && submitted.photoChunks
-              ? <img className="signing__photo-preview" src={headshot} alt="Your headshot" />
+            {sentHeadshot && submitted.photoChunks
+              ? <img className="signing__photo-preview" src={sentHeadshot} alt="Your headshot" />
               : null}
             <dl className="signing__answers">
               <div className="signing__answer">
@@ -291,11 +295,15 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
                 ) : (
                   <span className="signing__photo-empty" aria-hidden="true"><Icon name="user" size={24} /></span>
                 )}
+                {/* Held still while the answers send: sendProfile already has
+                    the photo, and one swapped in now would show on the
+                    receipt without ever having reached the producer. */}
                 <div className="signing__photo-actions">
                   <label
                     role="button"
                     tabIndex={0}
                     className="btn btn--secondary btn--sm signing__photo-pick"
+                    aria-disabled={phase === 'sending' || undefined}
                     onKeyDown={openFilePickerOnKey}
                   >
                     {photoBusy ? 'Adding…' : headshot ? 'Choose a different one' : 'Add a photo'}
@@ -303,7 +311,7 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
                       type="file"
                       accept="image/*"
                       hidden
-                      disabled={photoBusy}
+                      disabled={photoBusy || phase === 'sending'}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         e.target.value = '';
@@ -312,7 +320,12 @@ export function ProfilePage({ token, profileKey }: ProfilePageProps) {
                     />
                   </label>
                   {headshot && (
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => setHeadshot(null)}>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      disabled={phase === 'sending'}
+                      onClick={() => setHeadshot(null)}
+                    >
                       Remove
                     </button>
                   )}

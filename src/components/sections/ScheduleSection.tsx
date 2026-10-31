@@ -7,7 +7,7 @@ import { isMediaRef, uploadMedia } from '../../utils/mediaStore';
 import { TrimControls } from '../TrimControls';
 import { Icon } from '../Icon';
 import { ShowTimeline } from '../ShowTimeline';
-import { withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
+import { withCueEdit, withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
 import { useConfirm } from '../useConfirm';
 import { clockGap, fillCueDurations, isUntimed, parseClockToMinutes } from '../../utils/showTiming';
 import { cueAudioPatch, runtimeLabel } from '../../utils/scheduleEditing';
@@ -513,17 +513,12 @@ export function ScheduleSection({
   useEffect(() => { knownNamesRef.current = knownNames; }, [knownNames]);
 
   const handlePatch = useCallback((id: string, patch: Partial<ScheduleItem>) => {
-    onChangeRef.current(scheduleRef.current.map((s) => {
-      if (s.id !== id) return s;
-      const next = { ...s, ...patch };
-      // Rewriting a cue's text can name someone, but only fill a blank — if the
-      // performer field is set, the person editing has already answered this.
-      if (patch.description !== undefined && !next.performer?.trim()) {
-        const named = matchKnownName(next.description, knownNamesRef.current);
-        if (named) next.performer = named;
-      }
-      return next;
-    }));
+    // Rewriting a cue's text can name someone, but only fill a blank — if the
+    // performer field is set, or was just cleared, the person editing has
+    // already answered this.
+    onChangeRef.current(scheduleRef.current.map((s) => (
+      s.id === id ? withCueEdit(s, patch, knownNamesRef.current) : s
+    )));
   }, []);
 
   const handleDelete = useCallback(async (id: string) => {
@@ -624,8 +619,11 @@ export function ScheduleSection({
 
   const undo = undoableReplace(schedule, replaced, showId);
 
+  // The import screen matched names before its review and showed the result,
+  // so what comes back is what the producer checked. Matching again here put
+  // back a name they had set to "On stage: nobody" in that review.
   function handleApplyImport(items: ScheduleItem[]) {
-    onChange([...schedule, ...withMatchedPerformers(items, knownNames)]);
+    onChange([...schedule, ...items]);
     setImportOpen(false);
     setMode('build');
   }

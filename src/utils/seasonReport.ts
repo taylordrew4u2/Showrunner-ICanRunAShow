@@ -62,17 +62,19 @@ function inRange(date: string | undefined, range: SeasonRange, year: number): bo
 }
 
 /**
- * Whether a night is over: finished, or started and its date gone by.
+ * Whether a night is over: finished, or not called off and its date gone by.
  *
  * Run Show marks a show in progress when it starts, and only "End show"
  * finishes it. Closed any other way it stays in progress for good —
  * completePastShows leaves that status alone, since a producer set it — while
- * its recap opens once the date has passed. Counting by status alone left
+ * its recap opens once the date has passed. An upcoming show is only marked
+ * completed when the account loads, so one added with a past date, or left
+ * open past midnight, stays upcoming until then. Counting by status alone left
  * those recaps out of every total and listed the night as still to come.
  */
 function hasRun(show: Show, today: Date): boolean {
   if (show.status === 'completed') return true;
-  if (show.status !== 'in-progress') return false;
+  if (show.status !== 'in-progress' && show.status !== 'upcoming') return false;
   const date = parseShowDate(show.date);
   return date !== null && daysUntil(date, today) < 0;
 }

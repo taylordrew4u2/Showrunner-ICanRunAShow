@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
 import type { Performer } from '../types';
 import { Icon } from './Icon';
+import { billedPerformers, surpriseGuests } from '../utils/surpriseGuests';
 import {
   asShareableFiles,
   canShareFiles,
   chooseDelivery,
   countHeadshots,
-  downloadFile,
   exportNote,
   gatherHeadshots,
   headshotButtonLabel,
@@ -15,6 +15,7 @@ import {
   zipFileName,
   type HeadshotFile,
 } from '../utils/headshotExport';
+import { deliverFile, deliveryProblem } from '../utils/download';
 import './HeadshotExport.css';
 
 type Note = NonNullable<ReturnType<typeof exportNote>>;
@@ -30,8 +31,18 @@ function photosKey(performers: Performer[]): string {
  * Not shown until somebody on the lineup has a photo: a button whose only
  * possible answer is "there is nothing to download" is clutter in a row of
  * tools that do something.
+ *
+ * The bill, not the whole lineup: these go to whoever makes the flyer and
+ * whoever posts the socials, and a surprise guest's face in that pack, filed
+ * under their name, is the spoiler the flag is there to prevent. With
+ * `includesGuests` it is everyone, guests too, and it is offered only when a
+ * guest has a photo to add.
  */
-export function HeadshotExport({ performers, showName }: { performers: Performer[]; showName?: string }) {
+export function HeadshotExport({ performers, showName, includesGuests = false }: {
+  performers: Performer[];
+  showName?: string;
+  includesGuests?: boolean;
+}) {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   // Photos fetched on an iPhone or iPad after the tap that asked for them had
   // gone stale. A share sheet only opens from a fresh tap, so they wait here
@@ -39,17 +50,20 @@ export function HeadshotExport({ performers, showName }: { performers: Performer
   const [ready, setReady] = useState<{ key: string; files: HeadshotFile[] } | null>(null);
   const [note, setNote] = useState<Note | null>(null);
   const running = useRef(false);
-  const count = countHeadshots(performers);
-  if (count === 0) return null;
+  const people = includesGuests ? performers : billedPerformers(performers);
+  const count = countHeadshots(people);
+  if (count === 0 || (includesGuests && countHeadshots(surpriseGuests(performers)) === 0)) return null;
   // Worked out only while a batch is waiting. An older show can still hold its
   // photos as data URLs, and the lineup tools redraw with every edit to the
   // show, so building it on each render would be megabytes of string per
   // keystroke for a comparison that is almost never needed.
-  const waiting = ready && ready.key === photosKey(performers) ? ready.files : null;
+  const waiting = ready && ready.key === photosKey(people) ? ready.files : null;
 
-  function saveZip(files: HeadshotFile[]) {
+  async function saveZip(files: HeadshotFile[]) {
     try {
-      downloadFile(headshotZip(files), zipFileName(showName));
+      // In the iOS app this is the share sheet too, so it can be refused.
+      const problem = deliveryProblem(await deliverFile(headshotZip(files), zipFileName(showName, { includesGuests })));
+      if (problem) setNote({ tone: 'alert', text: problem });
     } catch {
       setNote({ tone: 'alert', text: "Couldn't put the headshots into one file. Try again." });
     }
@@ -58,12 +72,12 @@ export function HeadshotExport({ performers, showName }: { performers: Performer
   async function start() {
     if (running.current) return;
     running.current = true;
-    const key = photosKey(performers);
+    const key = photosKey(people);
     setNote(null);
     setReady(null);
     setProgress({ done: 0, total: count });
     try {
-      const { files, missing } = await gatherHeadshots(performers, undefined, {
+      const { files, missing } = await gatherHeadshots(people, undefined, {
         onProgress: (done, total) => setProgress({ done, total }),
       });
       setNote(exportNote(files.length, missing));
@@ -83,7 +97,7 @@ export function HeadshotExport({ performers, showName }: { performers: Performer
         // Shared, or the sheet was closed on purpose: either way, done.
         if (outcome !== 'failed') return;
       }
-      saveZip(files);
+      await saveZip(files);
     } catch {
       setNote({ tone: 'alert', text: "Couldn't get the headshots. Check your connection and try again." });
     } finally {
@@ -96,7 +110,7 @@ export function HeadshotExport({ performers, showName }: { performers: Performer
     setReady(null);
     // Straight from this tap, before anything is awaited.
     const outcome = await shareHeadshots(asShareableFiles(files));
-    if (outcome === 'needs-tap' || outcome === 'failed') saveZip(files);
+    if (outcome === 'needs-tap' || outcome === 'failed') await saveZip(files);
   }
 
   return (
@@ -112,9 +126,11 @@ export function HeadshotExport({ performers, showName }: { performers: Performer
           onClick={() => void start()}
           disabled={!!progress}
           aria-busy={!!progress}
-          title="Every headshot on this show, each file named after the performer"
+          title={includesGuests
+            ? 'Every headshot on this show, surprise guests included, each file named after the performer'
+            : 'Every headshot on the bill, each file named after the performer'}
         >
-          <Icon name="download" size={16} /> {headshotButtonLabel(count, progress)}
+          <Icon name="download" size={16} /> {headshotButtonLabel(count, progress, { includesGuests })}
         </button>
       )}
       {/* The button counts through on screen, but it is disabled while it

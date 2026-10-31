@@ -100,6 +100,55 @@ describe('parseScheduleManually', () => {
     ]);
   });
 
+  it('reads a numbered sheet by its times, however close a row number sits to its time', () => {
+    // Row 6 at 8:50 is less than three hours from "6", so it passed the length
+    // check and became a cue from six o'clock running 170 minutes, counted down
+    // by Run Show. Rows 1 to 5 kept their number in the text.
+    const items = parseScheduleManually([
+      '1 - 7:30 PM Doors', '2 - 8:00 PM Welcome', '3 - 8:05 PM Devon', '4 - 8:20 PM June Ito',
+      '5 - 8:35 PM Marisol', '6 - 8:50 PM Intermission', '7 - 9:00 PM Ada Cole', '8 - 9:20 PM Bob Smith',
+      '9 - 9:40 PM Outro',
+    ].join('\n'));
+    expect(items.map((i) => [i.time, i.description, i.durationMin])).toEqual([
+      ['7:30 PM', 'Doors', undefined],
+      ['8:00 PM', 'Welcome', undefined],
+      ['8:05 PM', 'Devon', undefined],
+      ['8:20 PM', 'June Ito', undefined],
+      ['8:35 PM', 'Marisol', undefined],
+      ['8:50 PM', 'Intermission', undefined],
+      ['9:00 PM', 'Ada Cole', undefined],
+      ['9:20 PM', 'Bob Smith', undefined],
+      ['9:40 PM', 'Outro', undefined],
+    ]);
+  });
+
+  it('takes the number off a list numbered with a dot or a bracket', () => {
+    const items = parseScheduleManually('1. 7:30 PM Doors\n2) 8:00 PM Welcome\n3. 8:05 PM Devon');
+    expect(items.map((i) => [i.time, i.description])).toEqual([
+      ['7:30 PM', 'Doors'],
+      ['8:00 PM', 'Welcome'],
+      ['8:05 PM', 'Devon'],
+    ]);
+  });
+
+  it('still reads hourly ranges whose starts happen to count up', () => {
+    const items = parseScheduleManually('1 - 1:30 PM Lunch\n2 - 2:30 PM Panel\n3 - 4:30 PM Closing');
+    expect(items.map((i) => [i.time, i.description, i.durationMin])).toEqual([
+      ['1 pm', 'Lunch', 30],
+      ['2 pm', 'Panel', 30],
+      ['3 pm', 'Closing', 90],
+    ]);
+  });
+
+  it('does not read a day of the month close to its time as a range', () => {
+    const items = parseScheduleManually('Fri Nov 6 - 8:00 PM Show\nSept. 7 - 9:15 PM Late show\nDoors 7-7:30 PM');
+    expect(items.map((i) => [i.time, i.durationMin])).toEqual([
+      ['8:00 PM', undefined],
+      ['9:15 PM', undefined],
+      ['7 pm', 30],
+    ]);
+  });
+
   it('still reads a range that runs a whole evening', () => {
     expect(parseScheduleManually('Doors 7-10pm').map((i) => [i.time, i.durationMin])).toEqual([['7 pm', 180]]);
   });

@@ -174,8 +174,14 @@ export function Expenses({ settings, onBack, backLabel = 'Shows', onUpdateSettin
             </div>
             {editId !== e.id && (
               <div className="section-list-item__actions">
-                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(e)}>Edit</button>
-                <button className="btn btn--ghost btn--sm section-list-item__delete" onClick={() => deleteExpense(e.id)}>×</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => startEdit(e)} aria-label={`Edit ${e.itemName}`}>Edit</button>
+                <button
+                  className="btn btn--ghost btn--sm section-list-item__delete"
+                  onClick={() => deleteExpense(e.id)}
+                  aria-label={`Delete expense ${e.itemName}`}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
               </div>
             )}
           </li>

@@ -79,6 +79,20 @@ function asksForPhone(label: string): boolean {
 }
 
 /**
+ * A question asking leave, not for a detail: "OK to post your photo on social
+ * media?", "Can we tag you on socials?". It can mention socials, and the
+ * answer is "Yes". One that also asks for the handle itself — "Your IG
+ * handle, so we can tag you" — is still asking for the handle.
+ */
+export function asksPermission(label: string): boolean {
+  return /\b(ok|okay|consent|permission|allow|agree|may we|can we|could we|happy for|mind if|do you mind)\b/i.test(label)
+    && !/handle|user ?name|@/i.test(label);
+}
+
+/** An answer to a yes-or-no question, which is never somebody's handle. */
+const YES_OR_NO = /^(yes|no|y|n|ok|okay|sure|yep|yeah|nope|of course)[.!]*$/i;
+
+/**
  * Read a contract's answers as profile fields.
  *
  * Matched on the label rather than a field id, because the questions are the
@@ -116,7 +130,9 @@ export function profileFromAnswers(
       continue;
     }
     if (!out.socialMedia && /social|instagram|\big\b|handle|tiktok|twitter|find you/.test(label)) {
-      out.socialMedia = toHandle(value) ?? value;
+      // A yes to posting their photo was filed as the handle "@Yes" and
+      // tagged in the post. Left for a later answer that is a handle.
+      if (!asksPermission(label) && !YES_OR_NO.test(value)) out.socialMedia = toHandle(value) ?? value;
       continue;
     }
     // Words only. The audio itself still has to be found and uploaded by the

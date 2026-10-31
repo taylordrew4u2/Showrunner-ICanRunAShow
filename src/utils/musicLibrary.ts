@@ -73,6 +73,27 @@ export function showDJSongs(show: Show, library: MusicTrack[]): DJSong[] {
   return [...own, ...auto];
 }
 
+/**
+ * The key each row of a show's DJ list renders under, in the list's order.
+ *
+ * A library row trimmed or edited in a show is copied into it under a new id
+ * — see the DJ section's materialize — and keyed by id that copy was a new
+ * row. The old one unmounted mid-edit: "Starts at" commits on Tab, and the
+ * "Ends at" box being tabbed into went with it, along with whatever was typed
+ * next. Keyed by the library track, the copy is the same row. Only while one
+ * row claims the track, though: a show that added it twice by hand, or copies
+ * made on two devices, fall back to their own ids rather than share a key.
+ */
+export function djRowKeys(songs: DJSong[]): string[] {
+  const claims = new Map<string, number>();
+  for (const song of songs) {
+    if (song.libraryId) claims.set(song.libraryId, (claims.get(song.libraryId) ?? 0) + 1);
+  }
+  return songs.map((song) =>
+    song.libraryId && claims.get(song.libraryId) === 1 ? `library:${song.libraryId}` : song.id,
+  );
+}
+
 /** True for a row that comes from the library rather than this show. */
 export function isAutoLibrarySong(song: DJSong): boolean {
   return song.id.startsWith('library:');

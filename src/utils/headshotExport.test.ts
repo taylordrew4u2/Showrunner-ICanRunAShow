@@ -10,7 +10,6 @@ import { resolveMediaUrl } from './mediaStore';
 import {
   chooseDelivery,
   countHeadshots,
-  downloadFile,
   exportNote,
   gatherHeadshots,
   headshotButtonLabel,
@@ -19,6 +18,7 @@ import {
   loadHeadshot,
   nameHeadshotFiles,
   sanitizeFileName,
+  singleImageFileName,
   shareFailure,
   shareHeadshots,
   zipFileName,
@@ -68,6 +68,26 @@ describe('a name as a file name', () => {
   it('can be left with nothing', () => {
     expect(sanitizeFileName('???')).toBe('');
     expect(sanitizeFileName('   ')).toBe('');
+  });
+});
+
+describe('one picture saved on its own', () => {
+  it('keeps accented and non-Latin letters, the way the zip does', () => {
+    expect(singleImageFileName('José', 'headshot', 'jpg')).toBe('José-headshot.jpg');
+    expect(singleImageFileName('Zoë', 'headshot', 'png')).toBe('Zoë-headshot.png');
+    expect(singleImageFileName('李小龙', 'headshot', 'jpg')).toBe('李小龙-headshot.jpg');
+    expect(singleImageFileName('Café Comedy', 'flyer', 'jpg')).toBe('Café Comedy-flyer.jpg');
+    expect(singleImageFileName('お笑いナイト', 'flyer', 'webp')).toBe('お笑いナイト-flyer.webp');
+  });
+
+  it('takes out only what a file system refuses', () => {
+    expect(singleImageFileName('Mona Sable', 'headshot', 'jpg')).toBe('Mona Sable-headshot.jpg');
+    expect(singleImageFileName('Laughs @ 8/9', 'flyer', 'png')).toBe('Laughs @ 8-9-flyer.png');
+  });
+
+  it('falls back to what it is when nothing of the name is left', () => {
+    expect(singleImageFileName('', 'headshot', 'jpg')).toBe('comic-headshot.jpg');
+    expect(singleImageFileName('???', 'flyer', 'jpg')).toBe('show-flyer.jpg');
   });
 });
 
@@ -128,11 +148,43 @@ describe('naming a run of headshots', () => {
     ).toEqual(['Performer 1.jpg', 'Performer 4.jpg', 'Performer 1 (2).jpg']);
   });
 
+  it('renames an act whose name Windows keeps for a device, so the zip extracts there', () => {
+    expect(
+      nameHeadshotFiles(['Con', 'Aux', 'nul', 'PRN', 'COM1', 'Lpt3', 'COM¹', 'Aux.Cord', 'con'].map((name, i) => (
+        { name, position: i + 1, type: 'image/jpeg' }
+      ))),
+    ).toEqual([
+      'Con (performer).jpg',
+      'Aux (performer).jpg',
+      'nul (performer).jpg',
+      'PRN (performer).jpg',
+      'COM1 (performer).jpg',
+      'Lpt3 (performer).jpg',
+      'COM¹ (performer).jpg',
+      // Windows reads everything before the first dot, so "Aux.Cord.jpg" is AUX too.
+      'Aux (performer).Cord.jpg',
+      'con (performer) (2).jpg',
+    ]);
+  });
+
+  it('leaves a name that only starts like a device name alone', () => {
+    expect(
+      nameHeadshotFiles(['Con Artist', 'Console', 'Auxiliary', 'Nul Points', 'COM10', 'LPT'].map((name, i) => (
+        { name, position: i + 1, type: 'image/jpeg' }
+      ))),
+    ).toEqual(['Con Artist.jpg', 'Console.jpg', 'Auxiliary.jpg', 'Nul Points.jpg', 'COM10.jpg', 'LPT.jpg']);
+  });
+
   it('names the zip after the show', () => {
     expect(zipFileName('Late Set')).toBe('Late Set headshots.zip');
     expect(zipFileName('Laughs @ 8/9')).toBe('Laughs @ 8-9 headshots.zip');
     expect(zipFileName('')).toBe('Headshots.zip');
     expect(zipFileName()).toBe('Headshots.zip');
+  });
+
+  it('names the zip with surprise guests in it as that, so it is not the one forwarded by mistake', () => {
+    expect(zipFileName('Late Set', { includesGuests: true })).toBe('Late Set headshots with surprise guests.zip');
+    expect(zipFileName('', { includesGuests: true })).toBe('Headshots with surprise guests.zip');
   });
 });
 
@@ -140,6 +192,12 @@ describe('what the button says', () => {
   it('counts the photos it will fetch', () => {
     expect(headshotButtonLabel(6)).toBe('Download 6 headshots');
     expect(headshotButtonLabel(1)).toBe('Download 1 headshot');
+  });
+
+  it('says when the download has the surprise guests in it', () => {
+    expect(headshotButtonLabel(3, null, { includesGuests: true })).toBe('Download 3 headshots with surprise guests');
+    expect(headshotButtonLabel(1, null, { includesGuests: true })).toBe('Download 1 headshot with surprise guests');
+    expect(headshotButtonLabel(3, { done: 0, total: 3 }, { includesGuests: true })).toBe('Preparing 1 of 3…');
   });
 
   it('counts through them while it works', () => {
@@ -362,21 +420,5 @@ describe('handing over the zip', () => {
     const text = new TextDecoder().decode(bytes);
     expect(text).toContain('Jane Doe.jpg');
     expect(text).toContain('Zoë.png');
-  });
-
-  it('keeps the download link alive until the browser has read it', () => {
-    vi.useFakeTimers();
-    const link = { href: '', download: '', click: vi.fn(), remove: vi.fn() };
-    const revoke = vi.fn();
-    vi.stubGlobal('URL', { createObjectURL: () => 'blob:headshots', revokeObjectURL: revoke });
-    vi.stubGlobal('document', { createElement: () => link, body: { appendChild: vi.fn() } });
-
-    downloadFile(new Blob(['zip']), 'Late Set headshots.zip');
-    expect(link).toMatchObject({ href: 'blob:headshots', download: 'Late Set headshots.zip' });
-    expect(link.click).toHaveBeenCalledOnce();
-    // iOS Safari and Firefox read the file after click() returns.
-    expect(revoke).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(60_000);
-    expect(revoke).toHaveBeenCalledWith('blob:headshots');
   });
 });
