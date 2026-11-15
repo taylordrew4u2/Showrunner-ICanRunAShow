@@ -28,6 +28,8 @@ describe('which navigations the installed app leaves to the host', () => {
     expect(leftToHost('/sitemap.xml')).toBe(true);
     expect(leftToHost('/llms.txt')).toBe(true);
     expect(leftToHost('/api/billing')).toBe(true);
+    expect(leftToHost('/.well-known/oauth-authorization-server')).toBe(true);
+    expect(leftToHost('/.well-known/oauth-protected-resource/api/mcp')).toBe(true);
   });
 
   it('still opens the app, offline included, for every address the app answers', () => {
@@ -35,6 +37,7 @@ describe('which navigations the installed app leaves to the host', () => {
     expect(leftToHost('/sign?t=abc123')).toBe(false);
     expect(leftToHost('/details?t=abc123')).toBe(false);
     expect(leftToHost('/live?t=abc123')).toBe(false);
+    expect(leftToHost('/chatgpt/authorize?client_id=registered')).toBe(false);
     // The older form of a sent link, still in people's messages.
     expect(leftToHost('/?sign=abc123')).toBe(false);
     // A token is not a file name, whatever it happens to end in.

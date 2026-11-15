@@ -25,6 +25,13 @@ function rewrittenTo(path: string): string | null {
 }
 
 describe('the app shell fallback', () => {
+  it('keeps OAuth discovery on the server and serves the consent page as the app', () => {
+    expect(rewrittenTo('/.well-known/oauth-authorization-server')).toBe('/api/chatgpt?route=metadata');
+    expect(rewrittenTo('/.well-known/oauth-protected-resource')).toBe('/api/chatgpt?route=resource');
+    expect(rewrittenTo('/.well-known/oauth-protected-resource/api/mcp')).toBe('/api/chatgpt?route=resource');
+    expect(rewrittenTo('/chatgpt/authorize')).toBe('/index.html');
+    expect(rewrittenTo('/api/mcp')).toBe('/api/$1');
+  });
   it('still answers the app routes with the app', () => {
     expect(rewrittenTo('/')).toBe('/index.html');
     expect(rewrittenTo('/shows/anything')).toBe('/index.html');

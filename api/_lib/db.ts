@@ -38,6 +38,25 @@ export function getDb(): Client {
 
 // Idempotent schema bootstrap — proven DDL, run once per warm instance.
 const DDL: string[] = [
+  // Opt-in ChatGPT connections. Raw OAuth credentials are never stored;
+  // each credential wraps the explicitly delegated data keys under itself.
+  `CREATE TABLE IF NOT EXISTS chatgpt_clients (
+     client_id TEXT PRIMARY KEY, client_name TEXT NOT NULL,
+     redirect_uris TEXT NOT NULL, grant_types TEXT NOT NULL,
+     expires_at INTEGER NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS chatgpt_grants (
+     id TEXT PRIMARY KEY, user_id TEXT NOT NULL, client_id TEXT NOT NULL,
+     scope TEXT NOT NULL, resource TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+     activated INTEGER NOT NULL DEFAULT 0
+   )`,
+  `CREATE TABLE IF NOT EXISTS chatgpt_tokens (
+     token_hash TEXT PRIMARY KEY, kind TEXT NOT NULL, grant_id TEXT NOT NULL,
+     user_id TEXT NOT NULL, sealed_keys TEXT NOT NULL, challenge TEXT,
+     redirect_uri TEXT, expires_at INTEGER NOT NULL, consumed INTEGER NOT NULL DEFAULT 0
+   )`,
+  `CREATE INDEX IF NOT EXISTS chatgpt_grants_by_user ON chatgpt_grants (user_id, expires_at)`,
+  `CREATE INDEX IF NOT EXISTS chatgpt_tokens_by_grant ON chatgpt_tokens (grant_id, kind)`,
   // `auth_version` is how the server wraps the stored verifier;
   // `client_hash_version` is which client credential it wraps. See
   // _lib/credentials.ts.

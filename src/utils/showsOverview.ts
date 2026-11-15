@@ -90,17 +90,27 @@ export function completePastShows(shows: Show[], today: Date = new Date()): Show
   return changed ? next : shows;
 }
 
-/** A show still ahead of us: not finished, not called off, and dated today or later. */
-function isAhead(show: Show, today: Date): boolean {
+/** A show on the production desk: still running, or dated today or later. */
+export function isActiveShow(show: Show, today: Date = new Date()): boolean {
   if (show.status === 'completed' || show.status === 'cancelled') return false;
+  // A late show can run across midnight. Only the producer ending it should
+  // take a running show off the desk.
+  if (show.status === 'in-progress') return true;
   const date = parseShowDate(show.date);
   // An undated show is still on the books — it just can't be sorted by when.
   if (!date) return true;
   return daysUntil(date, today) >= 0;
 }
 
+export type ShowPeriod = 'upcoming' | 'history';
+
+/** History is a view of saved shows, never a deletion or a separate copy. */
+export function showsForPeriod(shows: Show[], period: ShowPeriod, today: Date = new Date()): Show[] {
+  return shows.filter((show) => isActiveShow(show, today) === (period === 'upcoming'));
+}
+
 export function buildOverview(shows: Show[], today: Date = new Date()): ShowsOverview {
-  const ahead = shows.filter((show) => isAhead(show, today));
+  const ahead = showsForPeriod(shows, 'upcoming', today);
 
   // Dated shows first, soonest wins; an undated show can't be "next".
   const dated = ahead

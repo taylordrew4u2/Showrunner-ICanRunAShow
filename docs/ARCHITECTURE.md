@@ -44,7 +44,9 @@ Showrunner-ICanRunAShow/
 
 ## Data flow
 
-The user signs in, and the browser derives an encryption key and a separate auth hash via PBKDF2. Neither the raw password nor the key leaves the device. The browser calls the `/api` routes with a derived user id and hash; the routes read encrypted blobs from Turso; the browser decrypts them. Edits are encrypted client-side and written back through the API on a 1-second debounce. In live mode, schedule cues drive a public read-only viewer URL and per-cue music timing.
+In the normal browser workflow, the user signs in and the browser derives an encryption key and a separate auth hash via PBKDF2. Neither the raw password nor the key leaves the device. The browser calls the `/api` routes with a derived user id and hash; the routes read encrypted blobs from Turso; the browser decrypts them. Edits are encrypted client-side and written back through the API on a 1-second debounce. In live mode, schedule cues drive a public read-only viewer URL and per-cue music timing.
+
+The optional [ChatGPT connector](CHATGPT.md) adds a separate, consented trust boundary: the browser grants derived account keys so authenticated MCP requests can decrypt shows for ChatGPT and encrypt show edits before storage. OAuth grants and tokens hold sealed keys, not passwords or plaintext show copies. The diagram below describes the normal browser flow.
 
 ```mermaid
 flowchart LR
@@ -88,7 +90,7 @@ flowchart LR
 
 **The typeface ships with the app.** Inter used to load from Google Fonts. The service worker only precaches same-origin assets, so offline, or on a venue connection, the typography fell back to a system face. It is now served from this origin and precached (latin and latin-ext; other subsets load on demand via `unicode-range`), as the variable axis rather than static cuts. The codebase uses `font-weight: 650`, which static cuts had been silently rounding to 700.
 
-**Encryption in the client, not the server.** Turso stores only ciphertext and the password-derived key never leaves the device, so the database host is never trusted with user data. The trade-off is deliberate: there is no password recovery.
+**Client encryption by default.** Turso stores ciphertext and the normal browser workflow keeps the password-derived key on the device, so the database host is never trusted with user data. The optional ChatGPT connection grants server-side show decryption after consent. There is no password recovery.
 
 **Letting a stranger read what the server cannot.** A signing link has to work for someone with no account, on a phone, from a text message, while the server stays unable to read a producer's data. The browser re-encrypts under a key generated for that one share, and the key travels in the URL fragment, which browsers never send in a request line or `Referer`. `/api/sign` and `/api/sign-doc` store ciphertext addressed by an unguessable token, plus one plaintext column, `signed_at`, because `UPDATE … WHERE signed_at IS NULL` is what makes a request signable exactly once and a replayed or racing POST harmless.
 

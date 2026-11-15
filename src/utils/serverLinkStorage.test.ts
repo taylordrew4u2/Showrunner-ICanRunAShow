@@ -471,6 +471,7 @@ describe('a database from before chunks named anyone', () => {
     }
     const indexes = await rows(`SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE '%\\_by\\_%' ESCAPE '\\' ORDER BY name`);
     expect(indexes.flat()).toEqual([
+      'chatgpt_grants_by_user', 'chatgpt_tokens_by_grant',
       'live_media_by_token', 'live_media_by_user', 'live_view_by_user', 'profile_photo_by_user',
       'sign_doc_by_token', 'sign_doc_by_user', 'sign_request_by_user',
     ]);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildOverview, whenLabel, daysUntil, showsOnDay, showReadiness, completePastShows, sortShows } from './showsOverview';
+import { buildOverview, whenLabel, daysUntil, showsOnDay, showReadiness, completePastShows, sortShows, showsForPeriod } from './showsOverview';
 import type { Show } from '../types';
 
 const TODAY = new Date(2026, 7, 14); // Fri 14 Aug 2026, local midnight
@@ -147,6 +147,46 @@ describe('buildOverview', () => {
     const o = buildOverview([show({ id: 'past', date: '2026-08-01' })], TODAY);
     expect(o.needsLineup).toHaveLength(0);
     expect(o.needsSchedule).toHaveLength(0);
+  });
+});
+
+describe('the production desk and history', () => {
+  const shows = [
+    show({ id: 'past', date: '2026-08-13' }),
+    show({ id: 'tonight', date: '2026-08-14' }),
+    show({ id: 'future', date: '2026-08-15' }),
+    show({ id: 'finished', date: '2026-08-15', status: 'completed' }),
+    show({ id: 'cancelled', date: '2026-08-15', status: 'cancelled' }),
+    show({ id: 'running-overnight', date: '2026-08-13', status: 'in-progress' }),
+    show({ id: 'undated', date: '' }),
+  ];
+
+  it('keeps only upcoming, undated and still-running shows on the desk', () => {
+    expect(showsForPeriod(shows, 'upcoming', TODAY).map((s) => s.id))
+      .toEqual(['tonight', 'future', 'running-overnight', 'undated']);
+  });
+
+  it('keeps past, completed and cancelled shows accessible without altering them', () => {
+    const history = showsForPeriod(shows, 'history', TODAY);
+    expect(history.map((s) => s.id)).toEqual(['past', 'finished', 'cancelled']);
+    expect(history[0]).toBe(shows[0]);
+    expect(shows[0].status).toBe('upcoming');
+    expect([...history, ...showsForPeriod(shows, 'upcoming', TODAY)]).toHaveLength(shows.length);
+  });
+
+  it('moves last night off the desk at the next local day, while retaining a live show', () => {
+    const lateNight = new Date(2026, 7, 14, 23, 59);
+    const nextMorning = new Date(2026, 7, 15, 0, 1);
+    expect(showsForPeriod(shows, 'upcoming', lateNight).map((s) => s.id)).toContain('tonight');
+    expect(showsForPeriod(shows, 'upcoming', nextMorning).map((s) => s.id)).not.toContain('tonight');
+    expect(showsForPeriod(shows, 'history', nextMorning).map((s) => s.id)).toContain('tonight');
+    expect(showsForPeriod(shows, 'upcoming', nextMorning).map((s) => s.id)).toContain('running-overnight');
+  });
+
+  it('keeps the overview and list consistent for a show still running after midnight', () => {
+    const running = shows.find((s) => s.id === 'running-overnight')!;
+    expect(buildOverview([running], TODAY).nextShow).toBe(running);
+    expect(buildOverview([running], TODAY).upcomingCount).toBe(1);
   });
 });
 

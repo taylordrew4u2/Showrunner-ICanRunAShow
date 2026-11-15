@@ -31,12 +31,7 @@ test.describe('the shows list', () => {
     await expect(page.getByText('No matches')).toBeVisible();
   });
 
-  test('never hides the only show when the panel is not showing it', async ({ page, context }) => {
-    // The panel leads with a show that is dated and still ahead. An undated
-    // show — or, the one that would really have bitten, the morning after the
-    // only show on the books, once it auto-completes — leaves the panel saying
-    // "Nothing dated yet". Hiding the list on top of that put the producer's
-    // only show nowhere on the page at all.
+  test('takes a past show off the dashboard and keeps it in History', async ({ page, context }) => {
     await installFakeApi(context, emptyState());
     await signUpAndOnboard(page);
     // A night that has already happened. The panel only leads with a show
@@ -45,8 +40,58 @@ test.describe('the shows list', () => {
     await gotoTab(page, 'Shows');
 
     await expect(page.locator('.dash-next__name')).toHaveCount(0);
+    await expect(page.locator('.show-card')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'No upcoming shows' })).toBeVisible();
+    await page.getByRole('button', { name: 'History', exact: true }).click();
+    await expect(page.locator('.dash')).toHaveCount(0);
     await expect(page.locator('.show-card')).toHaveCount(1);
     await expect(page.locator('.show-card')).toContainText('Last Tuesday');
+    await page.locator('.show-card__open').click();
+    await expect(page.getByRole('heading', { name: 'Last Tuesday', level: 1 })).toBeVisible();
+  });
+
+  test('removes completed and cancelled shows immediately, with their records in History', async ({ page, context }) => {
+    await installFakeApi(context, emptyState());
+    await signUpAndOnboard(page);
+    await createShow(page, 'Finished Show');
+    await page.getByRole('combobox', { name: 'Show status' }).selectOption('completed');
+    await gotoTab(page, 'Shows');
+    await expect(page.getByRole('heading', { name: 'No upcoming shows' })).toBeVisible();
+    await expect(page.locator('.dash-next__name, .show-card')).toHaveCount(0);
+
+    await createShow(page, 'Cancelled Show');
+    await page.getByRole('combobox', { name: 'Show status' }).selectOption('cancelled');
+    await gotoTab(page, 'Shows');
+    await expect(page.locator('.dash-next__name, .show-card')).toHaveCount(0);
+    await page.getByRole('button', { name: 'History', exact: true }).click();
+    await expect(page.locator('.show-card')).toHaveCount(2);
+    await expect(page.locator('.shows-grid')).toContainText('Finished Show');
+    await expect(page.locator('.shows-grid')).toContainText('Cancelled Show');
+    await page.getByPlaceholder('Search').fill('Finished');
+    await expect(page.locator('.show-card')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Upcoming', exact: true }).click();
+    await expect(page.getByPlaceholder('Search')).toHaveValue('');
+  });
+
+  test('refreshes an open dashboard after midnight without removing a running show', async ({ page, context }) => {
+    const tonight = daysFromNow(0);
+    const [year, month, day] = tonight.split('-').map(Number);
+    await page.clock.install({ time: new Date(year, month - 1, day, 23, 50) });
+    await installFakeApi(context, emptyState());
+    await signUpAndOnboard(page);
+    await createShow(page, 'Tonight Only', tonight);
+    await gotoTab(page, 'Shows');
+    await createShow(page, 'Still Running', tonight);
+    await page.getByRole('combobox', { name: 'Show status' }).selectOption('in-progress');
+    await gotoTab(page, 'Shows');
+    await expect(page.locator('.show-card')).toHaveCount(2);
+
+    await page.clock.fastForward(11 * 60_000);
+    await expect(page.locator('.dash-next__name')).toHaveText('Still Running');
+    await page.getByRole('button', { name: 'History', exact: true }).click();
+    await expect(page.locator('.show-card')).toHaveCount(1);
+    await expect(page.locator('.show-card')).toContainText('Tonight Only');
+    await expect(page.locator('.show-card')).not.toContainText('Still Running');
   });
 
   test('lists every show once there is more than one', async ({ page, context }) => {

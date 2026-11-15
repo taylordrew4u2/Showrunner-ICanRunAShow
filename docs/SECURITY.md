@@ -6,6 +6,7 @@
 - Accounts made before that credential held a single SHA-256 of the password. Each moves over at its next sign-in from a current build: the old hash is sent once, checked, and replaced. From then on it opens nothing, and a device still holding it is sent back to sign-in with its unsaved work kept
 - New accounts need a password of at least 8 characters
 - All show data and settings are encrypted with AES (crypto-js) in the browser before being written to Turso
+- Connecting ChatGPT is an explicit exception to browser-only decryption: consent sends derived account encryption keys to the connector, which can decrypt show records while serving an authorized ChatGPT request. The password is never sent. Keys are sealed at rest under high-entropy authorization codes/tokens; possession of a valid connector token is sensitive access. Disconnecting revokes the connection. See [CHATGPT.md](CHATGPT.md) before enabling it
 - The database is reached only through server-side API routes; the Turso credential is a server environment variable and never ships in the client bundle
 - The stored auth credential is a per-user salted, slow PBKDF2 hash (the client hash is never stored verbatim), compared in constant time, with legacy rows upgraded transparently on next login
 - Authentication is rate-limited per account; public upsert routes cap payload size

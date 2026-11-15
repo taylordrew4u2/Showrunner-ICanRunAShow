@@ -15,6 +15,8 @@ export const NAVIGATE_FALLBACK_DENYLIST: RegExp[] = [
   // still open offline.
   /^\/(?:pricing|features|tour|guides)(?:[/?]|$)/,
   /^\/api\//,
+  // OAuth discovery belongs to the server, never the offline app shell.
+  /^\/\.well-known\//,
   // Files the worker does not keep: robots.txt, sitemap.xml, llms.txt.
   /^[^?]*\.(?:txt|xml)(?:\?|$)/,
 ];

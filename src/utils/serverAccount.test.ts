@@ -41,6 +41,8 @@ async function seed(user: string, status = 'canceled') {
   const sign = `${user}-sign-token-0001`;
   const view = `${user}-view-token`;
   await run(`INSERT INTO users (id, password_hash) VALUES (?, 'hash')`, user);
+  await run(`INSERT INTO chatgpt_grants (id, user_id, client_id, scope, resource, created_at, expires_at) VALUES (?, ?, 'shared-client', 'shows:read', 'https://example.test/api/mcp', 0, 9999999999)`, `${user}-grant`, user);
+  await run(`INSERT INTO chatgpt_tokens (token_hash, kind, grant_id, user_id, sealed_keys, expires_at) VALUES (?, 'access', ?, ?, 'wrapped', 9999999999)`, `${user}-token-hash`, `${user}-grant`, user);
   await run(`INSERT INTO user_shows (id, user_id, encrypted_data) VALUES (?, ?, 'cipher')`, `${user}-show`, user);
   await run(`INSERT INTO user_shows_backup (id, user_id, encrypted_data) VALUES (?, ?, 'cipher')`, `${user}-show`, user);
   await run(`INSERT INTO user_settings (user_id, encrypted_data) VALUES (?, 'cipher')`, user);
@@ -64,7 +66,8 @@ async function seed(user: string, status = 'canceled') {
 }
 
 async function tables(): Promise<string[]> {
-  const result = await run(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`);
+  // Dynamic OAuth clients are shared public metadata, not account-owned rows.
+  const result = await run(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'chatgpt_clients' ORDER BY name`);
   return result.rows.map((row) => String(row[0]));
 }
 

@@ -24,26 +24,33 @@ for (const action of ['duplicate', 'repeat'] as const) {
       await page.getByText('Duplicate show', { exact: true }).click();
     }
 
-    const count = action === 'repeat' ? 5 : 2;
-    await expect(page.locator('.show-card')).toHaveCount(count);
-    // Inspect every new date, not merely the first card (which may be the original).
-    for (let i = 0; i < count; i++) {
-      const card = page.locator('.show-card').nth(i);
-      const date = card.locator('.show-card__date-day');
-      const day = await date.count() ? await date.textContent() : '';
-      const isOriginal = day?.trim() === '7';
-      await card.click();
-      await expect(page.locator('.show-detail')).toBeVisible();
-      // Shows now reopen on their compact overview; inspect the actual editor
-      // to verify the original lineup and each new empty lineup.
-      await page.locator('#show-section-header-performers').click();
-      const performer = page.locator('.section-list-item__name').filter({ hasText: 'Ada Cole' });
-      if (isOriginal) await expect(performer).toBeVisible();
-      else {
-        await expect(performer).toHaveCount(0);
-        await expect(page.getByPlaceholder('Performer name')).toBeVisible();
+    // Repeated April/May dates are now in History. A plain duplicate has no
+    // date yet and stays Upcoming, while its original is kept in History.
+    const periods = action === 'repeat'
+      ? [{ name: 'History', count: 5 }]
+      : [{ name: 'Upcoming', count: 1 }, { name: 'History', count: 1 }];
+    for (const period of periods) {
+      await page.getByRole('button', { name: period.name, exact: true }).click();
+      await expect(page.locator('.show-card')).toHaveCount(period.count);
+      // Inspect every new date, not merely the first card (which may be the original).
+      for (let i = 0; i < period.count; i++) {
+        const card = page.locator('.show-card').nth(i);
+        const date = card.locator('.show-card__date-day');
+        const day = await date.count() ? await date.textContent() : '';
+        const isOriginal = day?.trim() === '7';
+        await card.click();
+        await expect(page.locator('.show-detail')).toBeVisible();
+        // Shows now reopen on their compact overview; inspect the actual editor
+        // to verify the original lineup and each new empty lineup.
+        await page.locator('#show-section-header-performers').click();
+        const performer = page.locator('.section-list-item__name').filter({ hasText: 'Ada Cole' });
+        if (isOriginal) await expect(performer).toBeVisible();
+        else {
+          await expect(performer).toHaveCount(0);
+          await expect(page.getByPlaceholder('Performer name')).toBeVisible();
+        }
+        await gotoTab(page, 'Shows');
       }
-      await gotoTab(page, 'Shows');
     }
     // The contact is still filed once, with no copy created by either action.
     await gotoTab(page, 'Rolodex');
@@ -51,7 +58,10 @@ for (const action of ['duplicate', 'repeat'] as const) {
     await expect(page.locator('.rolodex__name')).toHaveText('Ada Cole');
     await page.reload();
     await gotoTab(page, 'Shows');
-    await expect(page.locator('.show-card')).toHaveCount(count);
+    await expect(page.getByRole('button', { name: 'Upcoming', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.show-card')).toHaveCount(action === 'repeat' ? 0 : 1);
+    await page.getByRole('button', { name: 'History', exact: true }).click();
+    await expect(page.locator('.show-card')).toHaveCount(action === 'repeat' ? 5 : 1);
     // Never a twin of every show. A reload that lands while the save is still
     // in flight used to read "no baseline for this show" as "the server moved
     // under us" and fork the whole account into "(recovered edits)" copies.

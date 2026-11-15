@@ -15,6 +15,8 @@ import { useConfirm } from './useConfirm';
 import type { Snapshot } from '../utils/secure-storage';
 import { normalizeUsername } from '../utils/session-vault';
 import type { ApiError } from '../utils/api';
+import type { SessionCredentials } from '../utils/session-vault';
+import { ChatGPTSettings } from './ChatGPTConnect';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -30,6 +32,8 @@ interface SettingsProps {
   lastSavedAt?: number | null;
   /** Who's signed in — shown in the account card. */
   username?: string;
+  /** Present for the signed-in account's optional ChatGPT connection. */
+  session?: SessionCredentials;
   onLogout?: () => void;
   /**
    * Delete the account and everything stored under it, then sign out.
@@ -114,6 +118,7 @@ export function Settings({
   lastBackupAt = null,
   lastSavedAt = null,
   username,
+  session,
   onLogout,
   onDeleteAccount,
   onRestoreShow,
@@ -529,7 +534,8 @@ export function Settings({
                 <span>
                   Your password is the encryption key. It's used the moment you sign in and then
                   discarded — never sent to us, and never written to this browser. What's stored
-                  is unreadable without it, including to us.
+                  is unreadable without it. If you choose to connect ChatGPT, you separately
+                  allow the server to decrypt show data for that connection until you disconnect.
                 </span>
               </div>
             </li>
@@ -810,6 +816,8 @@ export function Settings({
       </div>
 
       {billing && <PlanCard {...billing} />}
+
+      {session && <ChatGPTSettings key={session.userId} session={session} />}
 
       <div className="settings__card">
         <h2 className="settings__card-title">Account</h2>

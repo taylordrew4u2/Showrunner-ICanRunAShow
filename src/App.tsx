@@ -19,7 +19,7 @@ import { mergeSettingsEdit } from './utils/mergeSettingsEdit';
 import { mergeShowEdit } from './utils/mergeShowEdit';
 import { settleRecapProfit } from './utils/recapMoney';
 import { bulkMailto } from './utils/social';
-import { buildOverview, completePastShows, sortShows } from './utils/showsOverview';
+import { buildOverview, completePastShows, showsForPeriod, sortShows, type ShowPeriod } from './utils/showsOverview';
 import { 
   loadEncryptedShows,
   rebaseLoadedShows,
@@ -56,6 +56,7 @@ import {
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { Settings } from './components/Settings';
+import { ChatGPTConnect } from './components/ChatGPTConnect';
 import { PageHeader } from './components/PageHeader';
 import { uploadMedia } from './utils/mediaStore';
 import { dataUrlToFile } from './utils/media';
@@ -538,6 +539,25 @@ export default function App() {
   const closeRolodexProfile = useCallback(() => setSelectedComicId(null), []);
   // Which follow-up list from the at-a-glance row the grid is narrowed to.
   const [showsFocus, setShowsFocus] = useState<ShowsFocus>(null);
+  const [showsPeriod, setShowsPeriod] = useState<ShowPeriod>('upcoming');
+  const [showsToday, setShowsToday] = useState(() => new Date());
+
+  // An app left open overnight should clear yesterday's shows from the desk
+  // too. Focus/visibility catch up immediately after a suspended phone wakes.
+  useEffect(() => {
+    const refreshDay = () => {
+      const today = new Date();
+      setShowsToday((previous) => previous.toDateString() === today.toDateString() ? previous : today);
+    };
+    const timer = window.setInterval(refreshDay, 60_000);
+    window.addEventListener('focus', refreshDay);
+    document.addEventListener('visibilitychange', refreshDay);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshDay);
+      document.removeEventListener('visibilitychange', refreshDay);
+    };
+  }, []);
   const [expandOrigin, setExpandOrigin] = useState({ x: 50, y: 30 });
   /** Where the shows grid was scrolled to when you last left it. */
   const listScrollRef = useRef(0);
@@ -1307,6 +1327,9 @@ export default function App() {
     setSettingsState(DEFAULT_SETTINGS);
     setProfilePhotos({});
     setFreshLink(null);
+    setShowsPeriod('upcoming');
+    setShowsFocus(null);
+    setSearchQuery('');
     setView('list');
     setSelectedShow(null);
     setShowForm(false);
@@ -1511,6 +1534,9 @@ export default function App() {
     }
     setShowForm(false);
     // Drop the user straight into the new show so create → populate is continuous.
+    setShowsPeriod('upcoming');
+    setShowsFocus(null);
+    setSearchQuery('');
     setSelectedShow(newShow);
     setView('detail');
   }
@@ -2264,15 +2290,16 @@ export default function App() {
 
   // Search + status filtering for the shows list.
   const normalizedQuery = searchQuery.trim().toLowerCase();
+  const periodShows = showsForPeriod(shows, showsPeriod, showsToday);
   // The at-a-glance row narrows this list; the ids come from the same
   // buildOverview the row counts with, so the count and the grid can't disagree.
   const focusIds = (() => {
     if (!showsFocus) return null;
-    const overview = buildOverview(shows);
+    const overview = buildOverview(shows, showsToday);
     return new Set(overview.attention.map((item) => item.show.id));
   })();
 
-  const filteredShows = shows.filter((show) => {
+  const filteredShows = periodShows.filter((show) => {
     if (focusIds && !focusIds.has(show.id)) return false;
     if (!normalizedQuery) return true;
     return [show.name, show.venueName, show.location]
@@ -2286,6 +2313,11 @@ export default function App() {
   function clearFilters() {
     setSearchQuery('');
     setShowsFocus(null);
+  }
+
+  function changeShowsPeriod(period: ShowPeriod) {
+    setShowsPeriod(period);
+    clearFilters();
   }
 
 
@@ -2325,6 +2357,8 @@ export default function App() {
           errorMessage={authError}
           defaultUsername={signedOutAs}
         />
+      ) : /^\/chatgpt\/authorize\/?$/.test(window.location.pathname) ? (
+        <ChatGPTConnect session={session} search={window.location.search} onLogout={handleLogout} />
       ) : loadingData || !settingsLoaded ? (
         // Nothing of the account is on screen until it has been read. A
         // launch that could not read it used to open the whole app over the
@@ -2573,6 +2607,22 @@ export default function App() {
                   </div>
                 )}
                 {shows.length > 0 && (
+                  <div className="shows-period" role="group" aria-label="Show period">
+                    <button
+                      type="button"
+                      className="shows-period__button"
+                      aria-pressed={showsPeriod === 'upcoming'}
+                      onClick={() => changeShowsPeriod('upcoming')}
+                    >Upcoming</button>
+                    <button
+                      type="button"
+                      className="shows-period__button"
+                      aria-pressed={showsPeriod === 'history'}
+                      onClick={() => changeShowsPeriod('history')}
+                    >History</button>
+                  </div>
+                )}
+                {shows.length > 0 && (
                   <div className="shows-toolbar">
                     <input
                       className="shows-toolbar__search"
@@ -2622,13 +2672,14 @@ export default function App() {
                   </div>
                 )}
 
-                <ShowsDashboard
-                  shows={shows}
+                {showsPeriod === 'upcoming' && <ShowsDashboard
+                  shows={periodShows}
                   focus={showsFocus}
                   onFocusChange={setShowsFocus}
                   onSelectShow={handleSelectShow}
                   onRunShow={handleRunShowFromDashboard}
-                />
+                  today={showsToday}
+                />}
 
                 {shows.length === 0 ? (
                   <div className="empty-state">
@@ -2646,6 +2697,18 @@ export default function App() {
                       </button>
                     </div>
                   </div>
+                ) : periodShows.length === 0 ? (
+                  <div className="empty-state">
+                    <h2 className="empty-state__title">{showsPeriod === 'upcoming' ? 'No upcoming shows' : 'No show history yet'}</h2>
+                    <p className="empty-state__text">
+                      {showsPeriod === 'upcoming'
+                        ? 'Your past, completed and cancelled shows are saved in History.'
+                        : 'Past, completed and cancelled shows will appear here.'}
+                    </p>
+                    <button className="btn btn--secondary" onClick={() => changeShowsPeriod(showsPeriod === 'upcoming' ? 'history' : 'upcoming')}>
+                      {showsPeriod === 'upcoming' ? 'View history' : 'View upcoming shows'}
+                    </button>
+                  </div>
                 ) : filteredShows.length === 0 ? (
                   <div className="empty-state">
                     <h2 className="empty-state__title">No matches</h2>
@@ -2658,8 +2721,8 @@ export default function App() {
                       {searchQuery.trim() ? 'Clear search' : 'Show all'}
                     </button>
                   </div>
-                ) : shows.length === 1 &&
-                  buildOverview(shows).nextShow?.id === shows[0].id &&
+                ) : showsPeriod === 'upcoming' && periodShows.length === 1 &&
+                  buildOverview(periodShows, showsToday).nextShow?.id === periodShows[0].id &&
                   showsView === 'grid' &&
                   !showsFocus &&
                   !searchQuery.trim() ? (
@@ -2671,13 +2734,8 @@ export default function App() {
                   // and a search or a filter is a question about the list, so
                   // the list comes back to answer it.
                   //
-                  // Only when the panel is genuinely showing *this* show. It
-                  // leads with a show that is dated and still ahead, so an
-                  // undated one, a cancelled one, or — the one that would have
-                  // bitten — the morning after the only show on the books,
-                  // once it auto-completes, all leave the panel saying
-                  // "Nothing dated yet". Hiding the list on top of that would
-                  // leave the producer's only show nowhere on the page.
+                  // Only when the panel is genuinely showing this show.
+                  // Undated shows and the History view still need their cards.
                   null
                 ) : (
                   <>
@@ -2687,12 +2745,12 @@ export default function App() {
                         a heading the grid reads as a continuation of the
                         dashboard rather than as the full set of shows. */}
                     <div className="shows-list__heading">
-                      <h2 className="shows-list__heading-text">All shows</h2>
+                      <h2 className="shows-list__heading-text">{showsPeriod === 'upcoming' ? 'Upcoming shows' : 'Show history'}</h2>
                       <span className="shows-list__heading-count">{filteredShows.length}</span>
                     </div>
                     <NarrowedNotice
                       shown={filteredShows.length}
-                      total={shows.length}
+                      total={periodShows.length}
                       onClear={clearFilters}
                     />
                     {showsView === 'calendar' ? (
@@ -3049,6 +3107,7 @@ export default function App() {
                 colorScheme={colorScheme}
                 onColorSchemeChange={setColorScheme}
                 username={session.username}
+                session={session}
                 onLogout={handleLogout}
                 onDeleteAccount={handleDeleteAccount}
                 onRestoreShow={handleRestoreShow}

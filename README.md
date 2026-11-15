@@ -48,7 +48,7 @@ Producers of recurring comedy, drag and variety nights tend to run them from a s
 
 ## Highlights
 
-- **The server never sees a producer's data in the clear.** Shows, settings and media are encrypted in the browser with a PBKDF2-SHA256 key (100,000 iterations) before they reach the API; Turso stores encrypted blobs, and the DB credential lives only in server env vars.
+- **Shows stay encrypted in storage.** In the normal browser workflow, shows, settings and media are encrypted before they reach the API; Turso stores encrypted blobs. The optional [ChatGPT connection](docs/CHATGPT.md) explicitly grants the connector permission to decrypt show data for ChatGPT until you disconnect it.
 - **Shareable links the server still can't read.** A contract-signing link re-encrypts the document under a one-off key carried in the URL fragment (`#k=…`), which browsers never send; the viewer page's walk-on audio works the same way. An E2E test asserts no request carries the key.
 - **Exactly-once signatures, enforced in SQL.** `UPDATE … WHERE token = ? AND signed_at IS NULL` makes a replayed or racing submit harmless, and each signature records a SHA-256 of the exact document shown.
 - **No lost saves across tabs.** Every write carries the SHA-256 of the ciphertext it expects to replace; the API answers `409 save_conflict` on a mismatch, so a stale tab can't erase a newer edit. Saves are debounced at 1s and blocked until the initial load succeeds.
@@ -201,7 +201,15 @@ The Producer plan is billed through Stripe Checkout and the Stripe customer port
 
 Producer unlocks sending contracts for signature, reading a schedule off a photo or PDF, making a live audience link, the Season report, and pairing a stage remote. On the free plan each of these shows what it is and an Upgrade button in place of the control. Locks only apply once the server has Stripe keys and has confirmed the account is on the free plan; if the plan can't be checked (offline, say), nothing is locked. A lapsed plan never breaks a show in progress: links already shared, contracts already signed and a remote already paired keep working. Accounts created before the locks shipped (`SUBSCRIPTIONS_STARTED_AT` in `api/billing.ts`, 2026-10-06 23:31:58 UTC) are founding members: the server reports them as on the Producer plan, so nothing is ever locked for them and they are never sent to checkout. The switch is `PAID_FEATURES_LOCKED` in `src/utils/billing.ts`. The locks are in the app, not enforced by the API.
 
-## Testing
+## Show history
+
+Completed and past events leave the default Shows dashboard automatically and remain available under **History**. Shows still running stay visible across midnight.
+
+## ChatGPT
+
+The app includes an authenticated MCP endpoint for listing, inspecting, creating and updating shows from ChatGPT. Account linking requires explicit consent because the connector must decrypt show data for ChatGPT. Setup, supported operations and the security model are documented in [docs/CHATGPT.md](docs/CHATGPT.md). Deploy the API before connecting; the Vite frontend server alone does not serve MCP or OAuth.
+
+## Development checks
 
 ```bash
 npm test               # 1,045 Vitest unit tests across 104 files

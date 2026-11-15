@@ -7,6 +7,11 @@ const root = new URL('../../', import.meta.url);
 const llms = readFileSync(new URL('public/llms.txt', root), 'utf8');
 const indexHtml = readFileSync(new URL('index.html', root), 'utf8');
 const readme = readFileSync(new URL('README.md', root), 'utf8');
+// ChatGPT is now an optional show-management connection. Claims about the
+// separate, on-device schedule importer must still describe its real pipeline.
+const readmeImportCopy = readme.split(/\n\s*\n/)
+  .filter((block) => /schedule import|OCR|Tesseract|PDF\.js|Import\[/i.test(block))
+  .join('\n\n');
 const guidesDir = new URL('public/guides/', root);
 const guides = readdirSync(guidesDir)
   .filter((name) => name.endsWith('.html'))
@@ -27,10 +32,12 @@ const modelOrProxyClaims = [
 ];
 
 describe('what the published copy says about schedule import', () => {
-  it('does not promise a model or a server proxy that the app never had', () => {
+  it('does not describe schedule import as a model or server extraction proxy', () => {
+    expect(readmeImportCopy).toMatch(/schedule import/i);
+    expect(readmeImportCopy).toMatch(/Tesseract/);
     for (const claim of modelOrProxyClaims) {
       expect(llms).not.toMatch(claim);
-      expect(readme).not.toMatch(claim);
+      expect(readmeImportCopy).not.toMatch(claim);
     }
     // The README may say "there is no AI key"; the crawler summary must not
     // mention AI at all, because a crawler keeps the noun and drops the "no".
