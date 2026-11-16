@@ -6,7 +6,7 @@
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson } from './_lib/http';
-import { isFoundingMember } from './_lib/plan';
+import { isComped, isFoundingMember } from './_lib/plan';
 import {
   BillingNotConfiguredError,
   isBillingConfigured,
@@ -183,7 +183,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (req.method === 'GET') {
       return json({
         configured: isBillingConfigured(),
-        plan: founder || isPaidStatus(row?.status) ? 'producer' : 'free',
+        plan: founder || isComped(userId) || isPaidStatus(row?.status) ? 'producer' : 'free',
         founder,
         status: row?.status ?? null,
         // A subscription cancelled in the portal stays active to the end of
@@ -204,6 +204,7 @@ export default async function handler(req: Request): Promise<Response> {
 
       if (action === 'checkout') {
         if (founder) return json({ error: 'founding_member' }, 409);
+        if (isComped(userId)) return json({ error: 'already_subscribed' }, 409);
         if (isPaidStatus(row?.status)) return json({ error: 'already_subscribed' }, 409);
         const customer = await ensureCustomer(userId, row);
         let url: string | null;

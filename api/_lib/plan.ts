@@ -20,13 +20,27 @@ export function isFoundingMember(createdAt: string | null): boolean {
 }
 
 /**
+ * Accounts on the Producer plan without paying, by user id: the test account
+ * Anthropic's and OpenAI's directory reviewers sign in with, so they can try
+ * every tool, contracts included, as a paying producer would. Nobody else is
+ * comped, and an id here only names an account; it unlocks nothing by itself.
+ */
+export const COMPED_ACCOUNTS: ReadonlySet<string> = new Set([
+  '7e3589dbd56934f9ec257d6a209a11e8', // directory reviewers' test account
+]);
+
+export function isComped(userId: string): boolean {
+  return COMPED_ACCOUNTS.has(userId);
+}
+
+/**
  * Whether the app would show this account a Producer lock: the same three
  * things App.tsx asks (the locks are switched on, Stripe is set up, and the
  * plan /api/billing reports is not Producer), so nothing is held back here
  * that the app would let the producer do.
  */
 export async function producerLocked(db: Client, userId: string): Promise<boolean> {
-  if (!PAID_FEATURES_LOCKED || !isBillingConfigured()) return false;
+  if (!PAID_FEATURES_LOCKED || !isBillingConfigured() || isComped(userId)) return false;
   const rows = await db.execute({
     sql: `SELECT users.created_at, subscription.status FROM users
           LEFT JOIN subscription ON subscription.user_id = users.id WHERE users.id = ?`,
