@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import billing from '../../api/billing';
 import webhook from '../../api/stripe-webhook';
 import { encodeForm, verifyStripeSignature } from '../../api/_lib/stripe';
+import { COMPED_ACCOUNTS, isComped, producerLocked } from '../../api/_lib/plan';
+import { PAID_FEATURES_LOCKED } from './billing';
 
 const connection = vi.hoisted(() => ({ db: null as Client | null }));
 vi.mock('../../api/_lib/db', () => ({
@@ -518,3 +520,33 @@ describe('the Stripe form encoding', () => {
     expect(encodeForm({ a: { b: 'c' }, l: [{ p: 'x' }], skip: undefined })).toEqual(['a%5Bb%5D=c', 'l%5B0%5D%5Bp%5D=x']);
   });
 });
+
+describe('a comped account', () => {
+  const REVIEWER = [...COMPED_ACCOUNTS][0];
+  beforeEach(async () => {
+    await connection.db!.execute({ sql: `INSERT INTO users (id, created_at) VALUES (?, '2026-11-16 09:40:00')`, args: [REVIEWER] });
+  });
+
+  it('is on the Producer plan without paying, and is not a founding member', async () => {
+    expect(await plan(REVIEWER)).toMatchObject({ plan: 'producer', founder: false, status: null, canManage: false });
+  });
+
+  it('is never sent to checkout', async () => {
+    const res = await post('checkout', REVIEWER);
+    expect(res.status).toBe(409);
+    expect(stripeCalls).toEqual([]);
+  });
+
+  it('is not locked out of Producer features, while an account made the same day is', async () => {
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_x');
+    await connection.db!.execute(`INSERT INTO users (id, created_at) VALUES ('newcomer', '2026-11-16 09:40:00')`);
+    expect(await producerLocked(connection.db!, REVIEWER)).toBe(false);
+    expect(await producerLocked(connection.db!, 'newcomer')).toBe(PAID_FEATURES_LOCKED);
+  });
+
+  it('names only the reviewers\' test account', () => {
+    expect(COMPED_ACCOUNTS.size).toBe(1);
+    expect(isComped('producer')).toBe(false);
+  });
+});
+
