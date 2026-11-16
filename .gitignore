@@ -1,6 +1,8 @@
 node_modules
 dist
 dist-ssr
+# The OpenAI plugin upload, built by npm run plugin:openai
+/dist-plugin/
 *.local
 .vercel
 .env

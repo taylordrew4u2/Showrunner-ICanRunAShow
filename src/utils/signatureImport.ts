@@ -1,4 +1,4 @@
-import type { AppSettings, PotentialComic, SignatureRecord, SignatureRequest } from '../types';
+import type { AppSettings, PotentialComic, SignatureRequest } from '../types';
 import { isEmail } from './social';
 import { toHandle } from './socialPost';
 
@@ -89,8 +89,103 @@ export function asksPermission(label: string): boolean {
     && !/handle|user ?name|@/i.test(label);
 }
 
+// Matched on the label as the producer typed it. The bare acronyms count only
+// in capitals, where they cannot be "sin", German "Ein" or a walk-on by Taylor
+// Swift. A "#" before a digit numbers the question, as in "Social #2", and a
+// "no" before a word is the word no, as in "Main social, no links".
+const ID_NUMBER_QUESTION: readonly RegExp[] = [
+  // Social security, in its short forms too, and its counterparts elsewhere.
+  /social\s*sec(?:urity|\b)|\bsoc\.?\s*sec\b|\bsocial\s*(?:#(?!\s*\d)|no\b(?!\s*[a-z])|num(?:ber)?\b)|\bss\s*#|\bssn\b|\bs\.\s*s\.\s*n\b/i,
+  /seguro\s*social|seguridad\s*social|s[ée]curit[ée]\s*sociale/i,
+  /social\s*insurance|national\s*insurance/i,
+  /\b(?:SIN|NINO)\b|\bN\.?\s?I\.?\s*(?:#|[Nn]o\b|[Nn]um(?:ber)?\b)/,
+  // Tax identifiers.
+  /\btax[\s-]*(?:id\b|identification|number|no\b|#)|\btaxpayer|employer\s*identification|\bitin\b/i,
+  /\b(?:TIN|EIN)\b/,
+  // Identity documents.
+  /\bpassport|\bdriv(?:er|ing)(?:['’]?s)?\s*licen[cs]e|\blic\.?\s*(?:#|no\b)|\blicen[cs]e\s*(?:#|no\b|number)/i,
+  /\bDL\s*(?:#|[Nn]o\b|[Nn]um(?:ber)?\b)/,
+  // Bank accounts and the codes that route to them.
+  /\b(?:bank|credit\s*union)\s*(?:account|acct|details|info)|\b(?:checking|savings)\s*(?:account|acct)|\b(?:account|acct)\.?\s*(?:#(?!\s*\d)|no\b(?!\s*[a-z])|num(?:ber)?\b)/i,
+  /\brouting\b|\bsort\s*code|\biban\b|\bbsb\b|\bswift\s*(?:code|#|no\b|number)/i,
+  /\b(?:SWIFT|BIC)\b/,
+];
+
+/**
+ * What makes a bare "social" the social security number. Plenty of people
+ * call it their social, so beside a tax form, payroll, a tax ID or a count of
+ * its digits it is that and not a handle: "Social (for the 1099)", "Social
+ * (W-9)", "Social or EIN", "Last 4 of social". Here the tax IDs count in any
+ * case, because "social" has already said what kind of question it is.
+ */
+const SOCIAL_AS_AN_ID =
+  /\b1099|\bw[\s-]?[249]\b|\bpayroll|\btax|\birs\b|\b(?:itin|tin|ein)\b|\blast\s*(?:4|four)\b|\bdigits?\b|\bfull\s+social\b(?!\s*(?:media|handle|link|url|profile|account))/i;
+
+/**
+ * A question asking for an ID number: social security or insurance, tax,
+ * passport, driving licence, or a bank or credit union account.
+ *
+ * "Social # (for the 1099)" has "social" in it, and its answer was filed as
+ * the handle "@012-34-5678" and shown wherever the Rolodex is. So such a
+ * question is never read into a profile, and never taken for the Instagram
+ * question, whatever else its label says.
+ */
+export function asksForIdNumber(label: string): boolean {
+  return ID_NUMBER_QUESTION.some((pattern) => pattern.test(label))
+    || (/social/i.test(label) && SOCIAL_AS_AN_ID.test(label));
+}
+
+/** A question naming where the money goes, not just that there is some. */
+const PAYMENT_ACCOUNT = /venmo|pay\s*pal|cash\s*app|cashtag|zelle|interac|e-?transfer|revolut|monzo|chime|\bwise\b|apple\s*(?:cash|pay)|google\s*pay|payout|payroll|direct\s*deposit|credit\s*union|\bbank/i;
+
+/**
+ * A question about paying them: a Venmo, PayPal, Cash App or Zelle handle, a
+ * credit union account, direct deposit, or anything else named as payment.
+ *
+ * "Venmo handle (for your fee)" says "handle", and its answer was filed as
+ * their social handle, tagged in posts and shown wherever the Rolodex is,
+ * while the Instagram answer below it was dropped. "Credit union account" says
+ * "credit", and the account and routing numbers became the words read out to
+ * introduce them. Payment details stay in the app, so such a question is never
+ * read into a profile, and never taken for the Instagram question.
+ */
+export function asksForPayment(label: string): boolean {
+  return /venmo|pay\s*pal|cash\s*app|cashtag|zelle|interac|e-?transfer|revolut|monzo|chime|\bwise\b|apple\s*cash|google\s*pay|\bfees?\b|\bpay(?:ment|out|ee|able|ing|roll)?s?\b|\bpaid\b|direct\s*deposit|credit\s*union|\bbank/i.test(label);
+}
+
 /** An answer to a yes-or-no question, which is never somebody's handle. */
 const YES_OR_NO = /^(yes|no|y|n|ok|okay|sure|yep|yeah|nope|of course)[.!]*$/i;
+
+/** One answer, as a record keeps it: the question's label and what was typed. */
+export interface Answer {
+  label: string;
+  value: string;
+}
+
+/**
+ * A record's answers, read as far as they can be.
+ *
+ * The record is written by the signer's browser, not the app, so nothing
+ * about its shape is promised: `fields` may not be a list, and an entry may
+ * have no label or a value that is not text. An entry without a label is
+ * left out, a number is read as its digits, and any other value counts as
+ * unanswered, so one odd record cannot stop the rest being read.
+ */
+export function readAnswers(fields: unknown): Answer[] {
+  if (!Array.isArray(fields)) return [];
+  const out: Answer[] = [];
+  for (const field of fields as unknown[]) {
+    if (!field || typeof field !== 'object') continue;
+    const { label, value } = field as { label?: unknown; value?: unknown };
+    if (typeof label !== 'string') continue;
+    out.push({
+      label,
+      value: typeof value === 'string' ? value
+        : typeof value === 'number' && Number.isFinite(value) ? String(value) : '',
+    });
+  }
+  return out;
+}
 
 /**
  * Read a contract's answers as profile fields.
@@ -103,16 +198,25 @@ const YES_OR_NO = /^(yes|no|y|n|ok|okay|sure|yep|yeah|nope|of course)[.!]*$/i;
  * A stage name is not mapped onto the profile's name. Renaming someone in the
  * Rolodex off the back of a form answer would break every show that already
  * has them booked under the name you know them by.
+ *
+ * Takes the record's `fields` as it arrived, whatever shape that is: see
+ * readAnswers.
  */
 export function profileFromAnswers(
-  fields: SignatureRecord['fields'] | undefined,
+  fields: unknown,
 ): ImportedProfile {
   const out: ImportedProfile = {};
-  for (const field of fields ?? []) {
+  for (const field of readAnswers(fields)) {
     const label = field.label.toLowerCase();
     const value = field.value.trim();
     if (!value) continue;
-    if (NOT_A_CONTACT_DETAIL.test(label)) continue;
+    if (asksForIdNumber(field.label) || NOT_A_CONTACT_DETAIL.test(label)) continue;
+    // How they are paid stays in the app. A question that names a way of
+    // paying them is skipped outright; one that only mentions payment, like
+    // "Email (for booking & payment)", still asks for an email or a phone,
+    // but is never read as their handle or their introduction.
+    if (PAYMENT_ACCOUNT.test(field.label)) continue;
+    const aboutPay = asksForPayment(field.label);
 
     // Order matters: "email" inside "email or phone" should not also claim the
     // phone slot, and a question about credit is not a question about socials
@@ -125,14 +229,16 @@ export function profileFromAnswers(
       out.phone = value;
       continue;
     }
-    if (!out.credits && /credit|bio|introduc|how to intro/.test(label)) {
+    if (!aboutPay && !out.credits && /credit|bio|introduc|how to intro/.test(label)) {
       out.credits = value;
       continue;
     }
-    if (!out.socialMedia && /social|instagram|\big\b|handle|tiktok|twitter|find you/.test(label)) {
+    if (!aboutPay && !out.socialMedia && /social|instagram|\big\b|handle|tiktok|twitter|find you/.test(label)) {
       // A yes to posting their photo was filed as the handle "@Yes" and
       // tagged in the post. Left for a later answer that is a handle.
-      if (!asksPermission(label) && !YES_OR_NO.test(value)) out.socialMedia = toHandle(value) ?? value;
+      // A handle has letters in it; digits and dashes alone are a social
+      // security or insurance number, however the question was worded.
+      if (!asksPermission(label) && !YES_OR_NO.test(value) && /\p{L}/u.test(value)) out.socialMedia = toHandle(value) ?? value;
       continue;
     }
     // Words only. The audio itself still has to be found and uploaded by the

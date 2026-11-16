@@ -56,8 +56,14 @@ function md5(input: Uint8Array): Uint8Array<ArrayBuffer> {
   return result;
 }
 
-function expand(passphrase: string, salt: Uint8Array) {
-  if (!/^[a-f0-9]{64}$/i.test(passphrase)) throw new Error('Invalid session key.');
+const SESSION_KEY = /^[a-f0-9]{64}$/i;
+// A signing or profile link's own key: 32 random bytes, base64url, the same
+// passphrase the app makes for each link (generateSignKey in
+// src/utils/contracts.ts). It travels only in the link's fragment.
+const LINK_KEY = /^[A-Za-z0-9_-]{43}$/;
+
+function expand(passphrase: string, salt: Uint8Array, format = SESSION_KEY) {
+  if (!format.test(passphrase)) throw new Error('Invalid session key.');
   const password = encoder.encode(passphrase);
   const expanded = new Uint8Array(48);
   let previous = new Uint8Array(0);
@@ -95,11 +101,20 @@ function parse(ciphertext: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-export async function encryptShow(data: unknown, sessionKey: string): Promise<string> {
+export function encryptShow(data: unknown, sessionKey: string): Promise<string> {
+  return encrypt(data, sessionKey, SESSION_KEY);
+}
+
+/** What a link's holder decrypts with the key in its fragment (encryptWithKey in the app). */
+export function encryptForLink(data: unknown, linkKey: string): Promise<string> {
+  return encrypt(data, linkKey, LINK_KEY);
+}
+
+async function encrypt(data: unknown, passphrase: string, format: RegExp): Promise<string> {
   const text = JSON.stringify(data);
   if (text === undefined) throw new Error('Show data must be JSON.');
   const salt = crypto.getRandomValues(new Uint8Array(8));
-  const expanded = expand(sessionKey, salt);
+  const expanded = expand(passphrase, salt, format);
   const key = await crypto.subtle.importKey('raw', expanded.key, 'AES-CBC', false, ['encrypt']);
   const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CBC', iv: expanded.iv }, key, encoder.encode(text)));
   const result = new Uint8Array(16 + cipher.length);

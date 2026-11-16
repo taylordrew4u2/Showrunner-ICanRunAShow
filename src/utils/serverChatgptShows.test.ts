@@ -7,6 +7,7 @@ import { applySchema } from '../../api/_lib/db';
 import { handleShowTool, SHOW_TOOLS, type ChatgptShowGrant } from '../../api/_lib/chatgptShows';
 import { cipherHash } from '../../api/_lib/showWrites';
 import { decryptWithKeys, encryptWithKey } from './encryption';
+import { DEFAULT_SECTIONS, hiddenFromSelected } from './showBlocks';
 import type { Show } from '../types';
 
 let db: Client;
@@ -40,23 +41,33 @@ async function seed(show: Show = fixture(), userId = grant.userId, key = grant.k
 
 const call = (name: string, args: unknown, connection = grant) => handleShowTool(db, connection, name, args);
 
-it('reads an encrypted show while withholding contacts, notes, media and share secrets', async () => {
+it('reads a show in full while withholding media and share secrets', async () => {
   const cipher = await seed();
   const result = await call('get_show', { id: 'existing-show' }) as { show: Record<string, unknown>; revision: string };
-  expect(result.show).toMatchObject({ id: 'existing-show', name: 'Friday Comedy', performers: [{ name: 'Sam' }], artists: [{ name: 'Robin', artistType: 'Singer' }], schedule: [{ id: 'cue', time: '20:00', description: 'Opening set', performer: 'Sam', durationMin: 10 }] });
+  expect(result.show).toMatchObject({
+    id: 'existing-show', name: 'Friday Comedy', productionNotes: 'private planning', hasViewerLink: true,
+    performers: [{ id: 'p1', name: 'Sam', email: 'private@example.com', phone: '555-0000', notes: 'private note', hasPhoto: true, surpriseGuest: false }],
+    artists: [{ id: 'a1', name: 'Robin', artistType: 'Singer', email: 'artist@example.com' }],
+    schedule: [{ id: 'cue', time: '20:00', description: 'Opening set', performer: 'Sam', durationMin: 10, hasMusic: true }],
+  });
   const serialized = JSON.stringify(result);
-  for (const privateValue of ['private@example.com', '555-0000', 'private note', 'media:photo', 'artist@example.com', 'media:audio', 'private planning', 'private-view-token', 'private-viewer-key', grant.key]) {
-    expect(serialized).not.toContain(privateValue);
+  for (const secret of ['media:photo', 'media:audio', 'private-view-token', 'private-viewer-key', grant.key, grant.legacyKey!]) {
+    expect(serialized).not.toContain(secret);
   }
   expect(result.revision).toBe(await cipherHash(cipher));
 });
 
 it('creates a fully initialized encrypted show that the app can read', async () => {
-  const result = await call('create_show', { name: 'New Night', date: '2027-01-08', time: '19:30', venueName: 'Room Two' }) as { show: { id: string }; revision: string };
+  // Trimmed, as the show form trims what is typed into it.
+  const result = await call('create_show', { name: ' New Night ', date: '2027-01-08', time: '19:30', venueName: 'Room Two  ' }) as { show: { id: string }; revision: string };
   const stored = (await db.execute({ sql: 'SELECT encrypted_data FROM user_shows WHERE id = ?', args: [result.show.id] })).rows[0][0];
   expect(String(stored)).not.toContain('New Night');
   const show = decryptWithKeys<Show>(String(stored), [grant.key]);
-  expect(show).toMatchObject({ id: result.show.id, name: 'New Night', date: '2027-01-08', time: '19:30', venueName: 'Room Two', location: '', status: 'upcoming', performers: [], artists: [], schedule: [], hosts: [], djSongs: [], staff: [], vendors: [], expenses: [], scenes: [] });
+  expect(show).toMatchObject({ id: result.show.id, name: 'New Night', date: '2027-01-08', time: '19:30', venueName: 'Room Two', location: '', status: 'upcoming', performers: [], artists: [], schedule: [], hosts: [], djSongs: [], staff: [], vendors: [], expenses: [] });
+  // As the New Show form leaves a show: the lineup and running order on, the
+  // other sections one tap away, and no Scenes list until it is asked for.
+  expect(show.hiddenSections).toEqual(hiddenFromSelected(DEFAULT_SECTIONS));
+  expect(show.scenes).toBeUndefined();
   expect(result.revision).toBe(await cipherHash(String(stored)));
 });
 

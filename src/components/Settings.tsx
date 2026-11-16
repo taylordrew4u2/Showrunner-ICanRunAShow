@@ -32,7 +32,7 @@ interface SettingsProps {
   lastSavedAt?: number | null;
   /** Who's signed in — shown in the account card. */
   username?: string;
-  /** Present for the signed-in account's optional ChatGPT connection. */
+  /** Present for the signed-in account's optional AI assistant connections. */
   session?: SessionCredentials;
   onLogout?: () => void;
   /**
@@ -534,8 +534,8 @@ export function Settings({
                 <span>
                   Your password is the encryption key. It's used the moment you sign in and then
                   discarded — never sent to us, and never written to this browser. What's stored
-                  is unreadable without it. If you choose to connect ChatGPT, you separately
-                  allow the server to decrypt show data for that connection until you disconnect.
+                  is unreadable without it. If you choose to connect Claude or ChatGPT, you separately
+                  allow the server to decrypt your data for that connection until you disconnect it or it expires.
                 </span>
               </div>
             </li>

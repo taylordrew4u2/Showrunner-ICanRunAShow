@@ -1,0 +1,17 @@
+{
+  "name": "icanrunashow",
+  "owner": {
+    "name": "Taylor Drew",
+    "url": "https://github.com/taylordrew4u2"
+  },
+  "description": "The I Can Run A Show plugin for Claude Code: run your comedy, drag and variety shows from Claude.",
+  "plugins": [
+    {
+      "name": "icanrunashow",
+      "source": "./plugins/icanrunashow",
+      "description": "Connects Claude Code to your I Can Run A Show account so it can read and edit shows, lineups and running orders, manage your Rolodex, and send profile and contract links, with your permission.",
+      "category": "productivity",
+      "tags": ["live-events", "comedy", "drag", "variety", "producers", "mcp"]
+    }
+  ]
+}

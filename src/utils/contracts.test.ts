@@ -549,6 +549,83 @@ describe('the Instagram question on a contract', () => {
     expect(fields).toHaveLength(2);
     expect(fields[0].required).toBeUndefined();
   });
+
+  it('does not mistake an ID number asked for in a few words', () => {
+    for (const label of ['Social # (for the 1099)', 'Social sec. no.', 'Social no.', 'SS#', 'S.S.N.', 'NI number', 'SIN']) {
+      expect(isInstagramField({ id: 'id', label })).toBe(false);
+      const fields = withInstagramField([{ id: 'id', label }]);
+      expect(fields.map((f) => f.label)).toEqual([label, 'Instagram or main social']);
+      expect(fields[0].required).toBeUndefined();
+    }
+  });
+
+  it('still takes the ordinary ways of asking for socials as the handle question', () => {
+    for (const label of ['Social media', 'Socials', 'Social handle', 'Instagram or main social', 'Social media account details']) {
+      expect(isInstagramField({ id: 'own', label })).toBe(true);
+    }
+    // "Account" is not an account number: a contract asking only this is not
+    // handed a second, required Instagram question.
+    const fields = withInstagramField([{ id: 'own', label: 'Social media account details' }]);
+    expect(fields).toEqual([{ id: 'own', label: 'Social media account details', required: true }]);
+  });
+
+  it('does not mistake a social security number asked for as just "social", or a payment handle', () => {
+    for (const label of [
+      'Social (for the 1099)', 'Social (W-9)', 'Social (for payroll)', 'Last 4 of social', 'Seguro Social', 'Social or ein',
+      'Venmo @handle', 'Payment handle (Venmo / Cash App)', 'PayPal (@handle or email)',
+    ]) {
+      expect(isInstagramField({ id: 'own', label })).toBe(false);
+    }
+    // With no Instagram question of its own, the contract is given one, and
+    // the social security question is not required in its place.
+    const fields = withInstagramField([{ id: 'stage', label: 'Stage name' }, { id: 'phone', label: 'Phone' }, { id: 'ssn', label: 'Social (for the 1099)' }]);
+    expect(fields.map((f) => [f.id, f.label, f.required])).toEqual([
+      ['stage', 'Stage name', undefined], ['phone', 'Phone', undefined], ['ssn', 'Social (for the 1099)', undefined],
+      ['social', 'Instagram or main social', true],
+    ]);
+    // Asked before the producer's own Instagram question, it does not take its place.
+    expect(withInstagramField([{ id: 'w9', label: 'Social (W-9)' }, { id: 'ig', label: 'Instagram' }]))
+      .toEqual([{ id: 'w9', label: 'Social (W-9)' }, { id: 'ig', label: 'Instagram', required: true }]);
+  });
+
+  it('keeps a numbered social as the handle question', () => {
+    expect(withInstagramField([{ id: 'social', label: 'Social #1' }, { id: 'two', label: 'Social #2' }]))
+      .toEqual([{ id: 'social', label: 'Social #1', required: true }, { id: 'two', label: 'Social #2' }]);
+    for (const label of ['Main social no links', 'Main social, no links']) {
+      expect(withInstagramField([{ id: 'social', label }])).toEqual([{ id: 'social', label, required: true }]);
+    }
+  });
+
+  it('asks for the handle under an id of its own when its row is relabelled to ask for an ID number', () => {
+    // Added as "social" too, the two rows shared one answer on the signing
+    // page and one key in the editor.
+    for (const label of ['Social security number', 'Social (for the 1099)', 'Instagram account #', 'Venmo @handle']) {
+      const fields = withInstagramField([{ id: 'social', label, required: true }, { id: 'social-2', label: 'Stage name' }]);
+      expect(fields).toEqual([
+        { id: 'social', label, required: true }, { id: 'social-2', label: 'Stage name' },
+        { id: 'social-3', label: 'Instagram or main social', placeholder: '@handle or a link', required: true },
+      ]);
+      expect(fields.filter(isInstagramField)).toHaveLength(1);
+    }
+  });
+
+  it('settles back to one handle question, under unique ids, as its row is typed through "Social #" to "Social #2"', () => {
+    // The editor saves every keystroke through here, and "Social #" asks for
+    // a social security number until the 2 arrives.
+    let fields = withInstagramField([{ id: 'stage', label: 'Stage name' }, { id: 'social', label: '', required: true }]);
+    for (const typed of ['S', 'So', 'Social', 'Social ', 'Social #', 'Social #2']) {
+      fields = withInstagramField(fields.map((f) => (f.id === 'social' ? { ...f, label: typed } : f)));
+      expect(new Set(fields.map((f) => f.id)).size).toBe(fields.length);
+      expect(fields.filter(isInstagramField)).toHaveLength(1);
+    }
+    expect(fields).toEqual([{ id: 'stage', label: 'Stage name' }, { id: 'social', label: 'Social #2', required: true }]);
+  });
+
+  it('keeps a spare handle question the producer has changed', () => {
+    const spare = { id: 'social-2', label: 'Instagram or main social', placeholder: '@handle or a link', required: true, multiline: true };
+    expect(withInstagramField([{ id: 'social', label: 'Your IG' }, spare]))
+      .toEqual([{ id: 'social', label: 'Your IG', required: true }, spare]);
+  });
 });
 
 /**

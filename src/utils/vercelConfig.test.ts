@@ -32,6 +32,16 @@ describe('the app shell fallback', () => {
     expect(rewrittenTo('/chatgpt/authorize')).toBe('/index.html');
     expect(rewrittenTo('/api/mcp')).toBe('/api/$1');
   });
+
+  it('answers OpenAI’s domain check from the server and every other discovery address with a 404', () => {
+    // Answered with the app shell, /.well-known/openid-configuration came back
+    // 200 with HTML, which a client reads as broken discovery rather than
+    // none, and the domain check would read the page instead of its token.
+    expect(rewrittenTo('/.well-known/openai-apps-challenge')).toBe('/api/chatgpt?route=challenge');
+    expect(rewrittenTo('/.well-known/openid-configuration')).toBe('/api/chatgpt?route=not-found');
+    expect(rewrittenTo('/.well-known/oauth-authorization-server/api/mcp')).toBe('/api/chatgpt?route=not-found');
+  });
+
   it('still answers the app routes with the app', () => {
     expect(rewrittenTo('/')).toBe('/index.html');
     expect(rewrittenTo('/shows/anything')).toBe('/index.html');
