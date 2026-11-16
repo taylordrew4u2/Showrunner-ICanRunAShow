@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "screenshots": "node scripts/capture-screenshots.mjs",
+    "plugin:openai": "node scripts/build-openai-plugin.mjs",
     "ios:sync": "npm run build && cap sync ios",
     "ios:open": "cap open ios",
     "e2e": "playwright test",

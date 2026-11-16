@@ -82,34 +82,46 @@
 </header>
 <main>
   <h1>Privacy Policy</h1>
-  <p class="updated">Last updated: October 31, 2026</p>
+  <p class="updated">Last updated: November 16, 2026</p>
 
-  <p>I Can Run A Show (“the Service”, available at icanrunashow.com) is a live-show management tool for comedians, promoters, and variety-show producers. This policy explains what information the Service handles and how.</p>
+  <p>I Can Run A Show (“the Service”, available at icanrunashow.com) is a live-show management tool for comedians, promoters, and variety-show producers, operated by Taylor Drew. This policy explains what information the Service handles and how.</p>
 
   <h2>Information we collect</h2>
   <ul>
     <li><strong>Account information:</strong> a username and a password. We never store your password in readable form: the server keeps a slow-hashed credential. An account that has not been used since June 2026, when that began, still has an older and faster hash on file until it is next used, when it moves to the slow one automatically.</li>
-    <li><strong>Your show data:</strong> shows, lineups, schedules, contacts, and files you add are <strong>encrypted on your device</strong> with a key derived from your password before they are sent to our servers. We cannot read this data. If you lose your password, we cannot recover it.</li>
+    <li><strong>Your show data:</strong> shows, lineups, schedules, contacts, and files you add are <strong>encrypted on your device</strong> with a key derived from your password before they are sent to our servers. We cannot read this data, with one exception you have to switch on yourself: an AI assistant connection, described below. If you lose your password, we cannot recover it.</li>
+    <li><strong>AI assistant connections:</strong> if you connect Claude or ChatGPT, we store the assistant’s name, the permissions you chose, when the connection was made and expires, its credentials as one-way hashes, and the encryption keys described below, themselves encrypted.</li>
     <li><strong>Local storage:</strong> the app stores your session, display preferences, and temporary backups of unsaved edits in your browser’s local storage so the app works reliably, including offline.</li>
+    <li><strong>Rate limiting:</strong> to prevent abuse, such as repeated sign-in attempts, our server keeps short-lived request counts keyed by your IP address, which are cleared after about a day.</li>
+    <li><strong>Information about other people:</strong> your show data includes what you keep about the performers, hosts, crew and vendors you work with, such as names and stage names, email addresses, phone numbers, social handles, bios, credits and notes, and the answers performers give on the contract and profile links you send them, which can include how they want to be paid. It is stored and protected like the rest of your show data.</li>
   </ul>
 
   <h2>What we don’t do</h2>
   <ul>
     <li>We do not sell your personal information.</li>
-    <li>We do not read the contents of your encrypted show data.</li>
+    <li>We do not read the contents of your encrypted data. The only time our server decrypts any of it is to answer an AI assistant you have connected, within the permissions you gave it.</li>
     <li>We do not require an email address or phone number to use the Service.</li>
     <li>We do not run ads, advertising cookies, or third-party tracking scripts.</li>
   </ul>
 
+  <h2>AI assistant connections (optional)</h2>
+  <p>You can connect Claude (made by Anthropic) or ChatGPT (made by OpenAI) to your account. Nothing is connected unless you sign in on our site and press Allow access, and you choose what each connection may do: see shows (always included), edit shows, move shows to the trash, see or edit your Rolodex, see contract templates, who has signed or sent their details and the contact details they gave (their email, phone, social handle, bio and walk-on song; their other answers, such as payment or tax details, stay in the app), and send contract and profile links in your name.</p>
+  <p>Allowing a connection sends our server the encryption keys derived from your password (never the password itself). We keep them encrypted under that connection’s credentials, so our database alone cannot unlock them. While the assistant makes a request the connection allows, our server uses the keys to decrypt the records that request reads: your shows, and for many requests your settings record, which keeps your Rolodex, contracts and signed documents together. It sends the assistant only the answer to the request, and encrypts any change before saving it. The keys could unlock everything in your account, but the server only carries out what the permissions you ticked allow. We do not log the keys, the credentials, or decrypted content.</p>
+  <p>Whatever the assistant receives is then handled by Anthropic or OpenAI under their own privacy policies, and stays in your conversations with them. Disconnecting stops future access but does not remove what was already shared.</p>
+  <p>You can disconnect one assistant or all of them at any time in Settings → AI assistants. Connections also end on their own after 30 days. If you need your data never to be readable outside your own device, do not connect an assistant.</p>
+
   <h2>Advertising and cookies</h2>
   <p>The Service does not show ads and does not use advertising cookies. No advertising or tracking scripts run on any page.</p>
+
+  <h2>Who handles your information</h2>
+  <p>A few providers run parts of the Service for us. Vercel hosts the app and its server. Turso hosts the database, which holds your data encrypted as described above. If you subscribe, Stripe processes the payment and keeps the payment record. If you connect an AI assistant, Anthropic or OpenAI receives what that assistant reads, as described above.</p>
 
   <h2>Your rights (GDPR / CCPA)</h2>
   <p>Depending on where you live, you may have the right to access, correct, export, or delete your personal data. Because your show data is end-to-end encrypted, you can export it yourself at any time from Settings, and you can delete your account yourself from Settings (see Data retention below). No advertising cookies are set, so there is no advertising consent to manage.</p>
 
   <h2>Data retention</h2>
   <p>Encrypted data is retained while your account exists. Items you delete are moved to an in-app trash you control. You can export a full backup of your data from Settings at any time.</p>
-  <p>You can delete your account at any time from Settings → Account → Delete account. That deletes your account and everything stored under it from our database — shows, contacts, contracts and signatures, files, earlier versions, and the links you have sent, which stop working — and cancels any Producer subscription immediately. It also clears your session and unsaved edits from the device you delete it on. Records of payments you made are kept by Stripe, which processes them.</p>
+  <p>You can delete your account at any time from Settings → Account → Delete account. That deletes your account and everything stored under it from our database — shows, contacts, contracts and signatures, files, earlier versions, and the links you have sent, which stop working — cancels any Producer subscription immediately, and ends every AI assistant connection. It also clears your session and unsaved edits from the device you delete it on. Records of payments you made are kept by Stripe, which processes them.</p>
 
   <h2>Children</h2>
   <p>The Service is not directed at children under 13, and we do not knowingly collect personal information from them.</p>

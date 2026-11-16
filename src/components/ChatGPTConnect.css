@@ -37,11 +37,32 @@
     cursor: pointer;
 }
 
-.chatgpt-connect__permission {
+.chatgpt-connect__permissions {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.chatgpt-connect__legend {
+    padding: 0;
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+}
+
+.chatgpt-connect__permission-label {
     display: flex;
     align-items: center;
     gap: var(--space-3);
     min-height: 44px;
+    cursor: pointer;
+}
+
+.chatgpt-connect__permission-label:has(input:disabled) {
+    cursor: default;
 }
 
 .chatgpt-connect__permission input {
@@ -51,10 +72,28 @@
     accent-color: var(--primary);
 }
 
-.chatgpt-connect__privacy,
-.chatgpt-connect__destination {
+/* Lines up under the label text, past the checkbox and its gap. */
+.chatgpt-connect__permission-detail {
+    margin: 0 0 var(--space-2) calc(20px + var(--space-3));
     color: var(--text-muted);
     font-size: var(--text-sm);
+}
+
+.chatgpt-connect__warning {
+    padding: var(--space-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+}
+
+.chatgpt-connect__privacy {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    overflow-wrap: anywhere;
+}
+
+/* Where access is sent, not muted: the client's name above is self-chosen. */
+.chatgpt-connect__destination {
     overflow-wrap: anywhere;
 }
 
@@ -64,9 +103,57 @@
     gap: var(--space-3);
 }
 
+.chatgpt-settings__command {
+    font-family: var(--font-mono);
+    overflow-wrap: anywhere;
+}
+
 .chatgpt-settings__connections {
+    list-style: none;
     margin: 0;
-    padding-left: var(--space-5);
-    color: var(--text-muted);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.chatgpt-settings__connection {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2-5);
+    padding: var(--space-3);
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+.chatgpt-settings__connection-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5);
+    flex: 1;
+    min-width: 0;
     font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+/* The assistant's name is a name, so it is set like one. */
+.chatgpt-settings__connection-name {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 680px) {
+    .chatgpt-settings__connection {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .chatgpt-settings__connection .btn {
+        flex-shrink: 0;
+    }
 }

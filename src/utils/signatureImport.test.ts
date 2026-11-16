@@ -10,6 +10,9 @@ import {
   describeChanges,
   profileChanges,
   profileFromAnswers,
+  asksForIdNumber,
+  asksForPayment,
+  readAnswers,
 } from './signatureImport';
 
 const answers = (...pairs: [string, string][]) => pairs.map(([label, value]) => ({ label, value }));
@@ -161,6 +164,176 @@ describe('reading a signed contract as a profile', () => {
 
   it('does not read a question about cancellation as a cell number', () => {
     expect(profileFromAnswers(answers(['Cancellation notice given', 'Yes, a week'])).phone).toBeUndefined();
+  });
+
+  it('never files an ID number anywhere, however briefly the question asks for it', () => {
+    // "Social # (for the 1099)" was filed as the handle "@012-34-5678", and
+    // shown wherever the Rolodex is.
+    const profile = profileFromAnswers(
+      answers(
+        ['Social # (for the 1099)', '012-34-5678'],
+        ['Social sec. no.', '012-34-5678'],
+        ['SS#', '012-34-5678'],
+        ['NI number', 'QQ 12 34 56 C'],
+        ['Acct # for your fee', '00012345678'],
+        ['Lic #', 'D1234567'],
+        ['Your social', '@monasable'],
+      ),
+    );
+    expect(profile).toEqual({ socialMedia: '@monasable' });
+  });
+
+  it('never files a social security number asked for as just "social"', () => {
+    // Each was filed as the handle "@123-45-6789", or "@6789", and shown by
+    // the Rolodex, the show and every assistant tool that reads them.
+    for (const label of [
+      'Social (for the 1099)', 'Social (W-9)', 'Social (for payroll)', 'Social - needed for the 1099', 'Full social',
+      'Last 4 of social', 'Last four digits of your social', 'Número de Seguro Social', 'Seguro Social', 'Social or ein',
+      'W9 info: name, address, social',
+    ]) {
+      expect(profileFromAnswers(answers(['Phone', '312-555-0199'], [label, '123-45-6789']))).toEqual({ phone: '312-555-0199' });
+    }
+    // Asked before the handle, it no longer takes the handle's place.
+    expect(profileFromAnswers(answers(['Social (W-9)', '123-45-6789'], ['Instagram', '@samcomedy'])))
+      .toEqual({ socialMedia: '@samcomedy' });
+  });
+
+  it('never files how they are paid', () => {
+    // "Venmo handle" was filed as their social handle and the Instagram answer
+    // dropped; a credit union account was filed as their introduction.
+    expect(profileFromAnswers(answers(['Venmo handle (for your fee)', '@sam-okafor-pay'], ['Instagram', '@samcomedy'])))
+      .toEqual({ socialMedia: '@samcomedy' });
+    expect(profileFromAnswers(answers(['PayPal handle', '@sampay']))).toEqual({});
+    expect(profileFromAnswers(answers(['Payment handle (Venmo / Cash App)', '$sampay']))).toEqual({});
+    expect(profileFromAnswers(answers(['PayPal email', 'pay-sam@example.com'], ['Email', 'sam@example.com'])))
+      .toEqual({ email: 'sam@example.com' });
+    expect(profileFromAnswers(answers(
+      ['Credit union account (for direct deposit)', 'Alliant CU 0047712345 routing 271081528'],
+      ['Credit union acct (direct deposit)', '000123456789'],
+      ['Credit union info for direct deposit', 'Alliant 000123456789 / 271081528'],
+      ['Credits for your stage introduction', 'As seen on Comedy Central'],
+    ))).toEqual({ credits: 'As seen on Comedy Central' });
+  });
+
+  it('still reads the ordinary ways of asking for socials', () => {
+    for (const label of [
+      'Social media', 'Socials', 'Social handle', 'Instagram or main social', 'Social media account details',
+      'Social #1', 'Main social, no links', 'Full social media link',
+    ]) {
+      expect(profileFromAnswers(answers([label, '@monasable'])).socialMedia).toBe('@monasable');
+    }
+    expect(profileFromAnswers(answers(['Where can people find you online?', '@monasable'])).socialMedia).toBe('@monasable');
+  });
+
+  it('reads a record whatever shape it arrived in', () => {
+    // The signer's browser writes the record, so nothing about it is promised.
+    for (const fields of [undefined, null, 'Email', 42, {}, { length: 2 }, [[]], [null, 7, 'Email']]) {
+      expect(profileFromAnswers(fields)).toEqual({});
+    }
+    const profile = profileFromAnswers([
+      null, 7, 'Email: a@b.example', ['Email', 'a@b.example'],
+      { label: 5, value: 'mona@sable.example' }, { value: 'mona@sable.example' },
+      { label: 'Email' }, { label: 'Email', value: { address: 'mona@sable.example' } },
+      { label: 'Phone', value: null }, { label: 'Phone', value: 5550142 },
+      { label: 'Instagram', value: Number.NaN }, { label: 'Instagram', value: '@monasable' },
+    ]);
+    expect(profile).toEqual({ phone: '5550142', socialMedia: '@monasable' });
+  });
+});
+
+describe('a record’s answers, as far as they can be read', () => {
+  it('keeps every labelled answer, and reads anything but text or a number as unanswered', () => {
+    expect(readAnswers([
+      { label: 'Email', value: 'mona@sable.example' }, { label: 'Phone', value: 5550142 },
+      { label: 'Fee', value: Infinity }, { label: 'Notes', value: null }, { label: 'Bio', value: ['x'] }, { label: 'Song' },
+      { label: 7, value: 'x' }, null, 'Email', ['Email', 'x'],
+    ])).toEqual([
+      { label: 'Email', value: 'mona@sable.example' }, { label: 'Phone', value: '5550142' },
+      { label: 'Fee', value: '' }, { label: 'Notes', value: '' }, { label: 'Bio', value: '' }, { label: 'Song', value: '' },
+    ]);
+    expect(readAnswers({ 0: { label: 'Email', value: 'x' }, length: 1 })).toEqual([]);
+    expect(readAnswers(undefined)).toEqual([]);
+  });
+});
+
+describe('questions that ask for an ID number', () => {
+  it.each([
+    'Social security number', 'Social Security #', 'Last 4 of your social security', 'Social sec. no.', 'Soc. Sec. #', 'soc sec number',
+    'Social # (for the 1099)', 'Social no.', 'Social number', 'SS#', 'SS #', 'SSN', 'Your ssn', 'S.S.N.',
+    'Social insurance number', 'SIN', 'SIN (Canada)', 'National Insurance number', 'NI number', 'NI no.', 'N.I. no', 'NINO',
+    'Tax ID', 'Tax ID (EIN or SSN)', 'Tax identification number', 'Tax number', 'TIN', 'EIN', 'ITIN', 'Taxpayer reference', 'Employer identification number',
+    'Passport', 'Passport number', "Driver's license number", 'Driver’s licence #', 'Drivers license', 'Driving licence number', 'Lic #', 'Lic. no', 'License number', 'DL #', 'DL no.', 'DL number',
+    'Bank account', 'Bank account number', 'Bank details (for your fee)', 'Checking account', 'Account number', 'Account #', 'Acct #', 'Acct no.',
+    'Routing number', 'ABA routing #', 'Sort code', 'IBAN', 'SWIFT', 'SWIFT/BIC', 'Swift code', 'BSB',
+    // "Social" alone, beside a tax form, payroll, a tax ID or its digits.
+    'Social (for the 1099)', 'Social (W-9)', 'Social (W9)', 'Social (for payroll)', 'Social - needed for the 1099', 'Social (for tax purposes)',
+    'Social or ein', 'Social or EIN', 'Social or ITIN', 'W9 info: name, address, social', 'Last 4 of social', 'Last four digits of your social',
+    'Social (9 digits, no dashes)', 'Full social', 'Full social (no dashes)', 'Social no', 'Social no (for the 1099)',
+    'Número de Seguro Social', 'Seguro Social', 'Número de la Seguridad Social', 'Numéro de sécurité sociale',
+    'Credit union account', 'Credit union acct (direct deposit)', 'Credit union info for direct deposit',
+  ])('knows %j asks for one', label => {
+    expect(asksForIdNumber(label)).toBe(true);
+  });
+
+  it.each([
+    'Social media', 'Socials', 'Social handle', 'Your socials', 'Instagram or main social', 'Social media account details', 'Instagram account',
+    'Twitter/X account', 'Where can people find you online?', 'OK to post your photo on social media?', 'Can we tag you on socials?',
+    'Walk-on song (e.g. Taylor Swift)', 'Taylor Swift', 'Ein Lied für den Auftritt', 'Any destinations or tins?', 'Your sins, confessed',
+    'Email', 'Phone', 'Contact number', 'Best number for show-day texts', 'Stage name', 'How to credit you', 'Venmo', 'PayPal email',
+    'Mailing address', 'Tax form on file?', 'Account name', 'Show date', 'Licence to film your set?',
+    // Numbered socials, and the word no.
+    'Social #1', 'Social # 2', 'Social account #2', 'Main social no links', 'Main social, no links', 'Socials, no DMs please',
+    'Full social media link', 'Full socials', 'Credits for your stage introduction',
+  ])('knows %j does not', label => {
+    expect(asksForIdNumber(label)).toBe(false);
+  });
+});
+
+describe('questions about paying them', () => {
+  it.each([
+    'Venmo', 'Venmo handle (for your fee)', 'PayPal handle', 'PayPal email', 'Pay Pal', 'Payment handle (Venmo / Cash App)', 'Cash App $cashtag',
+    'Zelle', 'Interac e-Transfer email', 'Payout email', 'Payment details', 'How do you want to be paid?', 'Apple Pay', 'Payroll email',
+    'Direct deposit', 'Credit union account (for direct deposit)', 'Bank details',
+  ])('knows %j does', label => {
+    expect(asksForPayment(label)).toBe(true);
+  });
+
+  it.each([
+    'Email', 'Phone', 'Best number for show-day texts', 'Instagram or main social', 'Social media', 'Socials', 'Social handle', 'Twitter/X account',
+    'Where can people find you online?', 'Credits for your stage introduction', 'How should we introduce you?', 'Walk-on song', 'Stage name',
+    'Taylor Swift', 'Mailing address', 'Display name', 'Your IG handle, so we can tag you',
+  ])('knows %j does not', label => {
+    expect(asksForPayment(label)).toBe(false);
+  });
+});
+
+describe('what a payment or ID question can still leave behind', () => {
+  it.each([
+    ['Social-Security #', '123-45-6789'],
+    ['Social Securty #', '123-45-6789'],
+    ['Social Ins. No.', '123 456 789'],
+    ['Social (needed to cut your check)', '123-45-6789'],
+    ['Your social (for accounting)', '123456789'],
+  ])('never files the digits typed for %j as a handle', (label, value) => {
+    expect(profileFromAnswers(answers(['Email', 'sam@example.com'], [label, value]))).toEqual({ email: 'sam@example.com' });
+  });
+
+  it('files the real handle when a payment app\'s tag comes first', () => {
+    for (const label of ['Revolut handle (for your fee)', 'Monzo handle', 'Chime handle', 'Wise tag (for your fee)']) {
+      expect(profileFromAnswers(answers([label, '@adacole'], ['Instagram or main social', '@ada.cole']))).toEqual({ socialMedia: '@ada.cole' });
+    }
+  });
+
+  it('still reads an email or phone question that mentions payment', () => {
+    expect(profileFromAnswers(answers(
+      ['Email (for booking & payment)', 'ada@example.com'],
+      ['Phone (for show-day texts & payment questions)', '555-0100'],
+      ['Instagram or main social', '@ada'],
+    ))).toEqual({ email: 'ada@example.com', phone: '555-0100', socialMedia: '@ada' });
+  });
+
+  it('never reads a credit union as credits', () => {
+    expect(profileFromAnswers(answers(['Credit union (for your fee)', 'Navy Federal']))).toEqual({});
   });
 });
 
@@ -368,6 +541,43 @@ describe('what a signed contract fills in by itself', () => {
       ])],
       comics, key, () => 'new',
     )).toBeNull();
+  });
+
+  it('does not file a social security number asked for as "Social #" as their handle', () => {
+    // Filed as "@012-34-5678", where the Rolodex, the show and an assistant
+    // with rolodex:read would all show it.
+    const comics = [{ id: 'c', name: 'Ada Cole' }];
+    expect(fillRolodexFromSignatures(
+      [signed([{ label: 'Social # (for the 1099)', value: '012-34-5678' }, { label: 'Social sec. no.', value: '012-34-5678' }])],
+      comics, key, () => 'new',
+    )).toBeNull();
+  });
+
+  it('files only their contact details from a contract that also asks how to pay and tax them', () => {
+    // The entry the contract was sent to, with no handle yet: every one of
+    // these once landed on it as the handle or the credits.
+    const comics = [{ id: 'c-sam', name: 'Sam Okafor' }];
+    const request = {
+      ...signed([
+        { label: 'Stage name', value: 'Sam Okafor' },
+        { label: 'Phone', value: '312-555-0199' },
+        { label: 'Social (for the 1099)', value: '123-45-6789' },
+        { label: 'Last four digits of your social', value: '6789' },
+        { label: 'Venmo handle (for your fee)', value: '@sam-okafor-pay' },
+        { label: 'Credit union account (for direct deposit)', value: 'Alliant CU 0047712345 routing 271081528' },
+        { label: 'Instagram', value: '@samcomedy' },
+      ]),
+      signerName: 'Sam Okafor', contactId: 'c-sam',
+    };
+    expect(fillRolodexFromSignatures([request], comics, key, () => 'new'))
+      .toEqual([{ id: 'c-sam', name: 'Sam Okafor', phone: '312-555-0199', socialMedia: '@samcomedy' }]);
+  });
+
+  it('reads the rest of someone’s contracts when one record is malformed', () => {
+    const malformed = { signerName: 'Ada Cole', signed: { fields: 'Email: ada@example.com' as unknown as { label: string; value: string }[] } };
+    expect(fillRolodexFromSignatures(
+      [malformed, signed([{ label: 'Email', value: 'ada@example.com' }])], [], key, () => 'new',
+    )).toEqual([{ id: 'new', name: 'Ada Cole', email: 'ada@example.com' }]);
   });
 
   it('does not fill their phone with the emergency contact they gave', () => {

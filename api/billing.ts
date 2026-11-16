@@ -6,6 +6,7 @@
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson } from './_lib/http';
+import { isFoundingMember } from './_lib/plan';
 import {
   BillingNotConfiguredError,
   isBillingConfigured,
@@ -154,20 +155,9 @@ async function checkoutUrl(userId: string, customer: string, origin: string): Pr
   return session.url;
 }
 
-/**
- * When the Producer features started being held back (the lock shipped in
- * #317), in the users table's own UTC "YYYY-MM-DD HH:MM:SS" form. Accounts
- * made before it were promised a free app and keep every feature without
- * paying: they are founding members, on the Producer plan for good.
- */
-export const SUBSCRIPTIONS_STARTED_AT = '2026-10-06 23:31:58';
-
-export function isFoundingMember(createdAt: string | null): boolean {
-  if (!createdAt) return false;
-  // SQLite writes a space between date and time; tolerate the ISO "T" too so
-  // a row written another way can't sort after the cutoff by accident.
-  return createdAt.replace('T', ' ').slice(0, 19) < SUBSCRIPTIONS_STARTED_AT;
-}
+// Who counts as a founding member is in _lib/plan.ts, where the AI assistant
+// tools read the same rule; exported here under the names it always had.
+export { isFoundingMember, SUBSCRIPTIONS_STARTED_AT } from './_lib/plan';
 
 async function loadCreatedAt(userId: string): Promise<string | null> {
   const result = await getDb().execute({ sql: `SELECT created_at FROM users WHERE id = ?`, args: [userId] });

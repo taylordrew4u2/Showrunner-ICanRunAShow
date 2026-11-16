@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Run Your Shows from Claude or ChatGPT — I Can Run A Show</title>
+  <meta name="description" content="Connect I Can Run A Show to Claude or ChatGPT: setup steps, things to ask, the permissions you can allow, and what connecting means for your encrypted data." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0d0c0b" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://icanrunashow.com/guides/ai-assistants.html" />
+  <style>
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 350 800; font-display: swap; src: url('/fonts/inter-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Cormorant Garamond'; font-style: normal; font-weight: 300 700; font-display: swap; src: url('/fonts/cormorant-garamond-latin.woff2') format('woff2'); }
+    @font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 300 700; font-display: swap; src: url('/fonts/cormorant-garamond-latin-italic.woff2') format('woff2'); }
+    /* The app's house style: ivory paper and ink (black lacquer and ivory
+       after dark), a Garamond for headings, Inter to read. */
+    :root {
+      --serif: 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
+      --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+      --bg: #f5f3ee; --surface: #fbfaf7; --text: #141413; --body: #2b2a27; --muted: #55524c;
+      --border: #e1ddd4; --border-strong: #b8b3a9;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d0c0b; --surface: #151413; --text: #f2efe9; --body: #d9d5cd; --muted: #b3aea6;
+        --border: #2a2725; --border-strong: #46423d;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+    ::selection { background: var(--text); color: var(--bg); }
+    main { max-width: 720px; margin: 0 auto; padding: 56px 20px 96px; }
+    h1 { font-family: var(--serif); font-size: clamp(2.4rem, 6vw, 3.4rem); font-weight: 500; letter-spacing: -0.01em; line-height: 1.04; }
+    h2 { font-family: var(--serif); font-size: 1.7rem; font-weight: 600; line-height: 1.15; margin: 40px 0 10px; }
+    h3 { font-size: 0.98rem; font-weight: 600; margin: 24px 0 8px; }
+    p, li { color: var(--body); font-size: 0.98rem; }
+    a { color: var(--text); text-decoration-thickness: 1px; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+    a:hover { text-decoration-color: var(--text); }
+    :focus-visible { outline: 1px solid var(--text); outline-offset: 3px; }
+    /* The way back reads as a link: sentence case, ink, underlined, and a
+       target tall enough to hit. */
+    .home { display: inline-block; margin: -12px 22px 28px 0; padding: 12px 0; font-size: 0.9rem; font-weight: 500; letter-spacing: 0.01em; color: var(--text); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--border-strong); text-underline-offset: 4px; }
+    .home:hover { text-decoration-color: var(--text); }
+    h1 { margin-bottom: 28px; }
+    p, li { margin-bottom: 12px; }
+    ul, ol { padding-left: 22px; margin: 8px 0 18px; }
+    li { margin-bottom: 6px; }
+    strong { color: var(--text); }
+    /* Addresses and commands are meant to be copied whole, so they wrap on a
+       phone instead of hiding their ends behind a sideways scroll. */
+    code { font-family: var(--mono); font-size: 0.86em; color: var(--text); overflow-wrap: anywhere; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 2px; padding: 14px 16px; margin: 8px 0 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    pre code { font-size: 0.85rem; line-height: 1.6; }
+    .scope { display: block; color: var(--muted); font-size: 0.85rem; }
+    .scope code { color: var(--muted); }
+    .cta { background: var(--surface); border: 1px solid var(--border); border-top: 2px solid var(--text); border-radius: 0 0 2px 2px; padding: 20px 22px; margin-top: 44px; }
+    .cta p:last-child { margin-bottom: 0; }
+    /* The house header, as on the tour: the mark, the wordmark and the one
+       call to action, so a reader arriving from search knows whose page this is. */
+    .masthead { border-bottom: 1px solid var(--border); background: var(--bg); }
+    .masthead__in { max-width: 1120px; margin: 0 auto; padding: 0 20px; min-height: 64px; display: flex; align-items: center; gap: 20px; }
+    .masthead__brand { display: flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none; white-space: nowrap; }
+    .masthead__brand picture { flex: 0 0 auto; display: block; }
+    .masthead__brand img { width: 24px; height: 24px; display: block; }
+    .masthead__brand span { font-family: var(--serif); font-size: 1.02rem; font-weight: 600; letter-spacing: 0.2em; word-spacing: -0.08em; text-transform: uppercase; }
+    .masthead__links { display: flex; align-items: center; gap: 24px; margin-left: auto; }
+    .masthead__links a { color: var(--muted); text-decoration: none; font-size: 0.92rem; font-weight: 500; white-space: nowrap; }
+    .masthead__links a:hover { color: var(--text); }
+    .masthead__links .masthead__cta { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 2px; background: var(--text); color: var(--bg); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+    .masthead__links .masthead__cta:hover { color: var(--bg); opacity: 0.88; }
+    @media (max-width: 720px) { .masthead__links .hide-sm { display: none; } .masthead__links { gap: 16px; } }
+    @media (max-width: 480px) {
+      main { padding: 40px 16px 80px; }
+      .masthead__in { padding: 0 16px; gap: 12px; }
+      .masthead__brand { gap: 9px; }
+      .masthead__brand span { font-size: 0.78rem; letter-spacing: 0.13em; }
+      .masthead__links { gap: 14px; }
+      .masthead__links a { font-size: 0.88rem; }
+      .masthead__links .masthead__cta { padding: 0 12px; font-size: 0.72rem; letter-spacing: 0.1em; }
+    }
+    @media (max-width: 380px) { .masthead__brand span { display: none; } }
+  </style>
+</head>
+<body>
+<header class="masthead">
+  <div class="masthead__in">
+    <a class="masthead__brand" href="/tour/"><picture><source srcset="/brand/mark-ivory.svg" media="(prefers-color-scheme: dark)" /><img src="/brand/mark-ink.svg" width="24" height="24" alt="" /></picture><span>I Can Run A Show</span></a>
+    <nav class="masthead__links" aria-label="Main">
+      <a class="hide-sm" href="/guides/">Guides</a>
+      <a href="/">Sign in</a>
+      <a class="masthead__cta" href="/">Start free</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <a class="home" href="/guides/">&larr; All guides</a>
+  <h1>Run your shows from Claude or ChatGPT</h1>
+
+  <p>Connect your I Can Run A Show account to Claude or ChatGPT and ask for what you need in plain words: who’s on Friday’s lineup, push the headliner back ten minutes, add a comic to the Rolodex, send the opener their contract. The assistant works through the app’s own connector, with only the permissions you allow, and you can disconnect it whenever you like.</p>
+
+  <p>Every setup below uses the same connector address:</p>
+  <pre><code>https://icanrunashow.com/api/mcp</code></pre>
+
+  <p>Connecting is optional and stays off until you do it. You sign in on the app’s own page and choose what to allow there, so the assistant never sees your password. Custom connectors depend on your Claude or ChatGPT plan, and on a work account, on what your admin allows.</p>
+
+  <h2>Claude on the web, desktop and phone</h2>
+  <p>A connector you add once works in claude.ai, the desktop app and the mobile apps.</p>
+  <ol>
+    <li>In Claude, open <strong>Customize → Connectors</strong> (<a href="https://claude.ai/customize/connectors">claude.ai/customize/connectors</a>) and choose <strong>Add custom connector</strong>. On a Team or Enterprise plan, an owner may need to add it for the organization first.</li>
+    <li>Name it “I Can Run A Show” and paste the connector address. There is no client ID or secret to enter.</li>
+    <li>Choose <strong>Connect</strong>. Claude opens the app’s sign-in page. Sign in, untick anything you don’t want to allow, and press <strong>Allow access</strong>.</li>
+    <li>In a conversation, turn the connector on from the tools menu and ask away.</li>
+  </ol>
+
+  <h2>Claude Code</h2>
+  <h3>The plugin</h3>
+  <p>The plugin adds the connector and a short skill that teaches Claude how to work with your shows: read before editing, ask before deleting or sending anything, and keep surprise guests secret. In Claude Code, run:</p>
+  <pre><code>/plugin marketplace add taylordrew4u2/showrunner-icanrunashow
+/plugin install icanrunashow@icanrunashow</code></pre>
+  <p>Then run <code>/mcp</code>, choose the <code>icanrunashow</code> server and authenticate. Claude Code opens the app’s sign-in page in your browser.</p>
+  <h3>Just the connector</h3>
+  <pre><code>claude mcp add --transport http icanrunashow https://icanrunashow.com/api/mcp</code></pre>
+  <p>Add <code>--scope user</code> before the name to have it in every project, then run <code>/mcp</code> and authenticate.</p>
+  <p>Claude Code finishes signing in by returning to a local address on your own computer, and the app’s sign-in page says so. Allow it only if you have just started connecting from Claude Code or another app you trust on that computer.</p>
+
+  <h2>ChatGPT</h2>
+  <ol>
+    <li>In ChatGPT, go to <a href="https://chatgpt.com/plugins">chatgpt.com/plugins</a>, choose <strong>+</strong>, then <strong>Add custom MCP server</strong>.</li>
+    <li>Name it “I Can Run A Show”, paste the connector address, choose <strong>OAuth</strong> for authentication, and choose <strong>Create as a plugin</strong>.</li>
+    <li>Connect it. Sign in on the app’s page, choose what to allow, and press <strong>Allow access</strong>.</li>
+    <li>In a conversation, add it from the tools menu and ask away.</li>
+  </ol>
+  <p>The exact labels and whether custom MCP servers are offered depend on your ChatGPT plan and workspace.</p>
+
+  <h2>Things to ask</h2>
+  <ul>
+    <li>“What’s on my lineup for Friday’s show, in running order?”</li>
+    <li>“Create a show called Late Night Laughs at The Basement on December 12 at 9pm.”</li>
+    <li>“Duplicate last month’s showcase for January 9 and keep the same running order.”</li>
+    <li>“Add Sam Rivera from my Rolodex to Saturday’s lineup as a surprise guest.”</li>
+    <li>“Give the headliner 15 minutes and move the raffle to just before the break.”</li>
+    <li>“Who hasn’t signed their contract for Saturday yet?”</li>
+    <li>“Send Jordan a profile link so they can fill in their details.”</li>
+    <li>“Fill in last night’s recap: 84 people in, $630 at the door, and next time start the sound check earlier.”</li>
+  </ul>
+  <p>Ask the assistant to confirm the date and time when you say something like “Friday at 8”. Dates and times are always the venue’s local time.</p>
+
+  <h2>What you can allow</h2>
+  <p>The sign-in page lists each permission the assistant asked for, ticked to start with. Untick anything you don’t want before you press <strong>Allow access</strong>. The assistant is only offered the tools for what you allowed, and the app’s server refuses anything else.</p>
+  <ul>
+    <li><strong>See your shows</strong>, including lineups and running orders. Always included. <span class="scope"><code>shows:read</code></span></li>
+    <li><strong>Create and edit shows</strong>: duplicate shows, and change lineups and surprise guests, running orders, recaps, staff and vendors. <span class="scope"><code>shows:write</code></span></li>
+    <li><strong>Move shows to Trash</strong>, the same as deleting in the app. You can put them back from Settings → Recently deleted, which keeps the latest 20. <span class="scope"><code>shows:delete</code></span></li>
+    <li><strong>See the people in your Rolodex.</strong> <span class="scope"><code>rolodex:read</code></span></li>
+    <li><strong>Add and edit people in your Rolodex.</strong> This includes seeing them, so that box stays ticked while this one is. <span class="scope"><code>rolodex:write</code></span></li>
+    <li><strong>See your contract templates</strong>, who has signed or sent their details, and the contact details they gave: their email, phone, social handle, bio and walk-on song. Their other answers, such as payment or tax details, stay in the app. <span class="scope"><code>contracts:read</code></span></li>
+    <li><strong>Send contract and profile links</strong> to performers in your name. Contract links are part of the Producer plan, as they are in the app. <span class="scope"><code>links:send</code></span></li>
+  </ul>
+  <p>No permission reaches your password or billing, or lets an assistant delete your account. To change what a connection may do, disconnect it and connect again.</p>
+
+  <h2 id="privacy">What connecting means for your data</h2>
+  <p>Normally your shows, Rolodex and contracts are encrypted on your device before they are saved, and the app’s server only ever holds the scrambled copy. Connecting an assistant is a deliberate exception, and it’s worth knowing exactly what it changes.</p>
+  <ul>
+    <li><strong>The server can read your data while the assistant is calling it.</strong> When you press Allow access, your browser gives the app’s server your account’s data keys (never your password), locked under that connection’s own credentials. The server unlocks them only while it answers a request from your connected assistant, then reads or saves what that request needs.</li>
+    <li><strong>A copy of the database isn’t enough.</strong> Connection credentials are stored only as hashes, and the keys stay locked without them. Keys, credentials and your data are not written to logs.</li>
+    <li><strong>The keys open your whole account.</strong> What you tick is enforced by the server on every request, not by the encryption. Allow only what you need.</li>
+    <li><strong>What the assistant reads goes to its provider.</strong> Anything the connector returns is sent to Anthropic (Claude) or OpenAI (ChatGPT) and handled under their terms.</li>
+    <li><strong>You can stop it any time.</strong> Open <strong>Settings → AI assistants → Manage connections</strong> in the app and disconnect one connection or all of them. Access ends at once. Disconnecting can’t take back what is already in a conversation. Connections also expire after 30 days.</li>
+  </ul>
+  <p>If you need your keys never to leave your device, don’t connect an assistant. Everything else in the app works the same without one. The <a href="/privacy.html">privacy policy</a> has the full details.</p>
+
+  <h2 id="help">Questions</h2>
+  <p>Email <a href="mailto:skatematesnyc@gmail.com">skatematesnyc@gmail.com</a> if a connection won’t sign in, a tool does something you didn’t expect, or you’d like the assistant to be able to do more.</p>
+
+  <div class="cta">
+    <strong>Ready when you are.</strong> <a href="/">Sign in to I Can Run A Show</a>, then open Settings → AI assistants to find your connector address and manage connections.
+  </div>
+</main>
+</body>
+</html>

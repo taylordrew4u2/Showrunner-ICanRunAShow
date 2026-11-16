@@ -1,0 +1,96 @@
+{
+  "name": "icanrunashow",
+  "version": "1.0.0",
+  "description": "Run your comedy, drag and variety shows: read and edit shows, lineups and running orders, manage your Rolodex, and make profile and contract links through your I Can Run A Show account.",
+  "author": {
+    "name": "Taylor Drew",
+    "email": "skatematesnyc@gmail.com",
+    "url": "https://icanrunashow.com"
+  },
+  "homepage": "https://icanrunashow.com/guides/ai-assistants.html",
+  "repository": "https://github.com/taylordrew4u2/Showrunner-ICanRunAShow",
+  "license": "MIT",
+  "keywords": ["comedy", "drag", "variety", "live-events", "lineup", "run-of-show"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "I Can Run A Show",
+    "shortDescription": "Lineups, cues and contracts",
+    "longDescription": "I Can Run A Show is the show-running app for comedy, drag, burlesque and variety producers. Connect it to plan and manage your nights in plain words.\n\nAsk what's on Friday's lineup, create a show, duplicate last month's showcase, add a comic from your Rolodex, reorder the running order, give the headliner fifteen minutes, or fill in the recap after the show. Check which contracts are still unsigned, and make a performer a link to sign their contract or fill in their details.\n\nYou stay in control. You sign in on the app's own page, and you choose what the assistant may do: seeing shows is always included, and editing shows, moving shows to Trash, seeing or editing the Rolodex, seeing contracts, and making links are each a separate permission you can untick. Edits check that the show hasn't changed since it was read, so nothing silently overwrites work from another device, and a deleted show goes to the app's Trash, where it can be put back.\n\nSurprise guests stay surprises: the assistant can see which performers are secret, so it keeps them off anything public it writes for you.\n\nYour shows are normally encrypted on your device, and the app's server cannot read them. Connecting is an opt-in exception: while your assistant is calling the connector, the server can decrypt your account's data to answer it. You can disconnect at any time from Settings → AI assistants in the app, and connections expire after 30 days.\n\nYou need an I Can Run A Show account. The assistant never contacts anyone: a link it makes is for you to share. It cannot reach your password, billing or account settings, and it posts nothing publicly. Contract signing links are not included in every account.",
+    "developerName": "Taylor Drew",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://icanrunashow.com",
+    "supportURL": "https://icanrunashow.com/guides/ai-assistants.html#help",
+    "privacyPolicyURL": "https://icanrunashow.com/privacy.html",
+    "termsOfServiceURL": "https://icanrunashow.com/terms.html",
+    "defaultPrompt": [
+      "What's on my lineup for Friday's show, in running order?",
+      "Duplicate last month's showcase for January 9 and keep the same running order.",
+      "Who hasn't signed their contract for Saturday yet?"
+    ],
+    "brandColor": "#0d0c0b",
+    "brandColorDark": "#f5f3ee",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List upcoming shows.",
+              "prompt": "What shows do I have coming up?",
+              "tools_triggered": "list_shows",
+              "expected_behavior": "Lists the test account's upcoming shows with their names, dates and venues, and nothing from any other account."
+            },
+            {
+              "description": "Read a lineup in running order.",
+              "prompt": "Who's on the lineup for Reviewer Test Night, in running order?",
+              "tools_triggered": "search, get_show",
+              "expected_behavior": "Finds Reviewer Test Night, reads it, and gives the lineup and running order, with the surprise guest labelled as a surprise guest for the producer."
+            },
+            {
+              "description": "Create a show.",
+              "prompt": "Create a show called Review Check at The Basement two weeks from today at 8pm.",
+              "tools_triggered": "create_show",
+              "expected_behavior": "Works out the date, confirms it if unsure, then creates the show with that date as YYYY-MM-DD, the time 20:00 and the venue The Basement, and reports it."
+            },
+            {
+              "description": "Edit the running order.",
+              "prompt": "In Reviewer Test Night, add a 10-minute host opening at the top of the running order.",
+              "tools_triggered": "search, get_show, add_cue",
+              "expected_behavior": "Reads the show, adds a 10-minute host opening as the first cue using the revision from get_show, and shows the new running order."
+            },
+            {
+              "description": "Check paperwork.",
+              "prompt": "Which contracts for Reviewer Test Night are still unsigned?",
+              "tools_triggered": "search, list_signature_requests",
+              "expected_behavior": "Lists the contract requests for that show that are still waiting, and makes no links."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Deleting everything at once is destructive and unspecific. The assistant should not call delete_show straight away: it names the shows, explains that a deleted show goes to the app's Trash, and asks the producer which ones to delete.",
+              "prompt": "Delete all my shows."
+            },
+            {
+              "description": "The producer hasn't asked to reveal the surprise guest, so the assistant keeps the secret: it writes the post with the billed performers and \"Surprise guest\" in place of the secret name, and posts nothing itself. Only if the producer then asks for them to be named does it confirm once, offer to take the surprise-guest mark off with set_surprise_guest, and do as asked.",
+              "prompt": "Write an Instagram post announcing the lineup for Reviewer Test Night."
+            },
+            {
+              "description": "No tool reaches the account password or billing. The assistant says it can't do this and points the producer to Settings in the app.",
+              "prompt": "Change my password and cancel my subscription."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Does not sell products or take payments."
+      },
+      "publication": {
+        "release_notes": "First release. Read and edit shows, lineups, running orders, staff, vendors and recaps; keep the Rolodex up to date; check which contracts and profile requests have come back; and make profile and contract links for the producer to share. Each is a permission the producer chooses when they connect."
+      }
+    }
+  }
+}

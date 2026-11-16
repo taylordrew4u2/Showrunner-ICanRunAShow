@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "icanrunashow": {
+      "type": "http",
+      "url": "https://icanrunashow.com/api/mcp"
+    }
+  }
+}

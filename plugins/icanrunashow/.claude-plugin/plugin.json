@@ -1,0 +1,19 @@
+{
+  "name": "icanrunashow",
+  "displayName": "I Can Run A Show",
+  "version": "1.0.0",
+  "description": "Run your comedy, drag and variety shows from Claude: read and edit shows, lineups and running orders, manage your Rolodex, and send profile and contract links through your I Can Run A Show account.",
+  "author": {
+    "name": "Taylor Drew",
+    "url": "https://github.com/taylordrew4u2"
+  },
+  "homepage": "https://icanrunashow.com/guides/ai-assistants.html",
+  "repository": "https://github.com/taylordrew4u2/Showrunner-ICanRunAShow",
+  "license": "MIT",
+  "keywords": ["live-events", "comedy", "drag", "variety", "run-of-show", "lineup", "mcp"],
+  "icon": "./assets/icon.png",
+  "documentationUrl": "https://icanrunashow.com/guides/ai-assistants.html",
+  "supportUrl": "https://icanrunashow.com/guides/ai-assistants.html#help",
+  "privacyPolicyUrl": "https://icanrunashow.com/privacy.html",
+  "termsOfServiceUrl": "https://icanrunashow.com/terms.html"
+}

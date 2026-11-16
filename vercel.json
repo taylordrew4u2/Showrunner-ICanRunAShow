@@ -9,6 +9,8 @@
     { "source": "/.well-known/oauth-authorization-server", "destination": "/api/chatgpt?route=metadata" },
     { "source": "/.well-known/oauth-protected-resource", "destination": "/api/chatgpt?route=resource" },
     { "source": "/.well-known/oauth-protected-resource/api/mcp", "destination": "/api/chatgpt?route=resource" },
+    { "source": "/.well-known/openai-apps-challenge", "destination": "/api/chatgpt?route=challenge" },
+    { "source": "/.well-known/(.*)", "destination": "/api/chatgpt?route=not-found" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/sign", "destination": "/link-sign.html" },
     { "source": "/details", "destination": "/link-profile.html" },

@@ -48,7 +48,7 @@ Producers of recurring comedy, drag and variety nights tend to run them from a s
 
 ## Highlights
 
-- **Shows stay encrypted in storage.** In the normal browser workflow, shows, settings and media are encrypted before they reach the API; Turso stores encrypted blobs. The optional [ChatGPT connection](docs/CHATGPT.md) explicitly grants the connector permission to decrypt show data for ChatGPT until you disconnect it.
+- **Shows stay encrypted in storage.** In the normal browser workflow, shows, settings and media are encrypted before they reach the API; Turso stores encrypted blobs. The optional [Claude or ChatGPT connection](#use-it-from-claude-or-chatgpt) explicitly grants the connector permission to decrypt the account's data for that assistant until you disconnect it.
 - **Shareable links the server still can't read.** A contract-signing link re-encrypts the document under a one-off key carried in the URL fragment (`#k=…`), which browsers never send; the viewer page's walk-on audio works the same way. An E2E test asserts no request carries the key.
 - **Exactly-once signatures, enforced in SQL.** `UPDATE … WHERE token = ? AND signed_at IS NULL` makes a replayed or racing submit harmless, and each signature records a SHA-256 of the exact document shown.
 - **No lost saves across tabs.** Every write carries the SHA-256 of the ciphertext it expects to replace; the API answers `409 save_conflict` on a mismatch, so a stale tab can't erase a newer edit. Saves are debounced at 1s and blocked until the initial load succeeds.
@@ -205,9 +205,26 @@ Producer unlocks sending contracts for signature, reading a schedule off a photo
 
 Completed and past events leave the default Shows dashboard automatically and remain available under **History**. Shows still running stay visible across midnight.
 
-## ChatGPT
+## Use it from Claude or ChatGPT
 
-The app includes an authenticated MCP endpoint for listing, inspecting, creating and updating shows from ChatGPT. Account linking requires explicit consent because the connector must decrypt show data for ChatGPT. Setup, supported operations and the security model are documented in [docs/CHATGPT.md](docs/CHATGPT.md). Deploy the API before connecting; the Vite frontend server alone does not serve MCP or OAuth.
+The app runs an authenticated remote MCP server, so a producer can connect Claude or ChatGPT and manage shows, lineups, running orders, the Rolodex and contract links by asking. Connecting is opt-in: the producer signs in on the app's consent page, chooses which permissions to allow, and can disconnect from **Settings → AI assistants**. Because data is encrypted on the device, allowing a connection lets the server decrypt the account's data while the assistant is calling it.
+
+The connector URL, for a Claude custom connector (Customize → Connectors → Add custom connector), a ChatGPT custom MCP server (chatgpt.com/plugins → + → Add custom MCP server → Create as a plugin) or any MCP client with OAuth:
+
+```
+https://icanrunashow.com/api/mcp
+```
+
+In Claude Code, install it as a plugin, which also adds a short skill for working with shows:
+
+```
+/plugin marketplace add taylordrew4u2/showrunner-icanrunashow
+/plugin install icanrunashow@icanrunashow
+```
+
+or add the bare connector with `claude mcp add --transport http icanrunashow https://icanrunashow.com/api/mcp`. Either way, run `/mcp` and authenticate.
+
+Setup for each assistant, example prompts and the privacy trade-off are in the guide, [Run your shows from Claude or ChatGPT](https://icanrunashow.com/guides/ai-assistants.html). Protocol, scopes and the security model are in [docs/AI-ASSISTANTS.md](docs/AI-ASSISTANTS.md), and copy for the Claude and ChatGPT directory listings is in [docs/ASSISTANT-LISTINGS.md](docs/ASSISTANT-LISTINGS.md). Submitting the plugin to both directories, step by step, is in [docs/PLUGIN-SUBMISSION.md](docs/PLUGIN-SUBMISSION.md); `npm run plugin:openai` builds the ZIP OpenAI takes. Deploy the API before connecting; the Vite frontend server alone does not serve MCP or OAuth.
 
 ## Development checks
 
@@ -229,6 +246,9 @@ src/utils/        Pure logic with a test beside each module (encryption, audio e
 api/              Vercel serverless routes: auth, shows, settings, media, live, sign
 e2e/              Playwright specs + in-memory API stand-in
 ios/              Capacitor iOS project
+plugins/          The plugin for Claude and for ChatGPT and Codex: the remote MCP connector and a run-a-show skill
+.claude-plugin/   Claude marketplace manifest, so the repository installs as a plugin marketplace
+.agents/plugins/  The same for Codex
 docs/             Architecture, features, testing, security, iOS
 ```
 

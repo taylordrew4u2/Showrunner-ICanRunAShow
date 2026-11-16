@@ -6,7 +6,7 @@ import { decryptWithKey, encryptWithKey } from './encryption';
 import { resolveMediaUrl } from './mediaStore';
 import { rolodexKey } from './rolodex';
 import { sharedLinkPath } from './sharedLink';
-import { asksPermission } from './signatureImport';
+import { asksForIdNumber, asksForPayment, asksPermission } from './signatureImport';
 import { formatShowTime, parseShowDate } from './showDate';
 import type { SessionCredentials } from './session-vault';
 
@@ -151,15 +151,33 @@ export function suggestedFields(): ContractField[] {
 /** The id and wording of the Instagram question, matched on by name elsewhere. */
 export const INSTAGRAM_FIELD_ID = 'social';
 export const INSTAGRAM_FIELD_LABEL = 'Instagram or main social';
+const INSTAGRAM_FIELD_PLACEHOLDER = '@handle or a link';
 
-/** The Instagram question as every contract asks it. */
-function instagramField(): ContractField {
+/**
+ * The Instagram question as every contract asks it.
+ *
+ * Under its own id, unless another row already has that id: the question's
+ * own row relabelled "Social # (for the 1099)" is no longer the handle
+ * question, and two rows sharing an id share one answer on the signing page.
+ */
+function instagramField(others: readonly ContractField[] = []): ContractField {
+  let id = INSTAGRAM_FIELD_ID;
+  for (let n = 2; others.some((f) => f.id === id); n++) id = `${INSTAGRAM_FIELD_ID}-${n}`;
   return {
-    id: INSTAGRAM_FIELD_ID,
+    id,
     label: INSTAGRAM_FIELD_LABEL,
-    placeholder: '@handle or a link',
+    placeholder: INSTAGRAM_FIELD_PLACEHOLDER,
     required: true,
   };
+}
+
+/** One of those, under a spare id, exactly as it was put in. */
+function isUntouchedSpare(field: ContractField): boolean {
+  return /^social-\d+$/.test(field.id)
+    && Object.keys(field).length === 4
+    && field.label === INSTAGRAM_FIELD_LABEL
+    && field.placeholder === INSTAGRAM_FIELD_PLACEHOLDER
+    && field.required === true;
 }
 
 /**
@@ -172,8 +190,9 @@ function instagramField(): ContractField {
 export function isInstagramField(field: ContractField): boolean {
   // A release that asks for a social security number is not asking for a
   // handle, and requiring one in its place would be worse than useless. The
-  // same for Canada's social insurance number.
-  if (/social security|\bssn\b|social insurance/i.test(field.label)) return false;
+  // same for "Social #", a social insurance number, and every other ID number,
+  // and for a Venmo handle, which is how to pay them, not where to tag them.
+  if (asksForIdNumber(field.label) || asksForPayment(field.label)) return false;
   // Nor is "OK to post your photo on social media?". Taken for the handle
   // question, it became required, the real one was never asked, and the
   // "Yes" was filed as their handle.
@@ -193,15 +212,17 @@ export function isInstagramField(field: ContractField): boolean {
 export function withInstagramField(fields: ContractField[] | undefined): ContractField[] {
   const list = fields ?? [];
   const at = list.findIndex(isInstagramField);
-  if (at === -1) return [...list, instagramField()];
-  // The label as typed, not trimmed: the editor saves every keystroke through
-  // here, and trimming took each space away before the next letter arrived.
-  // The answers are filed with their labels trimmed.
-  return list.map((f, i) => (
-    i === at
-      ? { ...f, label: f.label.trim() ? f.label : INSTAGRAM_FIELD_LABEL, required: true }
-      : f
-  ));
+  if (at === -1) return [...list, instagramField(list)];
+  return list.flatMap((f, i) => {
+    // The label as typed, not trimmed: the editor saves every keystroke
+    // through here, and trimming took each space away before the next letter
+    // arrived. The answers are filed with their labels trimmed.
+    if (i === at) return [{ ...f, label: f.label.trim() ? f.label : INSTAGRAM_FIELD_LABEL, required: true }];
+    // A spare put in while the question's own row read as an ID number on the
+    // way to something else, "Social #" on the way to "Social #2". The handle
+    // is asked above it again, so the copy nobody touched goes.
+    return isUntouchedSpare(f) ? [] : [f];
+  });
 }
 
 /** A blank question, ready for the producer to name. */

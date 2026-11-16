@@ -2,7 +2,7 @@ import { authorize } from './_lib/auth';
 import { ensureSchema, getDb, ServerNotConfiguredError } from './_lib/db';
 import { json, TooManyRequestsError } from './_lib/http';
 import { clientAddress, rateLimit } from './_lib/ratelimit';
-import { allowedOrigin, CHATGPT_SCOPE, clientInfo, createGrant, exchangeToken, issuer, OAuthError, registerClient, revokeConnections } from './_lib/chatgptAuth';
+import { allowedOrigin, ASSISTANT_SCOPES, clientInfo, createGrant, exchangeToken, issuer, OAuthError, PURGE_LEGACY_SEALS, registerClient, revokeConnection, revokeConnections } from './_lib/chatgptAuth';
 
 const MAX_BODY = 16 * 1024;
 
@@ -22,6 +22,18 @@ export function oauthResponse(response: Response, req: Request): Response {
   return response;
 }
 
+/**
+ * OpenAI's domain check for a plugin: /.well-known/openai-apps-challenge must
+ * answer with exactly the token the plugin portal shows, as plain text. The
+ * token comes from the portal, so it is read from OPENAI_APPS_CHALLENGE
+ * rather than committed; until that is set the address is a plain 404.
+ */
+export function appsChallenge(): Response {
+  const token = (process.env.OPENAI_APPS_CHALLENGE || '').trim();
+  if (!token) return json({ error: 'not_found' }, 404);
+  return new Response(token, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+}
+
 export default async function handler(req: Request): Promise<Response> {
   try {
     if (!allowedOrigin(req)) return oauthResponse(json({ error: 'invalid_origin' }, 403), req);
@@ -39,21 +51,26 @@ export default async function handler(req: Request): Promise<Response> {
         grant_types_supported: ['authorization_code', 'refresh_token'],
         token_endpoint_auth_methods_supported: ['none'],
         code_challenge_methods_supported: ['S256'],
-        scopes_supported: CHATGPT_SCOPE.split(' '),
+        scopes_supported: [...ASSISTANT_SCOPES],
       }), req);
     }
     if (req.method === 'GET' && route === 'resource') {
-      return oauthResponse(json({ resource, authorization_servers: [origin], scopes_supported: CHATGPT_SCOPE.split(' '), bearer_methods_supported: ['header'], resource_name: 'I Can Run A Show' }), req);
+      return oauthResponse(json({ resource, authorization_servers: [origin], scopes_supported: [...ASSISTANT_SCOPES], bearer_methods_supported: ['header'], resource_name: 'I Can Run A Show' }), req);
     }
+    if (req.method === 'GET' && route === 'challenge') return oauthResponse(appsChallenge(), req);
+    if (route === 'not-found') return oauthResponse(json({ error: 'not_found' }, 404), req);
     await ensureSchema();
     const db = getDb();
     if (req.method === 'POST' && ['register', 'grant', 'token'].includes(route || '')) {
       const now = Math.floor(Date.now() / 1000);
-      // Remove expired delegated material and abandoned consent codes. Used
-      // refresh credentials stay until grant expiry to detect replay.
+      // Remove expired delegated material, abandoned consent codes, and
+      // anything sealed the first way along with the connections it leaves
+      // unusable. Used refresh credentials stay until grant expiry to detect
+      // replay.
       await db.batch([
         { sql: 'DELETE FROM chatgpt_tokens WHERE expires_at <= ? OR grant_id IN (SELECT id FROM chatgpt_grants WHERE expires_at <= ? OR (activated = 0 AND created_at <= ?))', args: [now, now, now - 300] },
         { sql: 'DELETE FROM chatgpt_grants WHERE expires_at <= ? OR (activated = 0 AND created_at <= ?)', args: [now, now - 300] },
+        ...PURGE_LEGACY_SEALS,
         { sql: 'DELETE FROM chatgpt_clients WHERE expires_at <= ?', args: [now] },
       ], 'write');
     }
@@ -63,8 +80,8 @@ export default async function handler(req: Request): Promise<Response> {
       return oauthResponse(json(info ? { clientName: info.clientName, redirectUris: info.redirectUris } : { error: 'invalid_client' }, info ? 200 : 404), req);
     }
     if (route === 'connections' || route === 'grant') {
-      // A browser connects only from this app. ChatGPT never receives the
-      // account's existing credential or calls these two owner-only routes.
+      // A browser connects only from this app. An assistant never receives
+      // the account's existing credential or calls these owner-only routes.
       const browserOrigin = req.headers.get('origin');
       if (browserOrigin && browserOrigin !== origin) return oauthResponse(json({ error: 'invalid_origin' }, 403), req);
       const userId = await authorize(req);
@@ -74,7 +91,16 @@ export default async function handler(req: Request): Promise<Response> {
         return oauthResponse(json({ connections: rows.map(r => ({ id: String(r[0]), clientName: String(r[1]), scope: String(r[2]), createdAt: new Date(Number(r[3]) * 1000).toISOString(), expiresAt: new Date(Number(r[4]) * 1000).toISOString() })) }), req);
       }
       if (route === 'connections' && req.method === 'DELETE') {
-        await revokeConnections(db, userId);
+        // With an id, only that connection goes. Without one, all of them.
+        // An empty or repeated id is refused rather than read as "all".
+        const params = new URL(req.url).searchParams;
+        if (params.has('id')) {
+          const id = params.get('id') || '';
+          if (!id || id.length > 100 || params.getAll('id').length !== 1) throw new OAuthError('invalid_request', 'Name one connection to disconnect.');
+          await revokeConnection(db, userId, id);
+        } else {
+          await revokeConnections(db, userId);
+        }
         return oauthResponse(json({ ok: true }), req);
       }
       if (route === 'grant' && req.method === 'POST') {
