@@ -4,7 +4,7 @@
 
 # I Can Run A Show
 
-**Book the lineup, collect signed contracts, and run the live show from one phone, with everything encrypted before it leaves the device.**
+**Book the lineup, collect signed contracts, and run the live show from one phone, with private records encrypted before they leave the device.**
 
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9_strict-3178C6?logo=typescript&logoColor=white)
@@ -48,7 +48,7 @@ Producers of recurring comedy, drag and variety nights tend to run them from a s
 
 ## Highlights
 
-- **Shows stay encrypted in storage.** In the normal browser workflow, shows, settings and media are encrypted before they reach the API; Turso stores encrypted blobs. The optional [Claude or ChatGPT connection](#use-it-from-claude-or-chatgpt) explicitly grants the connector permission to decrypt the account's data for that assistant until you disconnect it.
+- **Shows stay encrypted in storage.** In the normal browser workflow, shows, settings and media are encrypted before they reach the API; Turso stores encrypted blobs. The optional [Claude or ChatGPT connection](#use-it-from-claude-or-chatgpt) explicitly grants the connector permission to decrypt the account's data for that assistant until you disconnect it. An explicitly configured [website lineup feed](docs/WEBSITE-LINEUPS.md) separately stores only the approved shows' public details and billed performers as plaintext; private records remain encrypted.
 - **Shareable links the server still can't read.** A contract-signing link re-encrypts the document under a one-off key carried in the URL fragment (`#k=…`), which browsers never send; the viewer page's walk-on audio works the same way. An E2E test asserts no request carries the key.
 - **Exactly-once signatures, enforced in SQL.** `UPDATE … WHERE token = ? AND signed_at IS NULL` makes a replayed or racing submit harmless, and each signature records a SHA-256 of the exact document shown.
 - **No lost saves across tabs.** Every write carries the SHA-256 of the ciphertext it expects to replace; the API answers `409 save_conflict` on a mismatch, so a stale tab can't erase a newer edit. Saves are debounced at 1s and blocked until the initial load succeeds.
@@ -155,7 +155,7 @@ flowchart LR
 
 **Design decisions**
 
-- **Encrypt on the client, accept no password recovery.** The database host is never trusted with user data. The cost is real and documented: lose the password, lose the data.
+- **Encrypt on the client, accept no password recovery.** Private records stay encrypted; public viewer state and explicitly approved website lineups are separate publication surfaces. The cost is real and documented: lose the password, lose the private data.
 - **Keys in the URL fragment for sharing.** A performer with no account can open a signing link from a text message, and the server still can't decrypt the contract, because fragments are never sent in requests or `Referer`.
 - **Schedule import stays on the device.** No upload, no per-use API bill, and it behaves the same on every install. The trade-off: OCR quality limits messy or handwritten sheets.
 - **Web Audio instead of `<audio>`.** `HTMLAudioElement` was unreliable under iOS Safari's autoplay rules after auto-advance; one `AudioContext` unlocked on the first tap, with preloaded buffers and explicit `resume()`, is not.

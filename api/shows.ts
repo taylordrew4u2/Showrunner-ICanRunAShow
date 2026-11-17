@@ -8,6 +8,7 @@ import { applyShowChanges } from './_lib/showWrites';
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson } from './_lib/http';
+import { websiteLineupsConfig, websiteShowIdsForOwner } from './_lib/websiteLineups';
 
 export default async function handler(req: Request): Promise<Response> {
   try {
@@ -45,7 +46,8 @@ export default async function handler(req: Request): Promise<Response> {
         id: String(row[0]),
         encryptedData: String(row[1]),
       }));
-      return json({ shows });
+      return json({ shows, ...(websiteLineupsConfig()
+        ? { websiteLineupShowIds: await websiteShowIdsForOwner(db, userId) } : {}) });
     }
 
     if (req.method === 'PUT') {

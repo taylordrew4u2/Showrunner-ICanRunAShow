@@ -32,6 +32,7 @@ Showrunner-ICanRunAShow/
 │   ├── auth.ts                  # Sign-up / login (salted slow hash, rate-limited)
 │   ├── shows.ts · settings.ts   # Encrypted show and settings blobs
 │   ├── live.ts · live-media.ts  # Live-viewer state and media
+│   ├── website-lineups.ts      # Opt-in, approved public lineup projections
 │   ├── media.ts                 # Chunked encrypted uploads (+ inventory for the sweep)
 │   ├── sign.ts                  # Signature requests; sign-once enforced in SQL
 │   └── sign-doc.ts              # The contract itself, ciphertext under a per-request key
@@ -48,6 +49,8 @@ In the normal browser workflow, the user signs in and the browser derives an enc
 
 The optional [ChatGPT connector](CHATGPT.md) adds a separate, consented trust boundary: the browser grants derived account keys so authenticated MCP requests can decrypt shows for ChatGPT and encrypt show edits before storage. OAuth grants and tokens hold sealed keys, not passwords or plaintext show copies. The diagram below describes the normal browser flow.
 
+The optional [website lineup feed](WEBSITE-LINEUPS.md) is an explicit publication boundary. Only configured source show IDs can publish a small plaintext projection: public show details and billed performers in order, without surprise guests, contacts, private notes, media or keys. An initial revision-checked seed establishes the projection; successful browser and MCP saves update it in the same transaction as the encrypted record. A legacy save without a matching projection invalidates the public row instead of leaving stale names visible. The website reads these projections with a separate server-only read token, without producer OAuth credentials or a running Mac. This does not change the audience viewer's live timer or audio state.
+
 ```mermaid
 flowchart LR
     subgraph Browser["Browser: all crypto happens here"]
@@ -63,7 +66,7 @@ flowchart LR
         Share["/api/sign · /api/sign-doc"]
     end
 
-    DB[("Turso · libSQL<br/>ciphertext only")]
+    DB[("Turso · libSQL<br/>encrypted private records;<br/>explicit public snapshots")]
     Viewer["Public viewer link"]
     Signer["Signing link"]
     ShareKey["Per-share key<br/>lives only in the link fragment,<br/>which browsers never transmit"]
@@ -90,7 +93,7 @@ flowchart LR
 
 **The typeface ships with the app.** Inter used to load from Google Fonts. The service worker only precaches same-origin assets, so offline, or on a venue connection, the typography fell back to a system face. It is now served from this origin and precached (latin and latin-ext; other subsets load on demand via `unicode-range`), as the variable axis rather than static cuts. The codebase uses `font-weight: 650`, which static cuts had been silently rounding to 700.
 
-**Client encryption by default.** Turso stores ciphertext and the normal browser workflow keeps the password-derived key on the device, so the database host is never trusted with user data. The optional ChatGPT connection grants server-side show decryption after consent. There is no password recovery.
+**Client encryption by default.** Turso stores private records as ciphertext and the normal browser workflow keeps the password-derived key on the device. The optional ChatGPT connection grants server-side show decryption after consent. Public viewer state and the optional approved website lineup projections are stored separately as plaintext because they are intentionally published. There is no password recovery.
 
 **Letting a stranger read what the server cannot.** A signing link has to work for someone with no account, on a phone, from a text message, while the server stays unable to read a producer's data. The browser re-encrypts under a key generated for that one share, and the key travels in the URL fragment, which browsers never send in a request line or `Referer`. `/api/sign` and `/api/sign-doc` store ciphertext addressed by an unguessable token, plus one plaintext column, `signed_at`, because `UPDATE … WHERE signed_at IS NULL` is what makes a request signable exactly once and a replayed or racing POST harmless.
 

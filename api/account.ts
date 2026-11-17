@@ -176,9 +176,10 @@ function deletions(userId: string, tokens: string[]): InStatement[] {
       { sql: `DELETE FROM live_view WHERE token IN (${list}) AND user_id IS NULL`, args: group },
     );
   }
-  for (const table of ['chatgpt_tokens', 'chatgpt_grants', 'user_media', 'user_shows', 'user_shows_backup', 'user_settings', 'user_settings_backup', 'subscription']) {
+  for (const table of ['chatgpt_tokens', 'chatgpt_grants', 'user_media', 'user_shows', 'user_shows_backup', 'user_settings', 'user_settings_backup', 'subscription', 'website_lineups']) {
     statements.push({ sql: `DELETE FROM ${table} WHERE user_id = ?`, args: [userId] });
   }
+  statements.push({ sql: 'UPDATE website_lineups_bootstrap SET owner_id = NULL WHERE owner_id = ?', args: [userId] });
   // The sign-in throttles are filed under the account's id too.
   for (const prefix of [`auth:${userId}:`, `authz:${userId}:`]) {
     statements.push({ sql: `DELETE FROM rate_limit WHERE substr(bucket, 1, length(?)) = ?`, args: [prefix, prefix] });

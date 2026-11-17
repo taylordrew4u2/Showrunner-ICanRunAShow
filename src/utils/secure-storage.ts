@@ -8,11 +8,13 @@ import { stripShowMediaForTrash, MAX_TRASH_ITEMS } from "./trash";
 import { describeLargestMedia } from "./showSize";
 import { healShow } from "./showHealing";
 import type { DraftLock } from "./pendingStore";
+import { publicWebsiteShow } from './websiteLineups';
 
 /**
  * Secure storage. All data is encrypted in the browser (the password-derived
- * key never leaves the device); the server API only ever stores/returns opaque
- * ciphertext. The browser sends a derived userId + a credential derived from
+ * key never leaves the device); the server API stores/returns opaque ciphertext.
+ * Only shows explicitly selected for the website also send their public bill.
+ * The browser sends a derived userId + a credential derived from
  * the password for routing and authorization, never the raw password.
  */
 
@@ -128,7 +130,8 @@ export interface LoadedShows {
  * everything else loads.
  */
 export async function loadEncryptedShows(creds: SessionCredentials, trackBaseline = true): Promise<LoadedShows> {
-  const { shows } = await api.get<{ shows: EncryptedShowRow[] }>("/api/shows", auth(creds));
+  const { shows, websiteLineupShowIds } = await api.get<{ shows: EncryptedShowRow[]; websiteLineupShowIds?: string[] }>("/api/shows", auth(creds));
+  websiteSelections.set(creds, new Set((websiteLineupShowIds ?? []).filter(id => typeof id === 'string')));
   const loaded = decryptShowRows(shows, creds);
   // A look at the account that is not a load — the unused-files sweep takes
   // one — must leave the baseline alone. The tab's list is still measured
@@ -168,6 +171,7 @@ function decryptShowRows(shows: EncryptedShowRow[], creds: SessionCredentials): 
 // `shown` is the same row as this launch shows it, unedited (see countAsLoaded).
 interface SavedRow { cipher: string; plain?: string; shown?: string }
 const showBaselines = new WeakMap<SessionCredentials, Map<string, SavedRow>>();
+const websiteSelections = new WeakMap<SessionCredentials, Set<string>>();
 export function showBaselineHashes(creds: SessionCredentials): Record<string, string> {
   return Object.fromEntries([...showBaselines.get(creds) ?? []].filter(([, row]) => row.plain !== undefined)
     .map(([id, row]) => [id, CryptoJS.SHA256(row.plain!).toString()]));
@@ -340,6 +344,7 @@ export async function saveEncryptedShows(
   const baseline = showBaselines.get(creds);
   if (!baseline) throw new Error('Load the account before saving shows.');
   const desired = new Map<string, SavedRow>();
+  const publicShows = new Map(shows.map(show => [show.id, show]));
   for (const show of shows) {
     const plain = JSON.stringify(show);
     const previous = baseline.get(show.id);
@@ -354,7 +359,11 @@ export async function saveEncryptedShows(
     const previous = baseline!.get(id);
     const next = desired.get(id);
     if (previous?.cipher === next?.cipher) return null;
-    return { id, expectedHash: previous ? sha(previous.cipher) : null, encryptedData: next?.cipher ?? null };
+    const publicShow = websiteSelections.get(creds)?.has(id) ? publicShows.get(id) : undefined;
+    return {
+      id, expectedHash: previous ? sha(previous.cipher) : null, encryptedData: next?.cipher ?? null,
+      ...(publicShow && next ? { websiteLineup: publicWebsiteShow(publicShow) } : {}),
+    };
   }
   const changes = [];
   for (const id of new Set([...baseline.keys(), ...desired.keys()])) {

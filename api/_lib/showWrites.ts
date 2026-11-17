@@ -1,8 +1,10 @@
 import type { Client } from '@libsql/client';
 import { json } from './http';
 import { snapshotShows } from './snapshots';
+import { parseWebsiteShow, type WebsiteShow } from '../../src/utils/websiteLineups';
+import { syncWebsiteLineupWrites, websiteLineupsConfig } from './websiteLineups';
 
-interface Change { id: string; expectedHash: string | null; encryptedData: string | null }
+interface Change { id: string; expectedHash: string | null; encryptedData: string | null; websiteLineup?: WebsiteShow }
 
 export async function cipherHash(value: string): Promise<string> {
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -20,7 +22,19 @@ export async function applyShowChanges(db: Client, userId: string, input: unknow
   })) {
     return json({ error: 'bad_request' }, 400);
   }
-  const changes = input as Change[];
+  const approved = new Set(websiteLineupsConfig()?.ids ?? []);
+  let changes: Change[];
+  try {
+    changes = input.map(value => {
+      const c = value as Record<string, unknown>;
+      const change: Change = { id: c.id as string, expectedHash: c.expectedHash as string | null, encryptedData: c.encryptedData as string | null };
+      if (approved.has(change.id) && c.websiteLineup !== undefined && change.encryptedData !== null) {
+        change.websiteLineup = parseWebsiteShow(c.websiteLineup);
+        if (change.websiteLineup.id !== change.id) throw new Error('Mismatched website show.');
+      }
+      return change;
+    });
+  } catch { return json({ error: 'invalid_website_lineup' }, 400); }
   if (new Set(changes.map(c => c.id)).size !== changes.length) return json({ error: 'duplicate_id' }, 400);
   const tx = await db.transaction('write');
   try {
@@ -47,6 +61,7 @@ export async function applyShowChanges(db: Client, userId: string, input: unknow
               WHERE user_shows.user_id = excluded.user_id`,
         args: [c.id, userId, c.encryptedData],
       }));
+      await syncWebsiteLineupWrites(tx, userId, effective);
     }
     await tx.commit();
     return json({ ok: true });
