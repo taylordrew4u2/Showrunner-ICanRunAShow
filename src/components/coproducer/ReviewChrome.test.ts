@@ -13,7 +13,7 @@ const noop = () => {};
 
 describe('the co-producer link’s gate', () => {
   beforeEach(() => {
-    vi.stubGlobal('location', { origin: 'https://coproduce.icanrunashow.com', protocol: 'https:', hostname: 'coproduce.icanrunashow.com' });
+    vi.stubGlobal('location', { origin: 'https://showrunner-theta.vercel.app', protocol: 'https:', hostname: 'showrunner-theta.vercel.app' });
   });
   afterEach(() => {
     vi.unstubAllGlobals();

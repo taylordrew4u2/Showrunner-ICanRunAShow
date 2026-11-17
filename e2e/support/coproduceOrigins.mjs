@@ -2,7 +2,7 @@
  * The two origins the end-to-end suite serves the app on.
  *
  * In production a co-producer's view runs on its own origin
- * (coproduce.icanrunashow.com), so its browser storage is never that of
+ * (showrunner-theta.vercel.app), so its browser storage is never that of
  * either producer's own account. The suite reproduces that with one
  * `vite preview` answering on two addresses that a browser treats as two
  * origins: the owner's app on localhost, the co-producer's on 127.0.0.1.

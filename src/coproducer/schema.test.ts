@@ -23,7 +23,7 @@ import {
 } from './types';
 
 const APP = 'https://icanrunashow.com';
-const REVIEW = 'https://coproduce.icanrunashow.com';
+const REVIEW = 'https://showrunner-theta.vercel.app';
 const ctx = { appOrigins: [APP, REVIEW] };
 
 const SVG = '<svg onload=alert(1)>';

@@ -34,7 +34,7 @@ vi.mock('../../api/_lib/plan', () => ({
 }));
 
 const main = 'https://icanrunashow.com';
-const review = 'https://coproduce.icanrunashow.com';
+const review = 'https://showrunner-theta.vercel.app';
 const KEY = randomBytes(32).toString('hex');
 const LEGACY = randomBytes(32).toString('hex');
 const NEIGHBOUR_KEY = randomBytes(32).toString('hex');
@@ -188,6 +188,24 @@ describe('making a link (owner)', () => {
     for (const route of ['links', 'inbox&count=1', 'handouts']) {
       expect((await call(`route=${route}`, { token })).status, route).toBe(401);
     }
+  });
+
+  it('is refused on the review origin even with no APP_URL to name the main one', async () => {
+    vi.stubEnv('APP_URL', '');
+    const body = { label: 'Sam', key: KEY, legacyKey: LEGACY, consent: true };
+    // The same deployment answers on both addresses; this request arrives on the review one.
+    const res = await coproducer(new Request(`${review}/api/coproducer?route=links`, {
+      method: 'POST',
+      headers: { 'x-user-id': 'producer', 'content-type': 'application/json', origin: review },
+      body: JSON.stringify(body),
+    }));
+    expect(res.status).toBe(403);
+    expect(await error(res)).toBe('invalid_origin');
+    expect(await count('SELECT COUNT(*) FROM coproducer_links')).toBe(0);
+    expect((await asOwner('route=links', { method: 'POST', body, origin: main })).status).toBe(201);
+    const { token } = await makeLink();
+    expect(await error(await call('route=session', { token, origin: main }))).toBe('invalid_origin');
+    expect((await call('route=session', { token, origin: review })).status).toBe(200);
   });
 
   it('fails closed where there is no review origin', async () => {

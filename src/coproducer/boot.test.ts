@@ -35,7 +35,7 @@ let storage: Storage;
 beforeEach(() => {
   storage = memoryStorage();
   vi.stubGlobal('localStorage', storage);
-  vi.stubGlobal('location', at('https://coproduce.icanrunashow.com'));
+  vi.stubGlobal('location', at('https://showrunner-theta.vercel.app'));
 });
 
 afterEach(() => {
@@ -59,7 +59,7 @@ describe('movingToReviewOrigin', () => {
   });
 
   it('is false on the review origin, and where there is no review origin', () => {
-    expect(movingToReviewOrigin(at('https://coproduce.icanrunashow.com'))).toBe(false);
+    expect(movingToReviewOrigin(at('https://showrunner-theta.vercel.app'))).toBe(false);
     vi.stubGlobal('location', at('http://localhost:5173'));
     expect(movingToReviewOrigin(at('http://localhost:5173'))).toBe(false);
     vi.stubGlobal('location', at('https://preview-abc.vercel.app'));
@@ -71,7 +71,7 @@ describe('takeCoproduceToken', () => {
   it('takes the token the link page left, deletes it, and keeps it on this device', async () => {
     (globalThis as Record<string, unknown>)[COPRODUCER_TOKEN_GLOBAL] = TOKEN;
     const hash = vi.fn(() => '#t=' + OTHER);
-    vi.stubGlobal('location', { ...at('https://coproduce.icanrunashow.com'), get hash() { return hash(); } });
+    vi.stubGlobal('location', { ...at('https://showrunner-theta.vercel.app'), get hash() { return hash(); } });
     expect(await takeCoproduceToken()).toEqual({ token: TOKEN });
     expect(COPRODUCER_TOKEN_GLOBAL in globalThis).toBe(false);
     expect(hash).not.toHaveBeenCalled();

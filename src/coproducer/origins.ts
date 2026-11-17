@@ -1,8 +1,8 @@
 /**
  * The app's own view of where co-producer links open (see originRules.ts for
  * the rules). Worked out from the page's address: on icanrunashow.com the
- * review origin is coproduce.icanrunashow.com, and a page on
- * coproduce.icanrunashow.com belongs to icanrunashow.com.
+ * review origin is showrunner-theta.vercel.app, and a page on
+ * showrunner-theta.vercel.app belongs to icanrunashow.com.
  *
  * VITE_COPRODUCE_ORIGIN and VITE_MAIN_ORIGIN, when set at build time,
  * override both, for the end-to-end tests that serve the two origins as

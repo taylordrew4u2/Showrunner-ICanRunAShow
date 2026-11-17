@@ -17,14 +17,10 @@
  *
  * The review origin is worked out in the page from its own address, by the
  * rules in coproducer/originRules.ts: on icanrunashow.com it is
- * coproduce.icanrunashow.com. A build-time override (VITE_COPRODUCE_ORIGIN,
+ * showrunner-theta.vercel.app. A build-time override (VITE_COPRODUCE_ORIGIN,
  * for the end-to-end tests) wins when set.
  */
-import {
-  HOSTS_WITH_REVIEW_ORIGIN,
-  parseOriginSetting,
-  REVIEW_SUBDOMAIN,
-} from '../coproducer/originRules';
+import { parseOriginSetting, REVIEW_ORIGINS } from '../coproducer/originRules';
 import { COPRODUCE_PATH, COPRODUCER_FRAGMENT, COPRODUCER_TOKEN_GLOBAL } from '../coproducer/types';
 import { linkPageWithCopy } from './sharedLink';
 
@@ -51,12 +47,11 @@ function literal(value: unknown): string {
 export function coproduceBootScript(reviewOverride: string): string {
   return `(function () {
   var review = ${literal(reviewOverride)};
-  var hosts = ${literal(HOSTS_WITH_REVIEW_ORIGIN)};
-  var prefix = ${literal(`${REVIEW_SUBDOMAIN}.`)};
-  if (!review && location.protocol === 'https:') {
-    var host = location.hostname.toLowerCase();
-    if (hosts.indexOf(host) >= 0) review = 'https://' + prefix + location.host.toLowerCase();
-    else if (host.indexOf(prefix) === 0 && hosts.indexOf(host.slice(prefix.length)) >= 0) review = location.origin;
+  var origins = ${literal(REVIEW_ORIGINS)};
+  if (!review) {
+    for (var main in origins) {
+      if (location.origin === main || location.origin === origins[main]) review = origins[main];
+    }
   }
   if (review && location.origin !== review) {
     location.replace(review + ${literal(COPRODUCE_PATH)} + location.hash);

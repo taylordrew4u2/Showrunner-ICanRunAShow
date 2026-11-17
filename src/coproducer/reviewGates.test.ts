@@ -78,7 +78,7 @@ class FakeFileReader {
 beforeEach(() => {
   fetchMock = vi.fn(async () => answer({ ok: true, shows: [], items: [], data: 'x', total: 1 }));
   vi.stubGlobal('fetch', fetchMock);
-  vi.stubGlobal('location', { origin: 'https://coproduce.icanrunashow.com', protocol: 'https:', hostname: 'coproduce.icanrunashow.com' });
+  vi.stubGlobal('location', { origin: 'https://showrunner-theta.vercel.app', protocol: 'https:', hostname: 'showrunner-theta.vercel.app' });
   vi.stubGlobal('FileReader', FakeFileReader);
 });
 

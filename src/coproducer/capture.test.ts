@@ -37,7 +37,7 @@ function working(t: ReviewTruth) {
   return { shows: clone(t.shows), settings: clone(t.settings) };
 }
 
-const ORIGINS = { appOrigins: ['https://icanrunashow.com', 'https://coproduce.icanrunashow.com'] };
+const ORIGINS = { appOrigins: ['https://icanrunashow.com', 'https://showrunner-theta.vercel.app'] };
 
 describe('buildEditPayload', () => {
   it('is null when nothing changed, copies included', () => {

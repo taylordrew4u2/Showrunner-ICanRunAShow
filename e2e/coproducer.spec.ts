@@ -381,6 +381,27 @@ test.describe('co-producer view', () => {
     void state;
   });
 
+  test('a session left on the review origin from when it served the whole app is never restored', async ({ page }) => {
+    await installFakeApi(page.context(), emptyState());
+    await page.goto(`${REVIEW_ORIGIN}/`);
+    await expect(page.getByText('This address only opens co-producer links')).toBeVisible();
+    // The oldest kind of stored session, which restoring would rewrite at once.
+    const stored = JSON.stringify({ username: 'producer', password: 'left-behind-1' });
+    await page.evaluate((value) => localStorage.setItem('showrunner_session', value), stored);
+    const seen = watchRequests(page);
+    for (const path of ['/', '/coproduce']) {
+      await page.goto(`${REVIEW_ORIGIN}${path}`);
+      await expect(page.getByRole('link', { name: 'Go to I Can Run A Show' })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Go to I Can Run A Show' })).toHaveAttribute('href', `${MAIN_ORIGIN}/`);
+      await expect(page.getByPlaceholder('Enter username')).toHaveCount(0);
+    }
+    expect(await page.evaluate(() => [localStorage.getItem('showrunner_session'), localStorage.getItem('showrunner:session:v2')])).toEqual([stored, null]);
+    for (const request of seen) {
+      expect(request.headers['x-auth'], request.url).toBeUndefined();
+      expect(request.headers['x-user-id'], request.url).toBeUndefined();
+    }
+  });
+
   test('a new headshot is staged with the request, relabelled by its bytes, and never stored', async ({ page, browser }) => {
     const { state, keys, token } = await ownerWithShow(page);
     const mediaBefore = Object.keys(state.media).length;
