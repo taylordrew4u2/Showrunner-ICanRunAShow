@@ -13,6 +13,7 @@ import {
   surpriseGuests,
 } from '../../utils/surpriseGuests';
 import { PerformerProfile, ProfileDrawer } from './PerformerProfile';
+import { ContactLink } from '../coproducer/ContactLink';
 import { LineupTabs, lineupTabIds, SurpriseGuestsIntro, type LineupTab } from './LineupTabs';
 import { Icon } from '../Icon';
 import type { SignerStatus } from '../../utils/contracts';
@@ -23,6 +24,8 @@ function tabFor(performer: Performer | undefined): LineupTab {
 }
 
 interface PerformersSectionProps {
+  /** The show these performers are on: co-producer view asks for emails and headshots by it. */
+  showId?: string;
   /** A request to open one profile. `seq` makes the same face tappable twice. */
   openProfile?: { id: string; seq: number };
   performers: Performer[];
@@ -45,6 +48,7 @@ interface PerformersSectionProps {
 }
 
 export function PerformersSection({
+  showId,
   openProfile,
   performers,
   potentialComics = [],
@@ -292,13 +296,17 @@ export function PerformersSection({
                   )
                 )}
                 {p.email && (
-                  <a
-                    className="section-list-item__tag section-list-item__tag--link"
-                    href={`mailto:${p.email}`}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {p.email}
-                  </a>
+                  // A span, so a co-producer's ask does not open the row too.
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <ContactLink
+                      className="section-list-item__tag section-list-item__tag--link"
+                      href={`mailto:${p.email}`}
+                      source="person"
+                      showId={showId}
+                    >
+                      {p.email}
+                    </ContactLink>
+                  </span>
                 )}
                 {(p.walkOnMusicName || p.walkOnMusicArtist) && (
                   <span className="section-list-item__tag">
@@ -401,7 +409,7 @@ export function PerformersSection({
         </div>
       )}
 
-      <LineupActions performers={performers} showName={showName} onAnnounce={onAnnounce} />
+      <LineupActions performers={performers} showId={showId} showName={showName} onAnnounce={onAnnounce} />
 
       {shown.length > 0 && (
         <div className="lineup-add">
@@ -576,6 +584,7 @@ export function PerformersSection({
           onClose={closeProfile}
         >
           <PerformerProfile
+            showId={showId}
             performer={selectedPerformer}
             onBack={closeProfile}
             onChange={updatePerformer}

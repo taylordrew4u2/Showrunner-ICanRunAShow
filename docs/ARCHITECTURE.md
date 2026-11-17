@@ -35,7 +35,8 @@ Showrunner-ICanRunAShow/
 │   ├── website-lineups.ts      # Opt-in, approved public lineup projections
 │   ├── media.ts                 # Chunked encrypted uploads (+ inventory for the sweep)
 │   ├── sign.ts                  # Signature requests; sign-once enforced in SQL
-│   └── sign-doc.ts              # The contract itself, ciphertext under a per-request key
+│   ├── sign-doc.ts              # The contract itself, ciphertext under a per-request key
+│   └── coproducer.ts            # Co-producer links: redacted views, requests, approvals
 ├── e2e/                         # Playwright specs, desktop + phone
 │   └── support/fake-api.mjs     # In-memory stand-in for the API, incl. the sign-once rule
 ├── ios/                         # Capacitor iOS project
@@ -84,6 +85,16 @@ flowchart LR
     ShareKey -.-> Viewer
     ShareKey -.-> Signer
 ```
+
+## Co-producer links
+
+An owner can give another producer a link to see everything in the account; whatever the co-producer changes, shares or downloads waits for the owner's approval. The server side is `api/coproducer.ts`, with `api/_lib/coproducerAuth.ts` (callers and origins), `coproducerViews.ts` (what a co-producer is served), `coproducerRequests.ts` (allowance, clean-up) and `seal.ts` (shared with the AI-assistant connector).
+
+- **Tables.** `coproducer_links` (one per link: the token's hash, the account keys sealed under the token and bound to the row, the co-producer's name under the account key), `coproducer_requests` (kind and status in plaintext; payload, a server-built outline and any approval result under the account key), `coproducer_media` (files a proposed change carries, encrypted under the account key in `user_media`'s format, so approval copies them across byte for byte) and `coproducer_handouts` (links an approved share handed out, kept after the co-producer's link ends so the owner can withdraw them).
+- **Two auth modes, never mixed.** Owner routes (`links`, `inbox`, `staged`, `adopt`, `decide`, `decide-many`, `handouts`) take the owner's `x-user-id`/`x-auth` from the app's own origin. Co-producer routes (`session`, `revisions`, `shows`, `settings`, `media`, `profile-photo`, `stage`, `requests`, `use`) take only `Authorization: Bearer <link token>` from the review origin, and never answer 401. They read redacted, schema-checked plaintext views and write nothing but their own requests and staged files; their storage has an allowance of its own, apart from the one contracts and signatures share.
+- **The review origin.** A co-producer's view runs on `https://coproduce.<host>`, a second domain on the same deployment, so its browser storage is never that of either producer's account. Nothing configures it: the server works it out from `APP_URL` and the app from its own address (`src/coproducer/originRules.ts`). A deployment whose host has no `coproduce.` sibling, such as a Vercel preview, makes no links; localhost and 127.0.0.1 run co-producer view on the app's own origin for development and tests. `COPRODUCE_ORIGIN` (server) and `VITE_COPRODUCE_ORIGIN`/`VITE_MAIN_ORIGIN` (build) override it; the end-to-end suite uses the build ones to serve the two origins as 127.0.0.1 and localhost. **Deploying:** attach `coproduce.icanrunashow.com` to the Vercel project; nothing else is needed.
+- **The link page.** `/coproduce` is served `link-coproduce.html` (`src/utils/coproduceLinkPage.ts`): no canonical or `og:url`, so message previews keep the token, and a first inline script that moves the page to the review origin, or there takes the token out of the fragment and strips the address before anything else runs.
+- **A request's life.** `pending` when it arrives (checked against the strict schema, its files both ways); `stale` when the owner's app finds the owner has since changed what it touches; then `approved` or `rejected` by the owner, or `withdrawn` by the co-producer. Only the owner's app applies an approved change, through the owner's own saves. Decided requests are kept 7 days (30 when approved); a link's requests and files go with it, its handouts stay.
 
 ## Technical decisions
 

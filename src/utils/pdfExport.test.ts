@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { exportShowToPDF, exportDJListToPDF, creditsFontPx } from './pdfExport';
 import type { Show, AppSettings } from '../types';
+import { fullSettings, fullShow } from '../coproducer/testFixtures';
 
 const show = {
   id: 'show-1',
@@ -343,5 +344,97 @@ describe('creditsFontPx', () => {
     // The default room is a card with a one-line name and a one-line foot.
     expect(creditsFontPx(LONG_CREDITS, 100)).toBeLessThan(creditsFontPx(LONG_CREDITS));
     expect(creditsFontPx(LONG_CREDITS, 200)).toBe(13);
+  });
+});
+
+describe('printable sheets with markup in the data', () => {
+  // A sheet is written into a window of the app's own origin. Whatever is in
+  // the data, from the producer or from a co-producer's change they approved,
+  // must arrive there as text and nothing else.
+  const HOSTILE = '<img src=x onerror=alert(1)>';
+  const ESCAPED = '&lt;img src=x onerror=alert(1)&gt;';
+
+  /** Every string leaf replaced by markup; numbers and booleans left as they are. */
+  function hostile<T>(value: T): T {
+    if (typeof value === 'string') return HOSTILE as T;
+    if (Array.isArray(value)) return value.map(hostile) as T;
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, hostile(v)])) as T;
+    }
+    return value;
+  }
+
+  /** The tags a sheet opens, by name. */
+  function tagNames(html: string): Set<string> {
+    return new Set([...html.matchAll(/<([a-zA-Z][a-zA-Z0-9-]*)/g)].map((m) => m[1].toLowerCase()));
+  }
+
+  /** What comes first inside the sheet's head. */
+  function firstInHead(html: string): string {
+    return html.slice(html.indexOf('<head>') + '<head>'.length).trimStart();
+  }
+
+  const markedShow: Show = { ...hostile(fullShow()), status: 'upcoming' };
+  const markedSettings: AppSettings = hostile(fullSettings());
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('escapes every value on the run sheet', () => {
+    const html = captureExport(() => exportShowToPDF(markedShow, markedSettings));
+    expect(html).not.toContain('<img');
+    expect(html).not.toContain('onerror=alert(1)>');
+    expect(html).toContain(ESCAPED);
+    expect(tagNames(html).has('img')).toBe(false);
+    expect(tagNames(html).has('script')).toBe(false);
+  });
+
+  it('escapes every value on the DJ list', () => {
+    const html = captureExport(() => exportDJListToPDF(markedShow, markedSettings.musicLibrary));
+    expect(html).not.toContain('<img');
+    expect(html).toContain(ESCAPED);
+  });
+
+  it('escapes a number field that arrives holding markup', () => {
+    const odd = fullShow({
+      recap: { attendance: '<svg onload=alert(1)>' as unknown as number },
+      scenes: [{ id: 's', title: 'T', description: '', duration: '9<svg onload=alert(1)>' as unknown as number, status: 'planned', order: 0 }],
+    });
+    const html = captureExport(() => exportShowToPDF(odd, fullSettings()));
+    expect(html).not.toContain('<svg');
+    expect(html).toContain('&lt;svg onload=alert(1)&gt;');
+  });
+
+  it('makes only web addresses clickable', () => {
+    const script = captureExport(() => exportShowToPDF(fullShow({ ticketLink: 'javascript:alert(1)' }), fullSettings()));
+    expect(script).not.toContain('href="javascript:');
+    expect(script).toContain('javascript:alert(1)');
+    const web = captureExport(() => exportShowToPDF(fullShow({ ticketLink: 'https://example.com/t?a=1&b="2"' }), fullSettings()));
+    expect(web).toContain('href="https://example.com/t?a=1&amp;b=&quot;2&quot;"');
+  });
+
+  it('opens each sheet with a policy that lets nothing run', () => {
+    const sheets = [
+      captureExport(() => exportShowToPDF(fullShow(), fullSettings())),
+      captureExport(() => exportDJListToPDF(fullShow(), fullSettings().musicLibrary)),
+    ];
+    for (const html of sheets) {
+      expect(firstInHead(html)).toMatch(
+        /^<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src data: blob:" \/>/,
+      );
+    }
+  });
+
+  it('allows the house fonts from the app’s own address', () => {
+    vi.stubGlobal('location', { origin: 'https://icanrunashow.com' });
+    const html = captureExport(() => exportDJListToPDF(fullShow(), fullSettings().musicLibrary));
+    expect(firstInHead(html)).toContain('font-src https://icanrunashow.com;');
+    expect(html).toContain("url('https://icanrunashow.com/fonts/inter-latin.woff2')");
   });
 });

@@ -1,0 +1,585 @@
+/* ── Co-producer view ─────────────────────────────────────────────────
+   What a co-producer has asked for, shown beside what is there now. The
+   proposed side is always red and always says "Pending approval" in words,
+   so it never depends on colour alone. Used by both producers' apps: the
+   co-producer's dialogs and screens, and the owner's request cards. */
+
+/* The words "Pending approval", as a small outlined pill. */
+.pending-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 1px var(--space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.pending-pill__count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A proposed value: what the co-producer asked for, not what is there. */
+.coproducer-proposed {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
+/* ── The list of changes ──────────────────────────────────────────── */
+
+.change-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: var(--space-3) 0;
+}
+
+.change-list__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2-5);
+}
+
+.change-list__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.change-list__note {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface-strong);
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.change-list__change {
+  padding: var(--space-2-5) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.change-list__where {
+  margin: 0 0 var(--space-1-5);
+  font-size: var(--text-md);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.change-list__path {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.change-list__label {
+  font-weight: 700;
+}
+
+.change-list__values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.change-list__side {
+  min-width: 0;
+}
+
+.change-list__side dt {
+  margin: 0 0 var(--space-0-5);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.change-list__side dd {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.45;
+  /* Values keep their own line breaks: a note is shown as it was typed. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.change-list__side dd .pending-pill {
+  margin-left: var(--space-1-5);
+  white-space: nowrap;
+}
+
+.change-list__nothing {
+  color: var(--text-muted);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.change-list__proposed .change-list__nothing {
+  color: var(--danger-text);
+}
+
+.change-list__thumbs {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1-5);
+}
+
+.change-list__thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+}
+
+.change-list__proposed .change-list__thumb {
+  border-color: var(--danger-soft-border);
+}
+
+/* "Show all" and "Show 12 more": details, so the whole text is in the page
+   whether or not it is open. */
+.change-list__all,
+.change-list__more {
+  margin-top: var(--space-2);
+}
+
+.change-list__all > summary,
+.change-list__more > summary,
+.pending-inline__summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--primary-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .change-list__all > summary,
+  .change-list__more > summary,
+  .pending-inline__summary {
+    min-height: var(--tap-min);
+  }
+}
+
+/* Open, the whole text replaces the window around the difference. */
+.change-list__change:has(> .change-list__all[open]) > .change-list__values {
+  display: none;
+}
+
+.change-list__more > .change-list__group-rest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2-5);
+  margin-top: var(--space-2-5);
+}
+
+.change-list__details {
+  display: grid;
+  gap: var(--space-1-5);
+  margin: var(--space-1-5) 0 0;
+}
+
+.change-list__details dt {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.change-list__details dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The owner's own changes since the request: three values, theirs in red. */
+.change-list__conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2-5);
+  padding: var(--space-3);
+  border: 1px solid var(--warning-soft-border);
+  border-radius: var(--radius-md);
+  background: var(--warning-soft);
+}
+
+.change-list__conflicts-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--warning);
+}
+
+.change-list__conflicts-hint {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--warning);
+}
+
+/* ── Marks on the screens ─────────────────────────────────────────── */
+
+.pending-inline {
+  margin: var(--space-2) 0;
+}
+
+.pending-inline .change-list {
+  margin: var(--space-1-5) 0 0;
+}
+
+.pending-row--removed .pending-row__title {
+  text-decoration: line-through;
+  text-decoration-color: var(--danger-text);
+  color: var(--text-muted);
+}
+
+.pending-row .pending-pill {
+  margin-left: var(--space-1-5);
+}
+
+.pending-new-shows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+/* A show only a request would create: the card at 60%, dashed, and nothing
+   to tap until the owner approves it. */
+.pending-ghost {
+  opacity: 0.6;
+  border: 1px dashed var(--danger-soft-border);
+  border-left-width: 3px;
+  cursor: default;
+}
+
+.pending-ghost:hover,
+.pending-ghost:focus-within {
+  border-color: var(--danger-soft-border);
+  background: var(--surface);
+}
+
+.pending-ghost__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── The ask button ───────────────────────────────────────────────── */
+
+.ask-button--pending:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+/* ── The banner ───────────────────────────────────────────────────── */
+
+.review-banner {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  pointer-events: auto;
+}
+
+.review-banner__mode {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2-5);
+  border: 1px solid var(--primary-soft-border);
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.review-banner__hint {
+  display: none;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+@media (min-width: 900px) {
+  .review-banner__hint {
+    display: inline;
+  }
+}
+
+.review-banner__offline {
+  flex-basis: 100%;
+  text-align: right;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--warning);
+}
+
+.review-banner__pending,
+.review-banner__menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: 30px;
+  padding: var(--space-1) var(--space-2-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .review-banner__pending,
+  .review-banner__menu-button {
+    min-height: var(--tap-min);
+  }
+}
+
+.review-banner__badge {
+  min-width: 18px;
+  padding: 0 var(--space-1-5);
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: var(--on-danger);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-banner__menu {
+  position: absolute;
+  top: calc(100% + var(--space-1-5));
+  right: 0;
+  z-index: var(--z-raised-above);
+  min-width: 220px;
+  padding: var(--space-1-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.review-banner__menu button {
+  display: block;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-md);
+  text-align: left;
+  cursor: pointer;
+}
+
+.review-banner__menu button:hover,
+.review-banner__menu button:focus-visible {
+  background: var(--surface-strong);
+}
+
+/* ── The unsent bar ───────────────────────────────────────────────── */
+
+/* Rendered inside the status rail, which ignores the pointer; the bar takes
+   it back, as the notices do. */
+.unsent-bar {
+  position: fixed;
+  z-index: var(--z-sticky);
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2-5) var(--space-4);
+  border: 1px solid var(--danger-soft-border);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  box-shadow: var(--shadow-md);
+  /* On a phone: across the screen, just above the bottom bar. */
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+}
+
+/* From 900px the bottom bar is a sidebar, and the bar joins the status rail
+   in its flow, as the last notice. Fixed over the page at the band's top, it
+   sat at the same z-index as the show page's sticky Run Show bar, which came
+   later in the document and painted over "N changes not sent yet". In the
+   rail it is measured into --status-band like any notice, so the page and
+   every sticky header start below it instead. */
+@media (min-width: 900px) {
+  .unsent-bar {
+    position: static;
+    align-self: flex-end;
+    max-width: 520px;
+    margin: var(--space-2) var(--space-8) 0;
+    border-radius: var(--radius-md);
+  }
+}
+
+.unsent-bar__text {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.unsent-bar__line {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.unsent-bar__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Room under the last thing on the page for the bar, where :has() works. */
+@media (max-width: 899px) {
+  body:has(.unsent-bar) .app-main {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 96px);
+  }
+}
+
+/* Out of the way of anything modal, as the status rail is. */
+body:has([aria-modal='true']) .unsent-bar {
+  display: none;
+}
+
+body.has-modal .unsent-bar {
+  display: none;
+}
+
+/* ── The pending drawer and the dialog ────────────────────────────── */
+
+.pending-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.pending-drawer__title,
+.proposal-dialog__title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.pending-drawer__section {
+  margin-bottom: var(--space-6);
+}
+
+.pending-drawer__section-title {
+  margin: 0 0 var(--space-2-5);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.pending-drawer__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pending-drawer__item {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.pending-drawer__headline {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.pending-drawer__when,
+.pending-drawer__note {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.pending-drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2-5);
+}
+
+.pending-drawer__empty {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.proposal-dialog__body {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.proposal-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.proposal-dialog__offline {
+  margin-right: auto;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--warning);
+}

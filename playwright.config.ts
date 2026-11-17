@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { MAIN_ORIGIN, PORT, REVIEW_ORIGIN } from './e2e/support/coproduceOrigins.mjs';
 
 /**
  * End-to-end configuration.
@@ -32,7 +33,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: MAIN_ORIGIN,
     trace: 'on-first-retry',
     launchOptions,
   },
@@ -50,9 +51,15 @@ export default defineConfig({
       use: { ...devices['iPhone 13'], browserName: 'chromium', launchOptions },
     },
   ],
+  // One preview server answering on every address (--host), so the build can
+  // be opened as two origins: the owner's app on localhost, and a
+  // co-producer's view on 127.0.0.1, as production serves it from
+  // coproduce.icanrunashow.com. The build is told which is which (see
+  // e2e/support/coproduceOrigins.mjs).
   webServer: {
-    command: 'npm run build && npx vite preview --port 4173 --strictPort',
-    url: 'http://localhost:4173',
+    command: `npm run build && npx vite preview --host --port ${PORT} --strictPort`,
+    url: MAIN_ORIGIN,
+    env: { VITE_MAIN_ORIGIN: MAIN_ORIGIN, VITE_COPRODUCE_ORIGIN: REVIEW_ORIGIN },
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },

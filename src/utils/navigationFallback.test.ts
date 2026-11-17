@@ -32,6 +32,15 @@ describe('which navigations the installed app leaves to the host', () => {
     expect(leftToHost('/.well-known/oauth-protected-resource/api/mcp')).toBe(true);
   });
 
+  it('sends a co-producer link to the host, which serves it its own page', () => {
+    // A cached shell would not move it to the review origin or take the
+    // token out of the address.
+    expect(leftToHost('/coproduce')).toBe(true);
+    expect(leftToHost('/coproduce/')).toBe(true);
+    expect(leftToHost('/coproduce?x')).toBe(true);
+    expect(leftToHost('/coproducer')).toBe(false);
+  });
+
   it('still opens the app, offline included, for every address the app answers', () => {
     expect(leftToHost('/')).toBe(false);
     expect(leftToHost('/sign?t=abc123')).toBe(false);

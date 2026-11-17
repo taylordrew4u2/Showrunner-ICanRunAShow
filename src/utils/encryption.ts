@@ -95,7 +95,18 @@ export function decryptData<T>(encrypted: string, password: string): T {
  * the same password so PBKDF2 only runs once (deriveKey is intentionally slow).
  */
 export function encryptWithKey(data: unknown, key: string): string {
+  refuseEmptyKey(key);
   return CryptoJS.AES.encrypt(JSON.stringify(data), key).toString();
+}
+
+/**
+ * No real key is ever empty. Co-producer view runs the app on stand-in
+ * credentials whose keys are '' (see coproducer/reviewMode), and anything
+ * that reaches the account's cipher there has slipped past a gate: it has to
+ * fail, not quietly encrypt under an empty passphrase.
+ */
+function refuseEmptyKey(key: string): void {
+  if (key === '') throw new Error('No key to encrypt or decrypt with.');
 }
 
 /**
@@ -110,6 +121,7 @@ export function decryptWithKey<T>(encrypted: string, key: string): T {
  * fall back from the current key to the legacy key for not-yet-re-encrypted data.
  */
 export function decryptWithKeys<T>(encrypted: string, keys: string[]): T {
+  for (const key of keys) refuseEmptyKey(key);
   let lastError: unknown;
   for (const key of keys) {
     try {

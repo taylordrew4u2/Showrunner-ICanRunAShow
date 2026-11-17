@@ -9,6 +9,7 @@ import { describeLargestMedia } from "./showSize";
 import { healShow } from "./showHealing";
 import type { DraftLock } from "./pendingStore";
 import { publicWebsiteShow } from './websiteLineups';
+import { isReviewMode, ReviewModeBlockedError } from "../coproducer/reviewMode";
 
 /**
  * Secure storage. All data is encrypted in the browser (the password-derived
@@ -326,6 +327,9 @@ function cipherFor<T extends object>(cache: WeakMap<T, { key: string; cipher: st
  * costs nothing more.
  */
 export function heldCopyLock(creds: SessionCredentials): DraftLock {
+  // Co-producer view's stand-in credentials have no key, and it holds no
+  // drafts: a lock asked for there is a gate missed.
+  if (creds.key === '') throw new Error('No key to seal a held copy with.');
   const keys = readKeys(creds);
   return {
     seal: (data) => Array.isArray(data)
@@ -341,6 +345,9 @@ export function heldCopyLock(creds: SessionCredentials): DraftLock {
 export async function saveEncryptedShows(
   shows: Show[], creds: SessionCredentials, unreadable: EncryptedShowRow[] = [],
 ): Promise<void> {
+  // Co-producer view never saves: its edits become a request to the owner.
+  // App never calls this there; this is the second net.
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   const baseline = showBaselines.get(creds);
   if (!baseline) throw new Error('Load the account before saving shows.');
   const desired = new Map<string, SavedRow>();
@@ -417,6 +424,8 @@ export async function exportUserData(
   creds: SessionCredentials,
   local?: LoadedShows & { settings: AppSettings; recoveryDrafts?: unknown[] },
 ): Promise<Blob> {
+  // A co-producer's backup is a download the owner approves first.
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   const data = local ?? await (async () => {
     const rows = await api.get<{ shows: EncryptedShowRow[] }>("/api/shows", auth(creds));
     return { ...decryptShowRows(rows.shows, creds), settings: await loadEncryptedSettings(creds, false) };
@@ -570,6 +579,7 @@ const settingsCiphers = new WeakMap<AppSettings, { key: string; cipher: string }
 
 /** Serialize this tab's saves; compare against what it actually loaded. */
 export function saveEncryptedSettings(settings: AppSettings, creds: SessionCredentials): Promise<void> {
+  if (isReviewMode()) return Promise.reject(new ReviewModeBlockedError());
   const previous = settingsQueues.get(creds) ?? Promise.resolve();
   // Encrypted and counted as sent now, not when its turn in the queue comes:
   // a copy held while this save waits behind another one is made over it as
@@ -673,6 +683,7 @@ export async function parkSettingsSnapshot(
   settings: AppSettings,
   creds: SessionCredentials,
 ): Promise<void> {
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   const encryptedData = encryptWithKey(settings, creds.key);
   // Throws rather than resolving quietly. The caller drops its held copy once
   // this resolves, and a blob too large to save is precisely the blob that

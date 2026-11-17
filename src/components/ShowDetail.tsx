@@ -21,13 +21,13 @@ import { ShowRecapSection } from './sections/ShowRecapSection';
 import { RunShow } from './RunShow';
 import { Modal } from './Modal';
 import { exportShowToPDF } from '../utils/pdfExport';
-import { parseShowDate, formatShowTime, showStartISO } from '../utils/showDate';
+import { parseShowDate, formatShowTime } from '../utils/showDate';
 import { daysUntil } from '../utils/showsOverview';
 import { joinNames, performersSummary, scheduleSummary, staffSummary, vendorsSummary } from '../utils/sectionSummary';
-import { boardHoldsRoom, fetchLiveView, livePublisher, publicLineup, publishLiveView, type LiveViewPayload } from '../utils/liveView';
+import { boardHoldsRoom, fetchLiveView, livePublisher, publishLiveView } from '../utils/liveView';
+import { scheduledViewerPayload } from '../utils/viewerPayload';
 import { isLinkStorageFull, LINK_STORAGE_FULL_MESSAGE } from '../utils/linkStorage';
 import { isSurpriseGuest, SURPRISE_GUEST_LABEL } from '../utils/surpriseGuests';
-import { loadColorScheme } from '../utils/theme';
 import { useMediaUrl } from '../utils/useMediaUrl';
 import { BrandMark } from './BrandMark';
 import { showDJSongs } from '../utils/musicLibrary';
@@ -51,6 +51,10 @@ import { useConfirm } from './useConfirm';
 import { ProducerLock } from './ProducerLock';
 import { useProducerAccess } from '../utils/producerAccess';
 import { avatarTint } from '../utils/avatarTint';
+import { copyText } from '../coproducer/gates';
+import { useReview } from '../coproducer/ReviewContext';
+import { AskButton } from './coproducer/AskButton';
+import { PendingChip, PendingInline } from './coproducer/PendingMarks';
 
 // Each section card wears the icon for what it holds, so the grid is scannable
 // by shape once you know the page — a wall of same-looking cards is the failure
@@ -66,6 +70,25 @@ const SECTION_ICONS: Record<string, IconName> = {
   scenes: 'tv',
   recap: 'check',
 };
+
+/** Where each section's changes live in a show (coproducer/paths), for its pending marks. */
+const SECTION_PATHS: Record<string, string> = {
+  performers: 'performers',
+  artists: 'artists',
+  schedule: 'schedule',
+  dj: 'djSongs',
+  staff: 'staff',
+  vendors: 'vendors',
+  scenes: 'scenes',
+  recap: 'recap',
+  basic: 'basic',
+};
+
+/** Basic Info's fields, each with its own pending marks under the section. */
+const BASIC_FIELDS = [
+  'date', 'time', 'venueName', 'location', 'status', 'ticketLink', 'performerTarget', 'hiddenSections', 'completions',
+  'djHiddenLibraryIds', 'expenses', 'todos',
+];
 
 interface ShowDetailProps {
   show: Show;
@@ -85,6 +108,8 @@ interface ShowDetailProps {
    * performer's contracts only appear when the app can actually send one.
    */
   session?: SessionCredentials;
+  /** Told when Run Show opens and closes: co-producer view holds its review while it is open. */
+  onRunShowChange?: (open: boolean) => void;
   onUpdateSettings?: (settings: AppSettings) => void;
   onSaveScheduleTemplate?: (name: string, items: import('../types').ScheduleTemplateItem[]) => void;
   onDeleteScheduleTemplate?: (id: string) => void;
@@ -142,8 +167,12 @@ export function ShowDetail({
   onDuplicate,
   onRepeat,
   onDelete,
+  onRunShowChange,
 }: ShowDetailProps) {
   const { confirm, confirmDialog } = useConfirm();
+  // Co-producer view: this page edits the working copy as usual, and nothing
+  // on it reaches the server, the room or the clipboard without the owner.
+  const review = useReview();
   // Everyone this producer has on file. The show's own bill comes first so a
   // name spelled slightly differently in the Rolodex doesn't win over the
   // spelling actually used on this lineup.
@@ -184,7 +213,8 @@ export function ShowDetail({
    */
   useEffect(() => {
     const requests = settings.signatureRequests ?? [];
-    if (!onUpdateSettings || !requests.some((r) => !r.signed)) return;
+    // The owner's app files signatures; a co-producer only sees them filed.
+    if (review.active || !onUpdateSettings || !requests.some((r) => !r.signed)) return;
     let cancelled = false;
     (async () => {
       const updated = await refreshSignatures(requests);
@@ -219,6 +249,10 @@ export function ShowDetail({
   const [openProfile, setOpenProfile] = useState<{ id: string; seq: number } | undefined>();
   const [editingShowName, setEditingShowName] = useState(false);
   const [runShowOpen, setRunShowOpen] = useState(startInRunShow);
+  useEffect(() => {
+    onRunShowChange?.(runShowOpen);
+  }, [runShowOpen, onRunShowChange]);
+  useEffect(() => () => onRunShowChange?.(false), [onRunShowChange]);
   const [viewerOpen, setViewerOpen] = useState(false);
   const { locked: producerLocked } = useProducerAccess();
   const [viewerNoteDraft, setViewerNoteDraft] = useState('');
@@ -306,7 +340,8 @@ export function ShowDetail({
   // and that includes a board on another device, which "upcoming" and this
   // device's Run Show being closed say nothing about. See boardHoldsRoom.
   useEffect(() => {
-    if (!show.viewToken || show.status !== 'upcoming' || runShowOpen) return;
+    // Only the owner's devices publish to the room.
+    if (review.active || !show.viewToken || show.status !== 'upcoming' || runShowOpen) return;
     const token = show.viewToken;
     let cancelled = false;
     const timeout = setTimeout(async () => {
@@ -316,14 +351,14 @@ export function ShowDetail({
       // next edit; a board on stage that it covered could not.
       const current = await fetchLiveView(token).catch(() => undefined);
       if (cancelled || current === undefined || boardHoldsRoom(current, Date.now(), publisher.last())) return;
-      publisher.publish(buildScheduledPayload(show.viewNote), session);
+      publisher.publish(scheduledViewerPayload(show, show.viewNote), session);
     }, 1000);
     return () => {
       cancelled = true;
       clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers, session]);
+  }, [review.active, show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers, session]);
 
   useEffect(() => {
     if (!show.viewToken) return;
@@ -336,7 +371,8 @@ export function ShowDetail({
   // the first time it needs one, every device then uses that, and every link
   // this device already handed out stops decoding. See ensureViewerKey.
   useEffect(() => {
-    if (!show.viewToken || show.viewerKey) return;
+    // A co-producer's view has a stand-in for the token, and no key to adopt.
+    if (review.active || !show.viewToken || show.viewerKey) return;
     const own = loadViewerKey(show.viewToken);
     if (own) onUpdate({ ...show, viewerKey: own });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -377,7 +413,7 @@ export function ShowDetail({
     // A link made before the audio key travelled with the show gets one now —
     // this device's own if it has one, so the links it already gave out keep
     // working — before anybody copies it.
-    if (show.viewToken && !show.viewerKey) {
+    if (!review.active && show.viewToken && !show.viewerKey) {
       onUpdate({ ...show, viewerKey: ensureViewerKey(show.viewToken) });
     }
     setViewerNoteDraft(show.viewNote ?? '');
@@ -542,10 +578,6 @@ export function ShowDetail({
     setEditingShowName(true);
   }
 
-  function buildStartsAtISO(): string | undefined {
-    return showStartISO(show.date, show.time);
-  }
-
   function viewerUrl(token: string): string {
     // Carries this show's audio key in the fragment — without it the viewer
     // can still show the running order, it just can't decode the music. The
@@ -556,25 +588,12 @@ export function ShowDetail({
     return buildViewerUrl(window.location.origin, token, show.viewerKey ?? loadViewerKey(token));
   }
 
-  // The lineup the public viewer shows pre-show — performers in their list
-  // order, surprise guests left off (see publicLineup).
-  function buildLineup(): LiveViewPayload['lineup'] {
-    return publicLineup(show.performers);
-  }
-
-  function buildScheduledPayload(note: string | undefined): LiveViewPayload {
-    return {
-      showName: show.name,
-      status: 'scheduled',
-      startsAt: buildStartsAtISO(),
-      note: note?.trim() || undefined,
-      theme: loadColorScheme(),
-      lineup: buildLineup(),
-      lastUpdateMs: Date.now(),
-    };
-  }
-
   function handleSaveViewer() {
+    if (review.active) {
+      // The note is an ordinary change; sharing the link is asked for on its own.
+      onUpdate({ ...show, viewNote: viewerNoteDraft.trim() || undefined });
+      return;
+    }
     const token = show.viewToken;
     if (!token) {
       // A link already handed out keeps working on the free plan — the
@@ -586,7 +605,7 @@ export function ShowDetail({
     // The audio key is made with the link — see viewerUrl.
     if (!show.viewerKey) updates = { ...updates, viewerKey: ensureViewerKey(token) };
     onUpdate({ ...show, ...updates });
-    if (session) livePublisher(token).publish(buildScheduledPayload(viewerNoteDraft), session);
+    if (session) livePublisher(token).publish(scheduledViewerPayload(show, viewerNoteDraft), session);
   }
 
   /**
@@ -613,7 +632,7 @@ export function ShowDetail({
     pendingViewerToken.current = { showId, token };
     setViewerMaking(true);
     try {
-      await publishLiveView(token, buildScheduledPayload(note), session);
+      await publishLiveView(token, scheduledViewerPayload(show, note), session);
     } catch (err) {
       setViewerMakeError(isLinkStorageFull(err) ? LINK_STORAGE_FULL_MESSAGE : failed);
       return;
@@ -636,7 +655,7 @@ export function ShowDetail({
     const token = show.viewToken;
     if (!token) return;
     const url = viewerUrl(token);
-    navigator.clipboard?.writeText(url).then(() => {
+    copyText(url).then(() => {
       setViewerCopyFailed(false);
       setViewerCopied(true);
       setTimeout(() => setViewerCopied(false), 1800);
@@ -689,6 +708,7 @@ export function ShowDetail({
       count: show.performers.length,
       preview: performersSummary(show.performers),
       content: <PerformersSection
+        showId={show.id}
         openProfile={openProfile}
         performers={show.performers}
         potentialComics={settings.potentialComics}
@@ -875,9 +895,23 @@ export function ShowDetail({
   // rather than scattered across the app's navigation.
   const moreItems: MoreMenuItem[] = [
     { label: 'Viewer link', onSelect: openViewer },
-    { label: 'Export PDF', onSelect: () => exportShowToPDF(show, settings) },
+    review.active ? runSheetItem() : { label: 'Export PDF', onSelect: () => exportShowToPDF(show, settings) },
     { label: 'Add or remove sections', onSelect: () => setManageSectionsOpen(true) },
   ];
+
+  /** In co-producer view the run sheet is printed only once the owner approves. */
+  function runSheetItem(): MoreMenuItem {
+    const state = review.actionState({ type: 'runsheet-pdf', showId: show.id });
+    if (state.state === 'pending' || state.state === 'stale') {
+      return { label: 'Run sheet: pending approval', onSelect: () => review.openPending() };
+    }
+    if (state.state === 'sending') return { label: 'Run sheet: sending…', onSelect: () => {} };
+    if (state.state === 'preparing') return { label: 'Run sheet: getting it ready…', onSelect: () => review.openPending() };
+    if (state.state === 'approved') {
+      return { label: 'Approved — tap to print the run sheet', onSelect: () => review.deliver(state.requestId) };
+    }
+    return { label: 'Ask to print the run sheet', onSelect: () => review.ask({ kind: 'download', action: { type: 'runsheet-pdf', showId: show.id } }) };
+  }
 
   if (onDuplicate) {
     moreItems.push({
@@ -942,6 +976,7 @@ export function ShowDetail({
             <span className="accordion-section__header-left">
               <span className="accordion-section__title-row">
                 <span className="accordion-section__title">{section.title}</span>
+                <PendingChip groupKey={`show:${show.id}`} prefix={SECTION_PATHS[section.key]} />
                 {filled && (
                   <span className="accordion-section__count">
                     {section.count}
@@ -978,7 +1013,7 @@ export function ShowDetail({
         </h2>
 
         {!isExpanded && section.key === 'performers' && <div className="show-workspace__lineup-preview">
-          <LineupActions performers={show.performers} showName={show.name} onAnnounce={() => setAnnounceOpen(true)} />
+          <LineupActions performers={show.performers} showId={show.id} showName={show.name} onAnnounce={() => setAnnounceOpen(true)} />
           {show.performers.length ? <div className="show-workspace__people">{show.performers.map(performer => <LineupPreview key={performer.id} performer={performer} onOpen={() => jumpToSection('performers', performer.id)} />)}</div> : <p>Build the lineup for this show.</p>}
           <button className="btn btn--secondary btn--sm" onClick={() => jumpToSection('performers')}>{show.performers.length ? 'Edit lineup / add performer' : 'Add performers'}</button>
         </div>}
@@ -996,6 +1031,10 @@ export function ShowDetail({
             className="accordion-section__content"
           >
             {section.content}
+            {section.key === 'basic'
+              ? BASIC_FIELDS.map((field) => <PendingInline key={field} groupKey={`show:${show.id}`} prefix={field} />)
+              : <PendingInline groupKey={`show:${show.id}`} prefix={SECTION_PATHS[section.key]} />}
+            {section.key === 'schedule' && <PendingInline groupKey="settings:scheduleTemplates" />}
           </div>
         )}
       </section>
@@ -1090,6 +1129,7 @@ export function ShowDetail({
           ) : (
             <>
               <h1 className="show-detail__title">{show.name}</h1>
+              <PendingChip groupKey={`show:${show.id}`} />
               <button
                 className="show-detail__name-edit-btn"
                 onClick={handleEditShowName}
@@ -1116,6 +1156,8 @@ export function ShowDetail({
           {/* On the same line as the status rather than a row of its own: both
               are facts about the show, and stacking them pushed the first real
               content another line down the phone. */}
+          <PendingInline groupKey={`show:${show.id}`} prefix="show" />
+          <PendingInline groupKey={`show:${show.id}`} prefix="name" />
           {metaParts.length > 0 && (
             <div className="show-detail__meta">
               {metaParts.map((part) => (
@@ -1174,6 +1216,7 @@ export function ShowDetail({
             </button>
           </>
         )}
+        <PendingInline groupKey={`show:${show.id}`} prefix="host" />
         {hostPicking && (
           <div className="show-detail__host-list">
             {hostSuggestions.map((pick) => (
@@ -1211,13 +1254,15 @@ export function ShowDetail({
           <label className="visually-hidden" htmlFor="show-production-notes">Production notes</label>
           <textarea id="show-production-notes" placeholder="Reminders for this show, soundcheck, setup…"
             value={show.productionNotes ?? ''} onChange={e => handleUpdate({ productionNotes: e.target.value })} />
-          <span>Saved with this show</span>
+          <span>{review.active ? 'Sent for approval with your other changes' : 'Saved with this show'}</span>
+          <PendingInline groupKey={`show:${show.id}`} prefix="productionNotes" />
         </section>
 
         {visibleSections.filter(section => section.key !== 'schedule').map(renderSection)}
       </div>
       <div className="show-workspace__side">
-      <ShowFlyer showName={show.name} flyer={show.flyer} onChange={(flyer) => handleUpdate({ flyer })} />
+      <ShowFlyer showId={show.id} showName={show.name} flyer={show.flyer} onChange={(flyer) => handleUpdate({ flyer })} />
+      <PendingInline groupKey={`show:${show.id}`} prefix="flyer" />
       {scheduleSection && <aside className="show-workspace__running" aria-label="Running order">
         <div className="show-workspace__running-head">
           <h2>{detailDate?.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) || 'Show day'}</h2>
@@ -1253,14 +1298,14 @@ export function ShowDetail({
           showId={show.id}
           viewToken={show.viewToken}
           viewerKey={show.viewerKey}
-          onViewerKey={(viewerKey) => onUpdate({ ...show, viewerKey })}
+          onViewerKey={review.active ? undefined : (viewerKey) => onUpdate({ ...show, viewerKey })}
           schedule={show.schedule}
           performers={show.performers}
           djSongs={runnableDJSongs}
           libraryCount={(settings.musicLibrary ?? []).length}
           musicLibrary={settings.musicLibrary ?? []}
           remoteKey={settings.remoteMusicKey}
-          session={session}
+          session={review.active ? undefined : session}
           onStart={() => {
             if (show.status !== 'completed' && show.status !== 'in-progress') {
               onUpdate({ ...show, status: 'in-progress' });
@@ -1403,7 +1448,16 @@ export function ShowDetail({
               your note below.
             </p>
 
-            {show.viewToken ? (
+            {review.active ? (
+              <div className="viewer-link-modal__review">
+                <p className="viewer-link-modal__hint" role="status">
+                  {show.viewToken ? 'This show has a viewer link.' : 'This show has no viewer link yet.'}
+                </p>
+                <AskButton kind="share" action={{ type: 'viewer-link', showId: show.id }} className="btn btn--secondary btn--sm">
+                  {show.viewToken ? 'Ask to share the viewer link' : 'Ask for a viewer link'}
+                </AskButton>
+              </div>
+            ) : show.viewToken ? (
               <div className="viewer-link-modal__url-row">
                 <input
                   ref={viewerUrlRef}
@@ -1417,7 +1471,7 @@ export function ShowDetail({
                 </button>
               </div>
             ) : null}
-            {show.viewToken && viewerCopyFailed && (
+            {!review.active && show.viewToken && viewerCopyFailed && (
               <p className="viewer-link-modal__hint" role="status">
                 Couldn't reach the clipboard — the link is selected above, so copy it by hand.
               </p>
@@ -1425,12 +1479,12 @@ export function ShowDetail({
             {/* Only while there is no link, and only for someone who can make
                 one. Under an existing link it read as if the link were not
                 there yet; on the free plan there is no save button to press. */}
-            {!show.viewToken && !producerLocked && (
+            {!review.active && !show.viewToken && !producerLocked && (
               <p className="viewer-link-modal__hint">
                 Save to generate the link.
               </p>
             )}
-            {show.viewToken && viewerFull && (
+            {!review.active && show.viewToken && viewerFull && (
               <p className="viewer-link-modal__error" role="alert">{LINK_STORAGE_FULL_MESSAGE}</p>
             )}
             {!show.viewToken && viewerMakeError && (
@@ -1448,9 +1502,12 @@ export function ShowDetail({
               style={{ resize: 'vertical' }}
             />
 
-            {!show.viewToken && producerLocked && <ProducerLock feature="A live link for your audience" />}
+            <PendingInline groupKey={`show:${show.id}`} prefix="viewNote" />
+            {!review.active && !show.viewToken && producerLocked && <ProducerLock feature="A live link for your audience" />}
             <div className="viewer-link-modal__actions">
-              {(show.viewToken || !producerLocked) && (
+              {review.active ? (
+                <button className="btn btn--primary" onClick={handleSaveViewer}>Save note</button>
+              ) : (show.viewToken || !producerLocked) && (
                 <button className="btn btn--primary" onClick={handleSaveViewer} disabled={viewerMaking}>
                   {show.viewToken ? 'Save & publish' : viewerMaking ? 'Making the link…' : 'Generate link & publish'}
                 </button>

@@ -3,6 +3,9 @@ import type { Show } from '../types';
 import { buildSocialPost } from '../utils/socialPost';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
+import { copyText } from '../coproducer/gates';
+import { useReview } from '../coproducer/ReviewContext';
+import { AskButton } from './coproducer/AskButton';
 import './AnnouncePost.css';
 
 interface AnnouncePostProps {
@@ -25,10 +28,11 @@ export function AnnouncePost({ show, onClose }: AnnouncePostProps) {
   const post = useMemo(() => buildSocialPost(show), [show]);
   const [text, setText] = useState(post.text);
   const [copied, setCopied] = useState<Copied>('none');
+  const review = useReview();
 
   async function copy(what: Exclude<Copied, 'none' | 'failed'>, value: string) {
     try {
-      await navigator.clipboard.writeText(value);
+      await copyText(value);
       setCopied(what);
     } catch {
       // Clipboard access is refused in plenty of ordinary situations — an
@@ -86,17 +90,33 @@ export function AnnouncePost({ show, onClose }: AnnouncePostProps) {
           <button className="btn btn--ghost" onClick={onClose}>
             Close
           </button>
-          <button
-            className="btn btn--secondary"
-            disabled={post.tags.length === 0}
-            onClick={() => copy('tags', post.tags.join(' '))}
-            title="Just the handles, for a first comment"
-          >
-            {copied === 'tags' ? 'Copied' : `Copy tags (${post.tags.length})`}
-          </button>
-          <button className="btn btn--primary" onClick={() => copy('post', text)}>
-            {copied === 'post' ? 'Copied' : 'Copy everything'}
-          </button>
+          {review.active ? (
+            <>
+              {/* Asked for exactly as it stands: the owner sees this text in full. */}
+              {post.tags.length > 0 && (
+                <AskButton kind="share" action={{ type: 'copy-text', source: 'announce-tags', showId: show.id, text: post.tags.join(' ') }} className="btn btn--secondary">
+                  {`Copy tags (${post.tags.length})`}
+                </AskButton>
+              )}
+              <AskButton kind="share" action={{ type: 'copy-text', source: 'announce-post', showId: show.id, text }} className="btn btn--primary">
+                Copy everything
+              </AskButton>
+            </>
+          ) : (
+            <>
+              <button
+                className="btn btn--secondary"
+                disabled={post.tags.length === 0}
+                onClick={() => copy('tags', post.tags.join(' '))}
+                title="Just the handles, for a first comment"
+              >
+                {copied === 'tags' ? 'Copied' : `Copy tags (${post.tags.length})`}
+              </button>
+              <button className="btn btn--primary" onClick={() => copy('post', text)}>
+                {copied === 'post' ? 'Copied' : 'Copy everything'}
+              </button>
+            </>
+          )}
         </div>
 
         {copied === 'failed' && (

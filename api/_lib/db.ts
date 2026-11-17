@@ -219,6 +219,82 @@ const DDL: string[] = [
      cancel_at          INTEGER,
      updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
    )`,
+  // Co-producer links: another producer sees the account and asks for
+  // changes, which only the owner's app applies. See api/coproducer.ts.
+  //
+  // One co-producer link. The token itself is never stored: token_hash is its
+  // bare SHA-256 (cipherHash), and sealed_keys is the owner's {key, legacyKey}
+  // under AES-GCM with a key derived by HKDF from the raw token under its own
+  // label and bound to this row (additional data), so a copy of the database
+  // alone opens nothing and a sealed blob moved to another row opens nothing.
+  // label_cipher is the co-producer's name, under the account key. Times are
+  // epoch seconds.
+  `CREATE TABLE IF NOT EXISTS coproducer_links (
+     id            TEXT PRIMARY KEY,
+     user_id       TEXT NOT NULL,
+     token_hash    TEXT NOT NULL UNIQUE,
+     sealed_keys   TEXT NOT NULL,
+     label_cipher  TEXT NOT NULL,
+     created_at    INTEGER NOT NULL,
+     expires_at    INTEGER NOT NULL,
+     first_used_at INTEGER,
+     last_used_at  INTEGER
+   )`,
+  `CREATE INDEX IF NOT EXISTS coproducer_links_by_user ON coproducer_links (user_id, expires_at)`,
+  // One thing a co-producer asked for. kind and status are plaintext so the
+  // owner's inbox can be listed and counted without keys; payload, outline
+  // and result are ciphertext under the account key. media_ids names the
+  // staged files the request carries; bytes is what its three ciphertexts
+  // add up to.
+  `CREATE TABLE IF NOT EXISTS coproducer_requests (
+     id          TEXT PRIMARY KEY,
+     user_id     TEXT NOT NULL,
+     link_id     TEXT NOT NULL,
+     kind        TEXT NOT NULL,
+     status      TEXT NOT NULL,
+     payload     TEXT NOT NULL,
+     outline     TEXT NOT NULL,
+     result      TEXT,
+     media_ids   TEXT NOT NULL DEFAULT '[]',
+     created_at  INTEGER NOT NULL,
+     decided_at  INTEGER,
+     used_at     INTEGER,
+     bytes       INTEGER NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS coproducer_requests_by_user ON coproducer_requests (user_id, status, created_at)`,
+  `CREATE INDEX IF NOT EXISTS coproducer_requests_by_link ON coproducer_requests (link_id, status, created_at)`,
+  // Files a co-producer uploaded as part of a proposed change. Never in
+  // user_media: approval must gate uploads. Chunks are encrypted by the
+  // server under the account key in exactly the format user_media holds, so
+  // approval can copy them across byte for byte.
+  `CREATE TABLE IF NOT EXISTS coproducer_media (
+     user_id    TEXT NOT NULL,
+     link_id    TEXT NOT NULL,
+     id         TEXT NOT NULL,
+     seq        INTEGER NOT NULL,
+     total      INTEGER NOT NULL,
+     data       TEXT NOT NULL,
+     bytes      INTEGER NOT NULL,
+     request_id TEXT,
+     created_at INTEGER NOT NULL,
+     PRIMARY KEY (user_id, id, seq)
+   )`,
+  `CREATE INDEX IF NOT EXISTS coproducer_media_by_link ON coproducer_media (link_id, request_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS coproducer_media_by_request ON coproducer_media (request_id)`,
+  // Links an approved share handed to a co-producer. Kept after the
+  // co-producer's link is withdrawn, so the owner can still see and withdraw
+  // what was given out. refs_cipher names requests and shows by id, never a
+  // token or key.
+  `CREATE TABLE IF NOT EXISTS coproducer_handouts (
+     id            TEXT PRIMARY KEY,
+     user_id       TEXT NOT NULL,
+     link_id       TEXT NOT NULL,
+     label_cipher  TEXT NOT NULL,
+     refs_cipher   TEXT NOT NULL,
+     created_at    INTEGER NOT NULL,
+     link_ended_at INTEGER
+   )`,
+  `CREATE INDEX IF NOT EXISTS coproducer_handouts_by_user ON coproducer_handouts (user_id, created_at)`,
 ];
 
 // Columns added after the original `users` table shipped. CREATE TABLE IF NOT

@@ -3,6 +3,7 @@ import { checkoutFailureMessage, PRODUCER_PRICE_LABEL } from '../utils/billing';
 import { isNativeShell } from '../utils/nativeShell';
 import { onPageReturn } from '../utils/pageReturn';
 import { useProducerAccess } from '../utils/producerAccess';
+import { useReview } from '../coproducer/ReviewContext';
 
 /**
  * Said in place of a Producer-only control on the free plan: what it is, what
@@ -18,6 +19,7 @@ export function ProducerLock({ feature, compact = false }: { feature: string; co
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const native = isNativeShell();
+  const reviewing = useReview().active;
 
   // Checkout takes over the page and nothing comes back to say the producer
   // is done there; being back here is the sign the button should work again.
@@ -34,6 +36,18 @@ export function ProducerLock({ feature, compact = false }: { feature: string; co
       setError(checkoutFailureMessage(err));
       setBusy(false);
     }
+  }
+
+  // A co-producer cannot buy the owner's plan, and should not be offered to.
+  if (reviewing) {
+    return (
+      <div className={`producer-lock${compact ? ' producer-lock--compact' : ''}`} role="note">
+        <p className="producer-lock__text">
+          <span className="producer-lock__badge">Producer</span>
+          {`${feature} is part of the Producer plan. The account owner can turn it on.`}
+        </p>
+      </div>
+    );
   }
 
   return (

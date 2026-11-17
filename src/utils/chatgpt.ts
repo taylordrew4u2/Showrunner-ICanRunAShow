@@ -1,5 +1,6 @@
 import { api } from './api';
 import type { SessionCredentials } from './session-vault';
+import { isReviewMode, ReviewModeBlockedError } from '../coproducer/reviewMode';
 
 export interface ChatGPTAuthorization {
   client_id: string;
@@ -199,6 +200,8 @@ export function grantedScope(request: ChatGPTAuthorization, ticked: Iterable<str
 }
 
 export async function grantChatGPTAccess(session: SessionCredentials, request: ChatGPTAuthorization, ticked: Iterable<string>): Promise<string> {
+  // AI connections are the owner's alone; Settings never offers them here.
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   const result = await api.post<{ redirect_url: string }>('/api/chatgpt?route=grant', {
     ...request,
     scope: grantedScope(request, ticked),
@@ -219,10 +222,12 @@ export async function listChatGPTConnections(session: SessionCredentials): Promi
 
 /** Revoke every assistant connection on the account. */
 export async function disconnectChatGPT(session: SessionCredentials): Promise<void> {
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   await api.del('/api/chatgpt?route=connections', { authUserId: session.userId, authHash: session.authHash });
 }
 
 /** Revoke one connection and its tokens, leaving the account's others. */
 export async function revokeChatGPTConnection(session: SessionCredentials, id: string): Promise<void> {
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   await api.del(`/api/chatgpt?route=connections&id=${encodeURIComponent(id)}`, { authUserId: session.userId, authHash: session.authHash });
 }

@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import type { SessionCredentials } from '../utils/session-vault';
+import { copyText } from '../coproducer/gates';
 import {
   ASSISTANT_PERMISSIONS,
   chatGPTDenialRedirect,
@@ -198,7 +199,7 @@ export function ChatGPTSettings({ session }: { session: SessionCredentials }) {
             <input className="section-field__input" readOnly value={connectorUrl} onFocus={(event) => event.target.select()} />
           </label>
           <button className="btn btn--secondary btn--sm" onClick={async () => {
-            try { await navigator.clipboard.writeText(connectorUrl); setCopied(true); }
+            try { await copyText(connectorUrl); setCopied(true); }
             catch { setCopied(false); setError('Select the connector URL above and copy it.'); }
           }}>{copied ? 'Copied' : 'Copy connector URL'}</button>
           <p className="settings__hint">

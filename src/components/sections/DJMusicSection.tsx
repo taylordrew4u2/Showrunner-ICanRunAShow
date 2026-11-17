@@ -15,6 +15,9 @@ import {
 } from '../../utils/musicLibrary';
 import { deliverFile, deliveryProblem } from '../../utils/download';
 import { exportDJListToPDF } from '../../utils/pdfExport';
+import { buildDJListText } from '../../utils/djListText';
+import { useReview } from '../../coproducer/ReviewContext';
+import { AskButton } from '../coproducer/AskButton';
 import { Icon } from '../Icon';
 import { TrimControls } from '../TrimControls';
 import { TrackPreviewButton } from '../TrackPreview';
@@ -31,6 +34,7 @@ interface DJMusicSectionProps {
 
 export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps) {
   const { confirm, confirmDialog } = useConfirm();
+  const review = useReview();
   const preview = useTrackPreview();
   /**
    * The list as it is now, for the handlers that resolve after an await — an
@@ -227,24 +231,10 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
   const [exportProblem, setExportProblem] = useState<string | null>(null);
 
   async function exportDJList() {
-    if (songs.length === 0) return;
-    const lines = [
-      `DJ MUSIC LIST`,
-      `Show: ${show.name}`,
-      show.date ? `Date: ${show.date}` : '',
-      show.venueName ? `Venue: ${show.venueName}` : '',
-      '',
-      '─'.repeat(40),
-      '',
-      ...songs.map(
-        (s, i) =>
-          `${String(i + 1).padStart(2, ' ')}. "${s.title}" — ${s.artist}${s.notes ? `\n     Note: ${s.notes}` : ''}`
-      ),
-    ].filter(Boolean).join('\n');
-
-    const blob = new Blob([lines], { type: 'text/plain' });
-    const fileName = `DJ-List-${show.name.replace(/[/\\:*?"<>|]+/g, '').replace(/\s+/g, '-')}.txt`;
-    setExportProblem(deliveryProblem(await deliverFile(blob, fileName)));
+    const list = buildDJListText(show, library);
+    if (!list) return;
+    const blob = new Blob([list.text], { type: 'text/plain' });
+    setExportProblem(deliveryProblem(await deliverFile(blob, list.fileName)));
   }
 
   return (
@@ -415,7 +405,17 @@ export function DJMusicSection({ show, library, onUpdate }: DJMusicSectionProps)
         ))}
       </ul>
 
-      {songs.length > 0 && (
+      {songs.length > 0 && review.active && (
+        <div className="section-actions">
+          <AskButton kind="download" action={{ type: 'dj-list-text', showId: show.id }} className="btn btn--secondary">
+            Share / Export DJ List (Text)
+          </AskButton>
+          <AskButton kind="download" action={{ type: 'dj-list-pdf', showId: show.id }} className="btn btn--secondary">
+            Export DJ List (PDF)
+          </AskButton>
+        </div>
+      )}
+      {songs.length > 0 && !review.active && (
         <div className="section-actions">
           <button className="btn btn--secondary" onClick={() => void exportDJList()}>
             Share / Export DJ List (Text)

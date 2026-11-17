@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PotentialComic, SignatureRequest } from '../types';
-import { filedImportPatch, isPdfFile, linkStillLive, pendingImportFor } from './Contracts';
+import { linkStillLive } from '../utils/contracts';
+import { filedImportPatch, isPdfFile, pendingImportFor } from './Contracts';
 
 const signed = (over: Partial<SignatureRequest> & { signerName: string }): SignatureRequest => ({
   id: over.signerName, token: `token-${over.signerName}`, key: 'k', contractId: 'c', contractName: 'Agreement',

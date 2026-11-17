@@ -2,6 +2,7 @@ import type { Performer } from '../types';
 import { dataUrlToBytes } from './media';
 import { isMediaRef, resolveMediaUrl } from './mediaStore';
 import { createZip } from './zip';
+import { deliveryAllowed } from '../coproducer/gates';
 
 /**
  * Every headshot on a show's bill in one go, each file named after the act.
@@ -367,6 +368,7 @@ export function shareFailure(error: unknown): Exclude<ShareOutcome, 'shared'> {
  * a click handler is still inside that click.
  */
 export async function shareHeadshots(files: File[]): Promise<ShareOutcome> {
+  if (!deliveryAllowed()) return 'failed';
   try {
     // Nothing but the files, so the sheet treats it as photos to save.
     await navigator.share({ files });

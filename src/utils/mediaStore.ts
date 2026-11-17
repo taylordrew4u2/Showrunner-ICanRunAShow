@@ -7,6 +7,9 @@ import { encryptWithKey, decryptWithKey } from './encryption';
 import type { SessionCredentials } from './session-vault';
 import { readFileAsDataURL } from './media';
 import { createBudgetedCache } from './budgetedCache';
+import type { StageChunkBody } from '../coproducer/types';
+import { ALLOWED_MEDIA_TYPES, sniffMediaType } from '../coproducer/schema';
+import { ReviewModeBlockedError } from '../coproducer/errors';
 
 /** Reference format stored in show/settings fields: `media:<uuid>#<chunkCount>` */
 const REF_PREFIX = 'media:';
@@ -78,6 +81,96 @@ function authOpts() {
   return { authUserId: creds.userId, authHash: creds.authHash };
 }
 
+// ── Co-producer view ────────────────────────────────────────────────────────
+//
+// A co-producer sees the owner's files and proposes new ones, but never
+// writes to the owner's media store. Their files are read as plaintext slices
+// the server has already decrypted, and an upload is staged on the server
+// beside a request instead of stored: it reaches the account only if the
+// owner approves the change that carries it. enterReviewMode installs the
+// source; this module never imports review mode itself.
+
+/** Where co-producer view reads and stages files. */
+export interface ReviewMediaSource {
+  /** One plaintext slice of a data URL. */
+  chunk(id: string, seq: number): Promise<string>;
+  /** Stage one plaintext slice of a new file. */
+  stage(body: StageChunkBody): Promise<void>;
+}
+
+let reviewSource: ReviewMediaSource | null = null;
+
+/** Installed once by enterReviewMode. While set, uploads stage, reads use it and deletes do nothing. */
+export function setMediaSource(source: ReviewMediaSource | null): void {
+  reviewSource = source;
+  urlCache.clear();
+}
+
+/** Files staged from this page for a request still to be sent, by media id. */
+const stagedIds = new Set<string>();
+
+export function stagedMediaIdSet(): ReadonlySet<string> {
+  return stagedIds;
+}
+
+let stagingCount = 0;
+const stagingListeners = new Set<() => void>();
+
+/** How many uploads are staging right now. Sending and discarding a change wait for none. */
+export function stagingInFlight(): number {
+  return stagingCount;
+}
+
+/** Told whenever an upload starts or stops staging. Returns the way to stop listening. */
+export function onStagingChange(listener: () => void): () => void {
+  stagingListeners.add(listener);
+  return () => {
+    stagingListeners.delete(listener);
+  };
+}
+
+function stagingChanged(by: number): void {
+  stagingCount += by;
+  for (const listener of [...stagingListeners]) listener();
+}
+
+/**
+ * A data URL relabelled with the type its own bytes declare. A browser labels
+ * an .m4a as video/mp4 or application/octet-stream, and an SVG as an image;
+ * what goes for approval is what the bytes are, and anything they do not
+ * say is an allowed photo, audio file or PDF is refused before it is sent.
+ */
+export function relabelByContent(dataUrl: string): string {
+  const comma = dataUrl.indexOf(',');
+  const header = comma > 0 ? dataUrl.slice(0, comma) : '';
+  if (!header.startsWith('data:') || !header.endsWith(';base64')) {
+    throw new ReviewModeBlockedError('unsupported_media');
+  }
+  const body = dataUrl.slice(comma + 1);
+  const type = sniffMediaType(body.slice(0, 64));
+  if (!type || !ALLOWED_MEDIA_TYPES.includes(type)) throw new ReviewModeBlockedError('unsupported_media');
+  return `data:${type};base64,${body}`;
+}
+
+async function stageForApproval(source: ReviewMediaSource, file: File): Promise<string> {
+  stagingChanged(1);
+  try {
+    const dataUrl = relabelByContent(await readFileAsDataURL(file));
+    const id = crypto.randomUUID();
+    const chunks = splitIntoChunks(dataUrl);
+    for (let seq = 0; seq < chunks.length; seq++) {
+      const body = { id, seq, total: chunks.length, data: chunks[seq] };
+      await withNetworkRetry(() => source.stage(body));
+    }
+    const ref = `${REF_PREFIX}${id}#${chunks.length}`;
+    stagedIds.add(id);
+    urlCache.set(ref, dataUrl);
+    return ref;
+  } finally {
+    stagingChanged(-1);
+  }
+}
+
 /**
  * Upload a file to the media store. Returns the `media:` reference to put in
  * the data model. Chunks upload sequentially so each request stays small.
@@ -90,6 +183,7 @@ function authOpts() {
  * the answer was lost is simply written once more.
  */
 export async function uploadMedia(file: File): Promise<string> {
+  if (reviewSource) return stageForApproval(reviewSource, file);
   if (!creds) throw new Error('Media store not initialized (no session)');
   const dataUrl = await readFileAsDataURL(file);
   const key = creds.key;
@@ -154,7 +248,24 @@ export async function resolveMediaUrl(src: string): Promise<string | null> {
 
   const promise = (async () => {
     const parsed = parseMediaRef(src);
-    if (!parsed || !creds) return null;
+    if (!parsed) return null;
+    const source = reviewSource;
+    if (source) {
+      // Co-producer view: the server hands over each slice already
+      // decrypted, and there is no key here to decrypt one with.
+      try {
+        const parts = await Promise.all(Array.from({ length: parsed.total }, (_, seq) => source.chunk(parsed.id, seq)));
+        const dataUrl = parts.join('');
+        urlCache.set(src, dataUrl);
+        return dataUrl;
+      } catch (err) {
+        console.warn('mediaStore: failed to resolve', err);
+        return null;
+      } finally {
+        inFlight.delete(src);
+      }
+    }
+    if (!creds) return null;
     const key = creds.key;
     const a = authOpts();
     try {
@@ -195,6 +306,9 @@ export async function resolveMediaUrl(src: string): Promise<string | null> {
 
 /** Best-effort delete of a media item (e.g. when a track is replaced). */
 export function deleteMedia(ref: string): void {
+  // Co-producer view never deletes the owner's files. Dropping one from a
+  // show is part of the change they propose; the owner's app decides.
+  if (reviewSource) return;
   const parsed = parseMediaRef(ref);
   if (!parsed || !creds) return;
   api.del(`/api/media?id=${encodeURIComponent(parsed.id)}`, authOpts()).catch(() => {

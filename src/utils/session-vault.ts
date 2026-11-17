@@ -315,3 +315,64 @@ export function clearSession(): void {
   }
   void deleteWrapKey();
 }
+
+// ── Other things this device keeps sealed ───────────────────────────────────
+
+/**
+ * Keep a string on this device under the same non-extractable key that seals
+ * the session record, falling back to the same unwrapped record where
+ * IndexedDB is unavailable. For co-producer view's link token and its unsent
+ * changes, which live on the review origin and nowhere else; the session
+ * record itself is left alone.
+ */
+export async function sealLocal(storageKey: string, value: string): Promise<void> {
+  const wrapKey = await getWrapKey(true);
+  let record: StoredSession;
+  if (wrapKey) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrapKey, new TextEncoder().encode(value));
+    record = { wrapped: true, iv: toBase64(iv), data: toBase64(new Uint8Array(encrypted)) };
+  } else {
+    record = { wrapped: false, data: value };
+  }
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(record));
+  } catch {
+    /* storage full or blocked: it simply won't survive a reload */
+  }
+}
+
+/** What sealLocal kept under this key, or null when there is none or it can no longer be opened. */
+export async function openLocal(storageKey: string): Promise<string | null> {
+  let record: StoredSession;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    record = JSON.parse(raw) as StoredSession;
+  } catch {
+    return null;
+  }
+  try {
+    if (!record || typeof record.data !== 'string') return null;
+    if (!record.wrapped) return record.data;
+    const wrapKey = await getWrapKey(false).catch(() => getWrapKey(false));
+    if (!wrapKey || !record.iv) return null;
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(record.iv) },
+      wrapKey,
+      fromBase64(record.data),
+    );
+    return new TextDecoder().decode(decrypted);
+  } catch {
+    return null;
+  }
+}
+
+/** Forget what sealLocal kept under this key. The wrapping key stays: the session record may need it. */
+export function clearLocal(storageKey: string): void {
+  try {
+    localStorage.removeItem(storageKey);
+  } catch {
+    /* ignore */
+  }
+}

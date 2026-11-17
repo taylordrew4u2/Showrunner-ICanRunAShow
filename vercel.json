@@ -15,6 +15,8 @@
     { "source": "/sign", "destination": "/link-sign.html" },
     { "source": "/details", "destination": "/link-profile.html" },
     { "source": "/live", "destination": "/link-view.html" },
+    { "source": "/coproduce", "destination": "/link-coproduce.html" },
+    { "source": "/coproduce/", "destination": "/link-coproduce.html" },
     { "source": "/tour", "destination": "/tour/index.html" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],

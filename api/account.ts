@@ -176,7 +176,17 @@ function deletions(userId: string, tokens: string[]): InStatement[] {
       { sql: `DELETE FROM live_view WHERE token IN (${list}) AND user_id IS NULL`, args: group },
     );
   }
-  for (const table of ['chatgpt_tokens', 'chatgpt_grants', 'user_media', 'user_shows', 'user_shows_backup', 'user_settings', 'user_settings_backup', 'subscription', 'website_lineups']) {
+  // A co-producer link's throttles are filed under the link's id; remove them
+  // while the links that name them still exist. Every such bucket reads
+  // coprod:<name>:<linkId>:<rest>.
+  statements.push({
+    sql: `DELETE FROM rate_limit WHERE substr(bucket, 1, 7) = 'coprod:'
+            AND EXISTS (SELECT 1 FROM coproducer_links l
+                         WHERE l.user_id = ? AND instr(rate_limit.bucket, ':' || l.id || ':') > 0)`,
+    args: [userId],
+  });
+  // What hangs off a co-producer link goes before the link rows themselves.
+  for (const table of ['coproducer_media', 'coproducer_requests', 'coproducer_handouts', 'coproducer_links', 'chatgpt_tokens', 'chatgpt_grants', 'user_media', 'user_shows', 'user_shows_backup', 'user_settings', 'user_settings_backup', 'subscription', 'website_lineups']) {
     statements.push({ sql: `DELETE FROM ${table} WHERE user_id = ?`, args: [userId] });
   }
   statements.push({ sql: 'UPDATE website_lineups_bootstrap SET owner_id = NULL WHERE owner_id = ?', args: [userId] });
@@ -185,6 +195,7 @@ function deletions(userId: string, tokens: string[]): InStatement[] {
     statements.push({ sql: `DELETE FROM rate_limit WHERE substr(bucket, 1, length(?)) = ?`, args: [prefix, prefix] });
   }
   statements.push({ sql: 'DELETE FROM rate_limit WHERE bucket = ?', args: [`chatgpt:grant:${userId}`] });
+  statements.push({ sql: 'DELETE FROM rate_limit WHERE bucket = ?', args: [`coprod:create:${userId}`] });
   statements.push({ sql: `DELETE FROM users WHERE id = ?`, args: [userId] });
   return statements;
 }

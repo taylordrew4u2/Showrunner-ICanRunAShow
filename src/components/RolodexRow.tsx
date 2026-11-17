@@ -6,6 +6,11 @@ import { describeChanges, type ProfileChange } from '../utils/signatureImport';
 import { useMediaUrl } from '../utils/useMediaUrl';
 import { useConfirm } from './useConfirm';
 import { avatarTint } from '../utils/avatarTint';
+import { copyText } from '../coproducer/gates';
+import { useReview } from '../coproducer/ReviewContext';
+import { AskButton } from './coproducer/AskButton';
+import { PendingRowMark } from './coproducer/PendingMarks';
+import { seg } from '../coproducer/paths';
 
 /**
  * The address a row can put back on screen for a link still out asking.
@@ -87,6 +92,8 @@ export function RolodexRow({
   const { gaps } = performerReadiness(comic);
   const walkOn = [comic.walkOnMusicName, comic.walkOnMusicArtist].filter(Boolean).join(' — ');
   const { confirm, confirmDialog } = useConfirm();
+  // Co-producer view never holds a link: it asks the owner to pass one on.
+  const review = useReview();
 
   const url = shownProfileUrl(window.location.origin, linkStatus, request, linkUrl);
   // A link just made is open on the row; one brought back after a reload is
@@ -102,7 +109,7 @@ export function RolodexRow({
   // refuses it without a word — and the row used to say "Copied." either way.
   async function copy(value: string) {
     try {
-      await navigator.clipboard.writeText(value);
+      await copyText(value);
       setCopied('yes');
     } catch {
       setCopied('failed');
@@ -115,6 +122,7 @@ export function RolodexRow({
     const go = await confirm({
       message: `Withdraw ${comic.name}'s link? It stops working straight away. You can ask again after.`,
       confirmLabel: 'Withdraw',
+      review: { title: `Ask the owner to withdraw ${comic.name}'s link?`, confirmLabel: 'Ask to withdraw' },
     });
     if (!go) return;
     setWithdrawing(true);
@@ -137,7 +145,9 @@ export function RolodexRow({
           <span className="rolodex__photo-placeholder avatar-tint" style={avatarTint(comic.name)}>{comic.name.charAt(0).toUpperCase()}</span>
         )}
         <span className="rolodex__item-content">
-          <span className="rolodex__name">{comic.name}</span>
+          <span className="rolodex__name">
+            <PendingRowMark groupKey="settings:potentialComics" rowKey={`potentialComics/${seg(comic.id)}`}>{comic.name}</PendingRowMark>
+          </span>
           {/* Stated as what is missing rather than a percentage: "Needs an
               email" is something you can act on, and 50% is not.
 
@@ -175,7 +185,19 @@ export function RolodexRow({
         )}
         {/* The way back to a link that is out asking. Same spot as the ask,
             so the row never carries more than two buttons on a phone. */}
-        {linkStatus === 'waiting' && !linkUrl && url && (
+        {review.active && linkStatus === 'waiting' && request && (
+          <>
+            <AskButton kind="share" action={{ type: 'existing-profile-link', requestId: request.id }} className="btn btn--ghost btn--sm">
+              Share link
+            </AskButton>
+            {onWithdraw && (
+              <button className="btn btn--ghost btn--sm" type="button" onClick={() => void withdraw()} disabled={withdrawing}>
+                Withdraw
+              </button>
+            )}
+          </>
+        )}
+        {!review.active && linkStatus === 'waiting' && !linkUrl && url && (
           <button
             className="btn btn--ghost btn--sm"
             type="button"

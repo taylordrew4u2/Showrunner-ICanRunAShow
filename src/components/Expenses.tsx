@@ -5,6 +5,7 @@ import { generateId } from '../utils/id';
 import { PageHeader } from './PageHeader';
 import './Expenses.css';
 import { useConfirm } from './useConfirm';
+import { PendingInline } from './coproducer/PendingMarks';
 
 interface ExpensesProps {
   settings: AppSettings;
@@ -122,6 +123,8 @@ export function Expenses({ settings, onBack, backLabel = 'Shows', onUpdateSettin
         onBack={onBack}
         backLabel={backLabel}
       />
+      <PendingInline groupKey="settings:expenses" />
+      <PendingInline groupKey="settings:workspace" prefix="brandBudget" />
 
       {brandBudget > 0 && (
         <div className="budget-card">

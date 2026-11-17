@@ -124,12 +124,21 @@ async function encrypt(data: unknown, passphrase: string, format: RegExp): Promi
   return base64(result);
 }
 
-export async function decryptShow<T>(ciphertext: string, sessionKeys: string[]): Promise<T> {
+export function decryptShow<T>(ciphertext: string, sessionKeys: string[]): Promise<T> {
+  return decrypt<T>(ciphertext, sessionKeys, SESSION_KEY);
+}
+
+/** Decrypt what was encrypted under a signing or profile link's own key (LINK_KEY format). */
+export function decryptForLink<T>(ciphertext: string, linkKey: string): Promise<T> {
+  return decrypt<T>(ciphertext, [linkKey], LINK_KEY);
+}
+
+async function decrypt<T>(ciphertext: string, passphrases: string[], format: RegExp): Promise<T> {
   const bytes = parse(ciphertext);
   const salt = bytes.slice(8, 16);
-  for (const passphrase of sessionKeys) {
+  for (const passphrase of passphrases) {
     try {
-      const expanded = expand(passphrase, salt);
+      const expanded = expand(passphrase, salt, format);
       const key = await crypto.subtle.importKey('raw', expanded.key, 'AES-CBC', false, ['decrypt']);
       const plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: expanded.iv }, key, bytes.slice(16));
       return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plain)) as T;

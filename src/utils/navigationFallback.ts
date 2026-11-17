@@ -17,6 +17,12 @@ export const NAVIGATE_FALLBACK_DENYLIST: RegExp[] = [
   /^\/api\//,
   // OAuth discovery belongs to the server, never the offline app shell.
   /^\/\.well-known\//,
+  // A co-producer link. The host serves it a page of its own, whose first
+  // script moves it to the review origin or takes the token out of the
+  // address; a cached shell knows neither, and would open the visitor's own
+  // account or the sign-in page with the token still in the address bar.
+  // Co-producer view needs the network anyway.
+  /^\/coproduce(?:[/?]|$)/,
   // Files the worker does not keep: robots.txt, sitemap.xml, llms.txt.
   /^[^?]*\.(?:txt|xml)(?:\?|$)/,
 ];

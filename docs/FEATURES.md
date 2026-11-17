@@ -56,6 +56,10 @@ The full feature list. The [README](../README.md) has the short version.
 - Every signature records the typed name, the timestamp, and a SHA-256 of the exact bytes shown, so the copy on file can be shown to be the copy agreed to
 - A day-of cancellation rule the signer must acknowledge, recorded with the signature
 
+## Co-producers
+
+- Co-producers: give another producer a link to see everything in your account. Their changes, and any links they want to share, come to you under Requests, showing what's there now and what they asked for, and only go in if you approve them. Their downloads, copying and printing wait for your approval in the app too, though anything they can see can still be saved by someone determined. Withdraw a link any time in Settings, along with any links you approved for them to share.
+
 ## Running it from the stage
 
 - The operator is usually on the bill too. A Bluetooth clicker paired to the laptop starts and stops the music from anywhere in the room, with no network involved

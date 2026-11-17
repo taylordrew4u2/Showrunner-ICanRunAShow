@@ -362,6 +362,16 @@ describe('the links themselves count', () => {
     expect((await putAudio('producer', viewer, 'walk-on')).status).toBe(200);
     expect(await error(await putRequest('producer', 'another-contract-0001'))).toBe('link_storage_full');
   });
+
+  it('counts nothing a co-producer stored: their requests and files have an allowance of their own', async () => {
+    await holdBytes('producer', MAX_LINK_BYTES - 100);
+    await run(`INSERT INTO coproducer_media (user_id, link_id, id, seq, total, data, bytes, created_at) VALUES ('producer', 'link-1', 'staged-file', 0, 1, 'x', 999999999, 0)`);
+    await run(`INSERT INTO coproducer_requests (id, user_id, link_id, kind, status, payload, outline, created_at, bytes) VALUES ('request-1', 'producer', 'link-1', 'edit', 'pending', 'x', 'x', 0, 50000000)`);
+    await run(`INSERT INTO coproducer_handouts (id, user_id, link_id, label_cipher, refs_cipher, created_at) VALUES ('handout-1', 'producer', 'link-1', 'x', 'x', 0)`);
+    expect((await putDoc('producer', contract, 'x'.repeat(100))).status).toBe(200);
+    expect((await putRequest('producer', contract)).status).toBe(200);
+    expect(await error(await putDoc('producer', 'another-contract-0001', 'x'))).toBe('link_storage_full');
+  });
 });
 
 describe('the checks every write makes', () => {
@@ -472,6 +482,8 @@ describe('a database from before chunks named anyone', () => {
     const indexes = await rows(`SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE '%\\_by\\_%' ESCAPE '\\' ORDER BY name`);
     expect(indexes.flat()).toEqual([
       'chatgpt_grants_by_user', 'chatgpt_tokens_by_grant',
+      'coproducer_handouts_by_user', 'coproducer_links_by_user', 'coproducer_media_by_link',
+      'coproducer_media_by_request', 'coproducer_requests_by_link', 'coproducer_requests_by_user',
       'live_media_by_token', 'live_media_by_user', 'live_view_by_user', 'profile_photo_by_user',
       'sign_doc_by_token', 'sign_doc_by_user', 'sign_request_by_user',
     ]);

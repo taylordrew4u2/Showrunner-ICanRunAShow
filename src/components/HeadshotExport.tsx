@@ -16,6 +16,8 @@ import {
   type HeadshotFile,
 } from '../utils/headshotExport';
 import { deliverFile, deliveryProblem } from '../utils/download';
+import { useReview } from '../coproducer/ReviewContext';
+import { AskButton } from './coproducer/AskButton';
 import './HeadshotExport.css';
 
 type Note = NonNullable<ReturnType<typeof exportNote>>;
@@ -38,11 +40,14 @@ function photosKey(performers: Performer[]): string {
  * `includesGuests` it is everyone, guests too, and it is offered only when a
  * guest has a photo to add.
  */
-export function HeadshotExport({ performers, showName, includesGuests = false }: {
+export function HeadshotExport({ performers, showId, showName, includesGuests = false }: {
   performers: Performer[];
+  /** The show these are from: co-producer view asks for the pack by it. */
+  showId?: string;
   showName?: string;
   includesGuests?: boolean;
 }) {
+  const review = useReview();
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   // Photos fetched on an iPhone or iPad after the tap that asked for them had
   // gone stale. A share sheet only opens from a fresh tap, so they wait here
@@ -53,6 +58,16 @@ export function HeadshotExport({ performers, showName, includesGuests = false }:
   const people = includesGuests ? performers : billedPerformers(performers);
   const count = countHeadshots(people);
   if (count === 0 || (includesGuests && countHeadshots(surpriseGuests(performers)) === 0)) return null;
+  // Co-producer view asks the owner for the pack instead, and builds it from
+  // what it can already see once that is approved.
+  if (review.active) {
+    if (!showId) return null;
+    return (
+      <AskButton kind="download" action={{ type: 'headshot-pack', showId, includesGuests }} className="btn btn--secondary btn--sm">
+        <Icon name="download" size={16} /> {headshotButtonLabel(count, null, { includesGuests })}
+      </AskButton>
+    );
+  }
   // Worked out only while a batch is waiting. An older show can still hold its
   // photos as data URLs, and the lineup tools redraw with every edit to the
   // show, so building it on each render would be megabytes of string per

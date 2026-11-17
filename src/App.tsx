@@ -107,9 +107,34 @@ import { ProducerProvider, type ProducerAccess } from './utils/producerAccess';
 import { SeasonReport } from './components/SeasonReport';
 import { SyncStatus, type SyncState } from './components/SyncStatus';
 import { Icon, type IconName } from './components/Icon';
+import { clearCoproduceToken, clearUnsentDraft, isCoproducePath, loadUnsentDraft, takeCoproduceToken, type UnsentDraft } from './coproducer/boot';
+import { createCoproducerClient, onLinkEnded } from './coproducer/client';
+import { enterReviewMode, getReviewSession, isReviewMode, makeReviewSession, type ReviewSession } from './coproducer/reviewMode';
+import { mainOrigin, onReviewOrigin } from './coproducer/origins';
+import { loadReviewData, refreshReviewData, type LoadedReview } from './coproducer/loadReviewData';
+import { reviewDiffContext, type ReviewTruth } from './coproducer/capture';
+import { sendFailureFor } from './coproducer/captureState';
+import { describePayload } from './coproducer/diff';
+import { copyText } from './coproducer/gates';
+import { useProposalCapture } from './coproducer/useProposalCapture';
+import { ReviewProvider, type ProposalDialogState, type SendFailure } from './coproducer/ReviewContext';
+import { PendingOverlayProvider, type PendingOverlayValue } from './coproducer/PendingOverlay';
+import { useReviewRequests } from './coproducer/useReviewRequests';
+import { buildPendingOverlay } from './coproducer/pendingOverlay';
+import { useReviewContextValue } from './coproducer/useReviewContextValue';
+import { CoproduceGate } from './components/coproducer/CoproduceGate';
+import { ProposalDialog } from './components/coproducer/ProposalDialog';
+import { ReviewBanner } from './components/coproducer/ReviewBanner';
+import { UnsentBar } from './components/coproducer/UnsentBar';
+import { PendingDrawer } from './components/coproducer/PendingDrawer';
+import { PendingInline, PendingNewShows } from './components/coproducer/PendingMarks';
+import { ContactLink } from './components/coproducer/ContactLink';
+import { RequestsInbox } from './components/coproducer/RequestsInbox';
+import { createOwnerData } from './coproducer/ownerData';
+import { useOwnerRequests } from './coproducer/useOwnerRequests';
 import './App.css';
 
-type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music' | 'contracts' | 'more' | 'season';
+type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music' | 'contracts' | 'more' | 'season' | 'requests';
 
 /**
  * The app's destinations. Keeping this a plain list — rather than hand-written
@@ -145,7 +170,7 @@ const NAV_ITEMS: {
   {
     id: 'more',
     label: 'More',
-    views: ['more', 'contracts', 'emails', 'expenses', 'season'],
+    views: ['more', 'contracts', 'emails', 'expenses', 'season', 'requests'],
     icon: 'more',
   },
   {
@@ -161,6 +186,31 @@ const NAV_ITEMS: {
  * sign-in (see session-vault) — never the password itself.
  */
 type Session = SessionCredentials;
+
+/**
+ * Opening a co-producer link: picking up its token, asking the server who it
+ * is for, and then co-producer view itself — or why it cannot open.
+ */
+type ReviewBoot =
+  | { state: 'loading' }
+  | { state: 'missing' }
+  | { state: 'ended' }
+  | { state: 'unreadable' }
+  | { state: 'offline' }
+  | { state: 'ready'; review: ReviewSession };
+
+/** Failures a request can be tried again after. */
+const RETRYABLE_SENDS: ReadonlySet<SendFailure> = new Set(['offline', 'server']);
+
+/** How often co-producer view looks for the owner's newer saves, while visible. */
+const TRUTH_REFRESH_MS = 120_000;
+
+/** Leave co-producer view: forget the link on this device and go to the main app. */
+function leaveCoproducerView(): void {
+  clearCoproduceToken();
+  clearUnsentDraft();
+  window.location.assign(`${mainOrigin()}/`);
+}
 
 /**
  * Look for profile-link answers that arrived while we were away.
@@ -319,6 +369,9 @@ export default function App() {
   activeSessionRef.current = session;
   const [localBackupFailed, setLocalBackupFailed] = useState(false);
   const writePending = useCallback((key: string, username: string, data: unknown): boolean => {
+    // Co-producer view keeps no drafts of the owner's account: its unsent
+    // changes are its own (see useProposalCapture).
+    if (isReviewMode()) return true;
     // Sealed with the account's key, which only a signed-in session has —
     // and every caller is one. Nothing is held here in the clear.
     if (!session) return false;
@@ -404,7 +457,15 @@ export default function App() {
   // finishes. Creating a show during that window would be silently lost: the
   // save effect is gated on dataLoaded, and the load resolving would overwrite
   // the new show. Blocking interaction until loaded closes that race.
+  // A co-producer link's page. Read once: co-producer view is entered once per
+  // page load and left only by going somewhere else.
+  const [coproduce] = useState(() => isCoproducePath(window.location.pathname));
+  const [reviewBoot, setReviewBoot] = useState<ReviewBoot>({ state: 'loading' });
+  const [reviewBootTick, setReviewBootTick] = useState(0);
+  const review = reviewBoot.state === 'ready' ? reviewBoot.review : null;
+  const reviewing = review !== null;
   const [loadingData, setLoadingData] = useState(() => {
+    if (coproduce) return true;
     try {
       return hasStoredSession();
     } catch {
@@ -450,13 +511,13 @@ export default function App() {
   // Stable per account, so the plan card fetches once per visit rather than on
   // every render of Settings.
   const billingActions = useMemo(
-    () => session && {
+    () => (!session || reviewing ? null : {
       load: () => loadBilling(session),
       checkout: () => startCheckout(session).then(noteSentToStripe),
       portal: () => openBillingPortal(session).then(noteSentToStripe),
       returned: billingReturned,
-    },
-    [session, billingReturned, noteSentToStripe],
+    }),
+    [session, reviewing, billingReturned, noteSentToStripe],
   );
   // The plan, for deciding what's locked. Checked once per sign-in; after a
   // checkout, a few times more, because Stripe's webhook can land a moment
@@ -465,7 +526,8 @@ export default function App() {
   const [billingState, setBillingState] = useState<BillingState | null>(null);
   const [billingRecheck, setBillingRecheck] = useState(0);
   useEffect(() => {
-    if (!session) {
+    // A co-producer has no plan of their own here, and is told the owner's.
+    if (!session || reviewing) {
       setBillingState(null);
       return;
     }
@@ -489,22 +551,22 @@ export default function App() {
       if (!cancelled && sentToStripeAt.current === awaiting) sentToStripeAt.current = null;
     })();
     return () => { cancelled = true; };
-  }, [session, billingReturned, billingRecheck]);
+  }, [session, reviewing, billingReturned, billingRecheck]);
   // Back in the app after a trip to Stripe, or in the iOS shell on the free
   // plan: look at the plan again rather than leave features the producer has
   // just paid for locked until the next launch.
   const onFreePlan = !!billingState?.configured && billingState.plan !== 'producer';
   useEffect(() => {
-    if (!session) return;
+    if (!session || reviewing) return;
     return onPageReturn(() => {
       const sentToStripe = sentToStripeAt.current !== null;
       if (shouldRecheckPlan({ sentToStripe, nativeShell: isNativeShell(), freePlan: onFreePlan })) {
         setBillingRecheck((n) => n + 1);
       }
     });
-  }, [session, onFreePlan]);
+  }, [session, reviewing, onFreePlan]);
   const producerAccess = useMemo<ProducerAccess>(
-    () => ({
+    () => review ? { locked: review.producerLocked, upgrade: async () => {} } : ({
       // Locked only when the server has Stripe set up and has said, in so
       // many words, that this account is on the free plan.
       locked: PAID_FEATURES_LOCKED && !!billingState?.configured && billingState.plan !== 'producer',
@@ -520,8 +582,42 @@ export default function App() {
         }
       },
     }),
-    [billingState, billingActions],
+    [review, billingState, billingActions],
   );
+  // What co-producers have asked for. Only for the owner, once the account
+  // has loaded: never in co-producer view, whose stand-in session carries no
+  // credential and no key anyway.
+  const ownerData = session && session.authHash && session.key && settingsLoaded && !reviewing && !isReviewMode()
+    ? createOwnerData({
+        session,
+        shows: () => latestShowsRef.current,
+        settings: () => latestSettingsRef.current,
+        loaded: () => dataLoaded.current,
+        producerLocked: producerAccess.locked,
+        syncBlocked: () => syncState === 'blocked',
+        setShows: (next) => {
+          latestShowsRef.current = next;
+          setShows(next);
+        },
+        saveSettings: (next) => {
+          setSettings(next);
+          saveSettings(next);
+        },
+        retireProfileLink: (request) => retireProfileLink(request, session),
+        openShow: (id) => {
+          const show = latestShowsRef.current.find((s) => s.id === id);
+          if (!show) return;
+          setSelectedShow(show);
+          setView('detail');
+        },
+      })
+    : null;
+  const ownerRequests = useOwnerRequests(ownerData);
+  const [requestsNoticeHidden, setRequestsNoticeHidden] = useState(false);
+  const requestsFrom = new Set(ownerRequests.items.map((item) => item.row.linkId));
+  const requestsNotice = ownerRequests.open === 0 ? '' : requestsFrom.size === 1 && ownerRequests.items.length === ownerRequests.open
+    ? `${ownerRequests.items[0].who} asked for ${ownerRequests.open} ${ownerRequests.open === 1 ? 'change' : 'changes'}`
+    : `${ownerRequests.open} ${ownerRequests.open === 1 ? 'request is' : 'requests are'} waiting`;
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   /**
    * Set when the dashboard's Run Show button opened the show, so ShowDetail
@@ -617,7 +713,9 @@ export default function App() {
   // reloaded. Every other account effect waits for a session.
   const [linkRoute] = useState(() => sharedLinkRoute(window.location.search, window.location.pathname));
   useEffect(() => {
-    if (linkRoute) return;
+    // Never on a co-producer link's page, and never on the review origin:
+    // whoever opens one may well be signed in to an account of their own.
+    if (linkRoute || coproduce || onReviewOrigin()) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -633,22 +731,83 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [linkRoute]);
+  }, [linkRoute, coproduce]);
+
+  // Opening a co-producer link. The page's own script has already taken the
+  // token out of the address; the server says who it is for, and co-producer
+  // view begins with stand-in credentials that open nothing.
+  const reviewTokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!coproduce) return;
+    let cancelled = false;
+    void (async () => {
+      let token = reviewTokenRef.current;
+      if (!token) {
+        const taken = await takeCoproduceToken();
+        if (cancelled) return;
+        if ('missing' in taken) {
+          setReviewBoot({ state: 'missing' });
+          setLoadingData(false);
+          return;
+        }
+        token = taken.token;
+        reviewTokenRef.current = token;
+      }
+      const client = createCoproducerClient(token);
+      try {
+        const info = await client.session();
+        if (cancelled) return;
+        const next = makeReviewSession(token, info, client);
+        enterReviewMode(next);
+        setReviewBoot({ state: 'ready', review: next });
+        setSession(next.credentials);
+      } catch (err) {
+        if (cancelled) return;
+        const e = err as ApiError;
+        if (e.status === 410) {
+          clearCoproduceToken();
+          clearUnsentDraft();
+          setReviewBoot({ state: e.code === 'link_unreadable' ? 'unreadable' : 'ended' });
+        } else {
+          setReviewBoot({ state: 'offline' });
+        }
+        setLoadingData(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [coproduce, reviewBootTick]);
+
+  // A link that ends while it is open (withdrawn, expired) swaps the app for
+  // the screen that says so.
+  useEffect(() => {
+    if (!review) return;
+    onLinkEnded((code) => {
+      clearCoproduceToken();
+      clearUnsentDraft();
+      setReviewBoot({ state: code === 'link_unreadable' ? 'unreadable' : 'ended' });
+    });
+    return () => onLinkEnded(null);
+  }, [review]);
 
 
   // Media store (large audio chunks) needs the session credentials for auth
   // headers + the encryption key. Keep it in sync with the session.
   useEffect(() => {
+    // Co-producer view's files come through its own source (enterReviewMode).
+    if (reviewing) return;
     if (session) initMediaStore(session);
     else clearMediaStore();
-  }, [session]);
+  }, [session, reviewing]);
 
   // Carry the last confirmed save across reloads, so the status pill can say
   // when your work last reached your account instead of starting blank.
   useEffect(() => {
+    if (reviewing) return;
     setLastSavedAt(session ? readLastSync(session.username) : null);
     setLastBackupAt(session ? readLastExport(session.username) : null);
-  }, [session]);
+  }, [session, reviewing]);
 
   // Load data for signed in user
   useEffect(() => {
@@ -659,6 +818,19 @@ export default function App() {
     let cancelled = false;
     async function loadData() {
       try {
+        if (isReviewMode()) {
+          // The server's redacted views, tidied as the owner's load tidies
+          // them and no further: no drafts, no parks, no saves, no new ids.
+          const loadedReview = await loadReviewData(getReviewSession()!.client);
+          if (cancelled) return;
+          adoptReviewTruth(loadedReview);
+          unreadableRowsRef.current = [];
+          setUnreadableCount(loadedReview.unreadable);
+          dataLoaded.current = true;
+          setSettingsLoaded(true);
+          setLoadError(null);
+          return;
+        }
         const [loaded, loadedSettings] = await Promise.all([
           loadEncryptedShows(currentSession),
           loadEncryptedSettings(currentSession),
@@ -881,6 +1053,215 @@ export default function App() {
   // value for the same reason.
   latestShowsRef.current = shows;
 
+  // ── Co-producer view's truth and the working copy ──────────────────────
+  // Truth is what the server last served; `shows` and `settings` are the
+  // working copy every screen edits, exactly as for the owner. What differs
+  // between them is what the co-producer is asking for.
+  const reviewTruthRef = useRef<ReviewTruth | null>(null);
+  const reviewLoadedRef = useRef<LoadedReview | null>(null);
+  // The same truth as a render input, for what is drawn from it.
+  const [reviewTruth, setReviewTruth] = useState<ReviewTruth | null>(null);
+  /** Set when newer saves of the owner's are held back for unsent changes: the time the account is shown as of. */
+  const [heldBackAt, setHeldBackAt] = useState<string | null>(null);
+  const [proposalDialog, setProposalDialog] = useState<ProposalDialogState | null>(null);
+  const [pendingOpen, setPendingOpen] = useState(false);
+  const [runShowOpen, setRunShowOpen] = useState(false);
+  const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false);
+  const reviewRequests = useReviewRequests(review?.client ?? null);
+
+  /** Make what the server served both truth and the working copy. */
+  function adoptReviewTruth(loadedReview: LoadedReview) {
+    const truth: ReviewTruth = {
+      shows: loadedReview.shows,
+      settings: loadedReview.settings,
+      showRevisions: loadedReview.showRevisions,
+      settingsRevision: loadedReview.settingsRevision,
+    };
+    reviewLoadedRef.current = loadedReview;
+    reviewTruthRef.current = truth;
+    setReviewTruth(truth);
+    savedShowsRef.current = truth.shows;
+    latestShowsRef.current = truth.shows;
+    setShows(truth.shows);
+    resolvedSettingsRef.current = new WeakMap();
+    latestSettingsRef.current = truth.settings;
+    setSettingsState(truth.settings);
+  }
+
+  /** Put the working copy back to truth: after a send, a discard, or a change that meant nothing. */
+  function resetToTruth() {
+    const t = reviewTruthRef.current;
+    if (!t) return;
+    latestShowsRef.current = t.shows;
+    savedShowsRef.current = t.shows;
+    setShows(t.shows);
+    latestSettingsRef.current = t.settings;
+    resolvedSettingsRef.current = new WeakMap();
+    setSettingsState(t.settings);
+    if (selectedShow) {
+      const kept = t.shows.find((s) => s.id === selectedShow.id);
+      if (kept) setSelectedShow(kept);
+      else {
+        setSelectedShow(null);
+        setView('list');
+      }
+    }
+  }
+
+  const capture = useProposalCapture({
+    active: reviewing,
+    loaded: settingsLoaded,
+    shows,
+    settings,
+    truthRef: reviewTruthRef,
+    client: review?.client ?? null,
+    linkId: review?.linkId ?? '',
+    reset: resetToTruth,
+    onDialog: setProposalDialog,
+    runShowOpen,
+    onSent: reviewRequests.refresh,
+  });
+
+  const openPending = useCallback(() => setPendingOpen(true), []);
+  const reviewValue = useReviewContextValue({
+    review,
+    requests: reviewRequests,
+    truth: reviewTruth,
+    onDialog: setProposalDialog,
+    openPending,
+  });
+  const pendingOverlay = useMemo<PendingOverlayValue>(() => {
+    if (!reviewing || !reviewTruth) return { marks: () => [], newShows: [] };
+    const open = reviewRequests.requests
+      .filter((request) => request.status === 'pending' || request.status === 'stale')
+      .map((request) => reviewRequests.details.get(request.id))
+      .filter((detail) => detail !== undefined);
+    return buildPendingOverlay(open, reviewTruth, reviewDiffContext(reviewTruth));
+  }, [reviewing, reviewTruth, reviewRequests.requests, reviewRequests.details]);
+
+  /**
+   * The owner's newer saves, fetched by revision. Taken in only while the
+   * working copy is clean: replacing truth under unsent changes would change
+   * what they are measured against.
+   */
+  const refreshingTruthRef = useRef(false);
+  async function refreshTruth() {
+    const current = getReviewSession();
+    const previous = reviewLoadedRef.current;
+    if (!current || !previous || refreshingTruthRef.current) return;
+    refreshingTruthRef.current = true;
+    try {
+      const next = await refreshReviewData(current.client, previous);
+      if (!next) return;
+      const truth = reviewTruthRef.current;
+      if (!truth || latestShowsRef.current !== truth.shows || latestSettingsRef.current !== truth.settings) {
+        setHeldBackAt(new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }));
+        return;
+      }
+      adoptReviewTruth(next);
+      setUnreadableCount(next.unreadable);
+      setHeldBackAt(null);
+      // A show the owner deleted meanwhile is not left open on screen.
+      if (selectedShow) {
+        const kept = next.shows.find((s) => s.id === selectedShow.id);
+        setSelectedShow(kept ?? null);
+        if (!kept) setView('list');
+      }
+    } catch {
+      // Tried again on the next look.
+    } finally {
+      refreshingTruthRef.current = false;
+    }
+  }
+  const refreshTruthRef = useRef(refreshTruth);
+  useEffect(() => {
+    refreshTruthRef.current = refreshTruth;
+  });
+
+  useEffect(() => {
+    if (!reviewing || !settingsLoaded) return;
+    const look = () => {
+      if (document.visibilityState === 'visible') void refreshTruthRef.current();
+    };
+    const timer = window.setInterval(look, TRUTH_REFRESH_MS);
+    document.addEventListener('visibilitychange', look);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', look);
+    };
+  }, [reviewing, settingsLoaded]);
+
+  // An edit the owner approved shows up once their app has saved it: look
+  // again whenever one turns approved.
+  const approvedEditsRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!reviewing) return;
+    const approved = new Set(reviewRequests.requests.filter((r) => r.kind === 'edit' && r.status === 'approved').map((r) => r.id));
+    const known = approvedEditsRef.current;
+    approvedEditsRef.current = approved;
+    if (known && [...approved].some((id) => !known.has(id))) void refreshTruthRef.current();
+  }, [reviewing, reviewRequests.requests]);
+
+  // A held-back truth is taken in once the working copy is clean again.
+  useEffect(() => {
+    if (reviewing && heldBackAt && !capture.dirty) void refreshTruthRef.current();
+  }, [reviewing, heldBackAt, capture.dirty]);
+
+  useEffect(() => {
+    if (!reviewing) return;
+    const update = () => setOffline(navigator.onLine === false);
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, [reviewing]);
+
+  // Changes left unsent when this page was last put away, offered back once.
+  const draftCheckedRef = useRef(false);
+  useEffect(() => {
+    if (!review || !settingsLoaded || draftCheckedRef.current) return;
+    draftCheckedRef.current = true;
+    void loadUnsentDraft(review.linkId).then((draft) => {
+      const truth = reviewTruthRef.current;
+      if (!draft || !truth) return;
+      offerUnsentDraft(review, draft, describePayload(draft.payload, reviewDiffContext(truth)));
+    });
+    // Once per link, when the account has loaded. offerUnsentDraft is
+    // redeclared every render and closes over nothing it does not take as
+    // arguments but setters and the requests' refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [review, settingsLoaded]);
+
+  function offerUnsentDraft(current: ReviewSession, draft: UnsentDraft, groups: ReturnType<typeof describePayload>) {
+    const discard = () => {
+      clearUnsentDraft();
+      setProposalDialog(null);
+    };
+    const send = () => {
+      setProposalDialog({ step: 'sending', groups });
+      current.client
+        .createRequest({ kind: 'edit', payload: draft.payload, mediaIds: draft.mediaIds })
+        .then(() => {
+          clearUnsentDraft();
+          setProposalDialog({ step: 'sent', groups });
+          reviewRequests.refresh();
+        })
+        .catch((err: unknown) => {
+          const failure = sendFailureFor(err, navigator.onLine !== false);
+          setProposalDialog({ step: 'failed', failure, retry: RETRYABLE_SENDS.has(failure) ? send : undefined, discard });
+        });
+    };
+    setProposalDialog({ step: 'restore-draft', groups, savedAt: draft.savedAt, send, discard });
+  }
+
+  function closeProposalDialog() {
+    if (capture.sending) return;
+    capture.dismiss();
+    setProposalDialog(null);
+  }
+
   // Every settings writer (Rolodex, contract imports, profile replies, restore)
   // refreshes the same linked people. Show slots keep their own ids and cues.
   function setSettings(updated: AppSettings, sync: RolodexSyncOptions = {}) {
@@ -935,6 +1316,9 @@ export default function App() {
   // A failed save must never be the end of the story: retry as soon as the
   // browser regains connectivity.
   useEffect(() => {
+    // Co-producer view saves nothing, so has no save to retry; it watches
+    // the connection for its own sends instead.
+    if (coproduce) return;
     function onOnline() {
       retryDelayRef.current = 5000;
       setSaveRetryTick((t) => t + 1);
@@ -969,17 +1353,17 @@ export default function App() {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
-  }, []);
+  }, [coproduce]);
 
   // Park every edit on this device as soon as it happens, not only after a
   // save fails. The save is debounced and then takes a round-trip; closing the
   // tab inside that window used to drop the edit on the floor. Writing the
   // local copy first narrows the window before the network confirms the save.
   useEffect(() => {
-    if (!session || !dataLoaded.current) return;
+    if (!session || !dataLoaded.current || reviewing) return;
     if (latestShowsRef.current === savedShowsRef.current) return;
     setHasLocalCopy(writePending(PENDING_SHOWS_KEY, session.username, latestShowsRef.current));
-  }, [shows, session, writePending]);
+  }, [shows, session, reviewing, writePending]);
 
   /**
    * Write the local copy the instant the app is put away.
@@ -1000,7 +1384,7 @@ export default function App() {
    * newer work done on another device.
    */
   useEffect(() => {
-    if (!session) return;
+    if (!session || reviewing) return;
     const currentSession = session;
     function flush() {
       if (!dataLoaded.current || latestShowsRef.current === savedShowsRef.current) return;
@@ -1016,25 +1400,30 @@ export default function App() {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', flush);
     };
-  }, [session, writePending]);
+  }, [session, reviewing, writePending]);
 
   // If work exists only on this device, closing the tab risks it being the
   // only copy — worth one confirm. Deliberately not shown while a normal save
   // is simply in flight: that case is already covered by the local copy above
   // and re-sends itself on the next launch.
   useEffect(() => {
-    if (!localBackupFailed && syncState !== 'retrying' && syncState !== 'offline' && syncState !== 'blocked') return;
+    // In co-producer view, only changes not yet sent are worth the question.
+    const unsaved = reviewing
+      ? capture.dirty
+      : localBackupFailed || syncState === 'retrying' || syncState === 'offline' || syncState === 'blocked';
+    if (!unsaved) return;
     function onBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
       e.returnValue = '';
     }
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [syncState, localBackupFailed]);
+  }, [syncState, localBackupFailed, reviewing, capture.dirty]);
 
   // Save shows when changed
   useEffect(() => {
-    if (!session || !dataLoaded.current) return;
+    // Co-producer view's edits are sent for approval instead (useProposalCapture).
+    if (!session || !dataLoaded.current || reviewing) return;
     const currentSession = session;
 
     const timeout = setTimeout(() => {
@@ -1128,7 +1517,7 @@ export default function App() {
     }, 1000); // Debounce saves
 
     return () => clearTimeout(timeout);
-  }, [shows, session, saveRetryTick, writePending]);
+  }, [shows, session, reviewing, saveRetryTick, writePending]);
 
   /**
    * Take a freshly entered password and turn it into a stored session.
@@ -1258,6 +1647,11 @@ export default function App() {
   }
 
   function handleLogout() {
+    // Co-producer view never touches an account's session or drafts.
+    if (isReviewMode()) {
+      leaveCoproducerView();
+      return;
+    }
     if (session && dataLoaded.current) {
       if (latestShowsRef.current !== savedShowsRef.current) writePending(PENDING_SHOWS_KEY, session.username, latestShowsRef.current);
     }
@@ -1416,6 +1810,10 @@ export default function App() {
    * it's reachable from the status pill on every screen, not just Settings.
    */
   async function handleDownloadBackup() {
+    if (isReviewMode()) {
+      reviewValue.ask({ kind: 'download', action: { type: 'backup' } });
+      return;
+    }
     if (!session) return;
     try {
       const backup = await exportUserData(session, { shows: latestShowsRef.current, unreadable: unreadableRowsRef.current, settings,
@@ -1444,7 +1842,7 @@ export default function App() {
   async function handleCompleteOnboarding(data: { brandName: string; showTypes: string[] }) {
     // Never onto an account that has not been read: the merge below would
     // start from the defaults and save them over whatever is really there.
-    if (!session || !dataLoaded.current) return;
+    if (!session || !dataLoaded.current || isReviewMode()) return;
     const savingSession = session;
     setOnboardingSaving(true);
     // Merge onto whatever loaded for this account so we never clobber existing data.
@@ -1478,6 +1876,14 @@ export default function App() {
   async function handleSaveSettings(updatedSettings: AppSettings) {
     // Never onto an account that has not been read, as for onboarding.
     if (!session || !dataLoaded.current) return;
+    if (isReviewMode()) {
+      // Into the working copy, then straight to the review: the dialog is
+      // opened after this commit, so it describes these settings.
+      setSettings(updatedSettings);
+      capture.requestReview();
+      setView('list');
+      return;
+    }
     const savingSession = session;
 
     setSettingsSaving(true);
@@ -1751,7 +2157,7 @@ export default function App() {
     // Settings that were never loaded are the defaults plus one edit, and the
     // settings request can succeed while the shows request fails — leaving a
     // baseline that lets that save through over the whole real account.
-    if (!session || !dataLoaded.current) return;
+    if (!session || !dataLoaded.current || isReviewMode()) return;
     updatedSettings = resolvedSettingsRef.current.get(updatedSettings) ?? updatedSettings;
     const currentSession = session;
     // Each call supersedes any still-retrying older one, so a stale snapshot
@@ -1934,6 +2340,11 @@ export default function App() {
    */
   async function handleRequestDetails(comic: PotentialComic) {
     if (!session) return;
+    if (isReviewMode()) {
+      // Asked for: the owner's app makes the link if the owner approves.
+      reviewValue.ask({ kind: 'share', action: { type: 'profile-link', contactId: comic.id } });
+      return;
+    }
     setLinkBusyFor(comic.id);
     setLinkErrorFor(null);
     try {
@@ -1950,7 +2361,7 @@ export default function App() {
       setSettings(updatedSettings);
       saveSettings(updatedSettings);
       setFreshLink({ contactId: comic.id, url });
-      try { await navigator.clipboard?.writeText(url); } catch { /* shown on the row anyway */ }
+      try { await copyText(url); } catch { /* shown on the row anyway */ }
     } catch (err) {
       // Venue wifi, usually. Nothing was filed, so the row goes back to
       // offering the ask rather than pretending a link exists somewhere.
@@ -2347,6 +2758,21 @@ export default function App() {
     }
   }
 
+  // The review origin opens co-producer links and nothing else: never the
+  // sign-in, never anyone's own account.
+  if (onReviewOrigin() && !coproduce) return <CoproduceGate state="wrong-place" />;
+  if (coproduce && reviewBoot.state !== 'ready') {
+    return (
+      <CoproduceGate
+        state={reviewBoot.state}
+        onRetry={() => {
+          setReviewBoot({ state: 'loading' });
+          setReviewBootTick((tick) => tick + 1);
+        }}
+      />
+    );
+  }
+
   return (
     <>
       {!session ? (
@@ -2380,7 +2806,7 @@ export default function App() {
                       Try again
                     </button>
                     <button className="btn btn--secondary" onClick={handleLogout}>
-                      Sign out
+                      {reviewing ? 'Leave co-producer view' : 'Sign out'}
                     </button>
                   </div>
                 </div>
@@ -2401,7 +2827,7 @@ export default function App() {
             </div>
           )}
         </div>
-      ) : !settings.onboarded && settingsLoaded ? (
+      ) : !settings.onboarded && settingsLoaded && !reviewing ? (
         // Only once the account has actually loaded. Before, a launch that
         // could not reach the server left the defaults in place — and their
         // "not onboarded" walked a producer with a year of shows through the
@@ -2414,6 +2840,8 @@ export default function App() {
         />
       ) : (
         <ProducerProvider value={producerAccess}>
+        <ReviewProvider value={reviewValue}>
+        <PendingOverlayProvider value={pendingOverlay}>
         <div className="app">
           {/* Everything that reports on the state of your data, in one stack:
               problems that need you first, then the always-on sync pill. */}
@@ -2427,13 +2855,16 @@ export default function App() {
                 <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />
                 <div className="system-notice__body">
                   <span className="system-notice__text">
-                    {unreadableCount === 1
-                      ? "1 show couldn't be opened on this device, so it isn't in your shows list."
-                      : `${unreadableCount} shows couldn't be opened on this device, so they aren't in your shows list.`}
+                    {reviewing
+                      ? `${unreadableCount} ${unreadableCount === 1 ? "show couldn't" : "shows couldn't"} be opened in co-producer view.`
+                      : unreadableCount === 1
+                        ? "1 show couldn't be opened on this device, so it isn't in your shows list."
+                        : `${unreadableCount} shows couldn't be opened on this device, so they aren't in your shows list.`}
                   </span>
                   <span className="system-notice__reassurance">
-                    They're still on your account and nothing here will overwrite them. Try
-                    refreshing, or signing out and back in.
+                    {reviewing
+                      ? "They're still in the owner's account."
+                      : "They're still on your account and nothing here will overwrite them. Try refreshing, or signing out and back in."}
                   </span>
                 </div>
                 <button
@@ -2501,6 +2932,25 @@ export default function App() {
                 </button>
               </div>
             )}
+            {ownerData && requestsNotice && view !== 'requests' && !requestsNoticeHidden && (
+              <div className="system-notice" role="status">
+                <Icon name="mail" size={16} className="system-notice__icon" aria-hidden />
+                <div className="system-notice__body">
+                  <span className="system-notice__text">{requestsNotice}</span>
+                  <span className="system-notice__reassurance">Nothing they asked for happens until you approve it.</span>
+                </div>
+                <button className="btn btn--sm btn--primary" onClick={() => setView('requests')}>
+                  Review
+                </button>
+                <button
+                  className="system-notice__close"
+                  onClick={() => setRequestsNoticeHidden(true)}
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            )}
             {saveError && (
               <div className="system-notice" role="alert">
                 <Icon name="alert" size={16} className="system-notice__icon" aria-hidden />
@@ -2519,6 +2969,19 @@ export default function App() {
                 </button>
               </div>
             )}
+            {/* Last of the notices, so on a desktop the rail measures it into
+                the band and every sticky page header parks below it rather
+                than over it. On a phone it is fixed above the bottom bar
+                instead and takes no room up here (coproducer.css). */}
+            {reviewing && capture.dirty && !runShowOpen && (
+              <UnsentBar
+                count={capture.count}
+                staging={capture.staging}
+                heldBackAt={heldBackAt}
+                onReview={capture.requestReview}
+                onDiscard={capture.discard}
+              />
+            )}
             <div className="status-rail__pill-row">
               <button
                 className="navigation-toggle"
@@ -2533,13 +2996,22 @@ export default function App() {
                 </svg>
               </button>
               <span className="mobile-brand"><BrandMark /><span>I Can Run A Show</span></span>
-              <SyncStatus
-                state={syncState}
-                lastSavedAt={lastSavedAt}
-                hasLocalCopy={hasLocalCopy}
-                lastBackupAt={lastBackupAt}
-                onDownloadBackup={handleDownloadBackup}
-              />
+              {reviewing ? (
+                <ReviewBanner
+                  pendingCount={reviewRequests.pendingCount}
+                  offline={offline}
+                  onOpenPending={openPending}
+                  onLeave={leaveCoproducerView}
+                />
+              ) : (
+                <SyncStatus
+                  state={syncState}
+                  lastSavedAt={lastSavedAt}
+                  hasLocalCopy={hasLocalCopy}
+                  lastBackupAt={lastBackupAt}
+                  onDownloadBackup={handleDownloadBackup}
+                />
+              )}
             </div>
           </div>
           <main className="app-main">
@@ -2583,7 +3055,8 @@ export default function App() {
                     ) : undefined
                   }
                 />
-                {!backupNudgeDismissed && !installPromptShown
+                <PendingNewShows />
+                {!reviewing && !backupNudgeDismissed && !installPromptShown
                   && shouldNudgeBackup(shows.length, lastBackupAt) && (
                   <div className="backup-nudge" role="status">
                     <Icon name="shield" size={16} className="backup-nudge__icon" aria-hidden />
@@ -2788,6 +3261,14 @@ export default function App() {
               <MorePage
                 onBack={handleBack}
                 destinations={[
+                  ...(ownerData && (ownerRequests.links > 0 || ownerRequests.open > 0) ? [{
+                    key: 'requests',
+                    label: 'Requests',
+                    description: 'What co-producers asked for',
+                    icon: 'mail' as const,
+                    badge: ownerRequests.open || undefined,
+                    onSelect: () => setView('requests'),
+                  }] : []),
                   {
                     key: 'season',
                     label: 'Season report',
@@ -2831,6 +3312,7 @@ export default function App() {
                   onBack={() => setView('more')}
                   backLabel="More"
                 />
+                <PendingInline groupKey="settings:emailList" />
 
                 <form
                   className="email-list__form"
@@ -2913,6 +3395,7 @@ export default function App() {
                   onDuplicate={handleDuplicateShow}
                   onRepeat={handleRepeatShow}
                   onDelete={handleDeleteShow}
+                  onRunShowChange={setRunShowOpen}
                 />
               </div>
             )}
@@ -2969,7 +3452,7 @@ export default function App() {
 
             {view === 'rolodex' && (
               <div className="rolodex-page">
-                <RolodexRefresh
+                {!reviewing && <RolodexRefresh
                   requests={settings.profileRequests ?? []}
                   onFound={(updated) => {
                     // Merge by token rather than replace: `updated` is the list
@@ -2985,7 +3468,7 @@ export default function App() {
                     setSettings(updatedSettings);
                     saveSettings(updatedSettings);
                   }}
-                />
+                />}
                 <PageHeader
                   title={`${rolodexTerm.singular} Rolodex`}
                   subtitle={`Everyone you might book. Save a ${rolodexTerm.singular.toLowerCase()} once and reuse them across shows — edits sync everywhere.`}
@@ -3001,10 +3484,11 @@ export default function App() {
                       { subject: 'Are you around?' },
                     );
                     return href ? (
-                      <a className="btn btn--secondary btn--sm" href={href}>Email all</a>
+                      <ContactLink className="btn btn--secondary btn--sm" href={href} source="rolodex-all">Email all</ContactLink>
                     ) : null;
                   })()}
                 />
+                <PendingInline groupKey="settings:potentialComics" />
 
                 {/* A form rather than a div: a name box beside an Add button
                     should take Enter, which is how everyone tries it first. */}
@@ -3098,6 +3582,10 @@ export default function App() {
               </div>
             )}
 
+            {view === 'requests' && ownerData && (
+              <RequestsInbox data={ownerData} requests={ownerRequests} onBack={() => setView('more')} />
+            )}
+
             {view === 'settings' && (
               <Settings
                 settings={settings}
@@ -3106,21 +3594,25 @@ export default function App() {
                 saving={settingsSaving}
                 colorScheme={colorScheme}
                 onColorSchemeChange={setColorScheme}
-                username={session.username}
-                session={session}
+                username={reviewing ? undefined : session.username}
+                session={reviewing ? undefined : session}
                 onLogout={handleLogout}
-                onDeleteAccount={handleDeleteAccount}
+                onDeleteAccount={reviewing ? undefined : handleDeleteAccount}
                 onRestoreShow={handleRestoreShow}
                 onDeleteForever={handleDeleteForever}
                 onEmptyTrash={handleEmptyTrash}
-                onSweepMedia={loadError ? undefined : handleSweepMedia}
+                onSweepMedia={loadError || reviewing ? undefined : handleSweepMedia}
                 onExport={handleDownloadBackup}
-                onListSnapshots={loadError ? undefined : handleListSnapshots}
+                onListSnapshots={loadError || reviewing ? undefined : handleListSnapshots}
                 onRestoreSnapshot={handleRestoreSnapshot}
                 lastBackupAt={lastBackupAt}
                 lastSavedAt={lastSavedAt}
                 billing={billingActions ?? undefined}
                 leaveRef={settingsLeaveRef}
+                review={review ? { label: review.label, expiresAt: review.expiresAt } : undefined}
+                onOpenRequests={() => setView('requests')}
+                ownerData={ownerData}
+                onCoproducerLinksChanged={() => void ownerRequests.refreshCount()}
               />
             )}
           </main>
@@ -3147,11 +3639,13 @@ export default function App() {
             <div className="bottom-nav__items">
               {NAV_ITEMS.map((item) => {
                 const active = item.views.includes(view);
+                const waiting = item.id === 'more' && ownerData ? ownerRequests.open : 0;
                 return (
                   <button
                     key={item.id}
                     className={`bottom-nav__item${active ? ' bottom-nav__item--active' : ''}`}
                     aria-current={active ? 'page' : undefined}
+                    aria-label={waiting > 0 ? `${item.label}, ${waiting} ${waiting === 1 ? 'request' : 'requests'} waiting` : undefined}
                     onClick={() => {
                       if (desktopNavigation) navigationRef.current?.hidePopover();
                       const go = () => {
@@ -3172,11 +3666,35 @@ export default function App() {
                   >
                     <Icon name={item.icon} size={20} className="bottom-nav__item-icon" />
                     <span>{item.label}</span>
+                    {waiting > 0 && <span className="bottom-nav__badge" aria-hidden="true">{waiting}</span>}
                   </button>
                 );
               })}
             </div>
           </nav>
+
+          {reviewing && proposalDialog && (
+            <ProposalDialog
+              state={proposalDialog}
+              onClose={closeProposalDialog}
+              onSeePending={() => {
+                closeProposalDialog();
+                setPendingOpen(true);
+              }}
+            />
+          )}
+          {review && pendingOpen && reviewTruth && (
+            <PendingDrawer
+              requests={reviewRequests.requests}
+              details={reviewRequests.details}
+              context={reviewDiffContext(reviewTruth)}
+              onClose={() => setPendingOpen(false)}
+              onWithdraw={async (id) => {
+                await review.client.withdraw(id);
+                reviewRequests.refresh();
+              }}
+            />
+          )}
 
           {showForm && (
             <Modal onClose={() => setShowForm(false)} labelledBy="show-form-title">
@@ -3188,6 +3706,8 @@ export default function App() {
           )}
 
         </div>
+        </PendingOverlayProvider>
+        </ReviewProvider>
         </ProducerProvider>
       )}
     </>

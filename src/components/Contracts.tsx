@@ -10,6 +10,7 @@ import type {
 import {
   alreadyPending,
   contractNameFromFile,
+  linkStillLive,
   newContractField,
   refreshSignatures,
   requestsForContract,
@@ -22,11 +23,15 @@ import {
   isInstagramField,
   withInstagramField,
 } from '../utils/contracts';
-import type { ApiError } from '../utils/api';
 import { generateId } from '../utils/id';
 import { isLinkStorageFull, LINK_STORAGE_FULL_MESSAGE } from '../utils/linkStorage';
 import { dataUrlToFile } from '../utils/media';
 import { uploadMedia, deleteMedia, isMediaRef } from '../utils/mediaStore';
+import { canShareLinks, copyText, shareLink } from '../coproducer/gates';
+import { useReview } from '../coproducer/ReviewContext';
+import { COPRODUCER_LIMITS } from '../coproducer/types';
+import { AskButton } from './coproducer/AskButton';
+import { PendingInline } from './coproducer/PendingMarks';
 import { rolodexKey, resolvePerformerComic } from '../utils/rolodex';
 import { showContextForSigner } from '../utils/contractShow';
 import {
@@ -79,7 +84,7 @@ const MAX_BYTES = 20 * 1024 * 1024;
 
 // The share sheet is the natural way to hand someone a link on a phone, and
 // absent on most desktop browsers. Checked once rather than at each call site.
-const CAN_SHARE = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+const CAN_SHARE = canShareLinks();
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
@@ -105,19 +110,6 @@ function fmtSize(bytes: number): string {
 // eslint-disable-next-line react-refresh/only-export-components
 export function isPdfFile(file: Pick<File, 'type' | 'name'>): boolean {
   return file.type === 'application/pdf' || file.type === 'application/x-pdf' || /\.pdf$/i.test(file.name);
-}
-
-/**
- * Whether a withdraw that threw has left the link working on the server.
- *
- * A dropped connection or a timeout is not "already gone": the row survives,
- * the signer can still open and sign, and the producer's copy of the token
- * and key is the only way that signature can ever be read. Only an answer
- * from the server saying the row is missing means the link is dead.
- */
-// eslint-disable-next-line react-refresh/only-export-components
-export function linkStillLive(err: unknown): boolean {
-  return (err as ApiError | null)?.status !== 404;
 }
 
 /**
@@ -293,6 +285,8 @@ function ImportOffer({ request, offer, saved, rolodexTerm, onDecline, onSave }: 
 
 export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows', onUpdateSettings }: ContractsProps) {
   const { confirm, confirmDialog } = useConfirm();
+  // Co-producer view: links are asked for, never made or shown here.
+  const review = useReview();
   // On the free plan, signed agreements stay filed and downloadable and
   // links already sent keep working; only adding a contract to send and
   // sending it are Producer.
@@ -343,6 +337,8 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
    * the moment they came here to ask the question.
    */
   useEffect(() => {
+    // The owner's app files signatures; a co-producer sees them once it has.
+    if (review.active) return;
     let cancelled = false;
     (async () => {
       const updated = await refreshSignatures(requests);
@@ -421,8 +417,17 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
           message: `${trimmed} already has an unsigned link for this contract. Sending again makes a second link, and whichever one they open first is the one that counts.`,
           confirmLabel: 'Send anyway',
           danger: false,
+          // In co-producer view the send right after this is an ask.
+          asksOwner: true,
         });
         if (!go) return;
+      }
+      if (review.active) {
+        // Asked for: the owner's app makes the link if the owner approves.
+        review.ask({ kind: 'share', action: { type: 'signing-link', contractId: open.id, signer: { name: trimmed, email, contactId } } });
+        setManualName('');
+        setPicking(false);
+        return;
       }
       setError(null);
       setBusy(trimmed);
@@ -459,15 +464,9 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     // the link left correctly and the performer still landed somewhere else.
     setShownLink(request.token);
     try {
-      if (CAN_SHARE) {
-        // Title and URL only. A `text` alongside them is not an addition —
-        // share targets pick between the members they support, and the ones
-        // that take only text send that sentence and drop the link, which
-        // reads as a contract that was sent and never arrived.
-        await navigator.share({ title: request.contractName, url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
+      // Title and URL only (see shareLink): share targets that take only
+      // text send a sentence and drop the link.
+      if ((await shareLink(request.contractName, url)) !== 'copied') return;
       setCopied(request.token);
       setTimeout(() => setCopied((c) => (c === request.token ? null : c)), 2000);
     } catch {
@@ -493,7 +492,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
     // producer ends up sending nothing and believing they sent everything.
     setAllLinks(text);
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       setCopied('all');
       setTimeout(() => setCopied((c) => (c === 'all' ? null : c)), 2000);
     } catch {
@@ -508,6 +507,9 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
         : `Withdraw ${request.signerName}'s link? It stops working straight away.`,
       confirmLabel: request.signed ? 'Delete record' : 'Withdraw',
       danger: true,
+      review: request.signed
+        ? { title: `Ask the owner to delete the signed record for ${request.signerName}?`, confirmLabel: 'Ask to delete' }
+        : { title: `Ask the owner to withdraw ${request.signerName}'s link?`, confirmLabel: 'Ask to withdraw' },
     });
     if (!go) return;
     try {
@@ -541,6 +543,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
         : `Delete "${contract.name}"?`,
       confirmLabel: 'Delete',
       danger: true,
+      review: { title: `Ask the owner to delete “${contract.name}”?` },
     });
     if (!go) return;
     for (const request of sent) {
@@ -858,7 +861,10 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                         onSave={() => void saveToProfile(r)}
                       />
                     ) : null}
-                    {!r.signed && shownLink === r.token && (
+                    {!r.signed && review.active && (
+                      <p className="contracts__link-note">Link hidden in co-producer view</p>
+                    )}
+                    {!r.signed && !review.active && shownLink === r.token && (
                       <p className="contracts__link">
                         <span className="contracts__link-note">
                           Send this exact link. Some apps turn a link into a preview card that
@@ -882,7 +888,12 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                       </p>
                     )}
                   </div>
-                  {!r.signed && (
+                  {!r.signed && review.active && (
+                    <AskButton kind="share" action={{ type: 'existing-signing-link', requestIds: [r.id] }} className="btn btn--ghost btn--sm">
+                      Share
+                    </AskButton>
+                  )}
+                  {!r.signed && !review.active && (
                     <button className="btn btn--ghost btn--sm" onClick={() => copyLink(r)}>
                       {copied === r.token ? 'Copied' : CAN_SHARE ? 'Share' : 'Copy link'}
                     </button>
@@ -939,6 +950,9 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
 
       {error && <p className="contracts__error" role="alert">{error}</p>}
 
+      <PendingInline groupKey="settings:contracts" />
+      <PendingInline groupKey="settings:signatureRequests" />
+      <PendingInline groupKey="settings:signedAgreements" />
       <SignedAgreements settings={settings} onUpdateSettings={onUpdateSettings} />
       <h2 className="contracts__section-label">Signature requests</h2>
 
@@ -948,12 +962,24 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
             <h2 className="contracts__section-label">
               Waiting on {outstanding.length}
             </h2>
-            <button
-              className="btn btn--secondary btn--sm"
-              onClick={() => copyAllLinks(outstanding)}
-            >
-              {copied === 'all' ? 'Copied' : `Copy all ${outstanding.length} links`}
-            </button>
+            {review.active ? (
+              <AskButton
+                kind="share"
+                action={{ type: 'existing-signing-link', requestIds: outstanding.slice(0, COPRODUCER_LIMITS.maxShareRequestIds).map((r) => r.id) }}
+                className="btn btn--secondary btn--sm"
+              >
+                {outstanding.length > COPRODUCER_LIMITS.maxShareRequestIds
+                  ? `Ask for the first ${COPRODUCER_LIMITS.maxShareRequestIds} links`
+                  : `Copy all ${outstanding.length} links`}
+              </AskButton>
+            ) : (
+              <button
+                className="btn btn--secondary btn--sm"
+                onClick={() => copyAllLinks(outstanding)}
+              >
+                {copied === 'all' ? 'Copied' : `Copy all ${outstanding.length} links`}
+              </button>
+            )}
           </div>
           <div className="contracts__rows">
             {outstanding.map((r) => (
@@ -965,13 +991,19 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
                     {r.contractName} · sent {fmtDate(r.sentAt)}
                   </span>
                 </div>
-                <button className="btn btn--ghost btn--sm" onClick={() => copyLink(r)}>
-                  {copied === r.token ? 'Copied' : CAN_SHARE ? 'Send again' : 'Copy link'}
-                </button>
+                {review.active ? (
+                  <AskButton kind="share" action={{ type: 'existing-signing-link', requestIds: [r.id] }} className="btn btn--ghost btn--sm">
+                    Send again
+                  </AskButton>
+                ) : (
+                  <button className="btn btn--ghost btn--sm" onClick={() => copyLink(r)}>
+                    {copied === r.token ? 'Copied' : CAN_SHARE ? 'Send again' : 'Copy link'}
+                  </button>
+                )}
               </div>
             ))}
           </div>
-          {allLinks && (
+          {allLinks && !review.active && (
             <p className="contracts__link">
               <span className="contracts__link-note">
                 Copied. Paste these straight into your messages — send the whole address,

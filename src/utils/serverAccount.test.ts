@@ -63,6 +63,15 @@ async function seed(user: string, status = 'canceled') {
   await run(`INSERT INTO subscription (user_id, customer_id, subscription_id, status) VALUES (?, ?, ?, ?)`, user, `cus_${user}`, `sub_${user}`, status);
   await run(`INSERT INTO rate_limit (bucket, count) VALUES (?, 1)`, `auth:${user}:203.0.113.7`);
   await run(`INSERT INTO rate_limit (bucket, count) VALUES (?, 1)`, `authz:${user}:203.0.113.7`);
+  // A co-producer link, a request, a staged file and a handed-out link, and
+  // the throttles filed under the link and the account.
+  await run(`INSERT INTO coproducer_links (id, user_id, token_hash, sealed_keys, label_cipher, created_at, expires_at) VALUES (?, ?, ?, 'v1.x.y', 'cipher', 0, 9999999999)`, `${user}-coprod-link`, user, `${user}-coprod-hash`);
+  await run(`INSERT INTO coproducer_requests (id, user_id, link_id, kind, status, payload, outline, created_at, bytes) VALUES (?, ?, ?, 'edit', 'pending', 'cipher', 'cipher', 0, 12)`, `${user}-coprod-request`, user, `${user}-coprod-link`);
+  await run(`INSERT INTO coproducer_media (user_id, link_id, id, seq, total, data, bytes, created_at) VALUES (?, ?, ?, 0, 1, 'cipher', 6, 0)`, user, `${user}-coprod-link`, `${user}-staged`);
+  await run(`INSERT INTO coproducer_handouts (id, user_id, link_id, label_cipher, refs_cipher, created_at) VALUES (?, ?, ?, 'cipher', 'cipher', 0)`, `${user}-handout`, user, `${user}-coprod-link`);
+  await run(`INSERT INTO rate_limit (bucket, count) VALUES (?, 1)`, `coprod:read:${user}-coprod-link:203.0.113.7`);
+  await run(`INSERT INTO rate_limit (bucket, count) VALUES (?, 1)`, `coprod:stage:${user}-coprod-link:all`);
+  await run(`INSERT INTO rate_limit (bucket, count) VALUES (?, 1)`, `coprod:create:${user}`);
   stripeSubs.push({ id: `sub_${user}`, customer: `cus_${user}`, status, metadata: { user_id: user } });
 }
 

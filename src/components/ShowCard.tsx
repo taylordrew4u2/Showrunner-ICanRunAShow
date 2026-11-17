@@ -5,6 +5,7 @@ import { baseDurations } from '../utils/showTiming';
 import { bookedTowardTarget, lineupProgress } from '../utils/lineupTarget';
 import { whenLabel } from '../utils/showsOverview';
 import { useConfirm } from './useConfirm';
+import { PendingChip } from './coproducer/PendingMarks';
 import './ShowCard.css';
 
 interface ShowCardProps {
@@ -163,6 +164,7 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
             )}
             {place && <span className="show-card__meta-item show-card__meta-place">{place}</span>}
             <span className="show-card__status">{STATUS_LABELS[show.status]}</span>
+            <PendingChip groupKey={`show:${show.id}`} />
           </div>
         </div>
 
