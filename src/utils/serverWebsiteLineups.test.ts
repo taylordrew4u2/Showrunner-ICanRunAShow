@@ -113,17 +113,33 @@ describe('public website lineup boundary', () => {
     expect(published.lineup[0]).not.toHaveProperty('email');
   });
 
-  it('keeps both hosts and their handles off the website, as it keeps the one host', () => {
+  it('names the hosts with their handles, and holds back one who is the surprise guest', () => {
     const published = publicWebsiteShow({
-      ...fixture(), hostSocial: '@secretguesthandle', hostComicId: 'c-secret',
-      coHost: 'Second Host Name', coHostSocial: '@secondhosthandle', coHostComicId: 'c-second',
+      ...fixture(), host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo',
+      coHost: 'Dev Okonjo', coHostSocial: 'tiktok.com/@devo', coHostComicId: 'c-dev',
     });
-    const json = JSON.stringify(published);
-    for (const held of ['Secret Guest Identity', 'secretguesthandle', 'c-secret', 'Second Host Name', 'secondhosthandle', 'c-second']) {
-      expect(json).not.toContain(held);
+    expect(published.hosts).toEqual([
+      { name: 'Jo Park', handle: '@jopark', link: 'https://instagram.com/jopark' },
+      { name: 'Dev Okonjo', handle: '@devo', link: 'https://tiktok.com/@devo' },
+    ]);
+    // The Rolodex ids are bookkeeping, never published.
+    expect(JSON.stringify(published)).not.toMatch(/c-jo|c-dev|hostComicId/);
+    expect(parseWebsiteShow(JSON.parse(JSON.stringify(published)))).toEqual(published);
+
+    // The fixture's own host is its surprise guest: naming them would be the spoiler.
+    const secret = publicWebsiteShow({ ...fixture(), hostSocial: '@secretguesthandle', coHost: 'Dev Okonjo' });
+    expect(secret.hosts).toEqual([{ name: 'Dev Okonjo' }]);
+    expect(JSON.stringify(secret)).not.toMatch(/Secret Guest Identity|secretguesthandle/);
+    expect(publicWebsiteShow({ ...fixture(), host: '' })).not.toHaveProperty('hosts');
+  });
+
+  it('accepts only a short, well-formed hosts list', () => {
+    const published = publicWebsiteShow(fixture());
+    for (const hosts of [[], [{ name: 'A' }, { name: 'B' }, { name: 'C' }], 'Jo Park', [{ name: '' }], [{ name: 'A', email: 'a@example.test' }],
+      [{ name: 'A', link: 'javascript:alert(1)' }], [{ name: 'A', link: 'https://user:pw@example.test/' }]]) {
+      expect(() => parseWebsiteShow({ ...published, hosts })).toThrow();
     }
-    expect(Object.keys(published).sort()).toEqual(['date', 'id', 'lineup', 'location', 'name', 'status', 'ticketLink', 'time', 'venueName']);
-    for (const field of ['hostSocial', 'coHost', 'coHostSocial', 'hosts']) {
+    for (const field of ['hostSocial', 'coHost', 'coHostSocial', 'hostComicId']) {
       expect(() => parseWebsiteShow({ ...published, [field]: 'Second Host Name' })).toThrow();
     }
   });

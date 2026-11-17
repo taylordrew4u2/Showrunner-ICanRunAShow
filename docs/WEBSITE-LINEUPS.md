@@ -44,7 +44,7 @@ The POST body is an object with exactly one `shows` array. Each array item has t
 }
 ```
 
-Wrap the complete approved set as `{"shows":[...the approved show objects...]}`. `revision` is the current 64-character lowercase SHA-256 revision returned by `get_show`. Performer `id` and `credits` are optional. `status` is one of `upcoming`, `in-progress`, `completed`, or `cancelled`. Do not include a host field (neither host, and neither host's social handle), contacts, production notes, media, surprise-guest names, signing links or keys.
+Wrap the complete approved set as `{"shows":[...the approved show objects...]}`. `revision` is the current 64-character lowercase SHA-256 revision returned by `get_show`. Performer `id` and `credits` are optional. `status` is one of `upcoming`, `in-progress`, `completed`, or `cancelled`. `hosts` is optional: one or two objects, each `{ "name": "...", "handle": "@...", "link": "https://..." }` with `handle` and `link` optional, for whoever is hosting. Leave out a host who is also the show's surprise guest. Do not include contacts, production notes, media, surprise-guest names, signing links or keys.
 
 The API verifies that the IDs exactly match the allowlist, all source records belong to one owner, and every revision matches the current encrypted source record. It commits the seed and consumes bootstrap together. A stale revision, missing or extra ID, duplicate ID, mixed owner, invalid payload or failed transaction does not partially publish the seed. A successful bootstrap cannot be submitted again.
 
