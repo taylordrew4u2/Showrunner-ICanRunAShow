@@ -113,6 +113,21 @@ describe('public website lineup boundary', () => {
     expect(published.lineup[0]).not.toHaveProperty('email');
   });
 
+  it('keeps both hosts and their handles off the website, as it keeps the one host', () => {
+    const published = publicWebsiteShow({
+      ...fixture(), hostSocial: '@secretguesthandle', hostComicId: 'c-secret',
+      coHost: 'Second Host Name', coHostSocial: '@secondhosthandle', coHostComicId: 'c-second',
+    });
+    const json = JSON.stringify(published);
+    for (const held of ['Secret Guest Identity', 'secretguesthandle', 'c-secret', 'Second Host Name', 'secondhosthandle', 'c-second']) {
+      expect(json).not.toContain(held);
+    }
+    expect(Object.keys(published).sort()).toEqual(['date', 'id', 'lineup', 'location', 'name', 'status', 'ticketLink', 'time', 'venueName']);
+    for (const field of ['hostSocial', 'coHost', 'coHostSocial', 'hosts']) {
+      expect(() => parseWebsiteShow({ ...published, [field]: 'Second Host Name' })).toThrow();
+    }
+  });
+
   it('rejects extra/private fields rather than accepting a raw producer show', () => {
     const published = publicWebsiteShow(fixture());
     expect(() => parseWebsiteShow({ ...published, productionNotes: 'private' })).toThrow();

@@ -1,6 +1,7 @@
 import type { Client } from '@libsql/client';
 import type { Show, ShowStatus } from '../../src/types';
 import { DEFAULT_SECTIONS, hiddenFromSelected } from '../../src/utils/showBlocks';
+import { editHost, HOST_SLOTS, HOST_SOCIAL_FIELD, promoteCoHost } from '../../src/utils/showHosts';
 import {
   args as object, AssistantToolError, decodeShow, httpsLink, loadShow, loadShowAt, requireScope, saveShow, showId,
   type AssistantContext, type AssistantGrant, type ToolDefinition,
@@ -26,6 +27,9 @@ const fields = {
 const updateFields = {
   ...fields,
   host: { type: 'string', description: 'Who is hosting, as free text, or empty to clear it.', maxLength: 200 },
+  hostSocial: { type: 'string', description: 'The host’s social handle or profile link, or empty to clear it.', maxLength: 200 },
+  coHost: { type: 'string', description: 'A second host, when two people share the night, or empty to clear it. A show has at most two hosts.', maxLength: 200 },
+  coHostSocial: { type: 'string', description: 'The second host’s social handle or profile link, or empty to clear it.', maxLength: 200 },
   productionNotes: { type: 'string', description: 'The producer’s private planning notes for this show.', maxLength: 20000 },
 };
 const idSchema = { type: 'string', minLength: 1, maxLength: 128 };
@@ -63,7 +67,7 @@ export const SHOW_TOOLS: ToolDefinition[] = [
   {
     name: 'update_show',
     title: 'Update a show',
-    description: 'Change only the requested show details, host or private notes. Read get_show first and pass its revision; a show changed since is refused, never overwritten. Changing status to completed removes the show from Upcoming while preserving History. Lineups, running orders, staff, vendors and the recap have their own tools; deleting is delete_show.',
+    description: 'Change only the requested show details, the host or hosts (up to two, each with a social handle) or private notes. Read get_show first and pass its revision; a show changed since is refused, never overwritten. Changing status to completed removes the show from Upcoming while preserving History. Lineups, running orders, staff, vendors and the recap have their own tools; deleting is delete_show.',
     inputSchema: {
       type: 'object', additionalProperties: false,
       properties: {
@@ -77,7 +81,7 @@ export const SHOW_TOOLS: ToolDefinition[] = [
   },
 ];
 
-type ShowPatch = Partial<Pick<Show, 'name' | 'date' | 'time' | 'location' | 'venueName' | 'status' | 'ticketLink' | 'host' | 'productionNotes'>>;
+type ShowPatch = Partial<Pick<Show, 'name' | 'date' | 'time' | 'location' | 'venueName' | 'status' | 'ticketLink' | 'host' | 'hostSocial' | 'coHost' | 'coHostSocial' | 'productionNotes'>>;
 
 export function validDate(value: string): boolean {
   if (!value) return true;
@@ -89,7 +93,7 @@ export function validDate(value: string): boolean {
 function validatePatch(value: unknown, allowed: Record<string, unknown>): ShowPatch {
   const patch = object(value, Object.keys(allowed));
   if (Object.keys(patch).length === 0) throw new AssistantToolError('At least one show detail is required.');
-  const limits: Record<string, number> = { name: 200, date: 10, time: 5, location: 500, venueName: 200, status: 20, ticketLink: 2048, host: 200, productionNotes: 20000 };
+  const limits: Record<string, number> = { name: 200, date: 10, time: 5, location: 500, venueName: 200, status: 20, ticketLink: 2048, host: 200, hostSocial: 200, coHost: 200, coHostSocial: 200, productionNotes: 20000 };
   for (const [key, item] of Object.entries(patch)) {
     if (typeof item !== 'string' || item.length > limits[key] || [...item].some(character => {
       const code = character.charCodeAt(0);
@@ -109,9 +113,28 @@ function validatePatch(value: unknown, allowed: Record<string, unknown>): ShowPa
   }
   if (patch.status !== undefined && !statuses.includes(patch.status as ShowStatus)) throw new AssistantToolError('Invalid show status.');
   if (patch.ticketLink) httpsLink(patch.ticketLink, 'ticket link');
-  // The app's host field stores an empty one as no host at all.
-  if (patch.host !== undefined) patch.host = (patch.host as string) || undefined;
   return patch as ShowPatch;
+}
+
+/**
+ * The patch laid over the show, with the hosts set the way the show page
+ * sets them: an empty name is no host at all, a different name typed over a
+ * host picked from the Rolodex is a different person, and one host left in
+ * the second place becomes the host.
+ */
+function applyPatch(show: Show, patch: ShowPatch): Show {
+  const { host, hostSocial, coHost, coHostSocial, ...details } = patch;
+  const edits = { host: { name: host, social: hostSocial }, coHost: { name: coHost, social: coHostSocial } };
+  let updated: Show = { ...show, ...details };
+  for (const slot of HOST_SLOTS) {
+    const edit = edits[slot];
+    if (edit.name === undefined && edit.social === undefined) continue;
+    if (edit.name === undefined && edit.social && !(updated[slot] ?? '').trim()) {
+      throw new AssistantToolError(`Set ${slot} before ${HOST_SOCIAL_FIELD[slot]}: a handle needs a host to belong to.`);
+    }
+    updated = editHost(updated, slot, edit);
+  }
+  return promoteCoHost(updated);
 }
 
 export async function handleShowTool(db: Client, grant: AssistantGrant, name: string, input: unknown, origin = ''): Promise<unknown> {
@@ -166,7 +189,7 @@ export async function handleShowTool(db: Client, grant: AssistantGrant, name: st
     if (typeof args.expected_revision !== 'string' || !/^[a-f0-9]{64}$/.test(args.expected_revision)) throw new AssistantToolError('Read get_show first and supply its expected_revision.');
     const patch = validatePatch(args.patch, updateFields);
     const { show, revision } = await loadShowAt(ctx, id, args.expected_revision);
-    const updated = { ...show, ...patch, updatedAt: new Date().toISOString() };
+    const updated = { ...applyPatch(show, patch), updatedAt: new Date().toISOString() };
     return { show: showDetail(updated), revision: await saveShow(ctx, updated, revision) };
   }
 

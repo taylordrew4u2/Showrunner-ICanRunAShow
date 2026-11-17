@@ -173,3 +173,19 @@ it('offers exactly the scopes the tools are gated by', () => {
   expect([...TOOL_SCOPES].sort()).toEqual([...ASSISTANT_SCOPES].sort());
 });
 
+
+it('finds a show by either host or a host’s handle, and prints both in the document it fetches', async () => {
+  await seed();
+  await run(
+    'UPDATE user_shows SET encrypted_data = ? WHERE id = ?',
+    encryptWithKey({ ...show, host: 'Jo Park', hostSocial: '@jopark', coHost: 'Dev Okonjo', coHostSocial: '@devokonjo' }, key), 'friday',
+  );
+  const token = await connect('shows:read');
+  for (const query of ['jo park', 'dev okonjo', 'devokonjo']) {
+    const found = (await tool(token, 'search', { query })).structuredContent as { results: { id: string }[] };
+    expect(found.results.map(result => result.id), query).toEqual(['show:friday']);
+  }
+  const doc = (await tool(token, 'fetch', { id: 'show:friday' })).structuredContent as { text: string };
+  expect(doc.text).toContain('Host: Jo Park · @jopark');
+  expect(doc.text).toContain('Second host: Dev Okonjo · @devokonjo');
+});

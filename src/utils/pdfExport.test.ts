@@ -81,6 +81,30 @@ describe('the printed runsheet', () => {
     vi.unstubAllGlobals();
   });
 
+  it('names the host with the handle they are tagged by', () => {
+    const hosted = { ...show, host: 'Jo Park', hostSocial: 'https://instagram.com/jopark' } as Show;
+    const html = captureExport(() => exportShowToPDF(hosted, settings));
+    expect(html).toContain('<strong>Host:</strong> Jo Park (@jopark)</div>');
+  });
+
+  it('names two hosts on one line, and a host with no handle by name alone', () => {
+    const hosted = { ...show, host: 'Jo Park', hostSocial: '@jopark', coHost: 'Dev Okonjo' } as Show;
+    const html = captureExport(() => exportShowToPDF(hosted, settings));
+    expect(html).toContain('<strong>Hosts:</strong> Jo Park (@jopark) and Dev Okonjo</div>');
+  });
+
+  it('prints a host’s social that is not a handle as it was typed, and no host line with nobody hosting', () => {
+    const hosted = { ...show, host: 'Jo Park', hostSocial: 'youtube.com/channel/UC123' } as Show;
+    expect(captureExport(() => exportShowToPDF(hosted, settings))).toContain('<strong>Host:</strong> Jo Park (youtube.com/channel/UC123)</div>');
+    expect(captureExport(() => exportShowToPDF(show, settings))).not.toMatch(/<strong>Hosts?:<\/strong>/);
+  });
+
+  it('escapes the hosts and their handles', () => {
+    const hosted = { ...show, host: '<b>Jo</b>', hostSocial: '<i>x</i> y', coHost: 'Dev & Co', coHostSocial: '@dev"okonjo' } as Show;
+    const html = captureExport(() => exportShowToPDF(hosted, settings));
+    expect(html).toContain('<strong>Hosts:</strong> &lt;b&gt;Jo&lt;/b&gt; (&lt;i&gt;x&lt;/i&gt; y) and Dev &amp; Co (@dev&quot;okonjo)</div>');
+  });
+
   it('keeps its table headers when the printer strips background colours', () => {
     const html = captureExport(() => exportShowToPDF(show, settings));
     // Print dialogs drop backgrounds by default. The header text is white on

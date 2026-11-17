@@ -60,7 +60,12 @@ function cue(item: ScheduleItem) {
 export function showDetail(show: Show) {
   return {
     ...showSummary(show),
+    // The first host and, when two share the night, the second, each with the
+    // handle they are tagged by.
     host: show.host ?? '',
+    hostSocial: show.hostSocial ?? '',
+    coHost: show.coHost ?? '',
+    coHostSocial: show.coHostSocial ?? '',
     performerTarget: show.performerTarget,
     productionNotes: show.productionNotes ?? '',
     hasFlyer: !!show.flyer,
@@ -148,7 +153,10 @@ export function showText(show: Show): string {
     detail.name,
     ...lines([
       ['Date', detail.date || 'not set'], ['Time', detail.time], ['Venue', detail.venueName], ['Location', detail.location],
-      ['Status', detail.status], ['Host', detail.host], ['Tickets', detail.ticketLink], ['Booking target', detail.performerTarget],
+      ['Status', detail.status],
+      ['Host', [detail.host, detail.hostSocial].filter(Boolean).join(' · ')],
+      ['Second host', [detail.coHost, detail.coHostSocial].filter(Boolean).join(' · ')],
+      ['Tickets', detail.ticketLink], ['Booking target', detail.performerTarget],
       ['Production notes', detail.productionNotes],
     ]),
     ...sections.filter(([, body]) => body.length).flatMap(([title, body]) => ['', title, ...body]),

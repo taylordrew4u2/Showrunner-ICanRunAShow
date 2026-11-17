@@ -31,9 +31,11 @@ The full feature list. The [README](../README.md) has the short version.
 - Clickable contacts: social handles link straight to the profile (bare handles resolve to Instagram); one tap to email a performer
 - "Email all performers" opens your mail app with the lineup BCC'd and a pre-filled confirmation
 - Global performer Rolodex: save a performer once, reuse across shows; edits sync to all matching performers
-- Vendors, staff, host, expenses, and per-section deadlines on each show
+- Vendors, staff, expenses, and per-section deadlines on each show
+- Up to two hosts on a show, each with a social handle. Pick a host from the Rolodex and their handle comes with them and stays in step with their entry; type a name and you type the handle beside it, and when the name is someone in the Rolodex with no handle yet, leaving the field saves it to their entry. A show saved with one host keeps it as the first host, with nothing to migrate
+- The hosts and their handles appear wherever the host does: the show page and its card, Post copy, the public viewer page, the printed runsheet, the running-order tools, and what assistants and co-producers see
 - A recap once the night is over: attendance, ticket and merch sales, other costs (door split, performer pay), and the profit or loss after the show's vendors, on screen and on the printed runsheet
-- Post copy: the show's details, host, bill and everyone's handles composed into a caption and copied to the clipboard (nothing is posted for you)
+- Post copy: the show's details, the host or hosts, the bill and everyone's handles, hosts' included, composed into a caption and copied to the clipboard (nothing is posted for you)
 
 ## Schedule import
 

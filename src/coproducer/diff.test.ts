@@ -600,3 +600,38 @@ describe('a settings fixture with every field', () => {
     }
   });
 });
+
+describe('the hosts', () => {
+  const hosted = fullShow({ coHost: undefined, coHostSocial: undefined, coHostComicId: undefined });
+
+  it('names a second host and each host’s social in words', () => {
+    const after = fullShow({ ...hosted, hostSocial: '@cal.hosts', coHost: 'Dee', coHostSocial: '@deehosts', coHostComicId: 'c4' });
+    expect(changesOf(diffShow(hosted, after))).toEqual([
+      { key: 'hostSocial', path: [], label: 'Host’s social', before: '@calhosts', after: '@cal.hosts', change: 'changed' },
+      { key: 'coHost', path: [], label: 'Second host', before: null, after: 'Dee', change: 'added' },
+      { key: 'coHostSocial', path: [], label: 'Second host’s social', before: null, after: '@deehosts', change: 'added' },
+    ]);
+  });
+
+  it('says a host was changed or removed, and never shows the Rolodex link that went with them', () => {
+    const before = fullShow();
+    const after = fullShow({ host: 'Bo', hostSocial: undefined, hostComicId: undefined, coHost: undefined, coHostSocial: undefined, coHostComicId: undefined });
+    const changes = changesOf(diffShow(before, after));
+    expect(changes.map((c) => [c.label, c.change, c.before, c.after])).toEqual([
+      ['Host', 'changed', 'Cal', 'Bo'],
+      ['Host’s social', 'removed', '@calhosts', null],
+      ['Second host', 'removed', 'Dee', null],
+      ['Second host’s social', 'removed', '@deehosts', null],
+    ]);
+    expect(changes.map((c) => c.key)).not.toContain('hostComicId');
+    expect(changes.map((c) => c.key)).not.toContain('coHostComicId');
+  });
+
+  it('lists a new show’s hosts and socials under their own labels', () => {
+    const labels = changesOf(diffShow(null, fullShow())).map((c) => c.label);
+    for (const label of ['Host', 'Host’s social', 'Second host', 'Second host’s social']) expect(labels, label).toContain(label);
+    for (const bookkeeping of ['Host comic id', 'Co host comic id', 'Co host', 'Co host social', 'Host social']) {
+      expect(labels, bookkeeping).not.toContain(bookkeeping);
+    }
+  });
+});

@@ -143,14 +143,19 @@ export function segmentLength(seconds: number): string {
  * outro, so the shortest "set" was always a handover: an even bill read "Ada
  * has 10× the time of Hal".
  *
+ * Two hosts are left out the same way, under either name and under both
+ * together, which is how the generator writes a shared handover.
+ *
  * Null when there's nothing to compare — fewer than two sets.
  */
 export function billBalance(
   segments: TimelineSegment[],
-  host?: string,
+  host?: string | string[],
 ): { ratio: number; longest: TimelineSegment; shortest: TimelineSegment } | null {
-  const hostKey = host?.trim().toLowerCase();
-  const sets = segments.filter((s) => s.kind === 'set' && (!hostKey || s.performer?.toLowerCase() !== hostKey));
+  const hostKeys = new Set(
+    (typeof host === 'string' ? [host] : host ?? []).map((name) => name.trim().toLowerCase()).filter(Boolean),
+  );
+  const sets = segments.filter((s) => s.kind === 'set' && !hostKeys.has(s.performer?.toLowerCase() ?? ''));
   if (sets.length < 2) return null;
   let longest = sets[0];
   let shortest = sets[0];

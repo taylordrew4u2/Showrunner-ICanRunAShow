@@ -8,8 +8,8 @@ interface ShowTimelineProps {
   schedule: ScheduleItem[];
   /** The show's start time, used when no cue carries one of its own. */
   showTime?: string;
-  /** Who's hosting, whose welcome and handovers are not a set on the bill. */
-  host?: string;
+  /** Who's hosting, whose welcome and handovers are not a set on the bill: a name, or every name their cues carry. */
+  host?: string | string[];
 }
 
 /**

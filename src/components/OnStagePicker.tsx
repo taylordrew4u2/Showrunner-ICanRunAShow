@@ -15,6 +15,7 @@ import { resolveCuePerformer } from '../utils/soundboard';
 
 /** Sentinel values for people with no performer record to link to. */
 const HOST_OPTION = 'host:';
+const CO_HOST_OPTION = 'cohost:';
 const CUSTOM_OPTION = 'custom:';
 
 export interface OnStageValue {
@@ -47,6 +48,8 @@ interface OnStagePickerProps {
   unbookedComics?: PotentialComic[];
   /** Who's hosting, from the Host field on the show. */
   host?: string;
+  /** The second host, when the show has two. */
+  coHost?: string;
   /**
    * Book someone from the Rolodex onto this show and hand back their new
    * record, so the cue can link to it. Without it the Rolodex group is hidden,
@@ -67,6 +70,7 @@ export function OnStagePicker({
   performers,
   unbookedComics = [],
   host,
+  coHost,
   onBookPerformer,
   onChange,
   selectClassName,
@@ -83,20 +87,25 @@ export function OnStagePicker({
 
   const performerId = linkedPerformerId(value, performers);
   const typedName = (value.performer ?? '').trim();
-  const hostName = host?.trim() ?? '';
   // A host who is also booked is already in the list — link the cue to that
   // record so Run Show gets their face and their walk-on, and mark which one
   // they are rather than offering the same person twice.
-  const hostPerformer = hostName
-    ? performers.find((p) => p.name.trim().toLowerCase() === hostName.toLowerCase())
-    : undefined;
-  const hostOnly = !!hostName && !hostPerformer;
-  const isHostPick = hostOnly && typedName.toLowerCase() === hostName.toLowerCase();
-  const isCustom = !performerId && !isHostPick && (typedName !== '' || typingName);
+  const hosting = [
+    { option: HOST_OPTION, name: host?.trim() ?? '' },
+    { option: CO_HOST_OPTION, name: coHost?.trim() ?? '' },
+  ].filter((entry) => entry.name).map((entry) => ({
+    ...entry,
+    performer: performers.find((p) => p.name.trim().toLowerCase() === entry.name.toLowerCase()),
+  }));
+  const hostPerformerIds = new Set(hosting.map((entry) => entry.performer?.id).filter(Boolean));
+  // The hosts with no record on the bill, each offered by name.
+  const hostsOnly = hosting.filter((entry) => !entry.performer);
+  const hostPick = hostsOnly.find((entry) => typedName.toLowerCase() === entry.name.toLowerCase());
+  const isCustom = !performerId && !hostPick && (typedName !== '' || typingName);
   // A pick with no record has no id to hold, so a sentinel stands in for it —
   // otherwise the select would fall back to "nobody" as though nothing had been
   // chosen at all.
-  const selectValue = performerId || (isHostPick ? HOST_OPTION : isCustom ? CUSTOM_OPTION : '');
+  const selectValue = performerId || (hostPick ? hostPick.option : isCustom ? CUSTOM_OPTION : '');
 
   // Choosing "someone else" should land the cursor in the box it reveals — but
   // only when it was just chosen. Opening a cue that already has a typed name
@@ -121,10 +130,11 @@ export function OnStagePicker({
       onChange({ performer: undefined, performerId: undefined });
       return;
     }
-    if (next === HOST_OPTION) {
+    const pickedHost = hostsOnly.find((entry) => entry.option === next);
+    if (pickedHost) {
       // The host isn't on the bill, so there's no record to link — the name is
       // the whole attachment, and Run Show reads it to put them on stage.
-      onChange({ performer: hostName, performerId: undefined });
+      onChange({ performer: pickedHost.name, performerId: undefined });
       return;
     }
     if (next.startsWith('rolodex:')) {
@@ -148,9 +158,11 @@ export function OnStagePicker({
         <option value="">On stage: nobody</option>
         {/* First, because on most nights the host works more cues than anybody
             on the bill does. */}
-        {hostOnly && (
+        {hostsOnly.length > 0 && (
           <optgroup label="Hosting">
-            <option value={HOST_OPTION}>{hostName}</option>
+            {hostsOnly.map((entry) => (
+              <option key={entry.option} value={entry.option}>{entry.name}</option>
+            ))}
           </optgroup>
         )}
         {performers.length > 0 && (
@@ -158,7 +170,7 @@ export function OnStagePicker({
             {performers.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
-                {p.id === hostPerformer?.id ? ' (host)' : ''}
+                {hostPerformerIds.has(p.id) ? ' (host)' : ''}
                 {p.walkOnMusic ? ' (walk-on)' : ''}
               </option>
             ))}

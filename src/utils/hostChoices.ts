@@ -7,6 +7,7 @@
  * Rolodex is where that name already lives, so it's offered too.
  */
 import type { Artist, Performer, PotentialComic } from '../types';
+import { rolodexKey } from './rolodex';
 
 export interface HostChoices {
   /** Names already on this show's bill. */
@@ -41,4 +42,33 @@ export function hostChoices(
     ...(artists ?? []).map((a) => a.name),
   ]);
   return { onBill, rolodex: take(potentialComics.map((c) => c.name)) };
+}
+
+/** Someone picked to host: their name, the handle saved for them and their Rolodex entry. */
+export interface HostPick {
+  name: string;
+  social?: string;
+  comicId?: string;
+}
+
+/**
+ * Who a name on the list is.
+ *
+ * Someone on this bill first, with the handle their booking carries and the
+ * entry it is linked to; otherwise the Rolodex entry of that name. Either
+ * way the host takes the handle already saved for them, so it is not typed
+ * a second time, and keeps the link that lets it follow their entry.
+ */
+export function hostPick(
+  name: string,
+  performers: Performer[],
+  artists: Artist[] | undefined,
+  potentialComics: PotentialComic[],
+): HostPick {
+  const key = rolodexKey(name);
+  const booked = [...performers, ...(artists ?? [])].find((person) => rolodexKey(person.name) === key);
+  if (booked) return { name: booked.name.trim(), social: booked.socialMedia, comicId: booked.comicId };
+  const comic = potentialComics.find((entry) => rolodexKey(entry.name) === key);
+  if (comic) return { name: comic.name.trim(), social: comic.socialMedia, comicId: comic.id };
+  return { name: name.trim() };
 }

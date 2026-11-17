@@ -145,3 +145,33 @@ describe('mergeShowEdit with surprise guests', () => {
     expect(merged.email).toBe(ada.email);
   });
 });
+
+describe('mergeShowEdit and the hosts', () => {
+  const hosted = show({ host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'jo' });
+
+  it('adds a second host without undoing what another device changed meanwhile', () => {
+    const current = { ...hosted, productionNotes: 'Soundcheck at six', hostSocial: '@jo.park' };
+    const incoming = { ...hosted, coHost: 'Dev Okonjo', coHostSocial: '@devokonjo' };
+    const merged = mergeShowEdit(hosted, incoming, current);
+    expect(merged).toMatchObject({
+      host: 'Jo Park', hostSocial: '@jo.park', hostComicId: 'jo',
+      coHost: 'Dev Okonjo', coHostSocial: '@devokonjo', productionNotes: 'Soundcheck at six',
+    });
+  });
+
+  it('removes a host, the handle and the link together', () => {
+    const baseline = { ...hosted, coHost: 'Dev Okonjo', coHostSocial: '@devokonjo', coHostComicId: 'dev' };
+    const incoming = { ...baseline, coHost: undefined, coHostSocial: undefined, coHostComicId: undefined };
+    const merged = mergeShowEdit(baseline, incoming, { ...baseline, productionNotes: 'Later note' });
+    expect(merged.coHost).toBeUndefined();
+    expect(merged.coHostSocial).toBeUndefined();
+    expect(merged.coHostComicId).toBeUndefined();
+    expect(merged).toMatchObject({ host: 'Jo Park', hostSocial: '@jopark', productionNotes: 'Later note' });
+  });
+
+  it('leaves the hosts alone when the edit was to something else', () => {
+    const current = { ...hosted, coHost: 'Dev Okonjo', coHostSocial: '@devokonjo' };
+    const merged = mergeShowEdit(hosted, { ...hosted, venueName: 'The Cellar' }, current);
+    expect(merged).toMatchObject({ venueName: 'The Cellar', coHost: 'Dev Okonjo', coHostSocial: '@devokonjo' });
+  });
+});

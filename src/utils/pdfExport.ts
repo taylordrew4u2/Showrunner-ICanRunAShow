@@ -1,6 +1,7 @@
 import { buildIntroCards, type IntroCard } from "./introCards";
 import { showDJSongs } from "./musicLibrary";
 import { recapMoney } from "./recapMoney";
+import { hostHandle, joinHosts, showHosts, type ShowHost } from "./showHosts";
 import { isSurpriseGuest, SURPRISE_GUEST_LABEL } from "./surpriseGuests";
 import { deliveryAllowed } from "../coproducer/gates";
 import type {
@@ -366,6 +367,16 @@ function renderIntroCard(card: IntroCard): string {
       </div>`;
 }
 
+/**
+ * A host on the run sheet: the name, and in brackets the handle they are
+ * tagged by. A social that is not a handle, a pasted link to some other
+ * page, is printed as it was typed, the way the lineup's column prints it.
+ */
+function runsheetHost(host: ShowHost): string {
+  const social = hostHandle(host) ?? host.social;
+  return social ? `${host.name} (${social})` : host.name;
+}
+
 export function exportShowToPDF(show: Show, settings: AppSettings): void {
   // The same list the show runs on: its own songs plus the music library.
   const djSongs = showDJSongs(show, settings.musicLibrary ?? []);
@@ -377,6 +388,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   // the stored profitLoss, which a vendor's later change of cost left behind.
   const money = recapMoney(show.recap, show.vendors ?? []);
   const ticketHref = show.ticketLink ? webHref(show.ticketLink) : null;
+  const hosts = showHosts(show);
   const recapStat = (label: string, value: string) =>
     `<div class="recap-stat"><div class="recap-stat__label">${label}</div><div class="recap-stat__value">${value}</div></div>`;
 
@@ -545,7 +557,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   ${show.location ? `<div class="meta"><strong>Location:</strong> ${esc(show.location)}</div>` : ""}
   ${show.ticketLink ? `<div class="meta"><strong>Ticket Link:</strong> ${ticketHref ? `<a href="${esc(ticketHref)}">${esc(show.ticketLink)}</a>` : esc(show.ticketLink)}</div>` : ""}
   ${show.status ? `<div class="meta"><strong>Status:</strong> ${esc(show.status)}</div>` : ""}
-  ${show.host ? `<div class="meta"><strong>Host:</strong> ${esc(show.host)}</div>` : ""}
+  ${hosts.length > 0 ? `<div class="meta"><strong>${hosts.length > 1 ? "Hosts" : "Host"}:</strong> ${esc(joinHosts(hosts.map(runsheetHost)))}</div>` : ""}
 
   ${
     show.performers.length > 0

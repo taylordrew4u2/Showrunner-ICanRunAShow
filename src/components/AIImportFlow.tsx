@@ -19,6 +19,8 @@ interface AIImportFlowProps {
   unbookedComics?: PotentialComic[];
   /** Who's hosting — usually the busiest name on an imported run sheet. */
   host?: string;
+  /** The second host, when two share the night. */
+  coHost?: string;
   onBookPerformer?: (comic: PotentialComic) => Performer;
   /**
    * Everyone the app knows by name. A run sheet writes people into the cue
@@ -61,6 +63,7 @@ export function AIImportFlow({
   performers = [],
   unbookedComics = [],
   host,
+  coHost,
   onBookPerformer,
   knownNames = [],
   onClose,
@@ -478,6 +481,7 @@ export function AIImportFlow({
                         performers={performers}
                         unbookedComics={unbookedComics}
                         host={host}
+                        coHost={coHost}
                         onBookPerformer={onBookPerformer}
                         onChange={(next) => editItem(i.id, next)}
                         selectClassName="section-field__select review-edit__perfsel"

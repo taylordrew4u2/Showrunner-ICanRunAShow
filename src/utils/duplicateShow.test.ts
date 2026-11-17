@@ -221,3 +221,33 @@ describe('duplicating a show whose acts had walk-ons on the DJ list', () => {
     expect(copy.djSongs).toEqual([house, owned]);
   });
 });
+
+describe('duplicating a hosted show', () => {
+  it('keeps both hosts, their handles and their Rolodex links: a weekly room has the same hosts', () => {
+    const hosts = {
+      host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo',
+      coHost: 'Dev Okonjo', coHostSocial: '@devokonjo', coHostComicId: 'c-dev',
+    };
+    const copy = duplicateShow({ ...original, ...hosts });
+    expect(copy).toMatchObject(hosts);
+    expect(copy.performers).toEqual([]);
+  });
+
+  it('keeps the one host of a show saved before there could be two', () => {
+    const copy = duplicateShow({ ...original, host: 'Jo Park' });
+    expect(copy.host).toBe('Jo Park');
+    expect(copy.coHost).toBeUndefined();
+  });
+
+  it('leaves the hosts’ cues on the running order, both names and the two together', () => {
+    const copy = duplicateShow({
+      ...original, host: 'Jo Park', coHost: 'Dev Okonjo',
+      schedule: [
+        { id: 's1', time: '0:00', description: 'Welcome', performer: 'Jo Park and Dev Okonjo' },
+        { id: 's2', time: '5:00', description: 'Set', performer: 'Ada Cole', performerId: 'p1' },
+        { id: 's3', time: '15:00', description: 'Outro', performer: 'Dev Okonjo' },
+      ],
+    });
+    expect(copy.schedule.map((cue) => cue.performer)).toEqual(['Jo Park and Dev Okonjo', undefined, 'Dev Okonjo']);
+  });
+});

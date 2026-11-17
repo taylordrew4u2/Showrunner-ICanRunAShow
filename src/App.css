@@ -3431,6 +3431,26 @@ body.has-modal .status-rail {
 
 /* Pre-show state */
 .live-viewer--pre { gap: 14px; }
+/* Who is hosting, under the show's name: the names at full strength, the
+   handles as the links they are. */
+.live-viewer__hosts {
+  max-width: min(640px, 100%);
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.live-viewer__host-name {
+  color: var(--text);
+  font-weight: 600;
+}
+.live-viewer__host-handle {
+  color: inherit;
+}
+a.live-viewer__host-handle {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .live-viewer__pre-label {
   font-size: var(--text-xs);
   font-weight: 700;

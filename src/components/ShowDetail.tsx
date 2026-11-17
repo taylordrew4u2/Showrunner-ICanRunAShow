@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Show, ShowStatus, Scene, AppSettings, SectionKey, TodoItem, Performer, PotentialComic } from '../types';
 import { generateId } from '../utils/id';
-import { comicToPerformer } from '../utils/rolodex';
+import { claimHostEntry, comicToPerformer } from '../utils/rolodex';
 import { SceneList } from './SceneList';
 import { Icon, type IconName } from './Icon';
 import { MoreMenu, type MoreMenuItem } from './MoreMenu';
@@ -33,7 +33,8 @@ import { BrandMark } from './BrandMark';
 import { showDJSongs } from '../utils/musicLibrary';
 import { withWalkOnSongs, withoutRemovedWalkOns } from '../utils/walkOnSongs';
 import { getRolodexTerm } from '../utils/terminology';
-import { hostChoices } from '../utils/hostChoices';
+import { hostChoices, hostPick } from '../utils/hostChoices';
+import { HOST_SLOTS, HOST_SOCIAL_FIELD, hostSlot, pickHost, hostCueNames, removeHost, retypeHost, retypeHostSocial, type HostSlot } from '../utils/showHosts';
 import { refreshSignatures, signerStatus } from '../utils/contracts';
 import { fileSignedHeadshots } from '../utils/signedHeadshots';
 import { uploadMedia } from '../utils/mediaStore';
@@ -182,11 +183,12 @@ export function ShowDetail({
   const knownNames = useMemo(
     () => [
       ...(show.host ? [show.host] : []),
+      ...(show.coHost ? [show.coHost] : []),
       ...show.performers.map((p) => p.name),
       ...(show.artists ?? []).map((a) => a.name),
       ...settings.potentialComics.map((c) => c.name),
     ].filter((n) => n?.trim()),
-    [show.host, show.performers, show.artists, settings.potentialComics],
+    [show.host, show.coHost, show.performers, show.artists, settings.potentialComics],
   );
   /**
    * The show as it is *now*, for anything that resolves after an await.
@@ -358,7 +360,7 @@ export function ShowDetail({
       clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [review.active, show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers, session]);
+  }, [review.active, show.viewToken, show.status, runShowOpen, show.name, show.date, show.time, show.viewNote, show.performers, show.host, show.hostSocial, show.coHost, show.coHostSocial, session]);
 
   useEffect(() => {
     if (!show.viewToken) return;
@@ -473,19 +475,27 @@ export function ShowDetail({
     return out;
   }, [show.performers, show.artists, settings.potentialComics, rolodexTerm]);
   const hostListId = `show-host-options-${show.id}`;
+  // Leaving a host's field is the producer done typing it: only then is a
+  // handle beside the name of someone on file theirs to keep.
+  const claimHost = (slot: HostSlot) => {
+    const claimed = claimHostEntry(show, slot, settings.potentialComics);
+    if (claimed !== show) onUpdate(claimed);
+  };
   const repeatDates = useMemo(
     () => (repeatOpen && show.date ? recurringDates(show.date, repeatPattern, repeatCount) : []),
     [repeatOpen, show.date, repeatPattern, repeatCount],
   );
   /**
-   * The picker under the Host field.
+   * The picker under a Host field, and which host it is open for.
    *
    * A datalist is invisible on most phones — it only appears once you have
    * typed enough of a name to match, which is no use when the whole point is
    * not remembering how the name is spelled. So the same names are also a
    * list you can open and tap.
    */
-  const [hostPicking, setHostPicking] = useState(false);
+  const [hostPicking, setHostPicking] = useState<HostSlot | null>(null);
+  // Most nights have one host, so the second field waits to be asked for.
+  const [secondHostOpen, setSecondHostOpen] = useState(false);
 
   function handleScenesChange(scenes: Scene[]) {
     onUpdate({ ...show, scenes });
@@ -775,6 +785,7 @@ export function ShowDetail({
         showTime={show.time}
         performers={show.performers}
         host={show.host}
+        coHost={show.coHost}
         knownNames={knownNames}
         unbookedComics={unbookedComics}
         onBookPerformer={bookFromRolodex}
@@ -1189,63 +1200,105 @@ export function ShowDetail({
           which a datalist can't render — so the bill is listed first, where
           the host almost always comes from. */}
       <div className="show-detail__host">
-        <label className="show-detail__host-label" htmlFor="show-host-input">Host</label>
-        <input
-          id="show-host-input"
-          type="text"
-          className="section-field__input show-detail__host-input"
-          placeholder="Host name"
-          list={hostListId}
-          value={show.host || ''}
-          onChange={(e) => onUpdate({ ...show, host: e.target.value || undefined })}
-        />
         {hostSuggestions.length > 0 && (
-          <>
-            <datalist id={hostListId}>
-              {hostSuggestions.map((pick) => (
-                <option key={pick.name} value={pick.name} label={pick.from} />
-              ))}
-            </datalist>
-            <button
-              type="button"
-              className="btn btn--secondary btn--sm show-detail__host-pick"
-              aria-expanded={hostPicking}
-              onClick={() => setHostPicking((v) => !v)}
-            >
-              {hostPicking ? 'Close' : `Pick from ${rolodexTerm.plural.toLowerCase()}`}
-            </button>
-          </>
-        )}
-        <PendingInline groupKey={`show:${show.id}`} prefix="host" />
-        {hostPicking && (
-          <div className="show-detail__host-list">
+          <datalist id={hostListId}>
             {hostSuggestions.map((pick) => (
-              <button
-                key={pick.name}
-                type="button"
-                className="show-detail__host-option"
-                onClick={() => {
-                  onUpdate({ ...show, host: pick.name });
-                  setHostPicking(false);
-                }}
-              >
-                <span className="show-detail__host-option-name">{pick.name}</span>
-                <span className="show-detail__host-option-from">{pick.from}</span>
-              </button>
+              <option key={pick.name} value={pick.name} label={pick.from} />
             ))}
-            {show.host && (
-              <button
-                type="button"
-                className="show-detail__host-option show-detail__host-option--clear"
-                onClick={() => {
-                  onUpdate({ ...show, host: undefined });
-                  setHostPicking(false);
-                }}
-              >
-                Clear the host
-              </button>
-            )}
-          </div>
+          </datalist>
+        )}
+        {/* Two hosts at most, each a name and the handle they are tagged by.
+            Picked from the list, the handle comes with them and follows their
+            Rolodex entry; typed, it is whatever is typed beside the name. */}
+        {HOST_SLOTS.map((slot) => {
+          const held = hostSlot(show, slot);
+          const second = slot === 'coHost';
+          if (second && !held.name && !held.social && !secondHostOpen) return null;
+          const label = second ? 'Second host' : 'Host';
+          const inputId = second ? 'show-cohost-input' : 'show-host-input';
+          return (
+            <div key={slot} className="show-detail__host-slot">
+              <label className="show-detail__host-label" htmlFor={inputId}>{label}</label>
+              <input
+                id={inputId}
+                type="text"
+                className="section-field__input show-detail__host-input"
+                placeholder={second ? 'Second host name' : 'Host name'}
+                list={hostListId}
+                value={held.name}
+                onChange={(e) => onUpdate(retypeHost(show, slot, e.target.value))}
+                onBlur={() => claimHost(slot)}
+              />
+              <input
+                id={second ? 'show-cohost-social-input' : 'show-host-social-input'}
+                type="text"
+                className="section-field__input show-detail__host-input"
+                placeholder="@handle or profile link"
+                aria-label={`${label}'s social`}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={held.social}
+                onChange={(e) => onUpdate(retypeHostSocial(show, slot, e.target.value))}
+                onBlur={() => claimHost(slot)}
+              />
+              <div className="show-detail__host-actions">
+                {hostSuggestions.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm show-detail__host-pick"
+                    aria-expanded={hostPicking === slot}
+                    aria-label={second && hostPicking !== slot ? `Pick the second host from ${rolodexTerm.plural.toLowerCase()}` : undefined}
+                    onClick={() => setHostPicking((open) => (open === slot ? null : slot))}
+                  >
+                    {hostPicking === slot ? 'Close' : `Pick from ${rolodexTerm.plural.toLowerCase()}`}
+                  </button>
+                )}
+                {(held.name || held.social || second) && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm show-detail__host-remove"
+                    onClick={() => {
+                      onUpdate(removeHost(show, slot));
+                      setHostPicking(null);
+                      setSecondHostOpen(false);
+                    }}
+                  >
+                    {second ? 'Remove the second host' : 'Remove the host'}
+                  </button>
+                )}
+              </div>
+              <PendingInline groupKey={`show:${show.id}`} prefix={slot} />
+              <PendingInline groupKey={`show:${show.id}`} prefix={HOST_SOCIAL_FIELD[slot]} />
+              {hostPicking === slot && (
+                <div className="show-detail__host-list">
+                  {hostSuggestions.map((pick) => (
+                    <button
+                      key={pick.name}
+                      type="button"
+                      className="show-detail__host-option"
+                      onClick={() => {
+                        onUpdate(pickHost(show, slot, hostPick(pick.name, show.performers, show.artists, settings.potentialComics)));
+                        setHostPicking(null);
+                      }}
+                    >
+                      <span className="show-detail__host-option-name">{pick.name}</span>
+                      <span className="show-detail__host-option-from">{pick.from}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {show.host?.trim() && !show.coHost && !show.coHostSocial && !secondHostOpen && (
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm show-detail__host-add"
+            onClick={() => setSecondHostOpen(true)}
+          >
+            Add a second host
+          </button>
         )}
       </div>
 
@@ -1270,7 +1323,7 @@ export function ShowDetail({
         </div>
         {renderSection(scheduleSection)}
         {!expandedSections.has('schedule') && <>
-        {show.schedule.length > 0 && <ShowTimeline schedule={show.schedule} showTime={show.time} host={show.host} />}
+        {show.schedule.length > 0 && <ShowTimeline schedule={show.schedule} showTime={show.time} host={hostCueNames([show.host, show.coHost])} />}
         {show.schedule.length ? <ol>
           {show.schedule.map((cue, index) => <li key={cue.id}>
             <span className="show-workspace__cue-number">{String(index + 1).padStart(2, '0')}</span>

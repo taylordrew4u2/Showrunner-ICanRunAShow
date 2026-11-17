@@ -254,6 +254,7 @@ async function knownNames(ctx: AssistantContext, show: Show): Promise<string[]> 
   }
   return [
     ...(show.host ? [show.host] : []),
+    ...(show.coHost ? [show.coHost] : []),
     ...(show.performers ?? []).map(p => p.name),
     ...(show.artists ?? []).map(a => a.name),
     ...comics.map(c => c.name),

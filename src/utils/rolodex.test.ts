@@ -1,17 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import {
   addPerformersToRolodex,
+  claimHostEntry,
   reassignSlot,
   slotReassigned,
   comicToPerformer,
   comicToArtist,
   getComicProfilePatch,
+  hostSocialEdits,
   reconcileRolodexProfiles,
   resolvePerformerComic,
   syncShowsWithRolodex,
   performerToComic,
   rolodexKey,
 } from './rolodex';
+import { retypeHost } from './showHosts';
 import type { Performer, PotentialComic, Show } from '../types';
 
 const performer = (over: Partial<Performer>): Performer => ({
@@ -474,5 +477,219 @@ describe('a surprise guest and the Rolodex', () => {
   it('keeps a guest slot a guest slot when a different act is typed over it', () => {
     const rebooked = reassignSlot({ ...guest, name: 'Rae Sun' }, guest);
     expect(rebooked).toMatchObject({ name: 'Rae Sun', surpriseGuest: true });
+  });
+});
+
+describe('a host and the Rolodex', () => {
+  const jo = comic({ id: 'c-jo', name: 'Jo Park', socialMedia: '@jopark' });
+  const dev = comic({ id: 'c-dev', name: 'Dev Okonjo' });
+
+  it('keeps a picked host’s handle in step with their entry, on every show they host', () => {
+    const shows = [
+      show('friday', [], { host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo' }),
+      show('saturday', [], { host: 'Dev Okonjo', hostComicId: 'c-dev', coHost: 'Jo Park', coHostSocial: '@jopark', coHostComicId: 'c-jo' }),
+      show('sunday', [], { host: 'Jo Park', hostSocial: '@typed' }),
+    ];
+    const synced = syncShowsWithRolodex([{ ...jo, socialMedia: '@jo.park.comedy' }, { ...dev, socialMedia: '@devokonjo' }], shows);
+    expect(synced[0]).toMatchObject({ host: 'Jo Park', hostSocial: '@jo.park.comedy' });
+    expect(synced[1]).toMatchObject({ hostSocial: '@devokonjo', coHostSocial: '@jo.park.comedy' });
+    // Typed by hand, linked to nobody: theirs to keep.
+    expect(synced[2]).toBe(shows[2]);
+  });
+
+  it('clears the handle on the show when it is cleared on the entry', () => {
+    const [synced] = syncShowsWithRolodex(
+      [{ ...jo, socialMedia: undefined }],
+      [show('friday', [], { host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo' })],
+    );
+    expect(synced.hostSocial).toBeUndefined();
+    expect(synced.hostComicId).toBe('c-jo');
+  });
+
+  it('follows a rename, and takes the host’s cues with it', () => {
+    const before = show('friday', [], {
+      host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo',
+      schedule: [
+        { id: 's1', time: '0:00', description: 'Welcome', performer: 'Jo Park' },
+        { id: 's2', time: '5:00', description: 'Jo Park’s favourite bit' },
+        { id: 's3', time: '9:00', description: 'Set', performer: 'Jo Park', performerId: 'someone-else' },
+      ],
+    });
+    const [synced] = syncShowsWithRolodex([{ ...jo, name: 'Jo Park-Lee' }], [before], { renamedFrom: [jo] });
+    expect(synced).toMatchObject({ host: 'Jo Park-Lee', hostSocial: '@jopark', hostComicId: 'c-jo' });
+    expect(synced.schedule.map((cue) => cue.performer)).toEqual(['Jo Park-Lee', undefined, 'Jo Park']);
+    expect(synced.schedule[1]).toBe(before.schedule[1]);
+    // The same rename made from a show page reaches the shows through reconcile.
+    const reconciled = reconcileRolodexProfiles([{ ...jo, name: 'Jo Park-Lee' }], [before], { renamedFrom: [jo] });
+    expect(reconciled.shows[0]).toMatchObject({ host: 'Jo Park-Lee', hostComicId: 'c-jo' });
+  });
+
+  it('keeps a host changed by a writer that only knows the name, rather than putting the entry’s back', () => {
+    // An older build spreads the show and sets `host`: the link and the
+    // handle it has never heard of ride along beside the new name.
+    const linked = show('friday', [], {
+      host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo',
+      schedule: [{ id: 's1', time: '0:00', description: 'Welcome', performer: 'Sam Reyes' }],
+    });
+    const edited = { ...linked, host: 'Sam Reyes' };
+    for (const [synced] of [syncShowsWithRolodex([jo, dev], [edited]), reconcileRolodexProfiles([jo, dev], [edited]).shows]) {
+      expect(synced.host).toBe('Sam Reyes');
+      // Jo's handle would tag Sam as Jo.
+      expect(synced.hostSocial).toBeUndefined();
+      expect(synced.hostComicId).toBeUndefined();
+      expect(synced.schedule).toBe(edited.schedule);
+    }
+    // Settled: the next pass has nothing to do, and Jo's entry is untouched.
+    const result = reconcileRolodexProfiles([jo, dev], [edited]);
+    expect(result.comics).toEqual([jo, dev]);
+    expect(reconcileRolodexProfiles(result.comics, result.shows).shows).toBe(result.shows);
+    // Even with the Rolodex's last state to hand: Jo was not renamed.
+    expect(syncShowsWithRolodex([jo, dev], [edited], { renamedFrom: [jo, dev] })[0].host).toBe('Sam Reyes');
+  });
+
+  it('links a host an older writer changed to someone on file to that person', () => {
+    const edited = show('friday', [], { host: 'Dev Okonjo', hostSocial: '@jopark', hostComicId: 'c-jo' });
+    const withHandle = { ...dev, socialMedia: '@devokonjo' };
+    const result = reconcileRolodexProfiles([jo, withHandle], [edited]);
+    expect(result.shows[0]).toMatchObject({ host: 'Dev Okonjo', hostSocial: '@devokonjo', hostComicId: 'c-dev' });
+    expect(result.comics).toEqual([jo, withHandle]);
+  });
+
+  it('leaves a host an older writer took off the show off it', () => {
+    const cleared = show('friday', [], {
+      host: undefined, hostSocial: '@jopark', hostComicId: 'c-jo',
+      coHost: 'Dev Okonjo', coHostComicId: 'c-dev',
+    });
+    const [synced] = reconcileRolodexProfiles([jo, dev], [cleared]).shows;
+    expect(synced.host).toBeUndefined();
+    expect(synced.hostSocial).toBeUndefined();
+    expect(synced.hostComicId).toBeUndefined();
+    expect(synced).toMatchObject({ coHost: 'Dev Okonjo', coHostComicId: 'c-dev' });
+  });
+
+  it('leaves a spelling the Rolodex reads as the same name as it was typed', () => {
+    // Still being typed: a trailing space must not be corrected under the cursor.
+    const typing = show('friday', [], { host: 'jo park ', hostSocial: '@jopark', hostComicId: 'c-jo' });
+    expect(syncShowsWithRolodex([jo], [typing])[0]).toBe(typing);
+  });
+
+  it('hands back the same shows when no host changed', () => {
+    const shows = [show('friday', [], { host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo' })];
+    expect(syncShowsWithRolodex([jo, dev], shows)).toBe(shows);
+  });
+
+  it('leaves a host alone whose entry was removed from the Rolodex', () => {
+    const orphan = show('friday', [], { host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-gone' });
+    expect(syncShowsWithRolodex([dev], [orphan])[0]).toBe(orphan);
+  });
+
+  it('links a host typed by name to the one person on file with that name, and gives them their handle', () => {
+    // Saved before hosts had handles: the name alone.
+    const legacy = show('friday', [], { host: 'jo park' });
+    const result = reconcileRolodexProfiles([jo, dev], [legacy]);
+    expect(result.shows[0]).toMatchObject({ host: 'jo park', hostSocial: '@jopark', hostComicId: 'c-jo' });
+    expect(result.comics).toEqual([jo, dev]);
+  });
+
+  it('never files a handle typed beside a host on an entry while the show is reconciled', () => {
+    // Reconciling runs on every keystroke, and "Dev Okonjo" may be a name
+    // that is not finished: the host keeps the handle and the entry stays bare.
+    const typed = show('friday', [], { host: 'Jo Park', coHost: 'Dev Okonjo', coHostSocial: '@devokonjo' });
+    const result = reconcileRolodexProfiles([jo, dev], [typed]);
+    expect(result.comics).toEqual([jo, dev]);
+    expect(result.shows[0]).toMatchObject({
+      hostSocial: '@jopark', hostComicId: 'c-jo', coHost: 'Dev Okonjo', coHostSocial: '@devokonjo',
+    });
+    expect(result.shows[0].coHostComicId).toBeUndefined();
+  });
+
+  it('keeps a typed handle on the host, and off the entries their name passes through', () => {
+    const al = comic({ id: 'c-al', name: 'Al' });
+    let comics = [al, jo];
+    let current = show('friday', [], { hostSocial: '@alice' });
+    // The handle first, then the name a key at a time, as the show page sends it.
+    for (const name of ['A', 'Al', 'Ali', 'Alic', 'Alice']) {
+      const edited = retypeHost(current, 'host', name);
+      comics = hostSocialEdits(current, edited, comics);
+      const result = reconcileRolodexProfiles(comics, [edited], { renamedFrom: comics });
+      comics = result.comics;
+      [current] = result.shows;
+      expect(current).toMatchObject({ host: name, hostSocial: '@alice' });
+      expect(current.hostComicId).toBeUndefined();
+    }
+    expect(comics).toEqual([al, jo]);
+  });
+
+  it('files a handle typed beside a host on their entry once the field is left, when the entry had none', () => {
+    const typed = show('friday', [], { host: 'Jo Park', coHost: 'dev okonjo', coHostSocial: ' @devokonjo ' });
+    const claimed = claimHostEntry(typed, 'coHost', [jo, dev]);
+    expect(claimed).toMatchObject({ coHost: 'dev okonjo', coHostSocial: '@devokonjo', coHostComicId: 'c-dev' });
+    const comics = hostSocialEdits(typed, claimed, [jo, dev]);
+    expect(comics.find((c) => c.id === 'c-dev')?.socialMedia).toBe('@devokonjo');
+    // From here the host follows the entry like any other picked from it.
+    const result = reconcileRolodexProfiles(comics, [claimed], { renamedFrom: [jo, dev] });
+    expect(result.shows[0]).toMatchObject({ coHostSocial: '@devokonjo', coHostComicId: 'c-dev' });
+    expect(result.comics).toBe(comics);
+  });
+
+  it('claims no entry for a host with no handle, a handle of the entry’s own, or a name two people share', () => {
+    const bare = show('friday', [], { host: 'Dev Okonjo' });
+    expect(claimHostEntry(bare, 'host', [jo, dev])).toBe(bare);
+    const other = show('friday', [], { host: 'Jo Park', hostSocial: '@adifferentjo' });
+    expect(claimHostEntry(other, 'host', [jo, dev])).toBe(other);
+    const twins = show('friday', [], { host: 'Dev Okonjo', hostSocial: '@devokonjo' });
+    expect(claimHostEntry(twins, 'host', [dev, comic({ id: 'c-dev-2', name: 'Dev Okonjo' })])).toBe(twins);
+    const picked = show('friday', [], { host: 'Dev Okonjo', hostSocial: '@devokonjo', hostComicId: 'c-dev' });
+    expect(claimHostEntry(picked, 'host', [jo, dev])).toBe(picked);
+    const empty = show('friday', [], {});
+    expect(claimHostEntry(empty, 'coHost', [jo, dev])).toBe(empty);
+  });
+
+  it('does not swap a different handle typed beside a host for the entry’s', () => {
+    const typed = show('friday', [], { host: 'Jo Park', hostSocial: '@adifferentjo' });
+    const result = reconcileRolodexProfiles([jo], [typed]);
+    expect(result.shows[0]).toBe(typed);
+    expect(result.comics).toEqual([jo]);
+  });
+
+  it('links a host whose typed handle is the entry’s, however each was written', () => {
+    const typed = show('friday', [], { host: 'Jo Park', hostSocial: 'https://instagram.com/JoPark' });
+    expect(reconcileRolodexProfiles([jo], [typed]).shows[0]).toMatchObject({ hostComicId: 'c-jo', hostSocial: '@jopark' });
+  });
+
+  it('never files a host in the Rolodex, and links nobody when two entries share the name', () => {
+    const stranger = show('friday', [], { host: 'Your host', hostSocial: '@yourhost' });
+    const twins = show('saturday', [], { host: 'Jo Park' });
+    const result = reconcileRolodexProfiles([jo, comic({ id: 'c-jo-2', name: 'Jo Park' })], [stranger, twins]);
+    expect(result.comics.map((c) => c.id)).toEqual(['c-jo', 'c-jo-2']);
+    expect(result.shows[0]).toBe(stranger);
+    expect(result.shows[1]).toBe(twins);
+  });
+
+  it('writes a handle edited beside a picked host back to their entry', () => {
+    const before = show('friday', [], { host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo', coHost: 'Dev Okonjo', coHostComicId: 'c-dev' });
+    const edited = hostSocialEdits(before, { ...before, hostSocial: ' @jo.park ', coHostSocial: '@devokonjo' }, [jo, dev]);
+    expect(edited.map((c) => c.socialMedia)).toEqual(['@jo.park', '@devokonjo']);
+    const cleared = hostSocialEdits(before, { ...before, hostSocial: undefined }, [jo, dev]);
+    expect(cleared[0].socialMedia).toBeUndefined();
+  });
+
+  it('writes nothing back for a host just picked, typed over, or typed by hand', () => {
+    const comics = [jo, dev];
+    const before = show('friday', [], { host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo' });
+    // Picked someone else: their handle is their own entry's already.
+    expect(hostSocialEdits(before, { ...before, host: 'Dev Okonjo', hostSocial: undefined, hostComicId: 'c-dev' }, comics)).toBe(comics);
+    // Typed over: the new host is not Jo.
+    expect(hostSocialEdits(before, { ...before, host: 'Sam Reyes', hostSocial: '@samreyes', hostComicId: undefined }, comics)).toBe(comics);
+    const typed = show('saturday', [], { host: 'Sam Reyes' });
+    expect(hostSocialEdits(typed, { ...typed, hostSocial: '@samreyes' }, comics)).toBe(comics);
+    expect(hostSocialEdits(before, before, comics)).toBe(comics);
+    // Picked from the list with a handle the entry does not have: a handle
+    // is only filed for the name it was typed beside.
+    const sam = show('sunday', [], { host: 'Sam Reyes', hostSocial: '@samreyes' });
+    expect(hostSocialEdits(sam, { ...sam, host: 'Dev Okonjo', hostComicId: 'c-dev' }, comics)).toBe(comics);
+    // And never over a handle the entry already has.
+    const joTyped = show('monday', [], { host: 'Jo Park', hostSocial: '@adifferentjo' });
+    expect(hostSocialEdits(joTyped, { ...joTyped, hostComicId: 'c-jo' }, comics)).toBe(comics);
   });
 });

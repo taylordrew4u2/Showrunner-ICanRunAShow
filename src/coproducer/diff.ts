@@ -298,6 +298,9 @@ const SHOW_VALUES = table({
   location: 'Location',
   status: { label: 'Status', hint: 'showStatus' },
   host: 'Host',
+  hostSocial: 'Host’s social',
+  coHost: 'Second host',
+  coHostSocial: 'Second host’s social',
   ticketLink: 'Ticket link',
   flyer: { label: 'Flyer', hint: 'image' },
   performerTarget: { label: 'Booking target', hint: 'number' },
@@ -309,8 +312,14 @@ const SHOW_VALUES = table({
   djHiddenLibraryIds: 'Library tracks left out',
   sample: { label: 'Sample show', hint: 'yesno' },
 });
-/** Keys the owner's app keeps on every show. */
-const SHOW_BOOKKEEPING = table({ id: IGNORED, createdAt: IGNORED, updatedAt: NEVER, viewToken: { label: 'Viewer link' }, viewerKey: NEVER });
+/**
+ * Keys the owner's app keeps on every show. A host's Rolodex link is one:
+ * it changes when the host does, and the name and the handle say that.
+ */
+const SHOW_BOOKKEEPING = table({
+  id: IGNORED, createdAt: IGNORED, updatedAt: NEVER, viewToken: { label: 'Viewer link' }, viewerKey: NEVER,
+  hostComicId: IGNORED, coHostComicId: IGNORED,
+});
 const RECAP_FIELDS = table({
   attendance: { label: 'Attendance', hint: 'number' },
   ticketSales: { label: 'Ticket sales', hint: 'money' },

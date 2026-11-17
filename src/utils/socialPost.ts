@@ -16,7 +16,12 @@
 
 import type { Artist, Performer, Show } from '../types';
 import { formatShowTime, parseShowDate } from './showDate';
+import { hostHandle, joinHosts, showHosts } from './showHosts';
+import { toHandle } from './social';
 import { billedPerformers, surpriseGuests } from './surpriseGuests';
+
+// Where every caller already imports it from.
+export { toHandle };
 
 /** Anyone who appears on the bill and can be tagged. */
 type Billed = Pick<Performer, 'id' | 'name' | 'socialMedia'>;
@@ -32,72 +37,36 @@ export interface SocialPost {
   withheld: string[];
 }
 
-/**
- * Sites whose profile links start with the handle: instagram.com/name.
- *
- * Not TikTok or Threads: a profile there is always tiktok.com/@name, found by
- * its @, and what else comes first is a share link — tiktok.com/t/ZT8abc,
- * the one the app's Share button copies — which was tagged "@t".
- */
-const HANDLE_FIRST = new Set(['instagram.com', 'x.com', 'twitter.com']);
-
-/** Pages on those sites that are not anybody's profile: a post, a reel, a story. */
-const NOT_A_PROFILE = new Set([
-  'p', 'reel', 'reels', 'stories', 'explore', 'tv', 'accounts', 'share', 's', 'i', 'intent', 'hashtag', 'search', 'home',
-]);
-
-/**
- * The handle in a pasted profile link, if it has one.
- *
- * An "@name" anywhere in the path is one (youtube.com/@name,
- * tiktok.com/@name). Otherwise only the sites that put the handle first are
- * read that way. Everywhere else the first part of the path is a page —
- * youtube.com/channel/…, facebook.com/profile.php — and tagging "@channel"
- * tags a stranger, so the person is named untagged instead.
- */
-function handleInLink(host: string, path: string): string | null {
-  const site = host.toLowerCase().replace(/^(?:www|m|mobile)\./, '');
-  const parts = path.split(/[?#]/)[0].split('/').filter(Boolean);
-  const first = parts[0];
-  const candidate = parts.find((part) => part.startsWith('@'))
-    ?? (HANDLE_FIRST.has(site) && first && !NOT_A_PROFILE.has(first.toLowerCase()) ? first : null);
-  const handle = candidate?.replace(/^@+/, '');
-  return handle && /^[\w.-]+$/.test(handle) ? `@${handle}` : null;
+/** A host as the post names them: who, and the handle to tag them by. */
+interface PostedHost {
+  name: string;
+  handle: string | null;
 }
 
 /**
- * Normalise whatever the producer typed into a handle.
+ * Who is hosting, with the handle each is tagged by.
  *
- * The field is free text and gets filled in from wherever the booking came
- * from, so it arrives as "@name", "name", or a pasted profile URL.
+ * The Host fields win, and each host's own handle with them: picked from the
+ * Rolodex or typed beside the name. A host with none saved still gets the
+ * handle they carry on the bill, when they are performing too. With nobody in
+ * the Host fields, whoever is marked hosting on the older hosts list.
  */
-export function toHandle(input: string | undefined): string | null {
-  const text = input?.trim();
-  if (!text) return null;
-
-  // A pasted link has a scheme or a path. "mona.sable" with neither is a
-  // handle with a dot in it, not a web address.
-  const url = /^(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(\/\S*)?$/i.exec(text);
-  if (url && (url[2] !== undefined || /^https?:\/\//i.test(text))) return handleInLink(url[1], url[2] ?? '');
-
-  const cleaned = text.replace(/^@+/, '').replace(/\/+$/, '').trim();
-  // A slash left over is a link that could not be read, not a handle.
-  if (!cleaned || /[\s/]/.test(cleaned)) return null;
-  return `@${cleaned}`;
+function postedHosts(show: Show): PostedHost[] {
+  const billed = billedFrom(show);
+  const onBill = (name: string) =>
+    toHandle(billed.find((p) => p.name.trim().toLowerCase() === name.toLowerCase())?.socialMedia);
+  const named = showHosts(show);
+  if (named.length > 0) return named.map((host) => ({ name: host.name, handle: hostHandle(host) ?? onBill(host.name) }));
+  return (show.hosts ?? [])
+    .filter((h) => h.isHosting && h.name.trim())
+    .map((h) => ({ name: h.name.trim(), handle: onBill(h.name.trim()) }));
 }
 
-/** "Hosted by …", with the host's handle when they are also on the bill. */
+/** "Hosted by …", one host or two, each with their handle when there is one to tag. */
 export function hostLine(show: Show): string | null {
-  const named = show.host?.trim();
-  const hosting = (show.hosts ?? []).filter((h) => h.isHosting && h.name.trim()).map((h) => h.name.trim());
-  const names = named ? [named] : hosting;
-  if (names.length === 0) return null;
-  const withHandle = names.map((name) => {
-    const onBill = billedFrom(show).find((p) => p.name.trim().toLowerCase() === name.toLowerCase());
-    const handle = toHandle(onBill?.socialMedia);
-    return handle ? `${name} ${handle}` : name;
-  });
-  return `Hosted by ${withHandle.join(' & ')}`;
+  const hosts = postedHosts(show);
+  if (hosts.length === 0) return null;
+  return `Hosted by ${joinHosts(hosts.map((host) => (host.handle ? `${host.name} ${host.handle}` : host.name)))}`;
 }
 
 /** Everyone the post may name: the bill without its surprise guests. */
@@ -115,12 +84,15 @@ function billedFrom(show: Show): Billed[] {
   return [...performers, ...artists];
 }
 
-/** Every handle on the bill, in billing order, without repeats. */
+/** Every handle in the post, the hosts' and then the bill's in billing order, without repeats. */
 export function postTags(show: Show): string[] {
   const seen = new Set<string>();
   const tags: string[] = [];
-  billedFrom(show).forEach((person) => {
-    const handle = toHandle(person.socialMedia);
+  const handles = [
+    ...postedHosts(show).map((host) => host.handle),
+    ...billedFrom(show).map((person) => toHandle(person.socialMedia)),
+  ];
+  handles.forEach((handle) => {
     if (handle && !seen.has(handle.toLowerCase())) {
       seen.add(handle.toLowerCase());
       tags.push(handle);
@@ -129,11 +101,20 @@ export function postTags(show: Show): string[] {
   return tags;
 }
 
-/** Who on the bill has no handle saved, so you know who to chase. */
+/**
+ * Who in the post has no handle saved, so you know who to chase: a host
+ * first, then the bill. A host who is also performing is on the bill, and
+ * is listed there.
+ */
 export function untaggedNames(show: Show): string[] {
-  return billedFrom(show)
-    .filter((person) => !toHandle(person.socialMedia))
-    .map((person) => person.name);
+  const billed = billedFrom(show);
+  const billedNames = new Set(billed.map((person) => person.name.trim().toLowerCase()));
+  return [
+    ...postedHosts(show)
+      .filter((host) => !host.handle && !billedNames.has(host.name.toLowerCase()))
+      .map((host) => host.name),
+    ...billed.filter((person) => !toHandle(person.socialMedia)).map((person) => person.name),
+  ];
 }
 
 /**
@@ -158,8 +139,7 @@ export function buildSocialPost(show: Show): SocialPost {
 
   // The host is on the bill too, and was the one name the post kept leaving
   // out: they are not in the performer list, and the caption was built from
-  // that alone. The free-text host field wins; otherwise whoever is marked
-  // hosting on the hosts list.
+  // that alone. Two hosts share the line, each with their own handle.
   const host = hostLine(show);
   if (host) lines.push(host);
 

@@ -7,6 +7,7 @@ import { isMediaRef, uploadMedia } from '../../utils/mediaStore';
 import { TrimControls } from '../TrimControls';
 import { Icon } from '../Icon';
 import { ShowTimeline } from '../ShowTimeline';
+import { hostCueNames } from '../../utils/showHosts';
 import { withCueEdit, withMatchedPerformers, matchKnownName } from '../../utils/cuePerformer';
 import { useConfirm } from '../useConfirm';
 import { clockGap, fillCueDurations, isUntimed, parseClockToMinutes } from '../../utils/showTiming';
@@ -50,6 +51,8 @@ interface ScheduleSectionProps {
    * bill. So every one of those cues had to have the host typed in by hand.
    */
   host?: string;
+  /** The second host, when two share the night. Offered the same way. */
+  coHost?: string;
   /**
    * Everyone this producer has on file — the Rolodex plus this show's own bill.
    * A cue that only mentions a name in its text gets that name filled in as its
@@ -187,6 +190,8 @@ interface CueRowProps {
   performers: Performer[];
   unbookedComics: PotentialComic[];
   host?: string;
+  /** The second host, when two share the night. Offered the same way. */
+  coHost?: string;
   onBookPerformer?: (comic: PotentialComic) => Performer;
   onPatch: (id: string, patch: Partial<ScheduleItem>) => void;
   onDelete: (id: string) => void;
@@ -203,7 +208,7 @@ interface CueRowProps {
 
 const CueRow = memo(function CueRow({
   item, idx, isFirst, isLast, durationText, musicLabel, performers, musicChoices,
-  unbookedComics, host, onBookPerformer, onPatch, onDelete, onMove, onPickMusic,
+  unbookedComics, host, coHost, onBookPerformer, onPatch, onDelete, onMove, onPickMusic,
 }: CueRowProps) {
   const [editing, setEditing] = useState(false);
   const [editTime, setEditTime] = useState(item.time);
@@ -284,6 +289,7 @@ const CueRow = memo(function CueRow({
                 performers={performers}
                 unbookedComics={unbookedComics}
                 host={host}
+                coHost={coHost}
                 onBookPerformer={onBookPerformer}
                 onChange={(next) => {
                   setEditPerformer(next.performer ?? '');
@@ -461,6 +467,7 @@ export function ScheduleSection({
   showTime,
   performers = [],
   host,
+  coHost,
   knownNames = [],
   unbookedComics = [],
   onBookPerformer,
@@ -748,7 +755,7 @@ export function ScheduleSection({
           {/* Above the cue list, because the shape of the night is what you
               want before you start reading rows — and it's the fastest way to
               spot a bill that's gone lopsided. */}
-          <ShowTimeline schedule={schedule} showTime={showTime} host={host} />
+          <ShowTimeline schedule={schedule} showTime={showTime} host={hostCueNames([host, coHost])} />
 
           <div className="quick-add">
             <input
@@ -791,6 +798,7 @@ export function ScheduleSection({
                   performers={performers}
                   unbookedComics={unbookedComics}
                   host={host}
+                  coHost={coHost}
                   onBookPerformer={onBookPerformer}
                   onPatch={handlePatch}
                   onDelete={handleDelete}
@@ -851,6 +859,7 @@ export function ScheduleSection({
         <ScheduleGenerator
           performers={performers}
           host={host}
+          coHost={coHost}
           existingCount={schedule.length}
           onApply={handleApplyGenerated}
           onClose={() => setGeneratorOpen(false)}
@@ -865,6 +874,7 @@ export function ScheduleSection({
               performers={performers}
               unbookedComics={unbookedComics}
               host={host}
+              coHost={coHost}
               onBookPerformer={onBookPerformer}
               knownNames={knownNames}
               onClose={() => setImportOpen(false)}
