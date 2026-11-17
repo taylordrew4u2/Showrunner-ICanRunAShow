@@ -10,15 +10,14 @@
 // nothing and a sealed blob moved to another row opens nothing either.
 //
 // The co-producer's app runs on its own origin, the review origin, so its
-// browser storage is never that of either producer's own account. For the
-// main origin https://<host> it is https://coproduce.<host>, worked out from
-// APP_URL by the same rules the app uses (src/coproducer/originRules.ts).
-// COPRODUCE_ORIGIN, when set, overrides it. A deployment whose address has
-// no coproduce.* sibling (a Vercel preview) has none, and makes no links:
-// localhost and 127.0.0.1 are the exception, for development and tests,
-// where the co-producer's app runs on the app's own origin.
+// browser storage is never that of either producer's own account. It is the
+// one listed for the app's origin (APP_URL) in the rules the app uses too
+// (src/coproducer/originRules.ts). COPRODUCE_ORIGIN, when set, overrides it.
+// A deployment whose address is not listed (a Vercel preview) has none, and
+// makes no links: localhost and 127.0.0.1 are the exception, for development
+// and tests, where the co-producer's app runs on the app's own origin.
 import type { Client } from '@libsql/client';
-import { coproduceConfiguredAt, parseOriginSetting, reviewOriginAt, type OriginLocation } from '../../src/coproducer/originRules';
+import { coproduceConfiguredAt, mainOriginAt, parseOriginSetting, reviewOriginAt, type OriginLocation } from '../../src/coproducer/originRules';
 import { issuer } from './chatgptAuth';
 import { ServerNotConfiguredError } from './db';
 import { clientAddress, rateLimit, rateLimitPeek } from './ratelimit';
@@ -42,18 +41,25 @@ export class CoproducerError extends Error {
   }
 }
 
-/** The app's own origin: APP_URL, or the request's. An address that cannot serve the app is a configuration fault. */
-export function appOrigin(req: Request): string {
-  try {
-    return issuer(req);
-  } catch {
-    throw new ServerNotConfiguredError();
-  }
-}
-
 function at(origin: string): OriginLocation {
   const url = new URL(origin);
   return { origin: url.origin, protocol: url.protocol, hostname: url.hostname };
+}
+
+/**
+ * The app's own origin: APP_URL, or the request's. Never a listed review
+ * origin: the same deployment answers there, so with no APP_URL a request
+ * arriving on it still belongs to the main origin. An address that cannot
+ * serve the app is a configuration fault.
+ */
+export function appOrigin(req: Request): string {
+  let origin: string;
+  try {
+    origin = issuer(req);
+  } catch {
+    throw new ServerNotConfiguredError();
+  }
+  return mainOriginAt(at(origin));
 }
 
 function override(): string | null {
@@ -67,7 +73,7 @@ function override(): string | null {
 
 /**
  * Where co-producers' calls come from: COPRODUCE_ORIGIN when set, else the
- * coproduce.* sibling of the app's origin when it has one, else the app's
+ * review origin listed for the app's origin when it has one, else the app's
  * own origin (development and tests). Throws ServerNotConfiguredError on a
  * malformed override.
  */

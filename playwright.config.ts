@@ -54,7 +54,7 @@ export default defineConfig({
   // One preview server answering on every address (--host), so the build can
   // be opened as two origins: the owner's app on localhost, and a
   // co-producer's view on 127.0.0.1, as production serves it from
-  // coproduce.icanrunashow.com. The build is told which is which (see
+  // showrunner-theta.vercel.app. The build is told which is which (see
   // e2e/support/coproduceOrigins.mjs).
   webServer: {
     command: `npm run build && npx vite preview --host --port ${PORT} --strictPort`,

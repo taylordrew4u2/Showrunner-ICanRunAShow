@@ -7,8 +7,8 @@ import { COPRODUCE_PAGE_NAME, coproduceLinkPage, coproduceOriginSettings } from 
 import { NAVIGATE_FALLBACK_DENYLIST } from './src/utils/navigationFallback'
 
 // Where co-producer links open is worked out from the page's address in
-// production (coproduce.<host>). These overrides exist for the end-to-end
-// tests, which serve the two origins as 127.0.0.1 and localhost; a malformed
+// production (src/coproducer/originRules.ts). These overrides exist for the
+// end-to-end tests, which serve the two origins as 127.0.0.1 and localhost; a malformed
 // one stops the build rather than ship a page that sends co-producers
 // somewhere unintended.
 const COPRODUCE_ORIGINS = coproduceOriginSettings(process.env)

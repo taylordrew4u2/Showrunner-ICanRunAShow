@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { reviewOriginAt } from '../coproducer/originRules';
 import { COPRODUCE_COPY, coproduceBootScript, coproduceLinkPage, coproduceOriginSettings } from './coproduceLinkPage';
 
 const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
@@ -60,13 +61,13 @@ describe('the co-producer link page', () => {
 describe('the boot script', () => {
   it('moves a link on the main site to the review origin, fragment and all, and does nothing else', () => {
     const ran = boot(`https://icanrunashow.com/coproduce#t=${TOKEN}`);
-    expect(ran.replaced).toBe(`https://coproduce.icanrunashow.com/coproduce#t=${TOKEN}`);
+    expect(ran.replaced).toBe(`https://showrunner-theta.vercel.app/coproduce#t=${TOKEN}`);
     expect(ran.global).toBeUndefined();
     expect(ran.states).toEqual([]);
   });
 
   it('takes the token on the review origin and strips the address at once', () => {
-    const ran = boot(`https://coproduce.icanrunashow.com/coproduce?utm=x#t=${TOKEN}`);
+    const ran = boot(`https://showrunner-theta.vercel.app/coproduce?utm=x#t=${TOKEN}`);
     expect(ran.replaced).toBeNull();
     expect(ran.global).toBe(TOKEN);
     expect(ran.states).toEqual([[null, '', '/coproduce']]);
@@ -77,12 +78,18 @@ describe('the boot script', () => {
     expect(moved.replaced).toBe(`http://127.0.0.1:4173/coproduce#t=${TOKEN}`);
     const there = boot(`http://127.0.0.1:4173/coproduce#t=${TOKEN}`, 'http://127.0.0.1:4173');
     expect([there.replaced, there.global]).toEqual([null, TOKEN]);
-    // The override wins over the address's own sibling.
+    // The override wins over the review origin listed for the address.
     expect(boot(`https://icanrunashow.com/coproduce#t=${TOKEN}`, 'https://review.example.test').replaced).toBe(`https://review.example.test/coproduce#t=${TOKEN}`);
   });
 
   it('takes the token where it is when there is no review origin', () => {
-    for (const address of [`http://localhost:4173/coproduce#t=${TOKEN}`, `https://showrunner-git-branch.vercel.app/coproduce#t=${TOKEN}`]) {
+    for (const address of [
+      `http://localhost:4173/coproduce#t=${TOKEN}`,
+      `https://showrunner-git-branch.vercel.app/coproduce#t=${TOKEN}`,
+      `https://coproduce.icanrunashow.com/coproduce#t=${TOKEN}`,
+      `https://www.icanrunashow.com/coproduce#t=${TOKEN}`,
+      `http://icanrunashow.com/coproduce#t=${TOKEN}`,
+    ]) {
       const ran = boot(address);
       expect(ran.replaced, address).toBeNull();
       expect(ran.global, address).toBe(TOKEN);
@@ -91,14 +98,34 @@ describe('the boot script', () => {
   });
 
   it('finds the token among other fragment parameters, and takes nothing malformed', () => {
-    expect(boot(`https://coproduce.icanrunashow.com/coproduce#x=1&t=${TOKEN}`).global).toBe(TOKEN);
+    expect(boot(`https://showrunner-theta.vercel.app/coproduce#x=1&t=${TOKEN}`).global).toBe(TOKEN);
     for (const hash of [`#t=${TOKEN.slice(1)}`, `#t=${TOKEN}A`, `#t=${TOKEN.slice(1)}!`, `#xt=${TOKEN}`, '#t=']) {
-      const ran = boot(`https://coproduce.icanrunashow.com/coproduce${hash}`);
+      const ran = boot(`https://showrunner-theta.vercel.app/coproduce${hash}`);
       expect(ran.global, hash).toBeUndefined();
       // The address is still cleared.
       expect(ran.states, hash).toEqual([[null, '', '/coproduce']]);
     }
-    expect(boot('https://coproduce.icanrunashow.com/coproduce').states).toEqual([]);
+    expect(boot('https://showrunner-theta.vercel.app/coproduce').states).toEqual([]);
+  });
+});
+
+describe('the boot script and the app', () => {
+  it('agree on where every address belongs', () => {
+    for (const origin of [
+      'https://icanrunashow.com',
+      'https://showrunner-theta.vercel.app',
+      'https://coproduce.icanrunashow.com',
+      'https://www.icanrunashow.com',
+      'https://showrunner-git-branch.vercel.app',
+      'http://localhost:4173',
+      'http://127.0.0.1:4173',
+    ]) {
+      const url = new URL(origin);
+      const review = reviewOriginAt({ origin: url.origin, protocol: url.protocol, hostname: url.hostname });
+      const ran = boot(`${origin}/coproduce#t=${TOKEN}`);
+      if (review && review !== origin) expect(ran.replaced, origin).toBe(`${review}/coproduce#t=${TOKEN}`);
+      else expect([ran.replaced, ran.global], origin).toEqual([null, TOKEN]);
+    }
   });
 });
 
@@ -111,7 +138,7 @@ describe('the build’s origin overrides', () => {
   });
 
   it('refuse anything else, so the build stops', () => {
-    for (const value of ['http://coproduce.icanrunashow.com', 'https://x.test/path', 'javascript:alert(1)', 'http://localhost', 'not a url', 'https://user:pw@x.test']) {
+    for (const value of ['http://review.example.test', 'https://x.test/path', 'javascript:alert(1)', 'http://localhost', 'not a url', 'https://user:pw@x.test']) {
       expect(() => coproduceOriginSettings({ VITE_COPRODUCE_ORIGIN: value }), value).toThrow(/VITE_COPRODUCE_ORIGIN/);
       expect(() => coproduceOriginSettings({ VITE_MAIN_ORIGIN: value }), value).toThrow(/VITE_MAIN_ORIGIN/);
     }

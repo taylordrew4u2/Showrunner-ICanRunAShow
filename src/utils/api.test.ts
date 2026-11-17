@@ -97,7 +97,7 @@ describe('the co-producer floor', () => {
   });
 
   it('refuses every write but the co-producer route on this origin, before fetch', async () => {
-    vi.stubGlobal('location', { origin: 'https://coproduce.icanrunashow.com' });
+    vi.stubGlobal('location', { origin: 'https://showrunner-theta.vercel.app' });
     const fetchMock = mockFetch(200, { ok: true });
     vi.stubGlobal('fetch', fetchMock);
     setReviewFloor(true);
@@ -115,7 +115,7 @@ describe('the co-producer floor', () => {
   });
 
   it('is not retried', async () => {
-    vi.stubGlobal('location', { origin: 'https://coproduce.icanrunashow.com' });
+    vi.stubGlobal('location', { origin: 'https://showrunner-theta.vercel.app' });
     vi.stubGlobal('fetch', mockFetch(200, {}));
     setReviewFloor(true);
     const attempt = vi.fn(() => api.put('/api/media', {}));

@@ -3,7 +3,7 @@ import { checkUntrusted, FORBIDDEN_KEYS, parseUntrusted, UntrustedJsonError } fr
 import { validatePayload } from './schema';
 import type { EditPayload } from './types';
 
-const ctx = { appOrigins: ['https://icanrunashow.com', 'https://coproduce.icanrunashow.com'] };
+const ctx = { appOrigins: ['https://icanrunashow.com', 'https://showrunner-theta.vercel.app'] };
 
 /** A settings edit removing one email list row, in the [id, row] encoding. */
 function emailRemoval(id: string): EditPayload {
