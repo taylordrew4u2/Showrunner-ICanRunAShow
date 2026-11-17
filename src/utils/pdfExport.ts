@@ -2,6 +2,7 @@ import { buildIntroCards, type IntroCard } from "./introCards";
 import { showDJSongs } from "./musicLibrary";
 import { recapMoney } from "./recapMoney";
 import { isSurpriseGuest, SURPRISE_GUEST_LABEL } from "./surpriseGuests";
+import { deliveryAllowed } from "../coproducer/gates";
 import type {
   Show,
   AppSettings,
@@ -18,13 +19,31 @@ import type {
   TodoItem,
 } from "../types";
 
-function esc(text: string | undefined | null): string {
-  if (!text) return "";
-  return text
+/**
+ * Every value from a show or the settings goes through this on its way into
+ * a printable sheet, numbers included: the data is the producer's, or a
+ * co-producer's change they approved, and a field typed as a number can
+ * still arrive holding markup. Written into the sheet unescaped, that markup
+ * would be part of a page that runs in this app's own origin.
+ */
+function esc(value: string | number | undefined | null): string {
+  if (value === undefined || value === null) return "";
+  return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** A link worth making clickable on the sheet: http or https only. */
+function webHref(url: string): string | null {
+  try {
+    const protocol = new URL(url).protocol;
+    return protocol === "http:" || protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
 }
 
 function formatCurrency(amount: number): string {
@@ -44,14 +63,30 @@ const PRINT_FRAME_LIFETIME_MS = 60_000;
  * because the sheet is written into a blank window, which has no base URL of
  * its own to resolve "/fonts/…" against.
  */
+function printOrigin(): string {
+  return typeof location !== "undefined" && /^https?:/.test(location.origin) ? location.origin : "";
+}
+
 function houseFontFaces(): string {
-  const origin = typeof location !== "undefined" && /^https?:/.test(location.origin) ? location.origin : "";
+  const origin = printOrigin();
   const face = (family: string, style: string, weight: string, file: string) =>
     `@font-face { font-family: '${family}'; font-style: ${style}; font-weight: ${weight}; font-display: swap; src: url('${origin}/fonts/${file}') format('woff2'); }`;
   return [
     face("Inter", "normal", "350 800", "inter-latin.woff2"),
     face("Cormorant Garamond", "normal", "300 700", "cormorant-garamond-latin.woff2"),
   ].join("\n    ");
+}
+
+/**
+ * The first thing in each sheet's head. The sheet is written into a window of
+ * this app's own origin, which would otherwise inherit the app's policy, and
+ * that allows inline script. Nothing a sheet needs runs: it is markup, its own
+ * style block and the house fonts. So it allows exactly those, and anything
+ * in the data that got past esc() still cannot run, load or send anything.
+ */
+function printPolicy(): string {
+  const fonts = printOrigin() || "'self'";
+  return `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src ${fonts}; img-src data: blob:" />`;
 }
 
 /** The ink and paper every printed sheet shares. */
@@ -69,6 +104,8 @@ const SANS = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
  * this document, printed, then removed so nothing is left behind.
  */
 export function openPrintable(html: string): void {
+  // Co-producer view prints only from an approved request's tap.
+  if (!deliveryAllowed()) return;
   const printWindow = window.open("", "_blank");
   if (printWindow) {
     printWindow.document.write(html);
@@ -304,7 +341,7 @@ function renderCardCredits(card: IntroCard): string {
   // box stops at those lines too: one any taller can show the top of the next.
   const clamp = wrappedLines(card.credits, INTER_EM, step.px, CARD_TEXT_PX) >= lines;
   if (clamp) classes.push("card__credits--clamp");
-  const style = clamp ? ` style="-webkit-line-clamp: ${lines}; max-height: ${lines * step.lineHeight}px"` : "";
+  const style = clamp ? ` style="-webkit-line-clamp: ${esc(lines)}; max-height: ${esc(lines * step.lineHeight)}px"` : "";
   return `<div class="${classes.join(" ")}"${style}>${esc(card.credits)}</div>`;
 }
 
@@ -322,7 +359,7 @@ function renderCardFoot(card: IntroCard): string {
 function renderIntroCard(card: IntroCard): string {
   return `
       <div class="card">
-        <div class="card__num">${card.order}</div>
+        <div class="card__num">${esc(card.order)}</div>
         <div class="card__name">${esc(card.name)}</div>
         ${renderCardCredits(card)}
         ${renderCardFoot(card)}
@@ -339,6 +376,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   // Worked out here from the vendors and the recap's figures, not read from
   // the stored profitLoss, which a vendor's later change of cost left behind.
   const money = recapMoney(show.recap, show.vendors ?? []);
+  const ticketHref = show.ticketLink ? webHref(show.ticketLink) : null;
   const recapStat = (label: string, value: string) =>
     `<div class="recap-stat"><div class="recap-stat__label">${label}</div><div class="recap-stat__value">${value}</div></div>`;
 
@@ -346,6 +384,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
 <!DOCTYPE html>
 <html>
 <head>
+  ${printPolicy()}
   <meta charset="utf-8" />
   <title>${esc(show.name)}</title>
   <style>
@@ -504,7 +543,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   ${show.time ? `<div class="meta"><strong>Time:</strong> ${esc(show.time)}</div>` : ""}
   ${show.venueName ? `<div class="meta"><strong>Venue:</strong> ${esc(show.venueName)}</div>` : ""}
   ${show.location ? `<div class="meta"><strong>Location:</strong> ${esc(show.location)}</div>` : ""}
-  ${show.ticketLink ? `<div class="meta"><strong>Ticket Link:</strong> <a href="${esc(show.ticketLink)}">${esc(show.ticketLink)}</a></div>` : ""}
+  ${show.ticketLink ? `<div class="meta"><strong>Ticket Link:</strong> ${ticketHref ? `<a href="${esc(ticketHref)}">${esc(show.ticketLink)}</a>` : esc(show.ticketLink)}</div>` : ""}
   ${show.status ? `<div class="meta"><strong>Status:</strong> ${esc(show.status)}</div>` : ""}
   ${show.host ? `<div class="meta"><strong>Host:</strong> ${esc(show.host)}</div>` : ""}
 
@@ -516,7 +555,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     <tr><th>#</th><th>Name</th><th>Social Media</th><th>Walk-On Music</th><th>Walk-On Timestamp</th><th>Credits</th></tr>
     ${show.performers.map((p: Performer, i: number) => `
     <tr>
-      <td>${i + 1}</td>
+      <td>${esc(i + 1)}</td>
       <td>${esc(p.name)}${isSurpriseGuest(p) ? `<span class="badge">${SURPRISE_GUEST_LABEL}</span>` : ""}</td>
       <td>${esc(p.socialMedia)}</td>
       <td>${p.walkOnMusicName ? esc(p.walkOnMusicName) : "—"}</td>
@@ -535,7 +574,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
     <tr><th>#</th><th>Name</th><th>Type</th><th>Walk-On Music</th></tr>
     ${show.artists.map((a: Artist, i: number) => `
     <tr>
-      <td>${i + 1}</td>
+      <td>${esc(i + 1)}</td>
       <td>${esc(a.name)}</td>
       <td>${esc(a.artistType)}</td>
       <td>${a.walkOnMusicName ? esc(a.walkOnMusicName) : "—"}</td>
@@ -572,7 +611,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>DJ Music List</h2>
   <table>
     <tr><th>#</th><th>Title</th><th>Artist</th><th>Notes</th></tr>
-    ${djSongs.map((s: DJSong, i: number) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
+    ${djSongs.map((s: DJSong, i: number) => `<tr><td>${esc(i + 1)}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -594,7 +633,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Vendors</h2>
   <table>
     <tr><th>Vendor</th><th>Category</th><th>Contact</th><th>Phone</th><th>Email</th><th>Cost</th><th>Booked</th><th>Notes</th></tr>
-    ${show.vendors!.map((v: Vendor) => `<tr><td>${esc(v.name)}</td><td>${esc(v.category)}</td><td>${esc(v.contactName)}</td><td>${esc(v.phone)}</td><td>${esc(v.email)}</td><td>${typeof v.cost === "number" && !Number.isNaN(v.cost) ? formatCurrency(v.cost) : ""}</td><td>${v.booked ? "Yes" : "No"}</td><td>${esc(v.notes)}</td></tr>`).join("")}
+    ${show.vendors!.map((v: Vendor) => `<tr><td>${esc(v.name)}</td><td>${esc(v.category)}</td><td>${esc(v.contactName)}</td><td>${esc(v.phone)}</td><td>${esc(v.email)}</td><td>${typeof v.cost === "number" && !Number.isNaN(v.cost) ? esc(formatCurrency(v.cost)) : ""}</td><td>${v.booked ? "Yes" : "No"}</td><td>${esc(v.notes)}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -605,8 +644,8 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Itemized Expenses</h2>
   <table>
     <tr><th>Category</th><th>Item</th><th>Cost</th><th>Date</th><th>Notes</th></tr>
-    ${show.expenses.map((e: Expense) => `<tr><td>${esc(e.category)}</td><td>${esc(e.itemName)}</td><td>${formatCurrency(Number(e.cost) || 0)}</td><td>${esc(e.date)}</td><td>${esc(e.notes)}</td></tr>`).join("")}
-    <tr class="total-row"><td colspan="2"><strong>Total</strong></td><td><strong>${formatCurrency(totalExpenses)}</strong></td><td></td><td></td></tr>
+    ${show.expenses.map((e: Expense) => `<tr><td>${esc(e.category)}</td><td>${esc(e.itemName)}</td><td>${esc(formatCurrency(Number(e.cost) || 0))}</td><td>${esc(e.date)}</td><td>${esc(e.notes)}</td></tr>`).join("")}
+    <tr class="total-row"><td colspan="2"><strong>Total</strong></td><td><strong>${esc(formatCurrency(totalExpenses))}</strong></td><td></td><td></td></tr>
   </table>`
       : ""
   }
@@ -617,7 +656,7 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Scenes</h2>
   <table>
     <tr><th>#</th><th>Title</th><th>Description</th><th>Duration</th><th>Status</th></tr>
-    ${(show.scenes as Scene[]).map((sc: Scene, i: number) => `<tr><td>${i + 1}</td><td>${esc(sc.title)}</td><td>${esc(sc.description)}</td><td>${sc.duration > 0 ? `${sc.duration} min` : "—"}</td><td>${esc(sc.status)}</td></tr>`).join("")}
+    ${(show.scenes as Scene[]).map((sc: Scene, i: number) => `<tr><td>${esc(i + 1)}</td><td>${esc(sc.title)}</td><td>${esc(sc.description)}</td><td>${sc.duration > 0 ? `${esc(sc.duration)} min` : "—"}</td><td>${esc(sc.status)}</td></tr>`).join("")}
   </table>`
       : ""
   }
@@ -638,12 +677,12 @@ export function exportShowToPDF(show: Show, settings: AppSettings): void {
   <h2>Show Recap</h2>
   <div class="recap-box">
     <div class="recap-row">
-      ${show.recap.attendance != null ? recapStat("Attendance", String(show.recap.attendance)) : ""}
-      ${show.recap.ticketSales != null ? recapStat("Ticket Sales", formatCurrency(money.ticketSales)) : ""}
-      ${show.recap.merchSales != null ? recapStat("Merch Sales", formatCurrency(money.merchSales)) : ""}
-      ${money.vendorCosts !== 0 ? recapStat("Vendor Costs", formatCurrency(money.vendorCosts)) : ""}
-      ${show.recap.otherCosts != null ? recapStat("Other Costs", formatCurrency(money.otherCosts)) : ""}
-      ${money.revenue !== 0 || money.costs !== 0 ? recapStat("Profit / Loss", formatCurrency(money.profitLoss)) : ""}
+      ${show.recap.attendance != null ? recapStat("Attendance", esc(String(show.recap.attendance))) : ""}
+      ${show.recap.ticketSales != null ? recapStat("Ticket Sales", esc(formatCurrency(money.ticketSales))) : ""}
+      ${show.recap.merchSales != null ? recapStat("Merch Sales", esc(formatCurrency(money.merchSales))) : ""}
+      ${money.vendorCosts !== 0 ? recapStat("Vendor Costs", esc(formatCurrency(money.vendorCosts))) : ""}
+      ${show.recap.otherCosts != null ? recapStat("Other Costs", esc(formatCurrency(money.otherCosts))) : ""}
+      ${money.revenue !== 0 || money.costs !== 0 ? recapStat("Profit / Loss", esc(formatCurrency(money.profitLoss))) : ""}
     </div>
     ${show.recap.performerNotes ? `<div class="recap-notes"><strong>Performer Notes:</strong>\n${esc(show.recap.performerNotes.trim())}</div>` : ""}
     ${show.recap.improvementNotes ? `<div class="recap-notes" style="margin-top:8px;"><strong>Improvement Notes:</strong>\n${esc(show.recap.improvementNotes.trim())}</div>` : ""}
@@ -675,6 +714,7 @@ export function exportDJListToPDF(show: Show, library: MusicTrack[] = []): void 
 <!DOCTYPE html>
 <html>
 <head>
+  ${printPolicy()}
   <meta charset="utf-8" />
   <title>${esc(show.name)} - DJ List</title>
   <style>
@@ -702,7 +742,7 @@ export function exportDJListToPDF(show: Show, library: MusicTrack[] = []): void 
   <h2>Song List</h2>
   <table>
     <tr><th>#</th><th>Title</th><th>Artist</th><th>Notes</th></tr>
-    ${djSongs.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
+    ${djSongs.map((s, i) => `<tr><td>${esc(i + 1)}</td><td>${esc(s.title)}</td><td>${esc(s.artist)}</td><td>${esc(s.notes)}</td></tr>`).join("")}
   </table>
 </body>
 </html>`;

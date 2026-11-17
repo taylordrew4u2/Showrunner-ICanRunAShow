@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, onCredentialRefused, ServerNotConfiguredError, type ApiError } from './api';
+import { api, onCredentialRefused, ServerNotConfiguredError, setReviewFloor, withNetworkRetry, type ApiError } from './api';
 
 function mockFetch(status: number, body: unknown) {
   return vi.fn().mockResolvedValue({
@@ -65,5 +65,68 @@ describe('a refused credential', () => {
     vi.stubGlobal('fetch', mockFetch(409, { error: 'save_conflict' }));
     await expect(api.put('/api/shows', {}, { authUserId: 'u1', authHash: 'h1' })).rejects.toMatchObject({ status: 409 });
     expect(refused).not.toHaveBeenCalled();
+  });
+});
+
+describe('a co-producer link’s bearer token', () => {
+  afterEach(() => onCredentialRefused(null));
+
+  it('is sent as Authorization, and its 401 is not the account’s credential refused', async () => {
+    const refused = vi.fn();
+    onCredentialRefused(refused);
+    const fetchMock = mockFetch(401, { error: 'unauthorized' });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(api.get('/api/coproducer?route=session', { bearer: 'tok', authHash: 'h' })).rejects.toMatchObject({ status: 401 });
+    const [, init] = fetchMock.mock.calls[0];
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer tok');
+    expect(refused).not.toHaveBeenCalled();
+  });
+
+  it('carries a refusal’s reason', async () => {
+    vi.stubGlobal('fetch', mockFetch(413, { error: 'coproducer_storage_full', reason: 'account_full' }));
+    await expect(api.post('/api/coproducer?route=requests', {}, { bearer: 'tok' })).rejects.toMatchObject({
+      status: 413, code: 'coproducer_storage_full', reason: 'account_full',
+    });
+  });
+});
+
+describe('the co-producer floor', () => {
+  afterEach(() => {
+    setReviewFloor(false);
+    vi.unstubAllGlobals();
+  });
+
+  it('refuses every write but the co-producer route on this origin, before fetch', async () => {
+    vi.stubGlobal('location', { origin: 'https://coproduce.icanrunashow.com' });
+    const fetchMock = mockFetch(200, { ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    setReviewFloor(true);
+    for (const method of ['put', 'post', 'patch'] as const) {
+      for (const path of ['/api/shows', '/api/coproducerX', '/api/coproducer/../shows', 'https://elsewhere.example/api/coproducer']) {
+        await expect(api[method](path, {})).rejects.toMatchObject({ status: 0, code: 'review_mode' });
+      }
+    }
+    await expect(api.del('/api/media?id=x')).rejects.toMatchObject({ code: 'review_mode' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    await api.get('/api/shows');
+    await api.post('/api/coproducer?route=requests', {});
+    await api.del('/api/coproducer?route=requests&id=r');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('is not retried', async () => {
+    vi.stubGlobal('location', { origin: 'https://coproduce.icanrunashow.com' });
+    vi.stubGlobal('fetch', mockFetch(200, {}));
+    setReviewFloor(true);
+    const attempt = vi.fn(() => api.put('/api/media', {}));
+    await expect(withNetworkRetry(attempt)).rejects.toMatchObject({ code: 'review_mode' });
+    expect(attempt).toHaveBeenCalledTimes(1);
+  });
+
+  it('is off in the owner’s app', async () => {
+    const fetchMock = mockFetch(200, { ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    await api.put('/api/shows', {});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

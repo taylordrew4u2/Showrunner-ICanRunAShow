@@ -5,6 +5,7 @@ import { uploadMedia } from '../../utils/mediaStore';
 import { useMediaUrl } from '../../utils/useMediaUrl';
 import './PerformerProfile.css';
 import { useConfirm } from '../useConfirm';
+import { useReview } from '../../coproducer/ReviewContext';
 
 interface ArtistProfileProps {
   artist: Artist;
@@ -14,6 +15,7 @@ interface ArtistProfileProps {
 }
 
 export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProfileProps) {
+  const review = useReview();
   // Labels have to point at the field they name: written as a plain <label>
   // beside an input they are decoration — not announced as the field's name,
   // and not tappable to focus it.
@@ -180,7 +182,7 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
             {artist.walkOnMusic ? (
               <>
                 {walkOnUrl ? (
-                  <audio controls preload="none" className="perf-profile__audio">
+                  <audio controls preload="none" className="perf-profile__audio" controlsList={review.active ? 'nodownload' : undefined}>
                     <source src={walkOnUrl} />
                   </audio>
                 ) : (

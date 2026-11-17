@@ -10,6 +10,8 @@ import { socialLink } from '../../utils/social';
 import './PerformerProfile.css';
 import { useConfirm } from '../useConfirm';
 import { useComicProfileDraft } from './useComicProfileDraft';
+import { useReview } from '../../coproducer/ReviewContext';
+import { ContactLink } from '../coproducer/ContactLink';
 
 interface RolodexProfileProps {
   comic: PotentialComic;
@@ -19,6 +21,7 @@ interface RolodexProfileProps {
 }
 
 export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexProfileProps) {
+  const review = useReview();
   // Labels have to point at the field they name: written as a plain <label>
   // beside an input they are decoration — not announced as the field's name,
   // and not tappable to focus it.
@@ -136,9 +139,9 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
                 placeholder="name@email.com"
               />
               {email.trim() && (
-                <a href={`mailto:${email.trim()}`} className="perf-profile__inline-link">
+                <ContactLink href={`mailto:${email.trim()}`} className="perf-profile__inline-link" source="person">
                   Send email ↗
-                </a>
+                </ContactLink>
               )}
             </div>
             <div className="perf-profile__field">
@@ -227,6 +230,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
         </div>
 
         <HeadshotPanel name={comic.name} photo={comic.photo}
+          subject={{ kind: 'contact', contactId: comic.id }}
           onChange={photo => update({ photo })} />
       </div>
 
@@ -273,7 +277,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
                   </button>
                 </div>
                 {walkOnUrl ? (
-                  <audio controls preload="none" className="perf-profile__audio">
+                  <audio controls preload="none" className="perf-profile__audio" controlsList={review.active ? 'nodownload' : undefined}>
                     <source src={walkOnUrl} />
                   </audio>
                 ) : (

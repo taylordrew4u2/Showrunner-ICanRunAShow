@@ -3,6 +3,7 @@ import { dataUrlToFile } from './media';
 import { generateId } from './id';
 import { rolodexKey } from './rolodex';
 import { applyFiledHeadshot, headshotsToFile } from './signatureImport';
+import { isReviewMode } from '../coproducer/reviewMode';
 
 /**
  * Move every headshot that came back signed into the media store and, where
@@ -30,6 +31,8 @@ export async function fileSignedHeadshots(
   upload: (file: File) => Promise<string>,
   newId: () => string = generateId,
 ): Promise<Pick<AppSettings, 'potentialComics' | 'signatureRequests'> | null> {
+  // Filing is the owner's app's work; a co-producer never uploads for it.
+  if (isReviewMode()) return null;
   const pending = headshotsToFile(requests, comics, rolodexKey);
   if (pending.length === 0) return null;
 

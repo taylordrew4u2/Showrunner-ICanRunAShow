@@ -1,4 +1,5 @@
 import { isNativeShell } from './nativeShell';
+import { deliveryAllowed } from '../coproducer/gates';
 
 /**
  * Handing a file to the person: a backup, a flyer, a headshot, a DJ list, a
@@ -32,6 +33,8 @@ export type FileDelivery =
  * straight from a click handler is still inside that click.
  */
 export async function deliverFile(blob: Blob, fileName: string): Promise<FileDelivery> {
+  // Co-producer view hands a file over only from an approved request's tap.
+  if (!deliveryAllowed()) return 'failed';
   if (!isNativeShell()) {
     downloadFile(blob, fileName);
     return 'downloaded';

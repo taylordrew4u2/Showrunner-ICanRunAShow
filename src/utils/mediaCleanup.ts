@@ -3,6 +3,7 @@ import { api } from './api';
 import { isMediaRef, parseMediaRef } from './mediaStore';
 import { songOwnsItsMedia } from './musicLibrary';
 import type { SessionCredentials } from './session-vault';
+import { isReviewMode, ReviewModeBlockedError } from '../coproducer/reviewMode';
 
 /**
  * Working out which uploaded files are safe to delete.
@@ -201,6 +202,7 @@ export async function sweepUnusedMedia(
   creds: SessionCredentials,
   { dryRun = false }: { dryRun?: boolean } = {},
 ): Promise<SweepReport> {
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   const auth = { authUserId: creds.userId, authHash: creds.authHash };
   const { items } = await api.get<{ items: StoredMedia[] }>('/api/media?list=1', auth);
   const unused = unreferencedMedia(items ?? [], shows, settings);

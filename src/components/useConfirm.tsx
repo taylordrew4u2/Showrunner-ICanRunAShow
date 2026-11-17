@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Modal } from './Modal';
+import { useReview } from '../coproducer/ReviewContext';
 import './useConfirm.css';
 
 /**
@@ -40,9 +41,78 @@ export interface ConfirmOptions {
   /** Styles the confirm button as destructive. Defaults to true, since most of
    *  these are deletions — pass false for anything that doesn't destroy data. */
   danger?: boolean;
+  /**
+   * The words for co-producer view, for a confirm that asks the owner rather
+   * than doing it. Giving them marks the confirm as one (see reviewConfirm).
+   */
+  review?: { title?: string; message?: string; confirmLabel?: string };
+  /** In co-producer view, confirming sends a request to the owner: worded as one, with the generic words. */
+  asksOwner?: boolean;
+  /**
+   * Not a change to the account at all (leave a page, restart the clock,
+   * which of two acts this is, discard unsent work): the same words in
+   * co-producer view as anywhere. See coproducer/localConfirm.
+   */
+  local?: boolean;
+}
+
+/**
+ * Sentences that are not true of a request: nothing happens until the owner
+ * approves it. A sentence ends at a question or exclamation mark too, so the
+ * question a confirm asks stays when the warning after it goes.
+ */
+const NOT_SO_FOR_A_REQUEST = /[^.?!]*\b(?:cannot|can't|can’t) be undone\.|[^.?!]*\bstraight away\.|[^.?!]*\bstop(?:s)? working\b[^.?!]*\./gi;
+
+/**
+ * A confirmation as co-producer view asks it. Pressing it sends a request to
+ * the owner, so it is never a red, irreversible button, and it never says
+ * something is about to stop working: nothing changes until the owner
+ * approves.
+ */
+export function reviewConfirm(options: ConfirmOptions): ConfirmOptions {
+  const review = options.review ?? {};
+  const kept = options.message.replace(NOT_SO_FOR_A_REQUEST, '').replace(/\s+/g, ' ').trim();
+  const message = review.message ?? [kept, 'Nothing changes until the owner approves.'].filter(Boolean).join(' ');
+  return {
+    ...options,
+    title: review.title ?? options.title ?? 'Ask the owner?',
+    message,
+    confirmLabel: review.confirmLabel ?? 'Ask the owner',
+    danger: false,
+  };
+}
+
+/** The line an edit's confirm gets in co-producer view: confirming it sends nothing to anyone yet. */
+export const NOT_SENT_YET = 'Nothing is sent until you press Review & send.';
+
+/**
+ * A confirmation for an edit in co-producer view. Confirming it changes the
+ * co-producer's own unsent copy and nothing else, so it keeps its own words
+ * and buttons ("Delete", "Remove from show": what happens to that copy), is
+ * never red, drops what is not so of an unsent change, and says that nothing
+ * has gone to the owner. Calling it "Ask the owner" read as if the request
+ * had already gone, when it waits for Review & send.
+ */
+export function workingCopyConfirm(options: ConfirmOptions): ConfirmOptions {
+  const kept = options.message.replace(NOT_SO_FOR_A_REQUEST, '').replace(/\s+/g, ' ').trim();
+  return { ...options, message: [kept, NOT_SENT_YET].filter(Boolean).join(' '), danger: false };
+}
+
+/**
+ * How a confirm reads in co-producer view. The rewrite into a request to the
+ * owner is opt-in: every confirm used to get it, and a question that asks the
+ * owner nothing came out wrong ("Leave without saving?" with a button reading
+ * "Ask the owner" that threw the edits away; "Same person" against "Ask the
+ * owner" where the answer was "Different act").
+ */
+export function confirmInReview(options: ConfirmOptions): ConfirmOptions {
+  if (options.local) return options;
+  if (options.review || options.asksOwner) return reviewConfirm(options);
+  return workingCopyConfirm(options);
 }
 
 export function useConfirm() {
+  const reviewing = useReview().active;
   const [pending, setPending] = useState<ConfirmOptions | null>(null);
   const resolveRef = useRef<((answer: boolean | null) => void) | null>(null);
 
@@ -58,7 +128,8 @@ export function useConfirm() {
 
   /** The confirm button's answer is true, the cancel button's false, and backing out null. */
   const ask = useCallback((options: ConfirmOptions | string) => {
-    const opts = typeof options === 'string' ? { message: options } : options;
+    const given = typeof options === 'string' ? { message: options } : options;
+    const opts = reviewing ? confirmInReview(given) : given;
     // A second question while one is open would strand the first promise.
     // The last one asked is the one on screen, so settle the earlier one.
     resolveRef.current?.(null);
@@ -66,7 +137,7 @@ export function useConfirm() {
     return new Promise<boolean | null>((resolve) => {
       resolveRef.current = resolve;
     });
-  }, []);
+  }, [reviewing]);
 
   const confirm = useCallback(
     (options: ConfirmOptions | string) => ask(options).then((answer) => answer === true),

@@ -11,6 +11,7 @@ import './TrackPreview.css';
 import { useTrackPreview } from '../utils/useTrackPreview';
 import './MusicLibrary.css';
 import { useConfirm } from './useConfirm';
+import { PendingInline } from './coproducer/PendingMarks';
 
 interface MusicLibraryProps {
   tracks: MusicTrack[];
@@ -144,6 +145,7 @@ export function MusicLibrary({ tracks, shows, trash, onChange, onBack }: MusicLi
         }
       />
 
+      <PendingInline groupKey="settings:musicLibrary" />
       {status && (
         <p className="music-page__status" role="status" aria-live="polite">
           {status}

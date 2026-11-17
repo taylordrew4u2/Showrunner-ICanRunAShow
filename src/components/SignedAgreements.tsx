@@ -5,6 +5,8 @@ import { dataUrlToFile } from '../utils/media';
 import { deliverFile, deliveryProblem } from '../utils/download';
 import { generateId } from '../utils/id';
 import { contractNameFromFile } from '../utils/contracts';
+import { useReview } from '../coproducer/ReviewContext';
+import { AskButton } from './coproducer/AskButton';
 
 interface Props {
   settings: AppSettings;
@@ -12,6 +14,7 @@ interface Props {
 }
 
 function AgreementDownload({ agreement }: { agreement: SignedAgreement }) {
+  const review = useReview();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function download() {
@@ -28,6 +31,11 @@ function AgreementDownload({ agreement }: { agreement: SignedAgreement }) {
     } finally {
       setBusy(false);
     }
+  }
+  if (review.active) {
+    return <div>
+      <AskButton kind="download" action={{ type: 'signed-agreement', agreementId: agreement.id }} className="btn btn--secondary btn--sm">Download</AskButton>
+    </div>;
   }
   return <div>
     <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={() => void download()}>

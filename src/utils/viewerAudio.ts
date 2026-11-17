@@ -28,6 +28,7 @@
 import { sharedLinkPath } from './sharedLink';
 import { api, withNetworkRetry } from './api';
 import { decryptWithKey, encryptWithKey } from './encryption';
+import { isReviewMode, ReviewModeBlockedError } from '../coproducer/reviewMode';
 import { MEDIA_CHUNK_TIMEOUT_MS, resolveMediaUrl } from './mediaStore';
 import type { SessionCredentials } from './session-vault';
 import { trimmedLength } from './trim';
@@ -185,6 +186,7 @@ export function splitIntoChunks(text: string, sliceChars = SLICE_CHARS): string[
  * ever touching the backend that stores the ciphertext.
  */
 export function viewerUrl(origin: string, token: string, key?: string | null): string {
+  if (isReviewMode()) return '';
   const base = `${origin}${sharedLinkPath('view', token)}`;
   return key ? `${base}#k=${key}` : base;
 }
@@ -228,6 +230,8 @@ export function forgetViewerKey(token: string): void {
  * whatever comes back onto the show when it differs from `saved`.
  */
 export function ensureViewerKey(token: string, saved?: string | null): string {
+  // Co-producer view has no viewer key, and leaves this device's alone.
+  if (isReviewMode()) return '';
   if (saved) return saved;
   const existing = loadViewerKey(token);
   if (existing) return existing;
@@ -254,6 +258,7 @@ export async function publishTrack(
   mediaId: string,
   creds: SessionCredentials,
 ): Promise<number> {
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   const dataUrl = await resolveMediaUrl(src);
   if (!dataUrl) throw new Error('track could not be resolved');
   const chunks = splitIntoChunks(dataUrl);
@@ -277,6 +282,7 @@ export async function publishTrack(
 
 /** Drop everything published under a token — when the operator turns this off. */
 export async function unpublishAll(token: string, creds: SessionCredentials): Promise<void> {
+  if (isReviewMode()) return;
   await api.del(`/api/live-media?token=${encodeURIComponent(token)}`, {
     authUserId: creds.userId,
     authHash: creds.authHash,

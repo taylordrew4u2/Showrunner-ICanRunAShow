@@ -12,11 +12,16 @@ import { ProducerLock } from './ProducerLock';
 import { useProducerAccess } from '../utils/producerAccess';
 import './Settings.css';
 import { useConfirm } from './useConfirm';
+import { localConfirm } from './coproducer/localConfirm';
 import type { Snapshot } from '../utils/secure-storage';
 import { normalizeUsername } from '../utils/session-vault';
 import type { ApiError } from '../utils/api';
 import type { SessionCredentials } from '../utils/session-vault';
 import { ChatGPTSettings } from './ChatGPTConnect';
+import { AskButton } from './coproducer/AskButton';
+import { PendingInline } from './coproducer/PendingMarks';
+import { CoproducersCard } from './coproducer/CoproducersCard';
+import type { OwnerDataApi } from '../coproducer/useOwnerRequests';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -65,6 +70,17 @@ interface SettingsProps {
    * changes" dock still showing.
    */
   leaveRef?: React.RefObject<((go: () => void) => void) | null>;
+  /**
+   * Set in co-producer view: who is looking and until when. The account card
+   * then says so and offers only the way out; saving asks the owner.
+   */
+  review?: { label: string; expiresAt: string };
+  /** Opens the Requests page, from the Co-producers card. */
+  onOpenRequests?: () => void;
+  /** The owner's data for the Co-producers card, to describe and withdraw the links co-producers were given. */
+  ownerData?: OwnerDataApi | null;
+  /** A co-producer link was made or withdrawn, so the Requests count is looked at again. */
+  onCoproducerLinksChanged?: () => void;
 }
 
 /** The server stamps snapshots in UTC without a zone marker. */
@@ -129,6 +145,10 @@ export function Settings({
   onRestoreSnapshot,
   billing,
   leaveRef,
+  review,
+  onOpenRequests,
+  ownerData,
+  onCoproducerLinksChanged,
 }: SettingsProps) {
   const { confirm, confirmDialog } = useConfirm();
   // A remote already paired keeps working on the free plan, so nobody's show
@@ -255,13 +275,15 @@ export function Settings({
    */
   async function leave(go: () => void) {
     if (dirty) {
-      const ok = await confirm({
+      // About this page's form, not the account: in co-producer view "Leave"
+      // still throws the form's edits away, so it must still say so.
+      const ok = await confirm(localConfirm({
         title: 'Leave without saving?',
         message: 'The changes on this page have not been saved. Leave now and they are gone.',
         confirmLabel: 'Leave',
         cancelLabel: 'Stay',
         danger: false,
-      });
+      }));
       if (!ok) return;
     }
     go();
@@ -312,6 +334,7 @@ export function Settings({
 
       <div className="settings__card">
         <h2 className="settings__card-title">Your workspace</h2>
+        <PendingInline groupKey="settings:workspace" />
         <label className="section-field">
           <span className="section-field__label">Brand name</span>
           <input
@@ -587,10 +610,15 @@ export function Settings({
           </ul>
           </div>
         </details>
-        {onExport && (
+        {onExport && !review && (
           <button className="btn btn--secondary settings__backup-btn" onClick={onExport}>
             Download a backup
           </button>
+        )}
+        {review && (
+          <AskButton kind="download" action={{ type: 'backup' }} className="btn btn--secondary settings__backup-btn">
+            Download a backup
+          </AskButton>
         )}
         {onRestoreShow && onDeleteForever && (
           <details className="settings__details">
@@ -599,6 +627,7 @@ export function Settings({
               <span className="settings__details-hint">{trash.length === 0 ? 'Nothing deleted' : `${trash.length} item${trash.length === 1 ? '' : 's'}`}</span>
             </summary>
             <div className="settings__details-body">
+              <PendingInline groupKey="settings:trash" />
               <p className="settings__hint">
                 Deleted shows are kept here so you can put them back. Walk-on audio isn't kept, so a
                 restored show comes back without it.
@@ -818,8 +847,35 @@ export function Settings({
       {billing && <PlanCard {...billing} />}
 
       {session && <ChatGPTSettings key={session.userId} session={session} />}
+      {session && (
+        <CoproducersCard
+          key={session.userId}
+          session={session}
+          data={ownerData}
+          onOpenRequests={onOpenRequests}
+          onLinksChanged={onCoproducerLinksChanged}
+        />
+      )}
 
-      <div className="settings__card">
+      {review && (
+        <div className="settings__card">
+          <h2 className="settings__card-title">Account</h2>
+          <p className="settings__hint">
+            You're viewing this account as a co-producer ({review.label}). Your access ends{' '}
+            {new Date(review.expiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
+            unless the owner withdraws it sooner.
+          </p>
+          <div className="settings__account-actions">
+            {onLogout && (
+              <button className="btn btn--ghost" onClick={() => { void leave(onLogout); }}>
+                Leave co-producer view
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!review && <div className="settings__card">
         <h2 className="settings__card-title">Account</h2>
         {username && (
           <p className="settings__hint">
@@ -886,7 +942,7 @@ export function Settings({
             </div>
           </details>
         )}
-      </div>
+      </div>}
       {/* Every other screen in this app saves itself, so a red button sitting
           permanently mid-page here asked to be pressed for no reason and gave
           the page a second thing shouting for attention. It is a bar now, on

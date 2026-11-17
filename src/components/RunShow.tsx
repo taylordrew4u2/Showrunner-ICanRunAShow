@@ -15,6 +15,7 @@ import {
 import { generateId } from '../utils/id';
 import { isSurpriseGuest } from '../utils/surpriseGuests';
 import type { SessionCredentials } from '../utils/session-vault';
+import { useReview } from '../coproducer/ReviewContext';
 import { loadColorScheme } from '../utils/theme';
 import {
   DEFAULT_CUE_SECONDS,
@@ -60,6 +61,7 @@ import {
 } from '../utils/audioSettings';
 import { Icon } from './Icon';
 import { useConfirm } from './useConfirm';
+import { localConfirm } from './coproducer/localConfirm';
 import { describeKey, isRemotePress } from '../utils/stageRemote';
 import './RunShowAppearance.css';
 
@@ -307,6 +309,8 @@ export function RunShow({
   onClose,
 }: RunShowProps) {
   const { confirm, confirmDialog, confirmOpen } = useConfirm();
+  // Co-producer view: the board plays here and never drives the room.
+  const reviewing = useReview().active;
   const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -590,14 +594,16 @@ export function RunShow({
   }
 
   async function restartShow() {
-    const ok = await confirm({
+    // The board's own clock: nothing in the account changes, so co-producer
+    // view asks the same question.
+    const ok = await confirm(localConfirm({
       title: 'Restart from the top?',
       message:
         'The clock goes back to cue one and any time you added or took off is cleared. ' +
         'The running order itself is untouched.',
       confirmLabel: 'Restart',
       danger: false,
-    });
+    }));
     if (!ok) return;
     setIdx(0);
     // Both clocks from now, whether or not the show was already running —
@@ -628,14 +634,14 @@ export function RunShow({
    */
   async function requestClose() {
     if (started || playingKey !== null) {
-      const ok = await confirm({
+      const ok = await confirm(localConfirm({
         title: 'Leave Run Show?',
         message:
           'The audio stops, the room screen shows the show as ended, and the board starts again ' +
           'from cue one with any time you added or took off cleared. The show is not marked completed.',
         confirmLabel: 'Leave',
         danger: false,
-      });
+      }));
       if (!ok) return;
     }
     onClose();
@@ -1300,7 +1306,14 @@ export function RunShow({
                 who has set the in-fade to zero and heard no swell needs to be
                 told it's off, not left deciding the feature is broken. */}
             <p className="rs-fade__summary">{describeFade(fade)}</p>
-            {viewToken && (
+            {viewToken && reviewing && (
+              <div className="rs-fade__viewer">
+                <span className="rs-fade__viewer-note">
+                  Only the owner's devices can send audio to the viewer screen.
+                </span>
+              </div>
+            )}
+            {viewToken && !reviewing && (
               <div className="rs-fade__viewer">
                 <button
                   className={`rs-chip ${viewerAudio ? 'rs-chip--active' : ''}`}

@@ -6,6 +6,8 @@ import { singleImageFileName } from '../utils/headshotExport';
 import { uploadMedia } from '../utils/mediaStore';
 import { useMediaUrl } from '../utils/useMediaUrl';
 import { useConfirm } from './useConfirm';
+import { useReview } from '../coproducer/ReviewContext';
+import { AskButton } from './coproducer/AskButton';
 
 /**
  * The show's flyer, kept next to the lineup it advertises.
@@ -16,11 +18,14 @@ import { useConfirm } from './useConfirm';
  * roll. Replacing one does not delete the old file here — the media cleanup
  * removes it once nothing else points at it, and a duplicated show may.
  */
-export function ShowFlyer({ showName, flyer, onChange }: {
+export function ShowFlyer({ showId, showName, flyer, onChange }: {
+  /** The show it belongs to: co-producer view asks for the download by it. */
+  showId?: string;
   showName: string;
   flyer?: string;
   onChange: (flyer: string | undefined) => void;
 }) {
+  const review = useReview();
   const url = useMediaUrl(flyer);
   const input = useRef<HTMLInputElement>(null);
   const preview = useRef<HTMLDialogElement>(null);
@@ -92,7 +97,8 @@ export function ShowFlyer({ showName, flyer, onChange }: {
     </button>
     {error && <p role="alert" className="show-flyer__error">{error}</p>}
     {flyer && <div className="show-flyer__actions">
-      {url && <button type="button" className="btn btn--secondary btn--sm" onClick={() => void download()}>Download</button>}
+      {url && !review.active && <button type="button" className="btn btn--secondary btn--sm" onClick={() => void download()}>Download</button>}
+      {url && review.active && showId && <AskButton kind="download" action={{ type: 'flyer', showId }} className="btn btn--secondary btn--sm">Download</AskButton>}
       <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={async () => {
         if (await confirm({ message: `Remove the flyer from ${showName}?`, confirmLabel: 'Remove flyer' })) change.current(undefined);
       }}>Remove</button>
@@ -100,7 +106,7 @@ export function ShowFlyer({ showName, flyer, onChange }: {
     <dialog ref={preview} className="headshot__dialog" aria-label={`Flyer for ${showName}`}>
       <button type="button" className="btn btn--secondary btn--sm" autoFocus onClick={() => preview.current?.close()}>Close preview</button>
       {url && <img src={url} alt={`Full flyer for ${showName}`} />}
-      <button type="button" className="btn btn--secondary btn--sm" onClick={() => void download()}>Download flyer</button>
+      {!review.active && <button type="button" className="btn btn--secondary btn--sm" onClick={() => void download()}>Download flyer</button>}
     </dialog>
     {confirmDialog}
   </section>;

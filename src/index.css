@@ -98,6 +98,16 @@ button,
   -webkit-touch-callout: none;
 }
 
+/* Co-producer view: no long-press "Save image" on photos and flyers. Best
+   effort only — a screenshot or the browser's own tools still save what is on
+   screen — but downloads there are asked for, and this keeps the obvious way
+   round them shut. */
+.review-mode img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* Native apps never show a text-selection caret when you tap UI chrome.
    Scoped to controls and nav — inputs, textareas, and content stay selectable. */
 button,

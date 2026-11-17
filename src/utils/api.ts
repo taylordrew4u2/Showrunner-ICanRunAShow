@@ -12,6 +12,8 @@ export class ServerNotConfiguredError extends Error {
 export interface ApiError extends Error {
   status?: number;
   code?: string;
+  /** A refusal's finer reason, when the server gives one (co-producer storage: 'link_full' or 'account_full'). */
+  reason?: string;
 }
 
 interface Opts {
@@ -32,6 +34,12 @@ interface Opts {
    * through at all. Those calls ask for longer explicitly.
    */
   timeoutMs?: number;
+  /**
+   * Sent as `Authorization: Bearer …`: a co-producer link's token, on the
+   * co-producer routes only. Never sent beside x-user-id and x-auth, and a
+   * 401 on such a call is not the account's credential being refused.
+   */
+  bearer?: string;
 }
 
 /**
@@ -50,10 +58,45 @@ export function onCredentialRefused(listener: ((credential: string) => void) | n
   credentialRefused = listener;
 }
 
+/**
+ * Co-producer view's floor under everything that writes.
+ *
+ * While it is on, the one place this app may send anything but a GET is the
+ * co-producer route on this same origin: every change, share and download a
+ * co-producer makes is a request to the owner, and that is where requests
+ * go. Whatever a gate above missed is refused here, before fetch, and never
+ * retried. Turned on by enterReviewMode and never off again in that page.
+ */
+let reviewFloor = false;
+
+export function setReviewFloor(on: boolean): void {
+  reviewFloor = on;
+}
+
+/** The co-producer route, and nothing that only starts like it. */
+function isCoproducerRoute(path: string): boolean {
+  try {
+    const url = new URL(path, location.origin);
+    return url.origin === location.origin && url.pathname === '/api/coproducer';
+  } catch {
+    return false;
+  }
+}
+
+function refusedByFloor(): ApiError {
+  const err: ApiError = new Error('Not available in co-producer view.');
+  err.name = 'ReviewModeBlockedError';
+  err.status = 0;
+  err.code = 'review_mode';
+  return err;
+}
+
 async function request<T>(method: string, path: string, opts: Opts = {}): Promise<T> {
+  if (reviewFloor && method !== 'GET' && !isCoproducerRoute(path)) throw refusedByFloor();
   const headers: Record<string, string> = {};
   if (opts.authUserId) headers['x-user-id'] = opts.authUserId;
   if (opts.authHash) headers['x-auth'] = opts.authHash;
+  if (opts.bearer) headers.authorization = `Bearer ${opts.bearer}`;
   let body: string | undefined;
   if (opts.body !== undefined) {
     headers['content-type'] = 'application/json';
@@ -88,7 +131,7 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
     }
 
     if (!res.ok) {
-      let parsed: { error?: string } | null = null;
+      let parsed: { error?: string; reason?: unknown } | null = null;
       try {
         parsed = await res.json();
       } catch {
@@ -97,7 +140,8 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
       const err: ApiError = new Error(parsed?.error || `Request failed (${res.status})`);
       err.status = res.status;
       err.code = parsed?.error;
-      if (res.status === 401 && opts.authHash) credentialRefused?.(opts.authHash);
+      if (typeof parsed?.reason === 'string') err.reason = parsed.reason;
+      if (res.status === 401 && opts.authHash && !opts.bearer) credentialRefused?.(opts.authHash);
       throw err;
     }
 
@@ -144,7 +188,8 @@ export function timeoutForBody(bodyBytes: number): number {
  *
  * Retries only when the failure has no status: the server never spoke, so it
  * is worth asking again. A 4xx is an answer, and asking again will not change
- * it.
+ * it. Nor is co-producer view's refusal (see setReviewFloor): it never
+ * reached the network, and never will.
  */
 export async function withNetworkRetry<T>(send: () => Promise<T>, attempts = 3): Promise<T> {
   let last: unknown;
@@ -152,6 +197,7 @@ export async function withNetworkRetry<T>(send: () => Promise<T>, attempts = 3):
     try {
       return await send();
     } catch (err) {
+      if ((err as ApiError | null)?.code === 'review_mode') throw err;
       if ((err as ApiError).status !== undefined) throw err;
       last = err;
       // Short, and growing: a dropped connection is often back in a second,

@@ -1,4 +1,5 @@
 import type { Client, InStatement } from '@libsql/client';
+import { pkceChallenge, randomToken, sealKeys, unsealKeys, type DelegatedKeys } from './seal';
 import { cipherHash } from './showWrites';
 
 /**
@@ -26,8 +27,6 @@ const ACCESS_SECONDS = 60 * 60;
 // connector and reuses that client for everyone who connects through it, so a
 // client still in use must never lapse; one nobody uses for this long goes.
 const CLIENT_SECONDS = 90 * 24 * 60 * 60;
-const encoder = new TextEncoder();
-
 export class OAuthError extends Error {
   constructor(public code: string, message: string, public status = 400) { super(message); }
 }
@@ -103,18 +102,10 @@ export function normalizeScope(value: unknown): string {
   return ASSISTANT_SCOPES.filter(scope => parts.has(scope)).join(' ');
 }
 
-function b64(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
-}
-function unb64(value: string): Uint8Array {
-  return Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), c => c.charCodeAt(0));
-}
-export function randomToken(): string { return b64(crypto.getRandomValues(new Uint8Array(32))); }
-export async function pkceChallenge(verifier: string): Promise<string> {
-  return b64(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(verifier))));
-}
-
-export interface DelegatedKeys { key: string; legacyKey?: string }
+// The sealing itself is shared with co-producer links (seal.ts); these stay
+// exported from here so existing imports keep working.
+export { pkceChallenge, randomToken };
+export type { DelegatedKeys };
 export interface DelegatedGrant extends DelegatedKeys { userId: string; scope: string; grantId: string }
 
 // The key that seals a credential's delegated keys must not be anything the
@@ -122,24 +113,14 @@ export interface DelegatedGrant extends DelegatedKeys { userId: string; scope: s
 // key is derived under a label of its own instead.
 const SEAL_VERSION = 'v2';
 const SEAL_PREFIX = `${SEAL_VERSION}.`;
-const SEAL_INFO = encoder.encode('icanrunashow assistant delegated keys v2');
-
-async function wrappingKey(token: string): Promise<CryptoKey> {
-  const material = await crypto.subtle.importKey('raw', encoder.encode(token), 'HKDF', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: SEAL_INFO }, material, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-}
+const SEAL_INFO = 'icanrunashow assistant delegated keys v2';
 
 /** A DB-only compromise cannot recover the explicitly delegated keys. */
-async function seal(keys: DelegatedKeys, token: string): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await wrappingKey(token), encoder.encode(JSON.stringify(keys)));
-  return `${SEAL_PREFIX}${b64(iv)}.${b64(new Uint8Array(cipher))}`;
+function seal(keys: DelegatedKeys, token: string): Promise<string> {
+  return sealKeys(keys, token, SEAL_INFO, SEAL_VERSION);
 }
-async function unseal(value: string, token: string): Promise<DelegatedKeys> {
-  const parts = value.split('.');
-  if (parts.length !== 3 || parts[0] !== SEAL_VERSION) throw new Error('Unreadable sealed keys.');
-  const text = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(parts[1]) as Uint8Array<ArrayBuffer> }, await wrappingKey(token), unb64(parts[2]) as Uint8Array<ArrayBuffer>);
-  return JSON.parse(new TextDecoder().decode(text)) as DelegatedKeys;
+function unseal(value: string, token: string): Promise<DelegatedKeys> {
+  return unsealKeys(value, token, SEAL_INFO, SEAL_VERSION);
 }
 
 /**

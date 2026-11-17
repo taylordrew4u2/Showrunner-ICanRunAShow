@@ -1,11 +1,13 @@
 import { INTRODUCTION_CREDITS_LABEL, INTRODUCTION_CREDITS_PLACEHOLDER } from './introductionCredits';
 import type { ContractField, ProfileRequest, ProfileSubmission } from '../types';
+import type { CoproducerClient } from '../coproducer/types';
 import { api, SUBMIT_TIMEOUT_MS, withNetworkRetry } from './api';
 import { generateSignKey, generateSignToken, splitIntoChunks } from './contracts';
 import { decryptWithKey, encryptWithKey } from './encryption';
 import { isLinkStorageFull } from './linkStorage';
 import { sharedLinkPath } from './sharedLink';
 import type { SessionCredentials } from './session-vault';
+import { getReviewSession, isReviewMode, ReviewModeBlockedError } from '../coproducer/reviewMode';
 
 /**
  * A self-serve profile link.
@@ -66,6 +68,7 @@ export function profileFields(): ContractField[] {
 
 /** The link, with the key in the fragment so it never reaches a server. */
 export function profileUrl(origin: string, token: string, key: string): string {
+  if (isReviewMode()) return '';
   return `${origin}${sharedLinkPath('profile', token)}#k=${key}`;
 }
 
@@ -83,6 +86,8 @@ export async function createProfileLink(
   fromName: string,
   creds: SessionCredentials,
 ): Promise<ProfileRequest> {
+  // A co-producer asks the owner to make it instead (a profile-link request).
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   const token = generateSignToken();
   const key = generateSignKey();
   const auth = { authUserId: creds.userId, authHash: creds.authHash };
@@ -111,6 +116,8 @@ export async function revokeProfileLink(
   request: ProfileRequest,
   creds: SessionCredentials,
 ): Promise<void> {
+  // The withdrawal is part of the change a co-producer asks for.
+  if (isReviewMode()) return;
   const auth = { authUserId: creds.userId, authHash: creds.authHash };
   await api.del(`/api/sign?token=${encodeURIComponent(request.token)}`, auth);
   await deleteProfilePhoto(request, creds);
@@ -145,6 +152,8 @@ export async function checkProfile(request: ProfileRequest): Promise<ProfileSubm
 export async function refreshProfiles(
   requests: ProfileRequest[],
 ): Promise<ProfileRequest[] | null> {
+  // The owner's app files replies; a co-producer sees them once it has.
+  if (isReviewMode()) return null;
   const pending = requests.filter((r) => !r.submitted);
   if (pending.length === 0) return null;
   const found = new Map<string, ProfileSubmission>();
@@ -296,6 +305,10 @@ export async function fetchProfilePhoto(
 ): Promise<string | null> {
   const total = request.submitted?.photoChunks ?? 0;
   if (total <= 0) return null;
+  // Co-producer view holds no link key: the server opens the photo and hands
+  // over the slices, found by the request's id.
+  const review = getReviewSession();
+  if (review) return reviewProfilePhoto(review.client, request.id, total);
   const auth = { authUserId: creds.userId, authHash: creds.authHash };
   try {
     const parts: string[] = [];
@@ -317,8 +330,24 @@ export async function fetchProfilePhoto(
   }
 }
 
+async function reviewProfilePhoto(client: CoproducerClient, requestId: string, total: number): Promise<string | null> {
+  try {
+    const parts: string[] = [];
+    for (let seq = 0; seq < total; seq++) {
+      const { data } = await client.profilePhotoChunk(requestId, seq);
+      if (typeof data !== 'string') return null;
+      parts.push(data);
+    }
+    const dataUrl = parts.join('');
+    return dataUrl.startsWith('data:image/') ? dataUrl : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Drop the photo once it is filed or waved off. Best effort; ciphertext left behind is harmless. */
 export async function deleteProfilePhoto(request: ProfileRequest, creds: SessionCredentials): Promise<void> {
+  if (isReviewMode()) return;
   const auth = { authUserId: creds.userId, authHash: creds.authHash };
   try {
     await api.del(`/api/profile-photo?token=${encodeURIComponent(request.token)}`, auth);

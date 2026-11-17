@@ -1,7 +1,7 @@
 import { pbkdf2Sync } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import CryptoJS from 'crypto-js';
-import { decryptData, deriveAuthKey, deriveSessionKeys, deriveUserId, encryptData, hashPassword } from './encryption';
+import { decryptData, decryptWithKeys, deriveAuthKey, deriveSessionKeys, deriveUserId, encryptData, encryptWithKey, hashPassword } from './encryption';
 
 // The legacy (v1) key derivation, reproduced here to forge pre-upgrade
 // ciphertext. Must match what shipped before the KDF was strengthened.
@@ -88,4 +88,19 @@ describe('deriveAuthKey', () => {
       vi.unstubAllGlobals();
     }
   }, 30_000);
+});
+
+// Co-producer view runs on stand-in credentials whose keys are all empty. A
+// path that reaches for the cipher there has slipped a gate, and must fail
+// rather than encrypt under an empty passphrase. No real key is ever empty.
+describe('an empty key', () => {
+  const key = 'a'.repeat(64);
+
+  it('is refused for encrypting and decrypting', () => {
+    expect(() => encryptWithKey({ a: 1 }, '')).toThrow();
+    const cipher = encryptWithKey({ a: 1 }, key);
+    expect(() => decryptWithKeys(cipher, [''])).toThrow();
+    expect(() => decryptWithKeys(cipher, [key, ''])).toThrow();
+    expect(decryptWithKeys(cipher, [key, 'b'.repeat(64)])).toEqual({ a: 1 });
+  });
 });

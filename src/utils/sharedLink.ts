@@ -133,7 +133,15 @@ export function sharedLinkPageName(kind: SharedLinkKind): string {
  * so the card reads as the thing being sent rather than as a bare address.
  */
 export function sharedLinkPage(indexHtml: string, kind: SharedLinkKind): string {
-  const copy = LINK_COPY[kind];
+  return linkPageWithCopy(indexHtml, LINK_COPY[kind]);
+}
+
+/**
+ * The app's page as served for a link of any kind, saying what `copy` says.
+ * See sharedLinkPage for why; co-producer links (coproduceLinkPage.ts) are
+ * served this way too, with words of their own.
+ */
+export function linkPageWithCopy(indexHtml: string, copy: { title: string; card: string; description: string }): string {
   return (
     indexHtml
       // The two claims that sent people to the homepage.

@@ -3,6 +3,9 @@ import type { Expense, Show } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 import { buildSeasonReport, formatMoney, seasonPitch, type SeasonRange } from '../utils/seasonReport';
 import { PageHeader } from './PageHeader';
+import { copyText } from '../coproducer/gates';
+import { useReview } from '../coproducer/ReviewContext';
+import { AskButton } from './coproducer/AskButton';
 import './SeasonReport.css';
 
 interface SeasonReportProps {
@@ -23,6 +26,7 @@ type Copied = 'none' | 'done' | 'failed';
 export function SeasonReport({ shows, brandExpenses, brandName, onBack, backLabel = 'More' }: SeasonReportProps) {
   const [range, setRange] = useState<SeasonRange>('year');
   const [copied, setCopied] = useState<Copied>('none');
+  const review = useReview();
   // One reset at a time: a second press restarts the clock rather than being
   // cut short by the first press's timer, and leaving the page cancels it.
   const resetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -37,7 +41,7 @@ export function SeasonReport({ shows, brandExpenses, brandName, onBack, backLabe
 
   async function copyPitch() {
     try {
-      await navigator.clipboard.writeText(pitch);
+      await copyText(pitch);
       setCopied('done');
     } catch {
       // Refused clipboards are ordinary (insecure origin, locked-down browser);
@@ -164,9 +168,15 @@ export function SeasonReport({ shows, brandExpenses, brandName, onBack, backLabe
             <h2 id="season-pitch" className="season__panel-title">Pitch a venue</h2>
             <p className="season__muted">Your track record in a few lines, for the email to a room you want to book. Nothing is sent — it’s copied for you to paste.</p>
             <pre className="season__pitch-text">{pitch}</pre>
-            <button type="button" className="btn btn--primary" onClick={copyPitch}>
-              {copied === 'done' ? 'Copied' : copied === 'failed' ? 'Couldn’t copy — select the text above' : 'Copy pitch'}
-            </button>
+            {review.active ? (
+              <AskButton kind="share" action={{ type: 'copy-text', source: 'season-pitch', text: pitch }} className="btn btn--primary">
+                Copy pitch
+              </AskButton>
+            ) : (
+              <button type="button" className="btn btn--primary" onClick={copyPitch}>
+                {copied === 'done' ? 'Copied' : copied === 'failed' ? 'Couldn’t copy — select the text above' : 'Copy pitch'}
+              </button>
+            )}
           </section>
         </>
       )}

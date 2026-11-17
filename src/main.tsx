@@ -15,6 +15,7 @@ import { registerAppUpdates } from './utils/appUpdate'
 import { sharedLinkRoute } from './utils/sharedLink'
 import { holdInstallPrompt } from './utils/installPrompt'
 import { markOpenDialogs } from './utils/modalOpen'
+import { isCoproducePath, movingToReviewOrigin } from './coproducer/boot'
 
 // Apply the saved color scheme before the first paint to avoid a flash.
 applyColorScheme(loadColorScheme())
@@ -27,19 +28,30 @@ holdInstallPrompt()
 // :has() doesn't work, this tells it with a class instead.
 markOpenDialogs()
 
+// A co-producer link opened on the main origin: the link page's own script
+// is already moving it to the review origin, fragment and all. Nothing is
+// drawn, and no service worker is registered, on the page it is leaving.
+const leaving = movingToReviewOrigin(window.location)
+
 // A new version waits until asked for (see utils/appUpdate): taking over on
 // its own reloaded the page whenever the download happened to finish, and on
 // venue wifi that was mid-show. Asking for it reloads the tab that asked and
-// no other. A sent link, which has nowhere to ask, takes it as it opens.
-registerAppUpdates({ linkPage: sharedLinkRoute(window.location.search, window.location.pathname) !== null })
+// no other. A sent link, which has nowhere to ask, takes it as it opens; so
+// does a co-producer link, before anything is typed into it.
+if (!leaving) {
+  registerAppUpdates({
+    linkPage: sharedLinkRoute(window.location.search, window.location.pathname) !== null
+      || isCoproducePath(window.location.pathname),
+  })
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </StrictMode>,
-)
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </StrictMode>,
+  )
+}
 
 // Fade out the static boot splash now that React has painted, so a cold
 // launch from the home-screen icon reads as an app opening rather than a

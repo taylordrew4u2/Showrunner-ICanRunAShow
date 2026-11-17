@@ -1,6 +1,7 @@
 import { api, type ApiError } from './api';
 import { matchKnownName } from './cuePerformer';
 import type { SessionCredentials } from './session-vault';
+import { isReviewMode, ReviewModeBlockedError } from '../coproducer/reviewMode';
 import { cuePerformerName, resolveCuePerformer } from './soundboard';
 import { billedPerformers, isSurpriseGuest, SURPRISE_GUEST_LABEL, surpriseGuests } from './surpriseGuests';
 import type { ColorScheme } from './theme';
@@ -63,6 +64,8 @@ export async function publishLiveView(
   payload: LiveViewPayload,
   creds: SessionCredentials,
 ): Promise<{ stale: boolean }> {
+  // Only the owner's devices drive the room's screen.
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   const res = await api.post<{ ok?: boolean; stale?: boolean }>(
     '/api/live',
     { token, payload },
@@ -213,6 +216,8 @@ export function createLivePublisher(
  * goes with it, and the link stops counting among the account's links.
  */
 export async function withdrawLiveView(token: string, creds: SessionCredentials): Promise<void> {
+  // Withdrawn, if at all, by the owner's app on approval.
+  if (isReviewMode()) return;
   await api.del(`/api/live?token=${encodeURIComponent(token)}`, {
     authUserId: creds.userId,
     authHash: creds.authHash,
@@ -261,12 +266,23 @@ export function boardHoldsRoom(
 
 const publishers = new Map<string, LivePublisher>();
 
+/** Co-producer view's publisher: the board runs, and the room hears nothing from it. */
+const QUIET_PUBLISHER: LivePublisher = {
+  publish: () => {},
+  last: () => null,
+  subscribe: (listener) => {
+    listener(null);
+    return () => {};
+  },
+};
+
 /**
  * The one publisher for a viewer link. Shared, so a board reopened while the
  * last one's closing state is still being retried replaces it rather than
  * having it land on top of the new board's.
  */
 export function livePublisher(token: string): LivePublisher {
+  if (isReviewMode()) return QUIET_PUBLISHER;
   let publisher = publishers.get(token);
   if (!publisher) {
     publisher = createLivePublisher(token);

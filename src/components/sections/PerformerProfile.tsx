@@ -10,9 +10,14 @@ import { socialLink } from '../../utils/social';
 import { performerToComic, reassignSlot, slotReassigned } from '../../utils/rolodex';
 import './PerformerProfile.css';
 import { useConfirm } from '../useConfirm';
+import { localConfirm } from '../coproducer/localConfirm';
 import { useComicProfileDraft } from './useComicProfileDraft';
+import { useReview } from '../../coproducer/ReviewContext';
+import { ContactLink } from '../coproducer/ContactLink';
 
 interface PerformerProfileProps {
+  /** The show this booking is on: co-producer view asks for the headshot and email by it. */
+  showId?: string;
   performer: Performer;
   onBack: () => void;
   backLabel?: string;
@@ -142,7 +147,8 @@ export function ProfileDrawer({ label, onClose, children }: {
   );
 }
 
-export function PerformerProfile({ performer, onBack, backLabel = 'Performers', onChange, onDelete, onSaveToRolodex, inRolodex, contracts, canBeSurpriseGuest }: PerformerProfileProps) {
+export function PerformerProfile({ showId, performer, onBack, backLabel = 'Performers', onChange, onDelete, onSaveToRolodex, inRolodex, contracts, canBeSurpriseGuest }: PerformerProfileProps) {
+  const review = useReview();
   // Labels have to point at the field they name: written as a plain <label>
   // beside an input they are decoration — not announced as the field's name,
   // and not tappable to focus it.
@@ -171,7 +177,8 @@ export function PerformerProfile({ performer, onBack, backLabel = 'Performers', 
   async function saveProfile() {
     const typed = draft.name.trim();
     if (performer.comicId && typed && slotReassigned(performer, { name: typed })) {
-      const different = await ask({
+      // Two real answers, both worded: neither may be relabelled in co-producer view.
+      const different = await ask(localConfirm({
         title: 'Same person, or someone else?',
         message:
           `You changed the name from ${performer.name} to ${typed}. If it's the same person, ` +
@@ -181,7 +188,7 @@ export function PerformerProfile({ performer, onBack, backLabel = 'Performers', 
         confirmLabel: 'Different act',
         cancelLabel: 'Same person',
         danger: false,
-      });
+      }));
       if (different === null) return;
       if (different) {
         handleSave((next) => reassignSlot(next, performer));
@@ -335,9 +342,9 @@ export function PerformerProfile({ performer, onBack, backLabel = 'Performers', 
                 placeholder="name@email.com"
               />
               {email.trim() && (
-                <a href={`mailto:${email.trim()}`} className="perf-profile__inline-link">
+                <ContactLink href={`mailto:${email.trim()}`} className="perf-profile__inline-link" source="person" showId={showId}>
                   Send email ↗
-                </a>
+                </ContactLink>
               )}
             </div>
             <div className="perf-profile__field">
@@ -450,6 +457,7 @@ export function PerformerProfile({ performer, onBack, backLabel = 'Performers', 
         </div>
 
         <HeadshotPanel name={performer.name} photo={performer.photo}
+          subject={showId ? { kind: 'performer', showId, personId: performer.id } : undefined}
           onChange={photo => update({ photo })} />
       </div>
 
@@ -496,7 +504,7 @@ export function PerformerProfile({ performer, onBack, backLabel = 'Performers', 
                   </button>
                 </div>
                 {walkOnUrl ? (
-                  <audio controls preload="none" className="perf-profile__audio">
+                  <audio controls preload="none" className="perf-profile__audio" controlsList={review.active ? 'nodownload' : undefined}>
                     <source src={walkOnUrl} />
                   </audio>
                 ) : (

@@ -48,6 +48,12 @@ describe('the app shell fallback', () => {
     expect(rewrittenTo('/sign')).toBe('/link-sign.html');
   });
 
+  it('serves a co-producer link its own page, whose script moves it to the review origin', () => {
+    expect(rewrittenTo('/coproduce')).toBe('/link-coproduce.html');
+    expect(rewrittenTo('/coproduce/')).toBe('/link-coproduce.html');
+    expect(rewrittenTo('/coproducer')).toBe('/index.html');
+  });
+
   it('does not answer a build file that is gone with the app shell', () => {
     // A page opened before a deploy asks for the old build's files. Served
     // index.html instead, the import failed on a MIME type rather than a

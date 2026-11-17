@@ -7,13 +7,19 @@ import { uploadMedia } from '../utils/mediaStore';
 import { useMediaUrl } from '../utils/useMediaUrl';
 import { useConfirm } from './useConfirm';
 import { avatarTint } from '../utils/avatarTint';
+import { useReview } from '../coproducer/ReviewContext';
+import type { HeadshotSubject } from '../coproducer/types';
+import { AskButton } from './coproducer/AskButton';
 
 /** Shared by show performers and the saved comic profile. */
-export function HeadshotPanel({ name, photo, onChange }: {
+export function HeadshotPanel({ name, photo, onChange, subject }: {
   name: string;
   photo?: string;
   onChange: (photo: string | undefined) => void;
+  /** Whose headshot this is, for co-producer view to ask for it by. Without one there it offers no download. */
+  subject?: HeadshotSubject;
 }) {
+  const review = useReview();
   const url = useMediaUrl(photo);
   const input = useRef<HTMLInputElement>(null);
   const preview = useRef<HTMLDialogElement>(null);
@@ -91,7 +97,8 @@ export function HeadshotPanel({ name, photo, onChange }: {
     {error && <p role="alert" className="perf-profile__media-error">{error}</p>}
     {url && <div className="headshot__actions">
       <button className="btn btn--secondary btn--sm" onClick={() => preview.current?.showModal()}>View headshot</button>
-      <button className="btn btn--secondary btn--sm" onClick={() => void download()}>Download headshot</button>
+      {!review.active && <button className="btn btn--secondary btn--sm" onClick={() => void download()}>Download headshot</button>}
+      {review.active && subject && <AskButton kind="download" action={{ type: 'headshot', subject }} className="btn btn--secondary btn--sm">Download headshot</AskButton>}
     </div>}
     {photo && <button className="perf-profile__photo-remove" disabled={busy} onClick={async () => {
       if (await confirm({ message: `Remove ${name}'s photo from this profile?`, confirmLabel: 'Remove photo' })) change.current(undefined);
@@ -99,7 +106,7 @@ export function HeadshotPanel({ name, photo, onChange }: {
     <dialog ref={preview} className="headshot__dialog" aria-label={`${name}'s headshot`}>
       <button className="btn btn--secondary btn--sm" autoFocus onClick={() => preview.current?.close()}>Close preview</button>
       {url && <img src={url} alt={`${name}'s full headshot`} />}
-      <button className="btn btn--secondary btn--sm" onClick={() => void download()}>Download headshot</button>
+      {!review.active && <button className="btn btn--secondary btn--sm" onClick={() => void download()}>Download headshot</button>}
     </dialog>
     {confirmDialog}
   </section>;

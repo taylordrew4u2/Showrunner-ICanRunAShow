@@ -9,6 +9,7 @@ import { sharedLinkPath } from './sharedLink';
 import { asksForIdNumber, asksForPayment, asksPermission } from './signatureImport';
 import { formatShowTime, parseShowDate } from './showDate';
 import type { SessionCredentials } from './session-vault';
+import { isReviewMode, ReviewModeBlockedError } from '../coproducer/reviewMode';
 
 /**
  * Sending a contract out for signature.
@@ -286,6 +287,8 @@ export function splitIntoChunks(text: string, sliceChars = SLICE_CHARS): string[
  * reaching the server holding the ciphertext.
  */
 export function signingUrl(origin: string, token: string, key: string): string {
+  // Co-producer view never holds a real link, and never builds one.
+  if (isReviewMode()) return '';
   return `${origin}${sharedLinkPath('sign', token)}#k=${key}`;
 }
 
@@ -326,6 +329,8 @@ export async function sendForSignature(
   creds: SessionCredentials,
   show?: ShowContext,
 ): Promise<SignatureRequest> {
+  // A co-producer asks the owner to send it instead (a signing-link request).
+  if (isReviewMode()) throw new ReviewModeBlockedError();
   const dataUrl = await resolveMediaUrl(contract.fileRef);
   if (!dataUrl) throw new Error('That contract could not be opened.');
 
@@ -389,9 +394,24 @@ export async function revokeSignature(
   request: SignatureRequest,
   creds: SessionCredentials,
 ): Promise<void> {
+  // In co-producer view the row's removal is part of the change asked for;
+  // the owner's app withdraws the link if the owner approves it.
+  if (isReviewMode()) return;
   const auth = { authUserId: creds.userId, authHash: creds.authHash };
   await api.del(`/api/sign?token=${encodeURIComponent(request.token)}`, auth);
   await api.del(`/api/sign-doc?token=${encodeURIComponent(request.token)}`, auth);
+}
+
+/**
+ * Whether a withdraw that threw has left the link working on the server.
+ *
+ * A dropped connection or a timeout is not "already gone": the row survives,
+ * the signer can still open and sign, and the producer's copy of the token
+ * and key is the only way that signature can ever be read. Only an answer
+ * from the server saying the row is missing means the link is dead.
+ */
+export function linkStillLive(err: unknown): boolean {
+  return (err as ApiError | null)?.status !== 404;
 }
 
 /**
@@ -425,6 +445,8 @@ export async function checkSignature(request: SignatureRequest): Promise<Signatu
 export async function refreshSignatures(
   requests: SignatureRequest[],
 ): Promise<SignatureRequest[] | null> {
+  // The owner's app files signatures; a co-producer sees them once it has.
+  if (isReviewMode()) return null;
   const pending = requests.filter((r) => !r.signed);
   if (pending.length === 0) return null;
   const found = new Map<string, SignatureRecord>();

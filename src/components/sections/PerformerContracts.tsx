@@ -14,6 +14,9 @@ import type { SessionCredentials } from '../../utils/session-vault';
 import { fileSignedHeadshots } from '../../utils/signedHeadshots';
 import { ProducerLock } from '../ProducerLock';
 import { useProducerAccess } from '../../utils/producerAccess';
+import { canShareLinks, shareLink } from '../../coproducer/gates';
+import { useReview } from '../../coproducer/ReviewContext';
+import { AskButton } from '../coproducer/AskButton';
 import './PerformerContracts.css';
 
 interface PerformerContractsProps {
@@ -27,7 +30,7 @@ interface PerformerContractsProps {
   onUpdateSettings: (settings: AppSettings) => void;
 }
 
-const CAN_SHARE = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+const CAN_SHARE = canShareLinks();
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
@@ -58,6 +61,8 @@ export function PerformerContracts({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const { locked } = useProducerAccess();
+  // Co-producer view: links are asked for, never made or handed out here.
+  const review = useReview();
 
   // Requests already sent to this person, whichever show they came from —
   // signing a performer agreement once is signing it.
@@ -69,6 +74,8 @@ export function PerformerContracts({
   // Nobody tells the app when a link is signed, so the check happens when the
   // producer opens the person — which is when they came to ask.
   useEffect(() => {
+    // The owner's app files signatures; a co-producer sees them once it has.
+    if (review.active) return;
     let cancelled = false;
     (async () => {
       const updated = await refreshSignatures(requests);
@@ -90,14 +97,9 @@ export function PerformerContracts({
   async function share(request: SignatureRequest) {
     const url = signingUrl(window.location.origin, request.token, request.key);
     try {
-      if (CAN_SHARE) {
-        // No `text` beside the URL: share targets choose between the members
-        // they support, and one that takes only text sends the sentence and
-        // drops the link — a contract that was sent and never arrived.
-        await navigator.share({ title: request.contractName, url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
+      // No `text` beside the URL (see shareLink): one that takes only text
+      // sends the sentence and drops the link.
+      if ((await shareLink(request.contractName, url)) !== 'copied') return;
       setCopied(request.token);
       setTimeout(() => setCopied((c) => (c === request.token ? null : c)), 2000);
     } catch {
@@ -109,6 +111,11 @@ export function PerformerContracts({
     const contract = contracts.find((c) => c.id === contractId);
     const name = performerName.trim();
     if (!contract || !name || locked) return;
+    if (review.active) {
+      // Asked for: the owner's app makes the link if the owner approves.
+      review.ask({ kind: 'share', action: { type: 'signing-link', contractId, signer: { name, email: performerEmail, contactId: performerComicId } } });
+      return;
+    }
     setError(null);
     setBusy(contractId);
     try {
@@ -170,7 +177,12 @@ export function PerformerContracts({
                       </dl>
                     ) : null}
                   </div>
-                  {!r.signed && (
+                  {!r.signed && review.active && (
+                    <AskButton kind="share" action={{ type: 'existing-signing-link', requestIds: [r.id] }} className="btn btn--ghost btn--sm">
+                      Share
+                    </AskButton>
+                  )}
+                  {!r.signed && !review.active && (
                     <button className="btn btn--ghost btn--sm" onClick={() => share(r)}>
                       {copied === r.token ? 'Copied' : CAN_SHARE ? 'Share' : 'Copy link'}
                     </button>

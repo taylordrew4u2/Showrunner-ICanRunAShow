@@ -3,16 +3,30 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { sharedLinkPage, sharedLinkPageName, type SharedLinkKind } from './src/utils/sharedLink'
+import { COPRODUCE_PAGE_NAME, coproduceLinkPage, coproduceOriginSettings } from './src/utils/coproduceLinkPage'
 import { NAVIGATE_FALLBACK_DENYLIST } from './src/utils/navigationFallback'
+
+// Where co-producer links open is worked out from the page's address in
+// production (coproduce.<host>). These overrides exist for the end-to-end
+// tests, which serve the two origins as 127.0.0.1 and localhost; a malformed
+// one stops the build rather than ship a page that sends co-producers
+// somewhere unintended.
+const COPRODUCE_ORIGINS = coproduceOriginSettings(process.env)
 
 /**
  * Emit one page per kind of sent link beside `index.html`: the same app, with
  * head metadata that neither redirects the link to the homepage nor leaves the
  * preview card silent about what was sent. See sharedLinkPage, and the
  * rewrites in vercel.json that route /?sign=, /?profile= and /?view= here.
+ * Co-producer links get one too (coproduceLinkPage), with the script that
+ * moves them to the review origin; they are not a SharedLinkKind, because
+ * they open an account rather than a public page.
  */
 function sharedLinkPagePlugin(): Plugin {
   const KINDS: SharedLinkKind[] = ['sign', 'profile', 'view']
+  const OTHER_PAGES: { fileName: string; build: (index: string) => string }[] = [
+    { fileName: COPRODUCE_PAGE_NAME, build: (index) => coproduceLinkPage(index, COPRODUCE_ORIGINS.review) },
+  ]
   return {
     name: 'emit-shared-link-pages',
     enforce: 'post',
@@ -27,6 +41,38 @@ function sharedLinkPagePlugin(): Plugin {
           source: sharedLinkPage(String(index.source), kind),
         })
       }
+      for (const page of OTHER_PAGES) {
+        this.emitFile({ type: 'asset', fileName: page.fileName, source: page.build(String(index.source)) })
+      }
+    },
+  }
+}
+
+/** /coproduce, with or without a trailing slash or a query, as vercel.json rewrites it. */
+const COPRODUCE_REQUEST = /^\/coproduce\/?(?:\?|$)/
+
+/**
+ * Serve /coproduce the way the host does, away from the host: `vite preview`
+ * (the end-to-end suite) answers it with link-coproduce.html as the rewrite
+ * in vercel.json does, and the dev server puts the same boot script in front
+ * of the page it serves there. Without it the token would stay in the
+ * address and nothing would move the page to the review origin.
+ */
+function coproducePagePlugin(): Plugin {
+  return {
+    name: 'serve-coproduce-link-page',
+    configurePreviewServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        if (req.url && COPRODUCE_REQUEST.test(req.url)) req.url = `/${COPRODUCE_PAGE_NAME}`
+        next()
+      })
+    },
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (!ctx.server || !ctx.originalUrl || !COPRODUCE_REQUEST.test(ctx.originalUrl)) return undefined
+        return coproduceLinkPage(html, COPRODUCE_ORIGINS.review)
+      },
     },
   }
 }
@@ -106,6 +152,7 @@ export default defineConfig({
       },
     }),
     sharedLinkPagePlugin(),
+    coproducePagePlugin(),
   ],
   test: {
     environment: 'node',

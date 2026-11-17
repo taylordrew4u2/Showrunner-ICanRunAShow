@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto';
+import { deleteCoproducerAccount, handleCoproducer, loadCoproducerModules } from './fake-coproducer.mjs';
+
+export { addCoproducerLink, addCoproducerRequest, decideCoproducerRequest, readCoproducerRequest } from './fake-coproducer.mjs';
 /**
  * An in-memory stand-in for the edge API.
  *
@@ -43,6 +46,11 @@ import { createHash } from 'node:crypto';
  * @property {boolean} billingConfigured  Whether the server has Stripe keys (api/billing.ts isBillingConfigured).
  * @property {Record<string, {status: string, customerId: string}>} billing  What Stripe's webhook last reported, by account.
  * @property {boolean} founders  Every account counts as made before subscriptions (api/billing.ts isFoundingMember).
+ * @property {Record<string, {id: string, userId: string, tokenHash: string, key: string, legacyKey: string, labelCipher: string, createdAt: number, expiresAt: number, firstUsedAt: number | null, lastUsedAt: number | null, order: number}>} coproducerLinks  Co-producer links, by id (coproducer_links). The token only as its hash; the keys unsealed, since the seal is covered by unit tests. Times in epoch seconds.
+ * @property {Record<string, {id: string, userId: string, linkId: string, kind: string, status: string, payload: string, outline: string, result: string | null, mediaIds: string[], createdAt: number, decidedAt: number | null, usedAt: number | null, bytes: number, order: number}>} coproducerRequests  What co-producers asked for, by id (coproducer_requests); payload, outline and result are ciphertext under the account key.
+ * @property {Record<string, {userId: string, linkId: string, total: number, chunks: {data: string}[], requestId: string | null, createdAt: number}>} coproducerMedia  Files staged with a proposed change, by media id (coproducer_media): chunks encrypted under the account key, as user_media holds them.
+ * @property {Record<string, {id: string, userId: string, linkId: string, labelCipher: string, refsCipher: string, createdAt: number, linkEndedAt: number | null, order: number}>} coproducerHandouts  Links approved shares handed out, by id (coproducer_handouts).
+ * @property {boolean} [coproduceUnavailable]  The server has no review origin, so POST ?route=links answers 503 coproduce_not_configured.
  */
 
 // ── Constants copied from the routes they mirror ────────────────────────────
@@ -97,6 +105,10 @@ export function emptyState(overrides = {}) {
     billingConfigured: false,
     billing: {},
     founders: false,
+    coproducerLinks: {},
+    coproducerRequests: {},
+    coproducerMedia: {},
+    coproducerHandouts: {},
     ...overrides,
   };
 }
@@ -238,13 +250,21 @@ function pruneSnapshots(snapshots) {
 
 /** @param {import("playwright").BrowserContext} ctx @param {FakeState} state */
 export async function installFakeApi(ctx, state) {
+  // The app's own schema and outline modules, which /api/coproducer checks
+  // requests with. Loaded here, not at import (see fake-coproducer.mjs); a
+  // script run by plain node, which cannot load them, still gets every
+  // other route.
+  await loadCoproducerModules().catch(() => undefined);
   await ctx.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
     const path = url.pathname;
     const method = req.method();
     const headers = req.headers();
-    const body = ['POST', 'PUT', 'DELETE'].includes(method) ? JSON.parse(req.postData() || '{}') : {};
+    const raw = ['POST', 'PUT', 'DELETE'].includes(method) ? req.postData() || '' : '';
+    // /api/coproducer reads its body itself: its size, and keys no other
+    // route has to refuse, are part of what it checks.
+    const body = path === '/api/coproducer' ? {} : JSON.parse(raw || '{}');
     const ok = (data) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
     const err = (status, error) =>
@@ -302,6 +322,11 @@ export async function installFakeApi(ctx, state) {
     const refused = () => (throttled ? err(429, 'too_many_requests') : err(401, 'unauthorized'));
 
     if (path === '/api/health') return ok({ ok: true, configured: true, db: 'reachable' });
+
+    // api/coproducer.ts, mirrored in fake-coproducer.mjs.
+    if (path === '/api/coproducer') {
+      return handleCoproducer({ state, route, url, method, headers, raw, address, authorize, refused, rateLimit, rateLimitPeek });
+    }
 
     // api/billing.ts. Stripe itself is out of reach here, so checkout stands
     // in for the whole round trip: it records the subscription the webhook
@@ -395,6 +420,7 @@ export async function installFakeApi(ctx, state) {
       for (const bucket of Object.keys(state.rateLimits)) {
         if (bucket.startsWith(`auth:${userId}:`) || bucket.startsWith(`authz:${userId}:`)) delete state.rateLimits[bucket];
       }
+      deleteCoproducerAccount(state, userId);
       delete state.users[userId];
       return ok({ ok: true });
     }
