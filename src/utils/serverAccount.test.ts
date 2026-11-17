@@ -49,6 +49,7 @@ async function seed(user: string, status = 'canceled') {
   await run(`INSERT INTO user_settings_backup (user_id, encrypted_data) VALUES (?, 'cipher')`, user);
   await run(`INSERT INTO user_media (user_id, id, seq, total, data) VALUES (?, ?, 0, 1, 'cipher')`, user, `${user}-track`);
   await run(`INSERT INTO live_view (token, user_id, payload) VALUES (?, ?, '{}')`, view, user);
+  await run(`INSERT INTO website_lineups (show_id, user_id, source_revision, payload, updated_at) VALUES (?, ?, 'revision', ?, '2026-11-17T00:00:00Z')`, `${user}-show`, user, JSON.stringify({ name: `${user}'s published show` }));
   await run(`INSERT INTO live_media (token, id, seq, total, data, user_id, bytes) VALUES (?, 'walk-on-1', 0, 1, 'cipher', ?, 6)`, view, user);
   await run(`INSERT INTO sign_request (token, user_id, payload) VALUES (?, ?, 'cipher')`, sign, user);
   await run(`INSERT INTO sign_doc (token, seq, total, data, user_id, bytes) VALUES (?, 0, 1, 'cipher', ?, 6)`, sign, user);
@@ -67,7 +68,9 @@ async function seed(user: string, status = 'canceled') {
 
 async function tables(): Promise<string[]> {
   // Dynamic OAuth clients are shared public metadata, not account-owned rows.
-  const result = await run(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'chatgpt_clients' ORDER BY name`);
+  // The singleton website bootstrap is a consumed setup tombstone, not one row
+  // per account. Deletion clears its owner separately but must retain the tombstone.
+  const result = await run(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('chatgpt_clients', 'website_lineups_bootstrap') ORDER BY name`);
   return result.rows.map((row) => String(row[0]));
 }
 
@@ -134,6 +137,22 @@ describe('deleting an account', () => {
       expect(rows, table).toContain('neighbour');
     }
     expect(stripeCalls.filter((c) => c.method === 'DELETE')).toEqual([]);
+  });
+
+  it('removes public lineup data and its owner reference while retaining consumed setup', async () => {
+    await seed('producer');
+    await seed('neighbour');
+    const consumedAt = '2026-11-17T00:00:00Z';
+    await run('INSERT INTO website_lineups_bootstrap (id, owner_id, consumed_at) VALUES (1, ?, ?)', 'producer', consumedAt);
+
+    expect((await remove('producer')).status).toBe(200);
+    expect(await everything('website_lineups')).not.toContain('producer');
+    expect(await everything('website_lineups')).toContain('neighbour');
+    const bootstrap = (await run('SELECT id, owner_id, consumed_at FROM website_lineups_bootstrap')).rows;
+    expect(bootstrap).toHaveLength(1);
+    expect(bootstrap[0].id).toBe(1);
+    expect(bootstrap[0].owner_id).toBeNull();
+    expect(bootstrap[0].consumed_at).toBe(consumedAt);
   });
 
   it('cancels whatever the account could still be charged for, straight away', async () => {

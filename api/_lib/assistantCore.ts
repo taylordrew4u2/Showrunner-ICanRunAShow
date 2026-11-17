@@ -13,6 +13,8 @@ import type { AppSettings, Show } from '../../src/types';
 import { decryptShow, encryptShow } from './chatgptCipher';
 import { applySettingsWrite } from './settingsWrites';
 import { applyShowChanges, cipherHash } from './showWrites';
+import { websiteLineupsConfig } from './websiteLineups';
+import { publicWebsiteShow } from '../../src/utils/websiteLineups';
 
 export type AssistantScope =
   | 'shows:read' | 'shows:write' | 'shows:delete'
@@ -237,12 +239,16 @@ export interface ShowChange {
 
 /** Write shows atomically under compare-and-swap. Returns each written show's new revision. */
 export async function saveShows(ctx: AssistantContext, changes: ShowChange[]): Promise<Map<string, string>> {
+  const websiteIds = new Set(websiteLineupsConfig()?.ids ?? []);
   const encrypted = await Promise.all(changes.map(async change => {
     const cipher = change.show === null ? null : await encryptShow(change.show, ctx.grant.key);
     if (cipher !== null && cipher.length > MAX_SAVE_BYTES) {
       throw new AssistantToolError('This show would be too large for the app to save. Remove a large upload in the app first.');
     }
-    return { id: change.id, expectedHash: change.expectedHash, encryptedData: cipher };
+    return {
+      id: change.id, expectedHash: change.expectedHash, encryptedData: cipher,
+      ...(change.show && websiteIds.has(change.id) ? { websiteLineup: publicWebsiteShow(change.show) } : {}),
+    };
   }));
   const response = await applyShowChanges(ctx.db, ctx.grant.userId, encrypted);
   if (response.status === 409) throw new AssistantToolError(STALE_SHOW);

@@ -3,7 +3,8 @@
 // Turso — no ORM engine to bundle, which makes it reliable on Vercel's Node
 // runtime. The connection lives ONLY in server env vars; it never ships to the
 // browser. The app's data is encrypted client-side, so these tables only ever
-// hold opaque ciphertext blobs.
+// hold opaque ciphertext blobs, apart from explicitly published audience and
+// opt-in website projections (which contain only the permitted public bill).
 // `/web` = the fetch-based client (no Node-native deps) — works on Vercel's
 // edge runtime, the same client the app used from the browser.
 import { createClient, type Client } from '@libsql/client/web';
@@ -84,6 +85,22 @@ const DDL: string[] = [
      user_id TEXT PRIMARY KEY,
      encrypted_data TEXT NOT NULL,
      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+   )`,
+  // Explicitly configured public website bills. No OAuth/decryption keys,
+  // contacts, notes, media or surprise-guest records are copied here.
+  `CREATE TABLE IF NOT EXISTS website_lineups (
+     show_id TEXT PRIMARY KEY,
+     user_id TEXT NOT NULL,
+     source_revision TEXT,
+     payload TEXT,
+     updated_at TEXT NOT NULL
+   )`,
+  // This tombstone keeps setup single-use even when the setup token rotates.
+  // Account deletion clears its owner reference while preserving consumption.
+  `CREATE TABLE IF NOT EXISTS website_lineups_bootstrap (
+     id INTEGER PRIMARY KEY CHECK (id = 1),
+     owner_id TEXT,
+     consumed_at TEXT NOT NULL
    )`,
   // `parked` marks a row that is a device's only copy of unsaved work rather
   // than a copy of a save — see parkSettingsSnapshot. Retention leaves those
