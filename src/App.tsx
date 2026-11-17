@@ -13,7 +13,7 @@ import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/the
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
 import { expandOriginFrom } from './utils/expandOrigin';
-import { getComicProfilePatch, reconcileRolodexProfiles, resolvePerformerComic, slotReassigned, syncShowsWithRolodex, type RolodexSyncOptions } from './utils/rolodex';
+import { getComicProfilePatch, hostSocialEdits, reconcileRolodexProfiles, resolvePerformerComic, slotReassigned, syncShowsWithRolodex, type RolodexSyncOptions } from './utils/rolodex';
 import { normalizeComicSettings } from './utils/sharedComicSettings';
 import { mergeSettingsEdit } from './utils/mergeSettingsEdit';
 import { mergeShowEdit } from './utils/mergeShowEdit';
@@ -1270,7 +1270,7 @@ export default function App() {
     resolvedSettingsRef.current.set(updated, prepared);
     latestSettingsRef.current = prepared;
     setSettingsState(prepared);
-    const synced = syncShowsWithRolodex(prepared.potentialComics, latestShowsRef.current, sync);
+    const synced = syncShowsWithRolodex(prepared.potentialComics, latestShowsRef.current, { ...sync, renamedFrom: current.potentialComics });
     if (synced !== latestShowsRef.current) {
       latestShowsRef.current = synced;
       setShows(synced);
@@ -2608,12 +2608,14 @@ export default function App() {
           comics = comics.map(c => c.id === comic.id ? { ...c, ...patch } : c);
         }
       }
+      // A host picked from the Rolodex edits their entry the same way.
+      comics = hostSocialEdits(baseline, incoming, comics);
     }
     // A vendor's cost is part of the recap's bottom line, so an edit to either
     // (or the two merged from different screens) brings the stored figure up
     // to date rather than leaving the one typed with the recap.
     const updated: Show = settleRecapProfit({ ...merged, updatedAt: new Date().toISOString() });
-    const shared = reconcileRolodexProfiles(comics, currentShows.map(s => s.id === updated.id ? updated : s), { clearedPhotos });
+    const shared = reconcileRolodexProfiles(comics, currentShows.map(s => s.id === updated.id ? updated : s), { clearedPhotos, renamedFrom: currentSettings.potentialComics });
     const nextSettings = shared.comics === currentSettings.potentialComics
       ? currentSettings : { ...currentSettings, potentialComics: shared.comics };
     latestShowsRef.current = shared.shows;

@@ -82,3 +82,35 @@ describe('healShow', () => {
     expect(healShow([{ id: 'a' }])).toBeNull();
   });
 });
+
+describe('healShow and the hosts', () => {
+  it('leaves a show saved with its one host exactly as it was', () => {
+    const healed = healShow({ id: 'a', name: 'Late Night', host: 'Jo Park' })!;
+    expect(healed.host).toBe('Jo Park');
+    for (const field of ['hostSocial', 'hostComicId', 'coHost', 'coHostSocial', 'coHostComicId']) {
+      expect(healed).not.toHaveProperty(field);
+    }
+  });
+
+  it('keeps two hosts, their handles and their Rolodex links', () => {
+    const saved = {
+      id: 'a', name: 'Late Night',
+      host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo',
+      coHost: 'Dev Okonjo', coHostSocial: '@devokonjo', coHostComicId: 'c-dev',
+    };
+    expect(healShow({ ...saved })).toMatchObject(saved);
+  });
+
+  it('drops a host field that is not text rather than printing it', () => {
+    const healed = healShow({ id: 'a', name: 'Late Night', host: { name: 'Jo' }, hostSocial: 7, coHost: ['Dev'], coHostSocial: null })!;
+    for (const field of ['host', 'hostSocial', 'coHost', 'coHostSocial']) expect(healed).not.toHaveProperty(field);
+  });
+
+  it('makes a lone second host the host, where everything older looks for one', () => {
+    const healed = healShow({ id: 'a', name: 'Late Night', coHost: 'Dev Okonjo', coHostSocial: '@devokonjo', coHostComicId: 'c-dev' })!;
+    expect(healed).toMatchObject({ host: 'Dev Okonjo', hostSocial: '@devokonjo', hostComicId: 'c-dev' });
+    expect(healed.coHost).toBeUndefined();
+    expect(healed.coHostSocial).toBeUndefined();
+    expect(healed.coHostComicId).toBeUndefined();
+  });
+});

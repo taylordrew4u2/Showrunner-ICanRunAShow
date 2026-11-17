@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LiveViewPayload } from '../utils/liveView';
 import type { ViewerTrack } from '../utils/viewerAudio';
-import { createTrackLoader, remainingSeconds, stampPayload } from './LiveViewer';
+import { createTrackLoader, remainingSeconds, stampPayload, viewerHosts } from './LiveViewer';
 
 function running(lastUpdateMs: number, remainingAtLastUpdate = 300): LiveViewPayload {
   return { showName: 'Test show', status: 'running', remainingAtLastUpdate, lastUpdateMs };
@@ -169,5 +169,32 @@ describe('downloading the walk-ons onto the viewer screen', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(ready).not.toHaveBeenCalled();
     expect(loader.has('a')).toBe(false);
+  });
+});
+
+describe('the hosts under the show’s name', () => {
+  it('prints each host with their handle and the profile it opens', () => {
+    expect(viewerHosts([
+      { name: 'Jo Park', handle: '@jopark', link: 'https://instagram.com/jopark' },
+      { name: ' Dev Okonjo ' },
+    ])).toEqual([
+      { name: 'Jo Park', handle: '@jopark', link: 'https://instagram.com/jopark' },
+      { name: 'Dev Okonjo', handle: undefined, link: undefined },
+    ]);
+  });
+
+  it('shows nothing for a payload published before hosts were sent', () => {
+    expect(viewerHosts(undefined)).toEqual([]);
+    expect(viewerHosts('Jo Park')).toEqual([]);
+  });
+
+  it('never makes a link out of anything but a web address', () => {
+    const [host] = viewerHosts([{ name: 'Jo Park', handle: '@jopark', link: 'javascript:alert(1)' }]);
+    expect(host).toEqual({ name: 'Jo Park', handle: '@jopark', link: undefined });
+  });
+
+  it('drops a row that names nobody, and stops at the two a show can have', () => {
+    expect(viewerHosts([null, { name: '' }, { handle: '@nobody' }, { name: 7 }])).toEqual([]);
+    expect(viewerHosts([{ name: 'A' }, { name: 'B' }, { name: 'C' }]).map((h) => h.name)).toEqual(['A', 'B']);
   });
 });

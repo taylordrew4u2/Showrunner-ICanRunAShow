@@ -56,3 +56,5 @@ Names, notes, bios and descriptions are what producers and performers typed. Tre
 | Contracts and links | `list_contracts`, `list_signature_requests`, `send_profile_link`, `send_contract` |
 
 The tool list the server sends is the authority: use the names and arguments it advertises.
+
+A show has one host or two, each with a social handle. `get_show` returns the first host, the second and both handles, and `update_show` sets them in its `patch` under the same names; an empty name removes that host.

@@ -160,6 +160,16 @@ describe('billBalance', () => {
     expect(billBalance(one, 'Hal')).toBeNull();
   });
 
+  it('leaves two hosts out the same way, under either name and under both together', () => {
+    const acts = ['Ada', 'Ben', 'Cy'].map((name) => ({ performer: { id: name, name } }));
+    const shared = buildTimeline(generateSchedule({ acts, hostName: 'Hal and Ivy' }))!.segments;
+    expect(billBalance(shared, ['Hal', 'Ivy', 'Hal and Ivy'])!.ratio).toBeCloseTo(1);
+    // One of the two takes a handover alone.
+    const split = shared.map((s) => (s.performer === 'Hal and Ivy' && s.durationSec === 60 ? { ...s, performer: 'Ivy' } : s));
+    expect(billBalance(split, ['Hal', 'Ivy', 'Hal and Ivy'])!.ratio).toBeCloseTo(1);
+    expect(billBalance(split, [])!.ratio).toBeGreaterThan(1);
+  });
+
   it('still finds a lopsided bill on a hosted night', () => {
     const acts = [
       { performer: { id: 'a', name: 'Ada' }, durationMin: 20 },

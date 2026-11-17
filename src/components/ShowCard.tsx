@@ -1,3 +1,4 @@
+import { hostNames, joinHosts } from '../utils/showHosts';
 import type { Show } from '../types';
 import { parseShowDate, formatShowTime } from '../utils/showDate';
 import { formatRuntime } from '../utils/sectionSummary';
@@ -40,9 +41,10 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
   const runtime = show.schedule.length
     ? formatRuntime(baseDurations(show.schedule).reduce((sum, sec) => sum + sec, 0))
     : null;
+  const hosts = hostNames(show);
   const facts = [
     runtime,
-    show.host?.trim() ? `Host ${show.host.trim()}` : null,
+    hosts.length ? `${hosts.length > 1 ? 'Hosts' : 'Host'} ${joinHosts(hosts)}` : null,
   ].filter((f): f is string => !!f);
   const lineupFact = lineup.targetSet
     ? lineup.shortLabel

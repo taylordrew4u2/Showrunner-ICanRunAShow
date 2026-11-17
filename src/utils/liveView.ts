@@ -6,7 +6,9 @@ import { cuePerformerName, resolveCuePerformer } from './soundboard';
 import { billedPerformers, isSurpriseGuest, SURPRISE_GUEST_LABEL, surpriseGuests } from './surpriseGuests';
 import type { ColorScheme } from './theme';
 import type { ViewerPlayback, ViewerTrack } from './viewerAudio';
-import type { Performer, ScheduleItem } from '../types';
+import type { Performer, ScheduleItem, Show } from '../types';
+import { hostHandle, showHosts, type HostFields } from './showHosts';
+import { socialLink } from './social';
 
 /** One cue as the room sees it: who is on, what the segment is, their credits. */
 export interface LiveCue {
@@ -27,6 +29,11 @@ export interface LiveViewPayload {
   note?: string; // optional admin note shown pre-show
   theme?: ColorScheme; // producer's color scheme, so the public viewer matches the app
   lineup?: { name: string; credits?: string }[]; // performers in order — shown pre-show, esp. when there's no schedule
+  /**
+   * Who is hosting, one or two, each with the handle they are tagged by and
+   * the profile it opens. Shown under the show's name before it starts.
+   */
+  hosts?: { name: string; handle?: string; link?: string }[];
   segment?: LiveCue;
   next?: Omit<LiveCue, 'credits'>;
   totalSec?: number;
@@ -306,6 +313,24 @@ export async function fetchLiveView(token: string): Promise<LiveViewPayload | nu
  */
 export function publicLineup(performers: Performer[]): NonNullable<LiveViewPayload['lineup']> {
   return billedPerformers(performers).map((p) => ({ name: p.name, credits: p.credits }));
+}
+
+/**
+ * The hosts the viewer link may name before the show, with their handles.
+ *
+ * A host is as public as the bill: the post names them too. The one held
+ * back is a host who is also on the bill as a surprise guest, whose name
+ * here would be the spoiler the lineup above leaves out.
+ */
+export function publicHosts(show: Pick<Show, 'performers'> & HostFields): NonNullable<LiveViewPayload['hosts']> {
+  const secret = new Set(surpriseGuests(show.performers).map((guest) => guest.name.trim().toLowerCase()));
+  return showHosts(show)
+    .filter((host) => !secret.has(host.name.toLowerCase()))
+    .map((host) => ({
+      name: host.name,
+      handle: hostHandle(host) ?? undefined,
+      link: socialLink(host.social) ?? undefined,
+    }));
 }
 
 /**

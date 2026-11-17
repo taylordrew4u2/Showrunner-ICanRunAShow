@@ -6,6 +6,7 @@ import {
   scheduleRuntime,
   type ScheduleAct,
 } from '../utils/generateSchedule';
+import { joinHosts } from '../utils/showHosts';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
 import './ScheduleGenerator.css';
@@ -13,6 +14,8 @@ import './ScheduleGenerator.css';
 interface ScheduleGeneratorProps {
   performers: Performer[];
   host?: string;
+  /** The second host, when two share the night. */
+  coHost?: string;
   /** How many cues the show already has, so a replace can warn first. */
   existingCount: number;
   onApply: (items: ScheduleItem[]) => void;
@@ -106,7 +109,8 @@ export function actMinutesField(
  */
 export function ScheduleGenerator({
   performers,
-  host,
+  host: firstHost,
+  coHost,
   existingCount,
   onApply,
   onClose,
@@ -120,11 +124,19 @@ export function ScheduleGenerator({
   /** The running order, by performer id. Empty means "as booked". */
   const [order, setOrder] = useState<string[]>([]);
 
+  // Two hosts share the welcome and every handover, so those cues carry both
+  // names: "Jo Park and Dev Okonjo".
+  const hosting = useMemo(
+    () => [firstHost, coHost].map((name) => name?.trim() ?? '').filter(Boolean),
+    [firstHost, coHost],
+  );
+  const host = joinHosts(hosting) || undefined;
+
   // The host works the room, not a slot on the bill — so if they are also
   // booked as a performer, they are not one of the acts to introduce.
   const roster = useMemo(
-    () => performers.filter((person) => !host || person.name.trim() !== host.trim()),
-    [performers, host],
+    () => performers.filter((person) => !hosting.includes(person.name.trim())),
+    [performers, hosting],
   );
 
   // `order` holds only what has been moved, so a performer booked after the

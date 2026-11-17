@@ -81,7 +81,7 @@ export function AnnouncePost({ show, onClose }: AnnouncePostProps) {
             <Icon name="alert" size={14} aria-hidden />
             <span>
               No handle saved for {post.untagged.join(', ')} — they won't be tagged until you add
-              one to their profile.
+              one to their profile, or beside a host's name.
             </span>
           </p>
         )}

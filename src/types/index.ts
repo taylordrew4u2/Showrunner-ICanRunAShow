@@ -308,6 +308,26 @@ export interface Show {
   performerTarget?: number;
   productionNotes?: string; // private planning notes for this show
   host?: string; // host name (free text, or set from a performer)
+  /**
+   * The host's handle or profile link. The Rolodex's own when the host was
+   * picked from it, and typed by hand for a host who is only a name.
+   */
+  hostSocial?: string;
+  /**
+   * The Rolodex entry the host was picked from. With it the name and the
+   * handle follow that entry, the way a booked performer's do; without it
+   * the host is the free text it always was.
+   */
+  hostComicId?: string;
+  /**
+   * A second host, for a night two people share. Beside `host` rather than
+   * a list replacing it, so a show saved before there could be two, and
+   * every older app, assistant and co-producer copy that reads `host`, still
+   * finds the first host where it was.
+   */
+  coHost?: string;
+  coHostSocial?: string;
+  coHostComicId?: string;
   todos?: TodoItem[];
   viewToken?: string; // public read-only viewer link token
   /**

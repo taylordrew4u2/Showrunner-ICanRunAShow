@@ -221,3 +221,57 @@ describe('a post with a surprise guest on the bill', () => {
     expect(post.text).not.toContain('@milestrent');
   });
 });
+
+describe('a post for a night with hosts and their handles', () => {
+  const bill = [
+    { id: 'p1', name: 'Renata Cruz', socialMedia: '@renatadoesbits' },
+    { id: 'p2', name: 'Dev Okonjo' },
+  ];
+
+  it('names two hosts on one line, each with their own handle', () => {
+    const post = buildSocialPost(show({
+      host: 'Jo Park', hostSocial: '@jopark',
+      coHost: 'Mona Sable', coHostSocial: 'https://www.instagram.com/monasable/',
+      performers: bill,
+    }));
+    const lines = post.text.split('\n');
+    expect(lines[3]).toBe('Hosted by Jo Park @jopark and Mona Sable @monasable');
+    expect(lines.indexOf(lines[3])).toBeLessThan(lines.indexOf('Renata Cruz @renatadoesbits'));
+  });
+
+  it('tags the hosts alongside the bill, hosts first and nobody twice', () => {
+    const hosted = show({
+      host: 'Jo Park', hostSocial: '@jopark',
+      // Hosting and performing: one person, one tag.
+      coHost: 'Renata Cruz', coHostSocial: '@RenataDoesBits',
+      performers: bill,
+    });
+    expect(postTags(hosted)).toEqual(['@jopark', '@RenataDoesBits']);
+    expect(buildSocialPost(hosted).text.split('\n').at(-1)).toBe('@jopark @RenataDoesBits');
+  });
+
+  it('gives a host with no handle of their own the one they carry on the bill', () => {
+    const post = buildSocialPost(show({ host: 'Renata Cruz', performers: bill }));
+    expect(post.text).toContain('Hosted by Renata Cruz @renatadoesbits');
+  });
+
+  it('prefers the handle saved beside the host to the one on their booking', () => {
+    const post = buildSocialPost(show({ host: 'Renata Cruz', hostSocial: '@renatahosts', performers: bill }));
+    expect(post.text).toContain('Hosted by Renata Cruz @renatahosts');
+  });
+
+  it('names a host with no handle as someone to chase, once', () => {
+    const hosted = show({ host: 'Jo Park', coHost: 'Dev Okonjo', performers: bill });
+    expect(buildSocialPost(hosted).text).toContain('Hosted by Jo Park and Dev Okonjo');
+    // Dev is on the bill, and is listed there.
+    expect(untaggedNames(hosted)).toEqual(['Jo Park', 'Dev Okonjo']);
+    expect(untaggedNames(show({ host: 'Jo Park', hostSocial: '@jopark', performers: bill }))).toEqual(['Dev Okonjo']);
+  });
+
+  it('leaves a host’s social that is not a handle out of the tags', () => {
+    const hosted = show({ host: 'Jo Park', hostSocial: 'https://youtube.com/channel/UC123' });
+    expect(buildSocialPost(hosted).text).toContain('Hosted by Jo Park');
+    expect(postTags(hosted)).toEqual([]);
+    expect(untaggedNames(hosted)).toEqual(['Jo Park']);
+  });
+});

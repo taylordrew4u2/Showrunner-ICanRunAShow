@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createClient, type Client } from '@libsql/client';
 import { applySchema } from '../../api/_lib/db';
 import { handleShowTool, SHOW_TOOLS, type ChatgptShowGrant } from '../../api/_lib/chatgptShows';
@@ -146,4 +146,85 @@ it('validates cursor, patch and expected revision rather than trusting tool sche
 it('advertises only the four scoped show tools and labels writes for client confirmation', () => {
   expect(SHOW_TOOLS.map(tool => tool.name)).toEqual(['list_shows', 'get_show', 'create_show', 'update_show']);
   expect(SHOW_TOOLS.find(tool => tool.name === 'update_show')?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+});
+
+describe('two hosts and their handles', () => {
+  const update = async (patch: Record<string, string>) => {
+    const { revision } = await call('get_show', { id: 'existing-show' }) as { revision: string };
+    return (await call('update_show', { id: 'existing-show', expected_revision: revision, patch })) as { show: Record<string, unknown> };
+  };
+  const stored = async () => decryptWithKeys<Show>(String((await db.execute('SELECT encrypted_data FROM user_shows')).rows[0][0]), [grant.key]);
+
+  it('reads the first host where it always was, with the second and both handles beside it', async () => {
+    await seed({ ...fixture(), host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo', coHost: 'Dev Okonjo', coHostSocial: '@devokonjo' });
+    const { show } = await call('get_show', { id: 'existing-show' }) as { show: Record<string, unknown> };
+    expect(show).toMatchObject({ host: 'Jo Park', hostSocial: '@jopark', coHost: 'Dev Okonjo', coHostSocial: '@devokonjo' });
+  });
+
+  it('reads a show saved with one host and no handle as that host alone', async () => {
+    await seed({ ...fixture(), host: 'Jo Park' });
+    const { show } = await call('get_show', { id: 'existing-show' }) as { show: Record<string, unknown> };
+    expect(show).toMatchObject({ host: 'Jo Park', hostSocial: '', coHost: '', coHostSocial: '' });
+  });
+
+  it('sets two hosts with their handles in one change', async () => {
+    await seed();
+    const { show } = await update({ host: 'Jo Park', hostSocial: ' @jopark ', coHost: 'Dev Okonjo', coHostSocial: 'https://instagram.com/devokonjo' });
+    expect(show).toMatchObject({ host: 'Jo Park', hostSocial: '@jopark', coHost: 'Dev Okonjo', coHostSocial: 'https://instagram.com/devokonjo' });
+    expect(await stored()).toMatchObject({ host: 'Jo Park', hostSocial: '@jopark', coHost: 'Dev Okonjo', coHostSocial: 'https://instagram.com/devokonjo' });
+  });
+
+  it('still takes the old one-host patch, and leaves a second host alone', async () => {
+    await seed({ ...fixture(), host: 'Jo Park', coHost: 'Dev Okonjo', coHostSocial: '@devokonjo' });
+    const { show } = await update({ host: 'Sam Reyes' });
+    expect(show).toMatchObject({ host: 'Sam Reyes', coHost: 'Dev Okonjo', coHostSocial: '@devokonjo' });
+  });
+
+  it('drops the Rolodex link and its handle when a different host is named, and keeps them for the same one', async () => {
+    await seed({ ...fixture(), host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo' });
+    await update({ host: 'Jo Park' });
+    expect(await stored()).toMatchObject({ host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo' });
+    await update({ host: 'Sam Reyes' });
+    const show = await stored();
+    expect(show.host).toBe('Sam Reyes');
+    expect(show.hostSocial).toBeUndefined();
+    expect(show.hostComicId).toBeUndefined();
+  });
+
+  it('makes a changed handle the host’s own rather than one the Rolodex would put back', async () => {
+    await seed({ ...fixture(), host: 'Jo Park', hostSocial: '@jopark', hostComicId: 'c-jo' });
+    await update({ hostSocial: '@jo.park.comedy' });
+    const show = await stored();
+    expect(show).toMatchObject({ host: 'Jo Park', hostSocial: '@jo.park.comedy' });
+    expect(show.hostComicId).toBeUndefined();
+  });
+
+  it('clears a host with an empty name, handle and all, and the one left is the host', async () => {
+    await seed({ ...fixture(), host: 'Jo Park', hostSocial: '@jopark', coHost: 'Dev Okonjo', coHostSocial: '@devokonjo', coHostComicId: 'c-dev' });
+    const { show } = await update({ host: '' });
+    expect(show).toMatchObject({ host: 'Dev Okonjo', hostSocial: '@devokonjo', coHost: '', coHostSocial: '' });
+    expect(await stored()).toMatchObject({ host: 'Dev Okonjo', hostSocial: '@devokonjo', hostComicId: 'c-dev' });
+    const cleared = await update({ host: '' });
+    expect(cleared.show).toMatchObject({ host: '', hostSocial: '', coHost: '', coHostSocial: '' });
+  });
+
+  it('refuses a handle for a host who is not there, and anything that is not text', async () => {
+    await seed();
+    const { revision } = await call('get_show', { id: 'existing-show' }) as { revision: string };
+    const attempt = (patch: unknown) => call('update_show', { id: 'existing-show', expected_revision: revision, patch });
+    await expect(attempt({ coHostSocial: '@devokonjo' })).rejects.toThrow('Set coHost before coHostSocial');
+    await expect(attempt({ hostSocial: '@jopark' })).rejects.toThrow('Set host before hostSocial');
+    await expect(attempt({ coHost: 7 })).rejects.toThrow('Invalid coHost');
+    await expect(attempt({ hostSocial: 'x'.repeat(201) })).rejects.toThrow('Invalid hostSocial');
+    await expect(attempt({ thirdHost: 'Nobody' })).rejects.toThrow();
+    // A new show has no host yet: the form that makes one has no field for it.
+    await expect(call('create_show', { name: 'New night', coHost: 'Dev Okonjo' })).rejects.toThrow();
+  });
+
+  it('describes both hosts and their handles to the assistant that edits them', () => {
+    const tool = SHOW_TOOLS.find(candidate => candidate.name === 'update_show')!;
+    const patch = (tool.inputSchema as { properties: { patch: { properties: Record<string, unknown> } } }).properties.patch.properties;
+    expect(Object.keys(patch)).toEqual(expect.arrayContaining(['host', 'hostSocial', 'coHost', 'coHostSocial']));
+    expect(tool.description).toContain('up to two');
+  });
 });

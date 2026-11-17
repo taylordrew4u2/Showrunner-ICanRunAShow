@@ -477,3 +477,64 @@ describe('planEdit', () => {
     expect(merged.value.potentialComics.map((c) => [c.id, c.notes])).toEqual([['c1', 'Headliner now.'], ['c-new', undefined], ['c-owner', undefined]]);
   });
 });
+
+describe('a co-producer’s change to the hosts', () => {
+  const comics: PotentialComic[] = [
+    { id: 'c3', name: 'Cal', socialMedia: '@calhosts' },
+    { id: 'c4', name: 'Dee', socialMedia: '@deehosts' },
+    { id: 'c5', name: 'Bo Reyes', socialMedia: '@boreyes' },
+  ];
+  const settings = () => fullSettings({ potentialComics: [...fullSettings().potentialComics, ...comics] });
+
+  it('adds a second host with a typed handle, beside the first', async () => {
+    const original = fullShow({ coHost: undefined, coHostSocial: undefined, coHostComicId: undefined });
+    const { state, index, ctx } = await owner([original], settings());
+    const plan = ok(planEdit(editOf([updateOf(viewOfShow(original, index), { coHost: 'Guest Host', coHostSocial: '@guesthost' })]), state, ctx()));
+    expect(plan.after.shows[0]).toMatchObject({
+      host: 'Cal', hostSocial: '@calhosts', hostComicId: 'c3', coHost: 'Guest Host', coHostSocial: '@guesthost',
+    });
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.changes[0].changes.map((c) => c.label)).toEqual(['Second host', 'Second host’s social']);
+  });
+
+  it('takes a host picked from the Rolodex with their link, and one typed over without it', async () => {
+    const original = fullShow();
+    const { state, index, ctx } = await owner([original], settings());
+    const view = viewOfShow(original, index);
+    const picked = ok(planEdit(editOf([updateOf(view, { host: 'Bo Reyes', hostSocial: '@boreyes', hostComicId: 'c5' })]), state, ctx()));
+    expect(picked.after.shows[0]).toMatchObject({ host: 'Bo Reyes', hostSocial: '@boreyes', hostComicId: 'c5', coHost: 'Dee' });
+
+    const typed = ok(planEdit(editOf([updateOf(view, { host: 'Someone New', hostSocial: undefined, hostComicId: undefined })]), state, ctx()));
+    const show = typed.after.shows[0];
+    expect(show.host).toBe('Someone New');
+    // Not renamed back to Cal by the link the old host had.
+    expect(show.hostComicId).toBeUndefined();
+    expect(show.hostSocial).toBeUndefined();
+  });
+
+  it('removes the second host and leaves the first as the owner has it now', async () => {
+    const original = fullShow();
+    const asked = viewOfShow(original, (await owner([original], settings())).index);
+    const current = { ...original, productionNotes: 'Changed since.' };
+    const { state, ctx } = await owner([current], settings());
+    const plan = ok(planEdit(editOf([updateOf(asked, { coHost: undefined, coHostSocial: undefined, coHostComicId: undefined })]), state, ctx()));
+    const show = plan.after.shows[0];
+    expect(show.coHost).toBeUndefined();
+    expect(show.coHostSocial).toBeUndefined();
+    expect(show.coHostComicId).toBeUndefined();
+    expect(show).toMatchObject({ host: 'Cal', hostSocial: '@calhosts', productionNotes: 'Changed since.' });
+  });
+
+  it('reports a host the owner changed meanwhile as a conflict, by its label', async () => {
+    const original = fullShow();
+    const asked = viewOfShow(original, (await owner([original], settings())).index);
+    const current = { ...original, coHost: 'Owner’s pick', coHostSocial: undefined, coHostComicId: undefined };
+    const { state, ctx } = await owner([current], settings());
+    const plan = ok(planEdit(editOf([updateOf(asked, { coHost: 'Their pick' })]), state, ctx()));
+    // Approving applies what was asked for; the owner is shown what it replaces.
+    expect(plan.after.shows[0].coHost).toBe('Their pick');
+    expect(plan.conflicts).toEqual([
+      { groupKey: 'show:show1', key: 'coHost', path: [], label: 'Second host', asked: 'Dee', now: 'Owner’s pick', proposed: 'Their pick' },
+    ]);
+  });
+});

@@ -13,6 +13,28 @@ import {
   type ViewerTrack,
 } from '../utils/viewerAudio';
 
+/**
+ * The hosts as the page prints them.
+ *
+ * The payload is whatever was last published under the link, so it is read
+ * as data: a name that is text, a handle that is text, and a link only when
+ * it is a web address, since it becomes something to tap.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function viewerHosts(hosts: unknown): { name: string; handle?: string; link?: string }[] {
+  if (!Array.isArray(hosts)) return [];
+  return hosts.flatMap((host) => {
+    if (!host || typeof host !== 'object') return [];
+    const { name, handle, link } = host as Record<string, unknown>;
+    if (typeof name !== 'string' || !name.trim()) return [];
+    return [{
+      name: name.trim(),
+      handle: typeof handle === 'string' && handle.trim() ? handle.trim() : undefined,
+      link: typeof link === 'string' && /^https?:\/\//i.test(link) ? link : undefined,
+    }];
+  }).slice(0, 2);
+}
+
 interface LiveViewerProps {
   token: string;
 }
@@ -410,6 +432,7 @@ export function LiveViewer({ token }: LiveViewerProps) {
   // Pre-show state: just show showtime + optional admin note.
   if (payload.status === 'scheduled') {
     const startsAt = payload.startsAt ? new Date(payload.startsAt) : null;
+    const hosts = viewerHosts(payload.hosts);
     const valid = startsAt && !Number.isNaN(startsAt.getTime());
     let untilLabel: string | null = null;
     if (valid) {
@@ -427,6 +450,21 @@ export function LiveViewer({ token }: LiveViewerProps) {
     return (
       <div className="live-viewer live-viewer--pre">
         <div className="live-viewer__show">{payload.showName}</div>
+        {hosts.length > 0 && (
+          <div className="live-viewer__hosts">
+            Hosted by{' '}
+            {hosts.map((host, i) => (
+              <span key={i} className="live-viewer__host">
+                {i > 0 && ' and '}
+                <span className="live-viewer__host-name">{host.name}</span>
+                {host.handle && ' '}
+                {host.handle && (host.link
+                  ? <a className="live-viewer__host-handle" href={host.link} target="_blank" rel="noopener noreferrer">{host.handle}</a>
+                  : <span className="live-viewer__host-handle">{host.handle}</span>)}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="live-viewer__pre-label">Showtime</div>
         {valid ? (
           <>

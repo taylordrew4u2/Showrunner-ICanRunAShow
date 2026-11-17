@@ -57,7 +57,7 @@ The portals read tool names, titles and annotations from the live server, so the
 | `search` | `shows:read` | Finds shows that match a query and returns ids to open with `fetch`. Read-only. |
 | `fetch` | `shows:read` | Reads one search result in full. Read-only. |
 | `create_show` | `shows:write` | Creates a show with a name and, optionally, local date and time, venue, location, status and ticket link. |
-| `update_show` | `shows:write` | Changes a show's details. Refused if the show changed since it was read. |
+| `update_show` | `shows:write` | Changes a show's details, including its host or two hosts and their social handles. Refused if the show changed since it was read. |
 | `duplicate_show` | `shows:write` | Makes a new show from an existing one, as the app's Duplicate does: setup, running order, staff and vendors carry over; the lineup and recap don't. |
 | `add_performer` | `shows:write` | Adds a performer or artist to a lineup, by name or from the Rolodex, optionally as a surprise guest. |
 | `update_performer` | `shows:write` | Changes a performer's details on one show. |

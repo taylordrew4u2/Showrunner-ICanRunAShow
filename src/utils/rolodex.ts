@@ -1,5 +1,7 @@
 import type { Artist, Performer, PotentialComic, Show } from '../types';
 import { generateId } from './id';
+import { HOST_COMIC_FIELD, HOST_SLOTS, HOST_SOCIAL_FIELD, hostSlot, type HostFields, type HostSlot } from './showHosts';
+import { toHandle } from './social';
 import { withWalkOnSongs } from './walkOnSongs';
 
 /** Personal fields belong to one comic; show-slot ids and contracts do not. */
@@ -130,9 +132,14 @@ export function addPerformersToRolodex(
  * An upload is the one profile field that cannot be retyped, so an *absent*
  * photo never erases one any more. Only the two "Remove photo" buttons clear
  * every copy, and they say so by naming the comic here.
+ *
+ * `renamedFrom` is the Rolodex as it stood before the edit being synced. A
+ * host is kept as a name, so an entry's new name is only a rename to the
+ * shows it hosts when the old one is there to compare (see releaseRetypedHosts).
  */
 export interface RolodexSyncOptions {
   clearedPhotos?: ReadonlySet<string>;
+  renamedFrom?: readonly PotentialComic[];
 }
 
 function hydratePerformer<T extends Performer>(
@@ -150,22 +157,175 @@ function hydratePerformer<T extends Performer>(
   return { ...performer, ...fields, comicId: comic.id };
 }
 
+/** A host's handle and the entry's are the same one, however each was typed. */
+function sameHandle(a: string | undefined, b: string | undefined): boolean {
+  const left = toHandle(a)?.toLowerCase() ?? a?.trim() ?? '';
+  const right = toHandle(b)?.toLowerCase() ?? b?.trim() ?? '';
+  return left === right;
+}
+
+/**
+ * The one entry a typed host name can mean. As for a legacy lineup row: an
+ * exact normalized name, and only when a single entry has it.
+ */
+function resolveHostComic(name: string, comics: readonly PotentialComic[]): PotentialComic | undefined {
+  const key = rolodexKey(name);
+  if (!key) return undefined;
+  const matches = comics.filter((comic) => rolodexKey(comic.name) === key);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+/**
+ * Whether a host typed by name may be linked to this entry.
+ *
+ * Linking hands the host the entry's handle. A handle typed beside the name
+ * that is not the entry's is the producer saying who they mean, or a name
+ * still on its way to being someone else's, so that host stays the free
+ * text it is rather than having the handle swapped under it, or filed on
+ * whoever the name passes through (see claimHostEntry).
+ */
+function hostMatchesComic(social: string, comic: PotentialComic): boolean {
+  return !social.trim() || (hasProfileValue(comic.socialMedia) && sameHandle(social, comic.socialMedia));
+}
+
+/**
+ * Let go of a host whose name is no longer their entry's.
+ *
+ * A writer from before hosts were linked, an older build of the app on
+ * another device or a co-producer's, changes `host` and carries the link and
+ * the handle along untouched, so its edit arrives as the new name beside the
+ * old person's id. Read as a rename in the Rolodex, the edit was put back to
+ * the entry's name the next time the show was opened here. The link goes
+ * instead, and with it the handle that came from the entry: the name typed
+ * is who is hosting, and a host taken off stays off.
+ *
+ * A rename is the one other way the two names come apart, and is told by
+ * the entry's own previous name, where the caller has it.
+ */
+function releaseRetypedHosts(
+  show: Show,
+  byId: Map<string, PotentialComic>,
+  renamedFrom: Map<string, PotentialComic> | undefined,
+): Show {
+  let released = show;
+  for (const slot of HOST_SLOTS) {
+    const held = hostSlot(released, slot);
+    const comic = held.comicId ? byId.get(held.comicId) : undefined;
+    if (!comic) continue;
+    const key = rolodexKey(held.name);
+    if (key === rolodexKey(comic.name)) continue;
+    const previous = renamedFrom?.get(comic.id);
+    if (key && previous && key === rolodexKey(previous.name)) continue;
+    const inherited = !key || sameHandle(held.social, comic.socialMedia)
+      || (!!previous && sameHandle(held.social, previous.socialMedia));
+    released = {
+      ...released,
+      [slot]: key ? held.name : undefined,
+      [HOST_SOCIAL_FIELD[slot]]: inherited ? undefined : held.social,
+      [HOST_COMIC_FIELD[slot]]: undefined,
+    };
+  }
+  return released;
+}
+
+/**
+ * A host picked from the Rolodex follows their entry, as a booked performer
+ * does: the entry's handle, cleared when the entry's is cleared, and its
+ * name after a rename. A spelling the Rolodex reads as the same name is
+ * left as typed, so a name still being typed is not corrected under the
+ * cursor. Cues that carry the old name follow the rename; the host has no
+ * record on the bill for them to be linked to.
+ */
+function syncHostsWithRolodex(
+  show: Show,
+  byId: Map<string, PotentialComic>,
+  renamedFrom: Map<string, PotentialComic> | undefined,
+): Show {
+  // Whoever is still linked after this has their entry's name, or its last one.
+  let synced = releaseRetypedHosts(show, byId, renamedFrom);
+  for (const slot of HOST_SLOTS) {
+    const held = hostSlot(synced, slot);
+    const comic = held.comicId ? byId.get(held.comicId) : undefined;
+    if (!comic) continue;
+    const name = rolodexKey(held.name) === rolodexKey(comic.name) ? held.name : comic.name.trim();
+    const social = comic.socialMedia || '';
+    if (name === held.name && social === held.social) continue;
+    synced = { ...synced, [slot]: name, [HOST_SOCIAL_FIELD[slot]]: social || undefined };
+    if (name !== held.name && held.name.trim()) {
+      const renamed = (synced.schedule ?? []).map((item) =>
+        !item.performerId && item.performer === held.name ? { ...item, performer: name } : item);
+      if (renamed.some((item, index) => item !== synced.schedule[index])) synced = { ...synced, schedule: renamed };
+    }
+  }
+  return synced;
+}
+
+/**
+ * A host typed by name, with a handle beside it, for the one person on file
+ * by that name, who has no handle: the handle is theirs. The host is linked
+ * to them, and hostSocialEdits files the handle on their entry.
+ *
+ * Asked when the producer leaves a host's field, never while they type. A
+ * name on its way to "Alice" is "Al" for a keystroke, and filed then, Al's
+ * entry kept Alice's handle and tagged Al with it on every show he played.
+ */
+export function claimHostEntry<T extends HostFields>(show: T, slot: HostSlot, comics: readonly PotentialComic[]): T {
+  const held = hostSlot(show, slot);
+  if (held.comicId || !held.social.trim()) return show;
+  const matched = resolveHostComic(held.name, comics);
+  if (!matched || hasProfileValue(matched.socialMedia)) return show;
+  return { ...show, [HOST_SOCIAL_FIELD[slot]]: held.social.trim(), [HOST_COMIC_FIELD[slot]]: matched.id };
+}
+
+/**
+ * A handle typed beside a host picked from the Rolodex is that person's
+ * handle, so it goes on their entry and, from there, onto every show they
+ * host or play. Only a host who was linked before the edit and still is:
+ * a host just picked, or typed over, brought their own handle with them.
+ * The one handle a new link does file is the one claimHostEntry linked it
+ * for: typed beside the name of someone on file with none.
+ */
+export function hostSocialEdits(before: Show, after: Show, comics: PotentialComic[]): PotentialComic[] {
+  let edited = comics;
+  for (const slot of HOST_SLOTS) {
+    const was = hostSlot(before, slot);
+    const now = hostSlot(after, slot);
+    if (!now.comicId) continue;
+    if (!was.comicId) {
+      const social = now.social.trim();
+      if (!social || rolodexKey(was.name) !== rolodexKey(now.name)) continue;
+      if (!edited.some((comic) => comic.id === now.comicId && !hasProfileValue(comic.socialMedia)
+        && rolodexKey(comic.name) === rolodexKey(now.name))) continue;
+      edited = edited.map((comic) => comic.id === now.comicId ? { ...comic, socialMedia: social } : comic);
+      continue;
+    }
+    if (now.comicId !== was.comicId || now.social === was.social) continue;
+    edited = edited.map((comic) => comic.id === now.comicId
+      ? { ...comic, socialMedia: now.social.trim() || undefined } : comic);
+  }
+  return edited;
+}
+
 /**
  * Refresh only already-linked profiles. Schedule links keep their show-slot
  * ids; labels that still use the previous name follow a rename. Walk-on rows
  * on the DJ list follow a new walk-on or a rename, as they do on the show
  * where the edit was made, or the other shows kept handing the DJ the old
  * song and lost track of the row after a rename. Custom cue labels and every
- * other show field remain unchanged.
+ * other show field remain unchanged. A host picked from the Rolodex is
+ * refreshed the same way (see syncHostsWithRolodex).
  */
 export function syncShowsWithRolodex(
   comics: PotentialComic[],
   shows: Show[],
-  { clearedPhotos }: RolodexSyncOptions = {},
+  { clearedPhotos, renamedFrom }: RolodexSyncOptions = {},
 ): Show[] {
   const byId = new Map(comics.map((comic) => [comic.id, comic]));
+  const before = renamedFrom && new Map(renamedFrom.map((comic) => [comic.id, comic]));
   let changed = false;
-  const synced = shows.map((show) => {
+  const synced = shows.map((saved) => {
+    const show = syncHostsWithRolodex(saved, byId, before);
+    if (show !== saved) changed = true;
     let performersChanged = false;
     const renames = new Map<string, { before: string; after: string }>();
     const hydrate = <T extends Performer>(performer: T): T => {
@@ -223,6 +383,12 @@ export function reconcileRolodexProfiles(
   shows: Show[],
   options: RolodexSyncOptions = {},
 ): { comics: PotentialComic[]; shows: Show[] } {
+  // Before anyone is linked: a host an older writer renamed is free to be
+  // linked to whoever they are now.
+  const byId = new Map(comics.map((comic) => [comic.id, comic]));
+  const renamedFrom = options.renamedFrom && new Map(options.renamedFrom.map((comic) => [comic.id, comic]));
+  const released = shows.map((show) => releaseRetypedHosts(show, byId, renamedFrom));
+  if (released.some((show, index) => show !== shows[index])) shows = released;
   let reconciledComics = addPerformersToRolodex(comics, shows.flatMap((show) => show.performers)) ?? comics;
   const backfills = new Map<string, PotentialComic>();
   for (const show of shows) {
@@ -264,9 +430,22 @@ export function reconcileRolodexProfiles(
     };
     const performers = show.performers.map(link);
     const artists = show.artists.map(link);
+    // A host named the way one person on file is named is that person, and
+    // from here their handle follows the entry. A handle of their own typed
+    // beside the name is not filed from here, where every keystroke passes
+    // (see claimHostEntry).
+    const hosts: Partial<Show> = {};
+    for (const slot of HOST_SLOTS) {
+      const held = hostSlot(show, slot);
+      if (held.comicId) continue;
+      const matched = resolveHostComic(held.name, reconciledComics);
+      if (!matched || !hostMatchesComic(held.social, matched)) continue;
+      hosts[HOST_COMIC_FIELD[slot]] = matched.id;
+      changed = true;
+    }
     if (!changed) return show;
     linksChanged = true;
-    return { ...show, performers, artists };
+    return { ...show, performers, artists, ...hosts };
   });
   return {
     comics: reconciledComics,

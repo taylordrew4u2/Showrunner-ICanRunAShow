@@ -1,4 +1,5 @@
 import type { Show, ShowStatus } from '../types';
+import { promoteCoHost, type HostFields } from './showHosts';
 
 /**
  * Make a decrypted blob safe to render as a show.
@@ -32,6 +33,13 @@ const OPTIONAL_LIST_FIELDS = ['vendors', 'scenes', 'todos', 'hiddenSections'] as
 /** Fields rendered directly as text. */
 const TEXT_FIELDS = ['name', 'date', 'time', 'location', 'venueName'] as const;
 
+/**
+ * The two hosts: each a name, a handle and the Rolodex entry they were picked
+ * from. All optional, and a show saved before there could be two has only
+ * `host`, which is the first host as it stands.
+ */
+const HOST_FIELDS = ['host', 'hostSocial', 'hostComicId', 'coHost', 'coHostSocial', 'coHostComicId'] as const;
+
 const STATUSES = new Set<ShowStatus>(['upcoming', 'in-progress', 'completed', 'cancelled']);
 
 /**
@@ -56,6 +64,13 @@ export function healShow(raw: unknown): Show | null {
   for (const field of TEXT_FIELDS) {
     if (typeof show[field] !== 'string') show[field] = '';
   }
+  // Printed as text wherever the host is, so anything else is no host.
+  for (const field of HOST_FIELDS) {
+    if (field in show && typeof show[field] !== 'string') delete show[field];
+  }
+  // One host, and in the second slot: everything that reads `host` alone
+  // would find nobody hosting.
+  Object.assign(show, promoteCoHost(show as HostFields));
   // An unnamed show is indistinguishable from every other unnamed show in a
   // list, so give it something to be called rather than a blank row. A name
   // that's only spaces reads as blank too.
