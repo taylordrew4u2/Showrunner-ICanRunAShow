@@ -69,6 +69,7 @@ function page(overrides: Partial<UpdateEnv> & { waiting?: ReturnType<typeof fake
     /** Press the prompt's Reload. */
     press: () => { offered?.(); },
     openRunShow: () => { runShow = true; },
+    closeRunShow: () => { runShow = false; },
   };
 }
 
@@ -227,6 +228,204 @@ describe('a tab of the app when a new version is waiting', () => {
     tab.watch.waiting(worker);
     tab.press();
     tab.watch.controllerChanged();
+    tab.watch.controllerChanged();
+    expect(tab.reload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the producer app applying an update at a safe idle moment', () => {
+  it('defaults to the manual prompt without an app-provided safety check', () => {
+    const worker = fakeWorker();
+    const tab = page({ waiting: worker });
+    tab.watch.waiting(worker);
+    tab.watch.idle();
+    expect(worker.messages).toEqual([]);
+    expect(tab.offered()).toBe(true);
+    expect(tab.reload).not.toHaveBeenCalled();
+  });
+
+  it('activates at safe idle and reloads its own tab only after takeover', () => {
+    const worker = fakeWorker();
+    const tab = page({ waiting: worker, canAutoApply: () => true });
+    tab.watch.waiting(worker);
+    tab.watch.idle();
+    expect(worker.messages).toEqual([SKIP_WAITING]);
+    expect(tab.reload).not.toHaveBeenCalled();
+    tab.watch.controllerChanged();
+    expect(tab.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not activate while edits or saves are unsafe, and can try when they settle', () => {
+    let clean = false;
+    const worker = fakeWorker();
+    const tab = page({ waiting: worker, canAutoApply: () => clean });
+    tab.watch.waiting(worker);
+    tab.watch.idle();
+    expect(worker.messages).toEqual([]);
+    clean = true;
+    tab.watch.idle();
+    expect(worker.messages).toEqual([SKIP_WAITING]);
+  });
+
+  it('never activates while Run Show is open even if the app safety callback says yes', () => {
+    const worker = fakeWorker();
+    const tab = page({ waiting: worker, canAutoApply: () => true });
+    tab.watch.waiting(worker);
+    tab.openRunShow();
+    tab.watch.idle();
+    expect(worker.messages).toEqual([]);
+    expect(tab.offered()).toBe(true);
+  });
+
+  it('rechecks safety after activation and waits for the same tab to become idle again', () => {
+    let clean = true;
+    const worker = fakeWorker();
+    const tab = page({ waiting: worker, canAutoApply: () => clean });
+    tab.watch.waiting(worker);
+    tab.watch.idle();
+    clean = false; // A form was started while the worker was taking over.
+    tab.watch.controllerChanged();
+    expect(tab.reload).not.toHaveBeenCalled();
+    expect(tab.offered()).toBe(true);
+    tab.watch.idle();
+    expect(tab.reload).not.toHaveBeenCalled();
+    clean = true;
+    tab.watch.idle();
+    expect(worker.messages).toEqual([SKIP_WAITING]);
+    expect(tab.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reload a board opened during activation, then waits until it closes', () => {
+    const worker = fakeWorker();
+    const tab = page({ waiting: worker, canAutoApply: () => true });
+    tab.watch.waiting(worker);
+    tab.watch.idle();
+    tab.openRunShow();
+    tab.watch.controllerChanged();
+    tab.watch.idle();
+    expect(tab.reload).not.toHaveBeenCalled();
+    tab.closeRunShow();
+    tab.watch.idle();
+    expect(worker.messages).toEqual([SKIP_WAITING]);
+    expect(tab.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves every other tab alone when this tab automatically applies the version', () => {
+    const worker = fakeWorker();
+    const dashboard = page({ waiting: worker, canAutoApply: () => true });
+    const other = page({ waiting: worker, canAutoApply: () => true });
+    const board = page({ waiting: worker, canAutoApply: () => true });
+    for (const tab of [dashboard, other, board]) tab.watch.waiting(worker);
+    board.openRunShow();
+    dashboard.watch.idle();
+    worker.become('activated');
+    for (const tab of [dashboard, other, board]) tab.watch.controllerChanged();
+    other.watch.idle();
+    board.watch.idle();
+    expect(worker.messages).toEqual([SKIP_WAITING]);
+    expect(dashboard.reload).toHaveBeenCalledTimes(1);
+    expect(other.reload).not.toHaveBeenCalled();
+    expect(board.reload).not.toHaveBeenCalled();
+    expect(other.offered()).toBe(true);
+    expect(board.offered()).toBe(true);
+  });
+
+  it('sends one activation and reloads once despite repeated idle and controller events', () => {
+    const worker = fakeWorker();
+    const tab = page({ waiting: worker, canAutoApply: () => true });
+    tab.watch.waiting(worker);
+    tab.watch.idle();
+    tab.watch.idle();
+    tab.watch.controllerChanged();
+    tab.watch.controllerChanged();
+    tab.watch.idle();
+    expect(worker.messages).toEqual([SKIP_WAITING]);
+    expect(tab.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks another automatic attempt if a reload still serves the same bundle', () => {
+    const storage = memoryStorage();
+    const worker = fakeWorker();
+    const first = page({ waiting: worker, storage, canAutoApply: () => true });
+    first.watch.waiting(worker);
+    first.watch.idle();
+    first.watch.controllerChanged();
+    expect(first.reload).toHaveBeenCalledTimes(1);
+
+    const stuck = fakeWorker();
+    const second = page({ waiting: stuck, storage, canAutoApply: () => true });
+    second.watch.waiting(stuck);
+    second.watch.idle();
+    second.watch.controllerChanged();
+    second.watch.idle();
+    expect(stuck.messages).toEqual([]);
+    expect(second.reload).not.toHaveBeenCalled();
+    expect(second.offered()).toBe(true);
+    // A producer's explicit choice remains available after the loop guard.
+    second.press();
+    expect(second.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the manual prompt when a reload cannot be durably remembered', () => {
+    for (const storage of [null, brokenStorage]) {
+      const worker = fakeWorker();
+      const tab = page({ waiting: worker, storage, canAutoApply: () => true });
+      tab.watch.waiting(worker);
+      tab.watch.idle();
+      expect(worker.messages).toEqual([]);
+      expect(tab.reload).not.toHaveBeenCalled();
+      expect(tab.offered()).toBe(true);
+    }
+  });
+
+  it('treats a throwing safety callback as unsafe', () => {
+    const worker = fakeWorker();
+    const tab = page({ waiting: worker, canAutoApply: () => { throw new Error('not ready'); } });
+    tab.watch.waiting(worker);
+    expect(() => tab.watch.idle()).not.toThrow();
+    expect(worker.messages).toEqual([]);
+    expect(tab.offered()).toBe(true);
+  });
+
+  it('does not claim another tab’s takeover if sending the activation failed', () => {
+    const worker = fakeWorker();
+    worker.postMessage = vi.fn(() => { throw new Error('worker stopped'); });
+    const tab = page({ waiting: worker, canAutoApply: () => true });
+    tab.watch.waiting(worker);
+    expect(() => tab.watch.idle()).not.toThrow();
+    tab.watch.controllerChanged();
+    tab.watch.idle();
+    expect(worker.postMessage).toHaveBeenCalledTimes(1);
+    expect(tab.reload).not.toHaveBeenCalled();
+    expect(tab.offered()).toBe(true);
+  });
+
+  it('does not opt shared links into producer-app idle updates', () => {
+    const worker = fakeWorker();
+    const link = page({ linkPage: true, waiting: worker, canAutoApply: () => true });
+    link.watch.waiting(worker);
+    link.watch.idle();
+    expect(worker.messages).toEqual([]);
+    expect(link.reload).not.toHaveBeenCalled();
+  });
+
+  it('leaves a network-served page alone because it already has the newest bundle', () => {
+    const worker = fakeWorker();
+    const tab = page({ waiting: worker, controlled: false, canAutoApply: () => true });
+    tab.watch.waiting(worker);
+    tab.watch.idle();
+    worker.become('activated');
+    tab.watch.controllerChanged();
+    expect(worker.messages).toEqual([]);
+    expect(tab.reload).not.toHaveBeenCalled();
+  });
+
+  it('can use the waiting event before Workbox finishes registering', () => {
+    const worker = fakeWorker();
+    const tab = page({ waiting: null, canAutoApply: () => true });
+    tab.watch.waiting(worker);
+    tab.watch.idle();
+    expect(worker.messages).toEqual([SKIP_WAITING]);
     tab.watch.controllerChanged();
     expect(tab.reload).toHaveBeenCalledTimes(1);
   });
