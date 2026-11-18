@@ -8,7 +8,7 @@ import { applyShowChanges } from './_lib/showWrites';
 import { authorize } from './_lib/auth';
 import { ensureSchema, getDb } from './_lib/db';
 import { handleError, json, readJson } from './_lib/http';
-import { websiteLineupsConfig, websiteShowIdsForOwner } from './_lib/websiteLineups';
+import { readWebsiteLineupSources, websiteLineupsConfig, websiteShowIdsForOwner } from './_lib/websiteLineups';
 
 export default async function handler(req: Request): Promise<Response> {
   try {
@@ -19,6 +19,12 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (req.method === 'GET') {
       const url = new URL(req.url);
+      if (url.searchParams.get('websiteLineups') === '1') {
+        if (url.searchParams.has('history') || url.searchParams.has('at')) return json({ error: 'bad_request' }, 400);
+        const response = json(await readWebsiteLineupSources(db, userId));
+        response.headers.set('Cache-Control', 'no-store');
+        return response;
+      }
       if (url.searchParams.get('history')) {
         const result = await db.execute({
           sql: `SELECT backed_up_at, count(*) FROM user_shows_backup

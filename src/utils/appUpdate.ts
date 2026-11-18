@@ -4,8 +4,8 @@
  * The service worker used to take over and reload the page the instant it had
  * finished downloading a deploy — which, on venue wifi, was minutes after the
  * app was opened, often with the show running. The board came back at cue
- * one, silent, with the clock at zero. Now the new version waits, and the app
- * says it is there; reloading is the producer's call, and never mid-show.
+ * one, silent, with the clock at zero. Now the new version waits until the
+ * producer asks, or the app confirms a saved, idle moment. Never mid-show.
  *
  * The call is made for one tab. The new worker takes over every open tab the
  * moment any one of them switches to it, and the registration this replaced
@@ -25,6 +25,8 @@ type Listener = (ready: boolean) => void;
 
 let apply: (() => void) | null = null;
 const listeners = new Set<Listener>();
+let autoUpdateSafety: (() => boolean) | null = null;
+let idleUpdate: (() => void) | null = null;
 
 /** Called by the registration when a new version is installed and waiting. */
 export function updateReady(applyUpdate: () => void): void {
@@ -45,6 +47,19 @@ export function onUpdateReady(listener: Listener): () => void {
 /** Switch to the waiting version now: the page reloads. */
 export function applyUpdate(): void {
   apply?.();
+}
+
+/** App supplies current save/edit/audio safety, read again before the reload. */
+export function registerAutoUpdateSafety(canAutoApply: () => boolean): () => void {
+  autoUpdateSafety = canAutoApply;
+  return () => {
+    if (autoUpdateSafety === canAutoApply) autoUpdateSafety = null;
+  };
+}
+
+/** Called only at an app-owned idle/start/return boundary; never a global timer. */
+export function applyUpdateWhenIdle(): void {
+  idleUpdate?.();
 }
 
 /**
@@ -84,6 +99,9 @@ export function shouldAutoApplyOnLinkPage({ waitingAtLoad, dirty, alreadyReloade
 }
 
 const LINK_RELOADED_KEY = 'showrunner:linkUpdateReloaded';
+// The built entry module has a content-hashed URL. A different deployed bundle
+// may update again, but a reload that still serves this bundle cannot loop.
+const APP_AUTO_UPDATE_KEY = `showrunner:appUpdateAttempted:${import.meta.url}`;
 
 interface Remembering {
   getItem(key: string): string | null;
@@ -119,6 +137,18 @@ export function markLinkReload(storage: Remembering | null): boolean {
   }
 }
 
+function reserveAutomaticUpdate(storage: Remembering | null): boolean {
+  if (!storage) return false;
+  try {
+    if (storage.getItem(APP_AUTO_UPDATE_KEY) !== null) return false;
+    storage.setItem(APP_AUTO_UPDATE_KEY, '1');
+    return storage.getItem(APP_AUTO_UPDATE_KEY) === '1';
+  } catch {
+    // Unable to prove that a reload will be remembered: retain the prompt.
+    return false;
+  }
+}
+
 /** Workbox's message, which the generated worker answers by taking over. */
 const SKIP_WAITING = { type: 'SKIP_WAITING' };
 
@@ -145,6 +175,8 @@ export interface UpdateEnv {
    */
   waitingWorker(): WaitingWorker | null;
   runShowOpen(): boolean;
+  /** Optional, default-denied producer-app safety; never used by shared links. */
+  canAutoApply?(): boolean;
   /** Where a link page notes that it reloaded. Null when the browser keeps nothing. */
   storage: Remembering | null;
   /** Offer the reload (see updateReady). */
@@ -162,6 +194,8 @@ export interface UpdateWatch {
   controllerChanged(): void;
   /** Something was typed, ticked or chosen on the page. */
   started(): void;
+  /** The producer app reports a potentially safe moment for its own tab. */
+  idle(): void;
 }
 
 /** The decisions above, followed for one page from the moment it loads. */
@@ -170,6 +204,10 @@ export function watchUpdates(env: UpdateEnv): UpdateWatch {
   let pressed = false;
   // This link page asked for the switch by itself.
   let autoApplied = false;
+  // Separate from a manual press: becoming unsafe can still veto its reload.
+  let producerAutoApplied = false;
+  let producerAutoActivated = false;
+  let lastWaiting: WaitingWorker | null = null;
   let dirty = false;
   let reloading = false;
   const reloadedForUpdate = env.linkPage && takeLinkReloadMark(env.storage);
@@ -180,10 +218,20 @@ export function watchUpdates(env: UpdateEnv): UpdateWatch {
     env.reload();
   };
 
+  const safeForAutomaticUpdate = () => {
+    try {
+      return !env.runShowOpen() && env.canAutoApply?.() === true;
+    } catch {
+      return false;
+    }
+  };
+
   const tookOver = () => {
     // A link page that has been typed into since it asked no longer counts as
     // having asked: the switch goes ahead, the reload does not.
-    const initiatedHere = pressed || (autoApplied && !dirty);
+    if (producerAutoApplied) producerAutoActivated = true;
+    const initiatedHere = pressed || (autoApplied && !dirty)
+      || (producerAutoApplied && safeForAutomaticUpdate());
     if (shouldReloadOnControllerChange({ initiatedHere, runShowOpen: env.runShowOpen() })) reload();
     // Running the old build under the new worker. It works, and goes on
     // working; it is just not the newest, which is what the prompt says.
@@ -217,6 +265,7 @@ export function watchUpdates(env: UpdateEnv): UpdateWatch {
 
   return {
     waiting(worker, { atLoad = false } = {}) {
+      lastWaiting = worker;
       env.offer(switchNow);
       if (!env.linkPage || autoApplied) return;
       if (!shouldAutoApplyOnLinkPage({ waitingAtLoad: atLoad, dirty, alreadyReloaded: reloadedForUpdate })) return;
@@ -233,6 +282,29 @@ export function watchUpdates(env: UpdateEnv): UpdateWatch {
     },
     started() {
       dirty = true;
+    },
+    idle() {
+      // A network-served page already has the newest bundle. Shared links keep
+      // their existing at-load/dirty rules, including the live audience page.
+      if (env.linkPage || !env.controlled || reloading || !safeForAutomaticUpdate()) return;
+      if (producerAutoApplied) {
+        // Editing may have begun while activation was in flight. Keep the
+        // prompt then, and reload only if this same tab later becomes safe.
+        if (producerAutoActivated) reload();
+        return;
+      }
+      // Workbox can announce waiting before register() resolves; remember the
+      // announced worker only while it is still actually waiting.
+      const worker = env.waitingWorker() ?? lastWaiting;
+      if (!worker || worker.state !== 'installed' || !reserveAutomaticUpdate(env.storage)) return;
+      producerAutoApplied = true;
+      try {
+        activate(worker);
+      } catch {
+        // A failed activation is not permission to reload after another tab
+        // changes the controller. The manual prompt remains available.
+        producerAutoApplied = false;
+      }
     },
   };
 }
@@ -263,10 +335,12 @@ export function registerAppUpdates({ linkPage }: { linkPage: boolean }): void {
     waitingWorker: () => registration?.waiting ?? null,
     // As App asks it, for the same reason: the board is on screen.
     runShowOpen: () => document.querySelector('.run-show') !== null,
+    canAutoApply: () => autoUpdateSafety?.() === true,
     storage,
     offer: updateReady,
     reload: () => window.location.reload(),
   });
+  idleUpdate = () => watch.idle();
   // From the start: another tab can switch before this one has registered.
   container.addEventListener('controllerchange', () => watch.controllerChanged());
   if (linkPage) {

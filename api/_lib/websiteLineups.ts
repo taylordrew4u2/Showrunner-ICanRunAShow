@@ -22,6 +22,23 @@ export class WebsiteLineupError extends Error {
   constructor(public readonly code: string, public readonly status: number) { super(code); }
 }
 
+interface WebsitePublication { show: WebsiteShow; revision: string }
+
+/** Both bootstrap and owner repair accept only the explicit public projection. */
+function publications(input: unknown): WebsitePublication[] {
+  if (!input || typeof input !== 'object' || Array.isArray(input)
+    || Object.keys(input).some(key => key !== 'shows')
+    || !Array.isArray((input as { shows?: unknown }).shows)) throw new WebsiteLineupError('bad_request', 400);
+  return (input as { shows: unknown[] }).shows.map(value => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new WebsiteLineupError('bad_request', 400);
+    const { revision, ...publicFields } = value as Record<string, unknown>;
+    if (typeof revision !== 'string' || !/^[a-f0-9]{64}$/.test(revision)) throw new WebsiteLineupError('bad_request', 400);
+    let show: WebsiteShow;
+    try { show = parseWebsiteShow(publicFields); } catch { throw new WebsiteLineupError('bad_request', 400); }
+    return { show, revision };
+  });
+}
+
 // Kept independent of showWrites to avoid a cycle in the transaction hook.
 export async function websiteSourceRevision(cipher: string): Promise<string> {
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cipher));
@@ -38,6 +55,74 @@ export async function websiteShowIdsForOwner(db: Client, userId: string): Promis
   });
   const held = new Set(rows.rows.map(row => String(row[0])));
   return config.ids.filter(id => held.has(id));
+}
+
+/** Fresh source rows for repair, without loading an owner's unrelated shows. */
+export async function readWebsiteLineupSources(db: Client, userId: string) {
+  const config = websiteLineupsConfig();
+  if (!config) return { shows: [], websiteLineupShowIds: [] };
+  const rows = await db.execute({
+    sql: `SELECT s.id, s.encrypted_data FROM user_shows s
+          JOIN website_lineups p ON p.show_id = s.id AND p.user_id = s.user_id
+          JOIN website_lineups_bootstrap b ON b.id = 1 AND b.owner_id = s.user_id
+          WHERE s.user_id = ? AND s.id IN (${config.ids.map(() => '?').join(',')})`,
+    args: [userId, ...config.ids],
+  });
+  const held = new Map(rows.rows.map(row => [String(row[0]), String(row[1])]));
+  const ids = config.ids.filter(id => held.has(id));
+  return { shows: ids.map(id => ({ id, encryptedData: held.get(id)! })), websiteLineupShowIds: ids };
+}
+
+/**
+ * Repair already-published shows while their producer can decrypt the source.
+ * Source ciphertext, backups and browser save baselines are never changed.
+ */
+export async function reconcileWebsiteLineups(db: Client, userId: string, input: unknown) {
+  const config = websiteLineupsConfig();
+  if (!config) throw new WebsiteLineupError('not_configured', 404);
+  const entries = publications(input);
+  if (entries.length < 1 || entries.length > config.ids.length
+    || new Set(entries.map(entry => entry.show.id)).size !== entries.length
+    || entries.some(entry => !config.ids.includes(entry.show.id))) throw new WebsiteLineupError('unapproved_shows', 400);
+  const tx = await db.transaction('write');
+  try {
+    const bootstrap = await tx.execute('SELECT owner_id FROM website_lineups_bootstrap WHERE id = 1');
+    if (!bootstrap.rows[0]) throw new WebsiteLineupError('not_initialized', 409);
+    if (bootstrap.rows[0][0] !== userId) throw new WebsiteLineupError('forbidden', 403);
+    const pending: { entry: WebsitePublication; payload: string; unchanged: boolean }[] = [];
+    // Validate the complete subset before changing anything. A newer edit can
+    // only produce a retry, never publish a stale bill over the newer source.
+    for (const entry of entries) {
+      const source = (await tx.execute({
+        sql: 'SELECT user_id, encrypted_data FROM user_shows WHERE id = ?', args: [entry.show.id],
+      })).rows[0];
+      if (!source) throw new WebsiteLineupError('stale_revision', 409);
+      if (source[0] !== userId) throw new WebsiteLineupError('forbidden', 403);
+      if (await websiteSourceRevision(String(source[1])) !== entry.revision) throw new WebsiteLineupError('stale_revision', 409);
+      const published = (await tx.execute({
+        sql: 'SELECT user_id, source_revision, payload FROM website_lineups WHERE show_id = ?', args: [entry.show.id],
+      })).rows[0];
+      // Configuring an ID alone is not permission to create a new share here.
+      if (!published) throw new WebsiteLineupError('unapproved_shows', 400);
+      if (published[0] !== userId) throw new WebsiteLineupError('forbidden', 403);
+      const payload = JSON.stringify(entry.show);
+      pending.push({ entry, payload, unchanged: published[1] === entry.revision && published[2] === payload });
+    }
+    const updatedIds: string[] = [];
+    const unchangedIds: string[] = [];
+    const now = new Date().toISOString();
+    for (const item of pending) {
+      if (item.unchanged) { unchangedIds.push(item.entry.show.id); continue; }
+      await tx.execute({
+        sql: `UPDATE website_lineups SET source_revision = ?, payload = ?, updated_at = ?
+              WHERE show_id = ? AND user_id = ?`,
+        args: [item.entry.revision, item.payload, now, item.entry.show.id, userId],
+      });
+      updatedIds.push(item.entry.show.id);
+    }
+    await tx.commit();
+    return { ok: true as const, updatedIds, unchangedIds };
+  } finally { tx.close(); }
 }
 
 interface WebsiteWrite { id: string; encryptedData: string | null; websiteLineup?: WebsiteShow }
@@ -69,17 +154,7 @@ export async function syncWebsiteLineupWrites(tx: Transaction, userId: string, c
 export async function seedWebsiteLineups(db: Client, input: unknown): Promise<void> {
   const config = websiteLineupsConfig();
   if (!config) throw new WebsiteLineupError('not_configured', 404);
-  if (!input || typeof input !== 'object' || Array.isArray(input)
-    || Object.keys(input).some(key => key !== 'shows')
-    || !Array.isArray((input as { shows?: unknown }).shows)) throw new WebsiteLineupError('bad_request', 400);
-  const entries = (input as { shows: unknown[] }).shows.map(value => {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new WebsiteLineupError('bad_request', 400);
-    const { revision, ...publicFields } = value as Record<string, unknown>;
-    if (typeof revision !== 'string' || !/^[a-f0-9]{64}$/.test(revision)) throw new WebsiteLineupError('bad_request', 400);
-    let show: WebsiteShow;
-    try { show = parseWebsiteShow(publicFields); } catch { throw new WebsiteLineupError('bad_request', 400); }
-    return { show, revision };
-  });
+  const entries = publications(input);
   if (entries.length !== config.ids.length || new Set(entries.map(entry => entry.show.id)).size !== entries.length
     || entries.some(entry => !config.ids.includes(entry.show.id))) throw new WebsiteLineupError('unapproved_shows', 400);
   const tx = await db.transaction('write');

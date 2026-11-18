@@ -8,7 +8,7 @@ import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, Sch
 import { DEFAULT_SETTINGS, MAX_DELETED_SHOW_IDS } from './types';
 import { generateId } from './utils/id';
 import { ServerNotConfiguredError, onCredentialRefused, type ApiError } from './utils/api';
-import { applyUpdate, isUpdateReady, onUpdateReady } from './utils/appUpdate';
+import { applyUpdate, applyUpdateWhenIdle, isUpdateReady, onUpdateReady, registerAutoUpdateSafety } from './utils/appUpdate';
 import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/theme';
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
@@ -22,6 +22,7 @@ import { bulkMailto } from './utils/social';
 import { buildOverview, completePastShows, showsForPeriod, sortShows, type ShowPeriod } from './utils/showsOverview';
 import { 
   loadEncryptedShows,
+  reconcileWebsiteLineups,
   rebaseLoadedShows,
   countAsLoaded,
   saveEncryptedShows,
@@ -102,6 +103,8 @@ import { accountTokens, deleteAccount } from './utils/account';
 import { isNativeShell } from './utils/nativeShell';
 import { deliverFile, deliveryProblem, isDelivered } from './utils/download';
 import { onPageReturn } from './utils/pageReturn';
+import { watchWebsiteLineupSync } from './utils/websiteLineupSync';
+import { audioEngine } from './utils/audioEngine';
 import { ProducerLock } from './components/ProducerLock';
 import { ProducerProvider, type ProducerAccess } from './utils/producerAccess';
 import { SeasonReport } from './components/SeasonReport';
@@ -442,7 +445,9 @@ export default function App() {
   // they went. Its own notice, not saveError: the first save to land clears
   // that one, and a launch usually saves something straight away.
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
-  // A new build is installed and waiting; the reload is offered, not taken.
+  // A waiting build is offered immediately, and applied automatically only
+  // when the saved dashboard is idle (the safety gate below is checked again
+  // when the worker takes control).
   const [updateWaiting, setUpdateWaiting] = useState(isUpdateReady);
   useEffect(() => onUpdateReady(setUpdateWaiting), []);
   // Where the user's work currently is. Drives the always-visible status pill.
@@ -1032,6 +1037,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, loadRetryTick]);
 
+  // Repair only the explicitly published projections from fresh server rows.
+  // This never replaces the working shows/settings or their save baselines:
+  // returning to the app must not refetch over a draft or a live show.
+  useEffect(() => {
+    if (!session?.authHash || !session.key || !settingsLoaded || loadingData || reviewing || isReviewMode()) return;
+    const currentSession = session;
+    let current = true;
+    const stop = watchWebsiteLineupSync(() => reconcileWebsiteLineups(currentSession, {
+      stillCurrent: () => current && activeSessionRef.current === currentSession && !isReviewMode(),
+    }));
+    return () => {
+      current = false;
+      stop();
+    };
+  }, [session, settingsLoaded, loadingData, reviewing]);
+
   // Always points at the latest shows so an in-flight save can re-persist any
   // edits that landed while it was running.
   const latestShowsRef = useRef(shows);
@@ -1293,6 +1314,47 @@ export default function App() {
 
   const showSaveConflictRef = useRef(false);
   const settingsSaveFailedRef = useRef(false);
+
+  // Future builds can install themselves while the producer is on a fully
+  // saved, quiet dashboard. Never take a reload out of a form, Run Show,
+  // a dialog, playing audio, or work that is still held only on this device.
+  // Read refs at the actual takeover as well as before asking the worker.
+  const lastUpdateActivityRef = useRef(Date.now());
+  const updateSafetyRef = useRef<() => boolean>(() => false);
+  updateSafetyRef.current = () => !!session?.authHash && !!session.key
+    && settingsLoaded && settings.onboarded && !loadingData && !reviewing && !isReviewMode()
+    && view === 'list' && !showForm && !runShowOpen
+    && syncState === 'saved' && !hasLocalCopy && !localBackupFailed
+    && !savingRef.current && !settingsSaving && !onboardingSaving
+    && !settingsSaveFailedRef.current && !showSaveConflictRef.current
+    && latestShowsRef.current === savedShowsRef.current
+    && document.visibilityState === 'visible' && navigator.onLine !== false
+    && !document.querySelector('[aria-modal="true"], .run-show')
+    && !document.activeElement?.matches('input, textarea, select, [contenteditable]:not([contenteditable="false"])')
+    && audioEngine.playingSrc === null
+    && Date.now() - lastUpdateActivityRef.current >= 10_000;
+
+  useEffect(() => {
+    const unregister = registerAutoUpdateSafety(() => updateSafetyRef.current());
+    const activity = () => { lastUpdateActivityRef.current = Date.now(); };
+    document.addEventListener('pointerdown', activity, true);
+    document.addEventListener('keydown', activity, true);
+    document.addEventListener('input', activity, true);
+    const stopReturn = onPageReturn(applyUpdateWhenIdle);
+    const timer = window.setInterval(applyUpdateWhenIdle, 15_000);
+    return () => {
+      unregister();
+      stopReturn();
+      window.clearInterval(timer);
+      document.removeEventListener('pointerdown', activity, true);
+      document.removeEventListener('keydown', activity, true);
+      document.removeEventListener('input', activity, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (updateWaiting) applyUpdateWhenIdle();
+  }, [updateWaiting]);
 
   // The rail is fixed over the page, and a notice in it is a couple of hundred
   // pixels on a phone that used to land on the show's Back control, Run Show

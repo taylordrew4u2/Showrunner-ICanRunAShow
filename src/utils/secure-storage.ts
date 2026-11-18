@@ -221,6 +221,160 @@ export function countAsLoaded(creds: SessionCredentials, shows: Show[]): void {
 
 const sha = (value: string) => CryptoJS.SHA256(value).toString();
 
+export interface WebsiteLineupReconcileOptions {
+  /** False after sign-out, account change, or the owner's lifecycle cleanup. */
+  stillCurrent?: () => boolean;
+}
+
+export type WebsiteLineupReconcileResult =
+  | { status: 'reconciled'; updated: number; unchanged: number; unreadable: number }
+  | { status: 'skipped'; reason: 'review_mode' | 'missing_credentials' | 'stale_session'
+      | 'nothing_selected' | 'no_readable_shows'; unreadable?: number }
+  | { status: 'failed'; retryable: boolean; statusCode?: number };
+
+type ReconcileIdentity = Pick<SessionCredentials, 'userId' | 'authHash' | 'key' | 'legacyKey'>;
+interface WebsiteReconcileRun {
+  identity: ReconcileIdentity;
+  guards: Set<() => boolean>;
+  unguarded: boolean;
+  pending?: Promise<WebsiteLineupReconcileResult>;
+  completedAt?: number;
+  result?: WebsiteLineupReconcileResult;
+}
+const websiteReconcileRuns = new WeakMap<SessionCredentials, WebsiteReconcileRun>();
+const WEBSITE_RECONCILE_DEDUPE_MS = 2_000;
+
+function sameReconcileIdentity(creds: SessionCredentials, identity: ReconcileIdentity): boolean {
+  return creds.userId === identity.userId && creds.authHash === identity.authHash
+    && creds.key === identity.key && creds.legacyKey === identity.legacyKey;
+}
+
+function currentReconcileGuard(guard: () => boolean): boolean {
+  try { return guard(); } catch { return false; }
+}
+
+/**
+ * Repair only the opted-in public projection from freshly authenticated rows.
+ *
+ * This is deliberately not a load/save: it never touches the editing tab's
+ * baselines, selection, sent-write memory or cipher caches, and never changes
+ * source ciphertext. Failures are returned for a bounded lifecycle retry,
+ * never thrown into the private show's loading or saving path.
+ */
+export function reconcileWebsiteLineups(
+  creds: SessionCredentials,
+  options: WebsiteLineupReconcileOptions = {},
+): Promise<WebsiteLineupReconcileResult> {
+  if (isReviewMode()) return Promise.resolve({ status: 'skipped', reason: 'review_mode' });
+  if (!creds.userId || !creds.authHash || !creds.key) {
+    return Promise.resolve({ status: 'skipped', reason: 'missing_credentials' });
+  }
+  if (options.stillCurrent && !currentReconcileGuard(options.stillCurrent)) {
+    return Promise.resolve({ status: 'skipped', reason: 'stale_session' });
+  }
+  const previous = websiteReconcileRuns.get(creds);
+  if (previous && sameReconcileIdentity(creds, previous.identity)) {
+    if (previous.pending) {
+      if (options.stillCurrent) previous.guards.add(options.stillCurrent);
+      else previous.unguarded = true;
+      return previous.pending;
+    }
+    const elapsed = previous.completedAt === undefined ? undefined : Date.now() - previous.completedAt;
+    if (previous.result && elapsed !== undefined && elapsed >= 0
+      && elapsed < WEBSITE_RECONCILE_DEDUPE_MS) {
+      return Promise.resolve(previous.result);
+    }
+  }
+
+  const run: WebsiteReconcileRun = {
+    identity: { userId: creds.userId, authHash: creds.authHash,
+      key: creds.key, legacyKey: creds.legacyKey },
+    guards: new Set(options.stillCurrent ? [options.stillCurrent] : []),
+    unguarded: !options.stillCurrent,
+  };
+  websiteReconcileRuns.set(creds, run);
+  const current = () => !isReviewMode() && websiteReconcileRuns.get(creds) === run
+    && sameReconcileIdentity(creds, run.identity)
+    && (run.unguarded || [...run.guards].some(currentReconcileGuard));
+  const stale = (): WebsiteLineupReconcileResult => ({
+    status: 'skipped', reason: isReviewMode() ? 'review_mode' : 'stale_session',
+  });
+
+  async function publishFresh(): Promise<WebsiteLineupReconcileResult> {
+    try {
+      if (!current()) return stale();
+      const headers = { authUserId: run.identity.userId, authHash: run.identity.authHash };
+      const fresh = await api.get<{ shows: EncryptedShowRow[]; websiteLineupShowIds?: string[] }>(
+        '/api/shows?websiteLineups=1', headers);
+      if (!current()) return stale();
+      if (!fresh || !Array.isArray(fresh.shows)) return { status: 'failed', retryable: true };
+      const selected = new Set((Array.isArray(fresh.websiteLineupShowIds)
+        ? fresh.websiteLineupShowIds : []).filter(
+        id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id)));
+      if (!selected.size) return { status: 'skipped', reason: 'nothing_selected' };
+
+      const seen = new Set<string>();
+      const publications = [];
+      let unreadable = 0;
+      for (const row of fresh.shows) {
+        if (!row || !selected.has(row.id)) continue;
+        if (seen.has(row.id)) return { status: 'failed', retryable: true };
+        seen.add(row.id);
+        try {
+          if (typeof row.encryptedData !== 'string' || !row.encryptedData) {
+            unreadable++;
+            continue;
+          }
+          const show = healShow(decryptWithKeys<unknown>(
+            row.encryptedData, [run.identity.key, run.identity.legacyKey]));
+          if (!show || show.id !== row.id) {
+            unreadable++;
+            continue;
+          }
+          publications.push({ ...publicWebsiteShow(show), revision: sha(row.encryptedData) });
+        } catch {
+          // One unreadable or malformed source row is never permission to
+          // publish another row's data or delete the held projection.
+          unreadable++;
+        }
+      }
+      if (!current()) return stale();
+      if (!publications.length) return { status: 'skipped', reason: 'no_readable_shows', unreadable };
+      const response = await api.put<{ ok: boolean; updatedIds: string[]; unchangedIds: string[] }>(
+        '/api/website-lineups', { shows: publications }, headers);
+      if (!current()) return stale();
+      if (response?.ok !== true || !Array.isArray(response.updatedIds)
+        || !Array.isArray(response.unchangedIds)) return { status: 'failed', retryable: true };
+      const acknowledged = [...response.updatedIds, ...response.unchangedIds];
+      const sentIds = new Set(publications.map(show => show.id));
+      if (acknowledged.length !== sentIds.size || new Set(acknowledged).size !== acknowledged.length
+        || acknowledged.some(id => !sentIds.has(id))) return { status: 'failed', retryable: true };
+      return { status: 'reconciled', updated: response.updatedIds.length,
+        unchanged: response.unchangedIds.length, unreadable };
+    } catch (error) {
+      if (!current()) return stale();
+      const status = (error as ApiError | null)?.status;
+      return { status: 'failed',
+        retryable: status === undefined || status === 409 || status === 429 || status >= 500,
+        ...(typeof status === 'number' ? { statusCode: status } : {}) };
+    }
+  }
+
+  run.pending = publishFresh().then(result => {
+    run.pending = undefined;
+    run.guards.clear();
+    run.unguarded = false;
+    // An obsolete session's skipped run must not throttle a newly active one.
+    if (!(result.status === 'skipped'
+      && (result.reason === 'stale_session' || result.reason === 'review_mode'))) {
+      run.result = result;
+      run.completedAt = Date.now();
+    }
+    return result;
+  });
+  return run.pending;
+}
+
 /**
  * What this tab has sent the server for each row, newest last: the hash of
  * each cipher (null for a deletion) and the show text it stood for.
