@@ -76,7 +76,7 @@ export function ShowFlyer({ showId, showName, flyer, onChange }: {
     }
   }
 
-  return <section className="show-flyer" aria-label="Flyer" aria-busy={busy}>
+  return <section className="show-flyer" data-tour="show-flyer" aria-label="Flyer" aria-busy={busy}>
     <h2 className="show-flyer__title">Flyer</h2>
     {url && <button type="button" className="show-flyer__preview" onClick={() => preview.current?.showModal()} aria-label={`View the flyer for ${showName}`}>
       <img src={url} alt={`Flyer for ${showName}`} />

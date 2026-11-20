@@ -186,6 +186,8 @@
   /* A drawer's scrim. Below the drawer panel it dims, above everything else. */
   --z-drawer-backdrop: 200;
   --z-overlay: 80;
+  /* The guide's card: over the page and its sticky bars, under Run Show and every dialog. */
+  --z-tour: 85;
   --z-runshow: 90;
   --z-runshow-ui: 120;
   --z-loading: 150;

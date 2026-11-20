@@ -36,7 +36,7 @@ export function PageHeader({ title, subtitle, onBack, backLabel = 'Back', action
         </button>
       )}
       <div className="page-header__row">
-        <h1 className="page-header__title">{title}</h1>
+        <h1 className="page-header__title" data-tour="page-title">{title}</h1>
         {actions && <div className="page-header__actions">{actions}</div>}
       </div>
       {subtitle && <p className="page-header__subtitle">{subtitle}</p>}

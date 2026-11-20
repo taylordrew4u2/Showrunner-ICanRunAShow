@@ -41,7 +41,7 @@ export function ProducerLock({ feature, compact = false }: { feature: string; co
   // A co-producer cannot buy the owner's plan, and should not be offered to.
   if (reviewing) {
     return (
-      <div className={`producer-lock${compact ? ' producer-lock--compact' : ''}`} role="note">
+      <div className={`producer-lock${compact ? ' producer-lock--compact' : ''}`} data-tour="producer-lock" role="note">
         <p className="producer-lock__text">
           <span className="producer-lock__badge">Producer</span>
           {`${feature} is part of the Producer plan. The account owner can turn it on.`}
@@ -51,7 +51,7 @@ export function ProducerLock({ feature, compact = false }: { feature: string; co
   }
 
   return (
-    <div className={`producer-lock${compact ? ' producer-lock--compact' : ''}`} role="note">
+    <div className={`producer-lock${compact ? ' producer-lock--compact' : ''}`} data-tour="producer-lock" role="note">
       <p className="producer-lock__text">
         <span className="producer-lock__badge">Producer</span>
         {native

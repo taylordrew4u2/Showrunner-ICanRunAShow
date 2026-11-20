@@ -931,6 +931,7 @@ export function Contracts({ settings, session, shows, onBack, backLabel = 'Shows
           locked ? undefined : (
             <button
               className="btn btn--primary btn--sm"
+              data-tour="contracts-add"
               disabled={busy === 'upload'}
               onClick={() => fileInput.current?.click()}
             >

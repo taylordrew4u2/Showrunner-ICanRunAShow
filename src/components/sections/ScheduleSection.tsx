@@ -638,7 +638,7 @@ export function ScheduleSection({
   return (
     <div className="section-body">
       {mode === 'choose' && (
-        <div className="schedule-choice">
+        <div className="schedule-choice" data-tour="schedule-tools">
           {/* The lineup leads. It is the only option that already knows who is
               on and can finish the job in one screen, and it used to sit
               second — under "Build Your Own", which is the longest road on the
@@ -698,7 +698,7 @@ export function ScheduleSection({
               </div>
               {spanLabel && <div className="schedule-summary__meta">{spanLabel}</div>}
             </div>
-            <div className="schedule-summary__actions">
+            <div className="schedule-summary__actions" data-tour="schedule-tools">
               {performers.length > 0 && (
                 <button
                   className="btn btn--secondary btn--sm"

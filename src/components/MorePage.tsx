@@ -34,7 +34,7 @@ export function MorePage({ destinations, onBack }: MorePageProps) {
       <PageHeader title="More" onBack={onBack} backLabel="Shows" />
       <div className="more-list">
         {destinations.map((item) => (
-          <button key={item.key} className="more-item" onClick={item.onSelect}>
+          <button key={item.key} className="more-item" data-tour={`more-${item.key}`} onClick={item.onSelect}>
             <span className="more-item__icon" aria-hidden="true">
               <Icon name={item.icon} size={18} />
             </span>

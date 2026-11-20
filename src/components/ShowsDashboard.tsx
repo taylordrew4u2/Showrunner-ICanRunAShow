@@ -83,7 +83,7 @@ interface NextUpPanelProps {
 function NextUpPanel({ show, when, upcomingCount, onSelectShow, onRunShow }: NextUpPanelProps) {
   if (!show) {
     return (
-      <article className="dash-panel dash-panel--next">
+      <article className="dash-panel dash-panel--next" data-tour="shows-dash">
         <h2 className="dash-panel__title">Next up</h2>
         <p className="dash-panel__quiet">
           Nothing dated yet. Give a show a date and it will lead this panel.
@@ -96,7 +96,7 @@ function NextUpPanel({ show, when, upcomingCount, onSelectShow, onRunShow }: Nex
   const readiness = showReadiness(show);
 
   return (
-    <article className="dash-panel dash-panel--next">
+    <article className="dash-panel dash-panel--next" data-tour="shows-dash">
       <div className="dash-panel__head">
         <h2 className="dash-panel__title">Next up</h2>
         {/* The count the old row gave a whole tile to. It is one number about

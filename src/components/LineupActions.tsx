@@ -24,7 +24,7 @@ export function LineupActions({ performers, showId, showName, onAnnounce }: {
   // secret rather than as a face the download forgot.
   const guestsLeftOut = countHeadshots(surpriseGuests(performers)) > 0 && countHeadshots(billedPerformers(performers)) > 0;
   if (!href && !(onAnnounce && performers.length) && !headshots) return null;
-  return <div className="section-mass-message">
+  return <div className="section-mass-message" data-tour="lineup-actions">
     {onAnnounce && performers.length > 0 && <button className="btn btn--secondary btn--sm" onClick={onAnnounce}>Post copy</button>}
     {href && <ContactLink className="btn btn--secondary btn--sm" href={href} source="lineup" showId={showId}><Icon name="mail" size={16} /> Email all performers ({emailable.length})</ContactLink>}
     <HeadshotExport performers={performers} showId={showId} showName={showName} />
