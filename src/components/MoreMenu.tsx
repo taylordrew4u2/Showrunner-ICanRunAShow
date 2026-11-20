@@ -12,6 +12,8 @@ interface MoreMenuProps {
   /** Accessible name for the trigger, e.g. "More show actions". */
   label: string;
   items: MoreMenuItem[];
+  /** Names the trigger for the guided tour, which points at it. */
+  tourId?: string;
 }
 
 /**
@@ -39,7 +41,7 @@ export function menuItemReachedByKey(key: string, index: number, count: number):
  * which meant the nav changed shape depending on what you were looking at. Here
  * they sit with the thing they act on.
  */
-export function MoreMenu({ label, items }: MoreMenuProps) {
+export function MoreMenu({ label, items, tourId }: MoreMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -94,6 +96,7 @@ export function MoreMenu({ label, items }: MoreMenuProps) {
         ref={triggerRef}
         type="button"
         className="more-menu__trigger"
+        data-tour={tourId}
         onClick={() => {
           openAtRef.current = 'first';
           setOpen((v) => !v);

@@ -4,7 +4,7 @@ import { showBaselineHashes, settingsBaselineHash, heldCopyLock, showSentHashes,
 import { createPendingStore } from './utils/pendingStore';
 import { watchStatusRail } from './utils/statusBand';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, ScheduleTemplateItem } from './types';
+import type { Show, AppSettings, PotentialComic, MusicTrack, ProfileRequest, ScheduleTemplateItem, SectionKey } from './types';
 import { DEFAULT_SETTINGS, MAX_DELETED_SHOW_IDS } from './types';
 import { generateId } from './utils/id';
 import { ServerNotConfiguredError, onCredentialRefused, type ApiError } from './utils/api';
@@ -135,9 +135,16 @@ import { ContactLink } from './components/coproducer/ContactLink';
 import { RequestsInbox } from './components/coproducer/RequestsInbox';
 import { createOwnerData } from './coproducer/ownerData';
 import { useOwnerRequests } from './coproducer/useOwnerRequests';
+import { GuideProvider } from './guide/GuideContext';
+import { GuideDock } from './guide/GuideDock';
+import { GuideOffer } from './guide/GuideOffer';
+import { HelpPage } from './guide/HelpPage';
+import { updateGuide } from './guide/guideStore';
+import { opensNewShow, resolveShow, type GuidePlace } from './guide/places';
+import { listChatGPTConnections } from './utils/chatgpt';
 import './App.css';
 
-type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music' | 'contracts' | 'more' | 'season' | 'requests';
+type View = 'list' | 'detail' | 'settings' | 'expenses' | 'rolodex' | 'emails' | 'music' | 'contracts' | 'more' | 'season' | 'requests' | 'help';
 
 /**
  * The app's destinations. Keeping this a plain list — rather than hand-written
@@ -173,7 +180,7 @@ const NAV_ITEMS: {
   {
     id: 'more',
     label: 'More',
-    views: ['more', 'contracts', 'emails', 'expenses', 'season', 'requests'],
+    views: ['more', 'contracts', 'emails', 'expenses', 'season', 'requests', 'help'],
     icon: 'more',
   },
   {
@@ -631,6 +638,8 @@ export default function App() {
    */
   const [startInRunShow, setStartInRunShow] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  /** A section the guide asked a show's page to open. `seq` makes asking twice for the same one count twice. */
+  const [guideSection, setGuideSection] = useState<{ showId: string; key: SectionKey; seq: number } | null>(null);
   const [newComicName, setNewComicName] = useState('');
   const [newComicNotes, setNewComicNotes] = useState('');
   const [newListEmail, setNewListEmail] = useState('');
@@ -1907,6 +1916,9 @@ export default function App() {
     if (!session || !dataLoaded.current || isReviewMode()) return;
     const savingSession = session;
     setOnboardingSaving(true);
+    // A new account on this device: the Shows list offers the tour and the
+    // setup page, once. Kept on the device, not in the account (guideStore).
+    updateGuide(session.username, (guide) => (guide.offer === 'unset' ? { ...guide, offer: 'show' } : guide));
     // Merge onto whatever loaded for this account so we never clobber existing data.
     const updatedSettings: AppSettings = {
       ...settings,
@@ -1980,7 +1992,7 @@ export default function App() {
     }
   }
 
-  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt'>) {
+  function handleCreateShow(data: Omit<Show, 'id' | 'createdAt' | 'updatedAt'>): Show {
     const newShow: Show = {
       ...data,
       id: generateId(),
@@ -2007,6 +2019,7 @@ export default function App() {
     setSearchQuery('');
     setSelectedShow(newShow);
     setView('detail');
+    return newShow;
   }
 
   function handleDuplicateShow(id: string) {
@@ -2703,6 +2716,7 @@ export default function App() {
     // bottom nav rather than Back doesn't clear it, and a stale flag would
     // drop the *next* show you tapped straight into live mode.
     setStartInRunShow(runShow);
+    setGuideSection(null);
     // Open the show first. Measuring the card to set the expand animation's
     // origin is decoration, and it used to run ahead of the navigation it
     // decorates — so anything it touched (a missing .app-main, an element
@@ -2729,6 +2743,78 @@ export default function App() {
     setView('list');
     setSelectedShow(null);
     setStartInRunShow(false);
+    setGuideSection(null);
+  }
+
+  /**
+   * Go to one of the app's destinations, as the nav does.
+   *
+   * Nothing in Settings saves itself. Leaving it asks first, as its own Back
+   * button does, rather than dropping a typed brand name or a paired remote.
+   */
+  function navigate(id: Exclude<View, 'detail'>) {
+    const go = () => {
+      if (id === 'list') {
+        handleBack();
+      } else {
+        setView(id);
+        setSelectedShow(null);
+      }
+    };
+    const leave = view === 'settings' && id !== 'settings' ? settingsLeaveRef.current : null;
+    if (leave) leave(go);
+    else go();
+  }
+
+  /**
+   * Take the app where a tour or wizard step is about: the same state changes
+   * the nav and a show card make, and nothing else. False when the step needs
+   * a show the account does not have. `then` runs once the app is there, which
+   * is after Settings has asked about unsaved changes, or never if the
+   * producer chose to stay.
+   */
+  function guideGo(place: GuidePlace, then?: () => void): boolean {
+    const show = place.view === 'detail' ? resolveShow(latestShowsRef.current, place.show) : null;
+    if (place.view === 'detail' && !show) return false;
+    if (place.view === 'contracts' && !session) return false;
+    if (navigationRef.current?.matches(':popover-open')) navigationRef.current.hidePopover();
+    const arrive = () => {
+      setShowForm(opensNewShow(place));
+      if (place.view === 'detail' && show) {
+        setStartInRunShow(false);
+        setSelectedShow(show);
+        setView('detail');
+        const section = place.section;
+        setGuideSection((asked) => (section ? { showId: show.id, key: section, seq: (asked?.seq ?? 0) + 1 } : null));
+      } else if (place.view === 'list') {
+        handleBack();
+      } else if (place.view !== 'detail') {
+        setView(place.view);
+        setSelectedShow(null);
+      }
+      then?.();
+    };
+    const leave = view === 'settings' && place.view !== 'settings' ? settingsLeaveRef.current : null;
+    if (leave) leave(arrive);
+    else arrive();
+    return true;
+  }
+
+  /** The tour's sample show: the same one "Try a sample show" adds, opened the same way. */
+  function guideCreateSample(then?: () => void) {
+    const make = () => {
+      handleCreateShow(buildSampleShow());
+      then?.();
+    };
+    const leave = view === 'settings' ? settingsLeaveRef.current : null;
+    if (leave) leave(make);
+    else make();
+  }
+
+  /** "Delete the sample show" at the end of the tour: the ordinary delete, into Recently deleted. */
+  function guideDeleteShow(id: string) {
+    handleDeleteShow(id);
+    if (selectedShow?.id === id) handleBack();
   }
 
   /**
@@ -2906,6 +2992,25 @@ export default function App() {
         <ProducerProvider value={producerAccess}>
         <ReviewProvider value={reviewValue}>
         <PendingOverlayProvider value={pendingOverlay}>
+        <GuideProvider
+          key={session.username}
+          username={session.username}
+          reviewing={reviewing || isReviewMode()}
+          reviewLabel={review?.label}
+          shows={shows}
+          settings={settings}
+          view={view}
+          selectedShowId={view === 'detail' ? selectedShow?.id ?? null : null}
+          runShowOpen={runShowOpen}
+          desktop={desktopNavigation}
+          locked={producerAccess.locked}
+          go={guideGo}
+          createSample={guideCreateSample}
+          deleteShow={guideDeleteShow}
+          links={ownerRequests.links}
+          lastBackupAt={lastBackupAt}
+          countConnections={ownerData ? async () => (await listChatGPTConnections(session)).length : undefined}
+        >
         <div className="app">
           {/* Everything that reports on the state of your data, in one stack:
               problems that need you first, then the always-on sync pill. */}
@@ -3049,6 +3154,7 @@ export default function App() {
             <div className="status-rail__pill-row">
               <button
                 className="navigation-toggle"
+                data-tour="nav-toggle"
                 type="button"
                 popoverTarget="primary-navigation"
                 aria-label="Open navigation menu"
@@ -3100,6 +3206,7 @@ export default function App() {
                     shows.length > 0 ? (
                       <button
                         className="btn btn--primary btn--sm page-header__new"
+                        data-tour="shows-new"
                         onClick={() => setShowForm(true)}
                         // The noun below is hidden with display: none at phone
                         // width, which takes it out of the accessible name as
@@ -3120,6 +3227,7 @@ export default function App() {
                   }
                 />
                 <PendingNewShows />
+                <GuideOffer showCount={shows.length} onOpenHelp={() => setView('help')} />
                 {!reviewing && !backupNudgeDismissed && !installPromptShown
                   && shouldNudgeBackup(shows.length, lastBackupAt) && (
                   <div className="backup-nudge" role="status">
@@ -3144,7 +3252,7 @@ export default function App() {
                   </div>
                 )}
                 {shows.length > 0 && (
-                  <div className="shows-period" role="group" aria-label="Show period">
+                  <div className="shows-period" data-tour="shows-period" role="group" aria-label="Show period">
                     <button
                       type="button"
                       className="shows-period__button"
@@ -3160,7 +3268,7 @@ export default function App() {
                   </div>
                 )}
                 {shows.length > 0 && (
-                  <div className="shows-toolbar">
+                  <div className="shows-toolbar" data-tour="shows-toolbar">
                     <input
                       className="shows-toolbar__search"
                       type="search"
@@ -3226,7 +3334,7 @@ export default function App() {
                       or open a sample night and press Run Show to see it work.
                     </p>
                     <div className="empty-state__actions">
-                      <button className="btn btn--primary" onClick={() => setShowForm(true)}>
+                      <button className="btn btn--primary" data-tour="shows-new" onClick={() => setShowForm(true)}>
                         + New Show
                       </button>
                       <button className="btn btn--secondary" onClick={() => handleCreateShow(buildSampleShow())}>
@@ -3364,9 +3472,20 @@ export default function App() {
                     icon: 'dollar',
                     onSelect: () => setView('expenses'),
                   },
+                  // Last, and in co-producer view too: it is how to find the
+                  // tour again, and never the first thing on the page.
+                  {
+                    key: 'help',
+                    label: 'Help & setup',
+                    description: 'A guided tour and step-by-step setup',
+                    icon: 'help',
+                    onSelect: () => setView('help'),
+                  },
                 ]}
               />
             )}
+
+            {view === 'help' && <HelpPage onBack={() => setView('more')} />}
 
             {view === 'emails' && (
               <div className="email-list-page">
@@ -3446,6 +3565,7 @@ export default function App() {
                   show={shows.find(show => show.id === selectedShow.id) ?? selectedShow}
                   settings={settings}
                   startInRunShow={startInRunShow}
+                  openSection={guideSection && guideSection.showId === selectedShow.id ? guideSection : undefined}
                   onBack={handleBack}
                   onUpdate={handleUpdateShow}
                   session={session ?? undefined}
@@ -3558,6 +3678,7 @@ export default function App() {
                     should take Enter, which is how everyone tries it first. */}
                 <form
                   className="rolodex__form"
+                  data-tour="rolodex-add"
                   onSubmit={(e) => { e.preventDefault(); handleAddPotentialComic(); }}
                 >
                   <input
@@ -3681,6 +3802,10 @@ export default function App() {
             )}
           </main>
 
+          {/* The tour's card, and a wizard step's: a region, not a dialog. Just
+              before the nav, so it is next to last in the tab order. */}
+          <GuideDock where="app" />
+
           {/* Desktop uses a native popover for outside-click and Escape dismissal;
               the same destinations remain in the phone's bottom bar. */}
           <nav
@@ -3708,24 +3833,12 @@ export default function App() {
                   <button
                     key={item.id}
                     className={`bottom-nav__item${active ? ' bottom-nav__item--active' : ''}`}
+                    data-tour={`nav-${item.id}`}
                     aria-current={active ? 'page' : undefined}
                     aria-label={waiting > 0 ? `${item.label}, ${waiting} ${waiting === 1 ? 'request' : 'requests'} waiting` : undefined}
                     onClick={() => {
                       if (desktopNavigation) navigationRef.current?.hidePopover();
-                      const go = () => {
-                        if (item.id === 'list') {
-                          handleBack();
-                        } else {
-                          setView(item.id);
-                          setSelectedShow(null);
-                        }
-                      };
-                      // Nothing in Settings saves itself. Leaving it from the
-                      // nav asks first, as its own Back button does, rather
-                      // than dropping a typed brand name or a paired remote.
-                      const leave = view === 'settings' && item.id !== 'settings' ? settingsLeaveRef.current : null;
-                      if (leave) leave(go);
-                      else go();
+                      navigate(item.id);
                     }}
                   >
                     <Icon name={item.icon} size={20} className="bottom-nav__item-icon" />
@@ -3770,6 +3883,7 @@ export default function App() {
           )}
 
         </div>
+        </GuideProvider>
         </PendingOverlayProvider>
         </ReviewProvider>
         </ProducerProvider>

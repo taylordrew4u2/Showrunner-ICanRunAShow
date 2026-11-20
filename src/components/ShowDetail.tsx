@@ -100,6 +100,12 @@ interface ShowDetailProps {
    * rather than back where you came from.
    */
   startInRunShow?: boolean;
+  /**
+   * A section the guided tour, or a setup wizard, asks this page to open.
+   * `seq` goes up with every ask, so asking for the same section twice opens
+   * it twice.
+   */
+  openSection?: { key: SectionKey; seq: number };
   onBack: () => void;
   onUpdate: (show: Show) => void;
   onSaveToRolodex?: (comic: import('../types').PotentialComic) => void;
@@ -158,6 +164,7 @@ export function ShowDetail({
   show,
   settings,
   startInRunShow = false,
+  openSection,
   onBack,
   onUpdate,
   onSaveToRolodex,
@@ -335,6 +342,14 @@ export function ShowDetail({
       });
     });
   }
+
+  // The guide asking for a section: the same jump the overview tiles make.
+  const openedSectionSeq = useRef<number | null>(null);
+  useEffect(() => {
+    if (!openSection || openedSectionSeq.current === openSection.seq) return;
+    openedSectionSeq.current = openSection.seq;
+    jumpToSection(openSection.key);
+  });
 
   // Keep the public viewer's pre-show lineup current: whenever an upcoming show's
   // lineup or details change, re-publish the scheduled payload (debounced). Skipped
@@ -1063,7 +1078,7 @@ export function ShowDetail({
             <Icon name={SECTION_ICONS[section.key] ?? 'file'} size={17} />{section.title}
           </button>)}
         </nav>
-        <button className="show-workspace__configure" onClick={() => setManageSectionsOpen(true)}>Add or remove sections</button>
+        <button className="show-workspace__configure" data-tour="show-sections" onClick={() => setManageSectionsOpen(true)}>Add or remove sections</button>
       </aside>
       <div className="show-workspace__body">
       {/* Outside the hero, not inside it. A sticky element can only stick
@@ -1102,16 +1117,17 @@ export function ShowDetail({
           </div>
           <button
             className="show-detail__run-show"
+            data-tour="show-run"
             onClick={() => setRunShowOpen(true)}
             title="Run the live show"
           >
             <Icon name="play" size={14} />
             Run Show
           </button>
-          <MoreMenu label="More show actions" items={moreItems} />
+          <MoreMenu label="More show actions" items={moreItems} tourId="show-more" />
         </div>
 
-      <div className="show-detail__hero">
+      <div className="show-detail__hero" data-tour="show-hero">
         <div className="show-detail__header" ref={heroRef}>
           {editingShowName ? (
             <div className="show-detail__name-edit">
@@ -1199,7 +1215,7 @@ export function ShowDetail({
           the same names. The one loss is the On this show / Rolodex grouping,
           which a datalist can't render — so the bill is listed first, where
           the host almost always comes from. */}
-      <div className="show-detail__host">
+      <div className="show-detail__host" data-tour="show-host">
         {hostSuggestions.length > 0 && (
           <datalist id={hostListId}>
             {hostSuggestions.map((pick) => (
@@ -1302,7 +1318,7 @@ export function ShowDetail({
         )}
       </div>
 
-        <section className="show-workspace__notes">
+        <section className="show-workspace__notes" data-tour="show-notes">
           <h2>Production notes</h2>
           <label className="visually-hidden" htmlFor="show-production-notes">Production notes</label>
           <textarea id="show-production-notes" placeholder="Reminders for this show, soundcheck, setup…"
@@ -1316,7 +1332,7 @@ export function ShowDetail({
       <div className="show-workspace__side">
       <ShowFlyer showId={show.id} showName={show.name} flyer={show.flyer} onChange={(flyer) => handleUpdate({ flyer })} />
       <PendingInline groupKey={`show:${show.id}`} prefix="flyer" />
-      {scheduleSection && <aside className="show-workspace__running" aria-label="Running order">
+      {scheduleSection && <aside className="show-workspace__running" data-tour="show-running" aria-label="Running order">
         <div className="show-workspace__running-head">
           <h2>{detailDate?.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) || 'Show day'}</h2>
           <p>Running order</p>
@@ -1342,7 +1358,7 @@ export function ShowDetail({
 
 
       </div>
-      <button className="btn btn--secondary show-workspace__mobile-manage" onClick={() => setManageSectionsOpen(true)}>Add or remove sections</button>
+      <button className="btn btn--secondary show-workspace__mobile-manage" data-tour="show-sections" onClick={() => setManageSectionsOpen(true)}>Add or remove sections</button>
       </div>
 
       {runShowOpen && (

@@ -61,6 +61,7 @@ import {
 } from '../utils/audioSettings';
 import { Icon } from './Icon';
 import { useConfirm } from './useConfirm';
+import { GuideDock } from '../guide/GuideDock';
 import { localConfirm } from './coproducer/localConfirm';
 import { describeKey, isRemotePress } from '../utils/stageRemote';
 import './RunShowAppearance.css';
@@ -1198,10 +1199,11 @@ export function RunShow({
       <div ref={dialogRef} tabIndex={-1} className="run-show" role="dialog" aria-modal="true" aria-label="Run show">
         <div className="run-show__bar">
           <span className="run-show__name">{showName}</span>
-          <button className="run-show__close" onClick={requestClose} aria-label="Close run show">
+          <button className="run-show__close" data-tour="run-close" onClick={requestClose} aria-label="Close run show">
             <Icon name="x" size={18} />
           </button>
         </div>
+        <GuideDock where="runshow" />
         <div className="run-show__empty">
           <div className="run-show__empty-title">No cues yet</div>
           <p>Add some schedule items first, then come back to run the show.</p>
@@ -1237,15 +1239,20 @@ export function RunShow({
           <button className="run-show__finish" onClick={finishShow} title="End the show and mark it completed">
             Finish show
           </button>
-          <button className="run-show__close" onClick={requestClose} aria-label="Close run show">
+          <button className="run-show__close" data-tour="run-close" onClick={requestClose} aria-label="Close run show">
             <Icon name="x" size={18} />
           </button>
         </div>
       </div>
 
+      {/* The tour's card for the board's own steps: in the flow under the bar,
+          inside this dialog and so inside its focus trap. Nothing renders
+          unless the tour is on one of those steps. */}
+      <GuideDock where="runshow" />
+
       <div className="run-show__scroll">
         {/* ── Soundboard ──────────────────────────────────────────────── */}
-        <section className="rs-panel rs-board">
+        <section className="rs-panel rs-board" data-tour="run-board">
           <div className="rs-board__head">
             <h2 className="rs-board__title">Soundboard</h2>
           </div>
@@ -1502,7 +1509,7 @@ export function RunShow({
         </section>
 
         {/* ── Clock ───────────────────────────────────────────────────── */}
-        <section className="rs-panel rs-clock" aria-label="Independent timer">
+        <section className="rs-panel rs-clock" data-tour="run-clock" aria-label="Independent timer">
           {/* The clock's words for a screen reader. Next and Prev keep their
               labels and focus stays put, so without this a keyboard operator
               gets nothing back from a cue change; the digits are left out,

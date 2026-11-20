@@ -302,7 +302,7 @@ export function Settings({
       <PageHeader title="Settings" onBack={() => { void leave(onBack); }} backLabel="Shows" />
 
       {onColorSchemeChange && (
-        <div className="settings__card">
+        <div className="settings__card" data-tour="settings-appearance">
           <h2 className="settings__card-title">Appearance</h2>
           <div className="section-field">
             <span className="section-field__label">Color scheme</span>
@@ -332,7 +332,7 @@ export function Settings({
         </div>
       )}
 
-      <div className="settings__card">
+      <div className="settings__card" data-tour="settings-workspace">
         <h2 className="settings__card-title">Your workspace</h2>
         <PendingInline groupKey="settings:workspace" />
         <label className="section-field">
@@ -484,7 +484,7 @@ export function Settings({
           room — but the music still has to start and stop. A Bluetooth clicker
           in a pocket does that, and since no two clickers agree on what they
           send, the app learns this one rather than guessing. */}
-      <div className="settings__card">
+      <div className="settings__card" data-tour="settings-remote">
         <h2 className="settings__card-title">Stage remote</h2>
         <p className="settings__hint">
           Pair a Bluetooth clicker to this computer, then teach the app its
@@ -534,7 +534,7 @@ export function Settings({
           four screens longer while saying none of them mattered more than
           the others. One card now, whose parts open when you need them,
           which is almost never. */}
-      <div className="settings__card">
+      <div className="settings__card" data-tour="settings-data">
         <h2 className="settings__card-title">Your data</h2>
         {/* Reassurance, not instructions. It earns its place — careful work
             feels like a gamble when nothing says the work is safe — but four
@@ -858,7 +858,7 @@ export function Settings({
       )}
 
       {review && (
-        <div className="settings__card">
+        <div className="settings__card" data-tour="settings-account">
           <h2 className="settings__card-title">Account</h2>
           <p className="settings__hint">
             You're viewing this account as a co-producer ({review.label}). Your access ends{' '}
@@ -875,7 +875,7 @@ export function Settings({
         </div>
       )}
 
-      {!review && <div className="settings__card">
+      {!review && <div className="settings__card" data-tour="settings-account">
         <h2 className="settings__card-title">Account</h2>
         {username && (
           <p className="settings__hint">

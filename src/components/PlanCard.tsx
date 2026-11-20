@@ -112,7 +112,7 @@ export function PlanCard({ load, checkout, portal, returned }: BillingActions) {
   const ends = renewLabel(state?.endsAt ?? null);
 
   return (
-    <div className="settings__card plan-card">
+    <div className="settings__card plan-card" data-tour="settings-plan">
       <h2 className="settings__card-title">Plan</h2>
 
       {returned === 'success' && (

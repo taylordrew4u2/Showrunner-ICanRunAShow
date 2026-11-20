@@ -138,7 +138,7 @@ export function MusicLibrary({ tracks, shows, trash, onChange, onBack }: MusicLi
              Two identical red buttons on one screen make the reader choose
              between them, and there is nothing to choose. */
           tracks.length > 0 ? (
-            <button className="btn btn--primary" onClick={addTracks} disabled={busy}>
+            <button className="btn btn--primary" data-tour="music-upload" onClick={addTracks} disabled={busy}>
               {busy ? 'Uploading…' : '+ Upload track'}
             </button>
           ) : undefined
@@ -165,7 +165,7 @@ export function MusicLibrary({ tracks, shows, trash, onChange, onBack }: MusicLi
             stings. Every track here shows up in every show's DJ list automatically, and each one
             gets its own button on the Run Show soundboard.
           </p>
-          <button className="btn btn--primary" onClick={addTracks} disabled={busy}>
+          <button className="btn btn--primary" data-tour="music-upload" onClick={addTracks} disabled={busy}>
             {busy ? 'Uploading…' : '+ Upload track'}
           </button>
         </div>

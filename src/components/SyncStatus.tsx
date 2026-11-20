@@ -144,7 +144,7 @@ export function SyncStatus({
   }
 
   return (
-    <div className={`sync-status sync-status--${state}`} ref={rootRef}>
+    <div className={`sync-status sync-status--${state}`} data-tour="sync-status" ref={rootRef}>
       {/* Announced as well as shown, on every screen.
           The pill is a button, and a button's label changing is not something
           a screen reader reports — so "your work is saved" was visible-only.

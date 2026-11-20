@@ -221,7 +221,7 @@ export function CoproducersCard({ session, data, onOpenRequests, onLinksChanged 
   for (const handout of ended) endedByName.set(handout.name, [...(endedByName.get(handout.name) ?? []), handout]);
 
   return (
-    <section className="settings__card coproducers" aria-labelledby="coproducers-heading">
+    <section className="settings__card coproducers" data-tour="settings-coproducers" aria-labelledby="coproducers-heading">
       <h2 id="coproducers-heading" className="settings__card-title">Co-producers</h2>
       <p className="settings__hint">{COPRODUCERS_TEXT.hint}</p>
       {!configured ? (

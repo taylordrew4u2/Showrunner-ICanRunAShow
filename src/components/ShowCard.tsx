@@ -109,6 +109,7 @@ export function ShowCard({ show, onSelect, onDelete, onDuplicate, today }: ShowC
     // completed, because a full show can be either.
     <article
       className={`show-card show-card--${show.status}${lineup.full ? ' show-card--full' : ''}`}
+      data-tour={show.sample ? 'show-card-sample' : undefined}
     >
       {/* A real element covering the card, not a pseudo-element stretched out
           of the title. That version put `::after { inset: 0 }` on the title's

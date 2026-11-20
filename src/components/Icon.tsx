@@ -43,7 +43,8 @@ export type IconName =
   | 'dollar'
   | 'mail'
   | 'external'
-  | 'user';
+  | 'user'
+  | 'help';
 
 interface IconProps {
   name: IconName;
@@ -323,6 +324,14 @@ export function Icon({ name, size = 20, className, style, ...rest }: IconProps) 
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+      );
+    case 'help':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
       );
     case 'alert':

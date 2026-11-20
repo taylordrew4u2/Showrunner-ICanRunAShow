@@ -188,7 +188,7 @@ export function ChatGPTSettings({ session }: { session: SessionCredentials }) {
   const connectorUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/api/mcp`;
 
   return (
-    <section className="settings__card chatgpt-settings" aria-labelledby="chatgpt-settings-heading">
+    <section className="settings__card chatgpt-settings" data-tour="settings-ai" aria-labelledby="chatgpt-settings-heading">
       <h2 id="chatgpt-settings-heading" className="settings__card-title">AI assistants</h2>
       <p className="settings__hint">Work on your shows from Claude or ChatGPT through an optional connection. Access starts only after you sign in here and choose what it may do.</p>
       <details className="settings__details">

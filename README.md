@@ -67,6 +67,7 @@ Producers of recurring comedy, drag and variety nights tend to run them from a s
 | **Live viewer** | A public, read-only page showing who's on stage and who's next, updated live. |
 | **Season report** | Shows, audience, net, regulars and top rooms for the year, plus a venue pitch composed from those numbers. |
 | **Show admin** | Flyers, budget and expenses, staff and hosts, deadlines, PDF runsheet export, announcement captions, recurring shows. |
+| **Tour and setup help** | An optional guided tour on a sample show that takes you to each real page and outlines the real control, and a Help & setup page of short step-by-step wizards that know what is already set up. Both can be skipped, resumed or restarted, and what they remember stays on the device. |
 
 Full list: [docs/FEATURES.md](docs/FEATURES.md)
 
@@ -243,6 +244,7 @@ The E2E suite builds and serves the production bundle itself and runs against an
 ```
 src/components/   Screens: ShowDetail, RunShow, LiveViewer, Contracts, SigningPage, SeasonReport, ...
 src/utils/        Pure logic with a test beside each module (encryption, audio engine, import, media GC)
+src/guide/        The guided tour and the Help & setup wizards: steps as data, a pure engine, one docked card
 api/              Vercel serverless routes: auth, shows, settings, media, live, sign
 e2e/              Playwright specs + in-memory API stand-in
 ios/              Capacitor iOS project

@@ -416,6 +416,7 @@ export function PerformersSection({
           <button
             type="button"
             className="btn btn--secondary btn--sm lineup-add__toggle"
+            data-tour="lineup-add"
             onClick={() => setAddingOpen((v) => !v)}
             aria-expanded={addingOpen}
           >

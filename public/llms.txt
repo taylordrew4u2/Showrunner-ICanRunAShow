@@ -17,6 +17,7 @@ Independent live-show coordinators — comedians who produce their own shows, dr
 - **Public viewer** — read-only link showing the current on-stage performer and what's next; updates live during the show
 - **Performer rolodex** — global performer directory that syncs across shows
 - **PDF runsheet export** — one tap to export the show as a PDF
+- **Guided tour and setup help** — an optional walkthrough inside the app that uses a sample show, opens each real page and points at the real control; plus a Help & setup page of short step-by-step guides for the first show, the rolodex, contracts and signing, the viewer link and Run Show, music, flyers, co-producers and backups. Both can be skipped, resumed or restarted, and nothing about them is saved to the account
 - **Assistant connector** — an optional, opt-in remote MCP server (OAuth) that lets Claude and other MCP clients read and edit shows, lineups, running orders and the Rolodex, and send profile and contract links, with only the permissions the producer allows
 
 ## Tech stack

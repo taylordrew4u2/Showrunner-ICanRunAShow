@@ -21,11 +21,12 @@ test.describe('navigation', () => {
       'Contracts',
       'Email list',
       'Expenses',
+      'Help & setup',
     ]);
 
     // Opening a page behind More keeps More lit, and back returns there
     // rather than dumping the producer on the show list.
-    for (const row of ['Season report', 'Contracts', 'Email list', 'Expenses']) {
+    for (const row of ['Season report', 'Contracts', 'Email list', 'Expenses', 'Help & setup']) {
       await page.locator('.more-item').filter({ hasText: row }).click();
       await expect(page.locator('.bottom-nav__item--active')).toHaveText('More');
       await page.locator('.page-header__back').first().click();
