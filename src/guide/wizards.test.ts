@@ -4,6 +4,7 @@ import { buildSampleShow } from '../utils/sampleShow';
 import { resolveShow } from './places';
 import {
   WIZARDS,
+  isOwnShow,
   progressLabel,
   stepDone,
   stepIsManual,
@@ -81,6 +82,76 @@ describe('what a new account sees', () => {
     expect(resolveShow([sample], 'sample')?.id).toBe('sample-1');
     expect(resolveShow([sample, show()], 'real')?.id).toBe('show-1');
     expect(resolveShow([show()], 'sample')).toBeNull();
+  });
+});
+
+// What the tour adds to the sample show is filed in the Rolodex like anyone
+// else. It is still the tour's, not the producer's own work.
+describe('what the tour leaves behind on the sample show', () => {
+  const ada = { id: 'c1', name: 'Ada', email: 'ada@example.com', walkOnMusic: 'media:w' };
+  const onSample = (performer: Partial<Show['performers'][number]>): Show => ({
+    ...sample,
+    performers: [{ id: 'p1', name: 'Ada', ...performer }] as Show['performers'],
+  });
+
+  it('does not count someone filed only from the sample show, by link or by name', () => {
+    for (const sampleShow of [onSample({ comicId: 'c1' }), onSample({ name: ' ada ' })]) {
+      const f = facts({ shows: [sampleShow], settings: { potentialComics: [ada] } });
+      expect(done('rolodex', 'add', f)).toBe(false);
+      expect(done('rolodex', 'profile', f)).toBe(false);
+      expect(done('music', 'walk-on', f)).toBe(false);
+    }
+    const asArtist: Show = { ...sample, artists: [{ id: 'a1', name: 'Ada', comicId: 'c1' }] as Show['artists'] };
+    expect(done('rolodex', 'add', facts({ shows: [asArtist], settings: { potentialComics: [ada] } }))).toBe(false);
+  });
+
+  it('counts them once they are on a show of the producer’s own too', () => {
+    const own = show({ performers: [{ id: 'p2', name: 'Ada', comicId: 'c1' }] as Show['performers'] });
+    const f = facts({ shows: [onSample({ comicId: 'c1' }), own], settings: { potentialComics: [ada] } });
+    expect(done('rolodex', 'add', f)).toBe(true);
+    expect(done('rolodex', 'profile', f)).toBe(true);
+    expect(done('music', 'walk-on', f)).toBe(true);
+  });
+
+  it('still leaves them out once the sample show is deleted to the trash', () => {
+    for (const sampleShow of [onSample({ comicId: 'c1' }), onSample({ name: ' ada ' })]) {
+      const trash = [{ id: 't1', type: 'show' as const, data: sampleShow, deletedAt: '2030-01-02T00:00:00.000Z' }];
+      const f = facts({ shows: [], settings: { potentialComics: [ada], trash } });
+      expect(done('rolodex', 'add', f)).toBe(false);
+      expect(done('rolodex', 'profile', f)).toBe(false);
+      expect(done('music', 'walk-on', f)).toBe(false);
+    }
+  });
+
+  it('does not let a deleted show of the producer’s own hide anyone', () => {
+    const own = show({ performers: [{ id: 'p2', name: 'Ada', comicId: 'c1' }] as Show['performers'] });
+    const trash = [{ id: 't1', type: 'show' as const, data: own, deletedAt: '2030-01-02T00:00:00.000Z' }];
+    const f = facts({ shows: [], settings: { potentialComics: [ada], trash } });
+    expect(done('rolodex', 'add', f)).toBe(true);
+  });
+
+  it('still counts everyone else in the Rolodex', () => {
+    const grace = { id: 'c2', name: 'Grace', email: 'grace@example.com' };
+    const f = facts({ shows: [onSample({ comicId: 'c1' })], settings: { potentialComics: [ada, grace] } });
+    expect(done('rolodex', 'add', f)).toBe(true);
+    expect(done('rolodex', 'profile', f)).toBe(true);
+    expect(done('music', 'walk-on', f)).toBe(false);
+  });
+});
+
+// Only the producer's own show counts as having run one, whichever sample it is.
+describe('which shows are the producer’s own', () => {
+  const older: Show = { ...sample, id: 'sample-old', createdAt: '2029-01-01T00:00:00.000Z' };
+  const newer: Show = { ...sample, id: 'sample-new', createdAt: '2030-02-01T00:00:00.000Z' };
+  const shows = [older, newer, show()];
+
+  it('is never a sample show, old or new', () => {
+    expect(resolveShow(shows, 'sample')?.id).toBe('sample-new');
+    expect(isOwnShow(shows, 'sample-old')).toBe(false);
+    expect(isOwnShow(shows, 'sample-new')).toBe(false);
+    expect(isOwnShow(shows, 'show-1')).toBe(true);
+    expect(isOwnShow(shows, null)).toBe(false);
+    expect(isOwnShow(shows, 'gone')).toBe(false);
   });
 });
 

@@ -139,7 +139,7 @@ import { GuideProvider } from './guide/GuideContext';
 import { GuideDock } from './guide/GuideDock';
 import { GuideOffer } from './guide/GuideOffer';
 import { HelpPage } from './guide/HelpPage';
-import { updateGuide } from './guide/guideStore';
+import { forgetGuide, updateGuide } from './guide/guideStore';
 import { opensNewShow, resolveShow, type GuidePlace } from './guide/places';
 import { listChatGPTConnections } from './utils/chatgpt';
 import './App.css';
@@ -1769,6 +1769,7 @@ export default function App() {
     pendingStore.clear(PENDING_SHOWS_KEY, gone.username);
     pendingStore.clear(PENDING_SETTINGS_KEY, gone.username);
     forgetAccountNotes(gone.username);
+    forgetGuide(gone.username);
     for (const token of tokens) forgetViewerKey(token);
   }
 

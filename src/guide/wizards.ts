@@ -7,10 +7,13 @@
  * and settings on every render, so it can never disagree with them. Where
  * there is nothing to read, the step has a tick box instead.
  *
- * The sample show never counts towards any step.
+ * The sample show never counts towards any step, and nor does anything that
+ * is in the account only because of it, such as someone filed in the Rolodex
+ * from its lineup during the tour.
  */
-import { DEFAULT_SETTINGS, type AppSettings, type Show } from '../types';
+import { DEFAULT_SETTINGS, type AppSettings, type PotentialComic, type Show } from '../types';
 import { signatureSummary } from '../utils/contracts';
+import { rolodexKey } from '../utils/rolodex';
 import type { GuidePlace } from './places';
 import type { LockedFeature } from './tourSteps';
 
@@ -31,6 +34,8 @@ export type WizardId =
 export interface WizardFacts {
   /** The producer's own shows: never the sample. */
   realShows: Show[];
+  /** The producer's own Rolodex: never someone filed only from a sample show. */
+  comics: PotentialComic[];
   settings: AppSettings;
   /** Co-producer links made. */
   links: number;
@@ -72,6 +77,13 @@ export interface Wizard {
 const t = (id: string) => `[data-tour="${id}"]`;
 const REAL: GuidePlace = { view: 'detail', show: 'real' };
 const PAGE_TITLE = t('page-title');
+const LINEUP: GuidePlace = { view: 'detail', show: 'real', section: 'performers' };
+/**
+ * The lineup's own tools, else the way to add someone. A show with nobody on
+ * it has no Post copy or headshot button yet, and no "Add" toggle either: its
+ * name field is already open, and that is the first thing to do.
+ */
+const LINEUP_TOOLS = [t('lineup-actions'), t('lineup-add'), t('lineup-name'), '#show-section-header-performers'];
 const settingsCard = (anchor: string) => ({
   place: { view: 'settings', anchor } as GuidePlace,
   targets: [t(anchor)],
@@ -125,14 +137,14 @@ export const WIZARDS: readonly Wizard[] = [
         title: 'Add someone',
         text: 'Type a name and press Add. Notes are optional.',
         action: { label: 'Open the Rolodex', place: { view: 'rolodex' }, targets: [t('rolodex-add'), PAGE_TITLE] },
-        detect: (f) => f.settings.potentialComics.length > 0,
+        detect: (f) => f.comics.length > 0,
       },
       {
         id: 'profile',
         title: 'Fill in their profile',
         text: 'Open a person to add a headshot, socials, an email and walk-on music.',
         action: { label: 'Open the Rolodex', place: { view: 'rolodex' }, targets: [PAGE_TITLE] },
-        detect: (f) => f.settings.potentialComics.some((c) => !!(c.email || c.socialMedia || c.photo || c.walkOnMusic)),
+        detect: (f) => f.comics.some((c) => !!(c.email || c.socialMedia || c.photo || c.walkOnMusic)),
       },
       {
         id: 'ask',
@@ -253,7 +265,7 @@ export const WIZARDS: readonly Wizard[] = [
         title: 'Give someone a walk-on',
         text: 'Open a person in the Rolodex, or a performer on a show, and upload their walk-on.',
         action: { label: 'Open the Rolodex', place: { view: 'rolodex' }, targets: [PAGE_TITLE] },
-        detect: (f) => f.settings.potentialComics.some((c) => !!c.walkOnMusic)
+        detect: (f) => f.comics.some((c) => !!c.walkOnMusic)
           || f.realShows.some((show) => show.performers.some((p) => !!p.walkOnMusic)),
       },
       {
@@ -281,14 +293,14 @@ export const WIZARDS: readonly Wizard[] = [
       {
         id: 'post',
         title: 'Copy the lineup for a post',
-        text: 'With performers on the bill, Post copy writes the lineup with everyone’s handles.',
-        action: { label: 'Open a show', place: { view: 'detail', show: 'real', section: 'performers' }, targets: [t('lineup-actions'), t('lineup-add')] },
+        text: 'Post copy writes the lineup with everyone’s handles. It appears once someone is on the bill, so on an empty show add someone to the lineup first.',
+        action: { label: 'Open a show', place: LINEUP, targets: LINEUP_TOOLS },
       },
       {
         id: 'headshots',
         title: 'Download headshots',
-        text: 'Get everyone’s headshots, named after each performer. Surprise guests are left out unless you include them.',
-        action: { label: 'Open a show', place: { view: 'detail', show: 'real', section: 'performers' }, targets: [t('lineup-actions'), t('lineup-add')] },
+        text: 'Get everyone’s headshots, named after each performer. Surprise guests are left out unless you include them. The download appears once someone on the bill has a headshot, so on an empty show add someone to the lineup first.',
+        action: { label: 'Open a show', place: LINEUP, targets: LINEUP_TOOLS },
       },
     ],
   },
@@ -483,12 +495,58 @@ export function wizardFacts(input: {
 }): WizardFacts {
   return {
     realShows: input.shows.filter((show) => !show.sample),
+    comics: ownComics(input.settings.potentialComics, [...input.shows, ...trashedSamples(input.settings)]),
     settings: input.settings,
     links: input.links,
     lastBackupAt: input.lastBackupAt,
     ranShow: input.ranShow,
     assistantConnections: input.assistantConnections,
   };
+}
+
+/**
+ * Sample shows deleted to the trash. Deleting the sample does not make the
+ * people the tour put on its bill the producer's own, so ownComics still
+ * reads their bill. A deleted show of the producer's own is not included: it
+ * never hides anyone.
+ */
+function trashedSamples(settings: AppSettings): Show[] {
+  return (settings.trash ?? []).filter((item) => item.type === 'show' && item.data?.sample).map((item) => item.data);
+}
+
+/** Whether this show is one of the producer's own: never a sample, old or new. */
+export function isOwnShow(shows: readonly Show[], id: string | null): boolean {
+  return id !== null && shows.some((show) => show.id === id && !show.sample);
+}
+
+/** The Rolodex entries and names a set of shows' bills point at. */
+function billed(shows: readonly Show[]): { ids: Set<string>; names: Set<string> } {
+  const ids = new Set<string>();
+  const names = new Set<string>();
+  for (const show of shows) {
+    for (const person of [...show.performers, ...(show.artists ?? [])]) {
+      if (person.comicId) ids.add(person.comicId);
+      if (person.name) names.add(rolodexKey(person.name));
+    }
+  }
+  return { ids, names };
+}
+
+/**
+ * The Rolodex without anyone who is there only because of a sample show.
+ *
+ * Anyone put on a bill is filed in the Rolodex, the sample's included. Such a
+ * person counts once they are on a show of the producer's own too. Someone
+ * the producer filed by hand and then also tried out on the sample is left
+ * out until then: the Rolodex keeps no note of how each person got there.
+ */
+export function ownComics(comics: readonly PotentialComic[], shows: readonly Show[]): PotentialComic[] {
+  const samples = shows.filter((show) => show.sample);
+  if (samples.length === 0) return [...comics];
+  const onSample = billed(samples);
+  const onOwn = billed(shows.filter((show) => !show.sample));
+  const on = (bill: { ids: Set<string>; names: Set<string> }, comic: PotentialComic) => bill.ids.has(comic.id) || bill.names.has(rolodexKey(comic.name));
+  return comics.filter((comic) => !on(onSample, comic) || on(onOwn, comic));
 }
 
 /** Whether a step has nothing to read and is ticked by hand instead. */
