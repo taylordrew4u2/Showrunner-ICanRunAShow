@@ -413,6 +413,8 @@ export function GuideDock({ where }: { where: 'app' | 'runshow' }) {
     }
   }
   const note = where === 'app' && !card && guide.closedNote;
+  // Ended early, the sample show is still in Shows: say so, and offer to remove it.
+  const sampleLeft = note && context.sampleId !== null;
 
   // On a phone the card takes the bottom of the screen, so the control goes
   // to the top of what is left; on a laptop there is room to centre it.
@@ -426,7 +428,10 @@ export function GuideDock({ where }: { where: 'app' | 'runshow' }) {
   if (note) {
     return (
       <section ref={dockRef} className={`${className} guide-dock--note`} role="region" aria-label="Guide">
-        <p className="guide-dock__body" role="status">Tour closed. Pick it up again from More, then Help &amp; setup.</p>
+        <p className="guide-dock__body" role="status">
+          Tour closed. Pick it up again from More, then Help &amp; setup.
+          {sampleLeft && ' The sample show is still in your Shows. OK keeps it, or you can delete it now.'}
+        </p>
         <div className="guide-dock__actions">
           <button
             ref={okRef}
@@ -439,6 +444,18 @@ export function GuideDock({ where }: { where: 'app' | 'runshow' }) {
           >
             OK
           </button>
+          {sampleLeft && (
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => {
+                handOff('away');
+                guide.deleteSampleAfterTour();
+              }}
+            >
+              Delete the sample show
+            </button>
+          )}
         </div>
       </section>
     );

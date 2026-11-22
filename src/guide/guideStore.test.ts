@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const review = vi.hoisted(() => ({ on: false }));
 vi.mock('../coproducer/reviewMode', () => ({ isReviewMode: () => review.on }));
 
-import { EMPTY_GUIDE, guideKey, readGuide, updateGuide, writeGuide, type GuideState } from './guideStore';
+import { EMPTY_GUIDE, forgetGuide, guideKey, readGuide, updateGuide, writeGuide, type GuideState } from './guideStore';
 
 function fakeStorage() {
   const held = new Map<string, string>();
@@ -85,6 +85,18 @@ describe('what the guide remembers on this device', () => {
     expect(readGuide('pat')).toEqual(EMPTY_GUIDE);
     expect(() => writeGuide('pat', PAUSED)).not.toThrow();
     expect(() => updateGuide('pat', (state) => ({ ...state, offer: 'show' }))).not.toThrow();
+  });
+
+  // A new account with the same name must start as never opened.
+  it('forgets a deleted account, and only that account', () => {
+    writeGuide('pat', PAUSED);
+    writeGuide('sam', { ...EMPTY_GUIDE, offer: 'show' });
+    forgetGuide(' Pat ');
+    expect(storage.held.has(guideKey('pat'))).toBe(false);
+    expect(readGuide('pat')).toEqual(EMPTY_GUIDE);
+    expect(readGuide('sam').offer).toBe('show');
+    vi.stubGlobal('localStorage', { removeItem: () => { throw new Error('denied'); } });
+    expect(() => forgetGuide('pat')).not.toThrow();
   });
 
   it('changes one thing and leaves the rest', () => {

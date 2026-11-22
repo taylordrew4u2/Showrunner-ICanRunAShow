@@ -436,6 +436,7 @@ export function PerformersSection({
           <div className="lineup-add__name-row">
             <input
               className="section-field__input lineup-add__name"
+              data-tour="lineup-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerformer())}

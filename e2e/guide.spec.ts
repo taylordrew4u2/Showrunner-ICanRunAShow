@@ -109,6 +109,24 @@ test.describe('the tour offer', () => {
   });
 });
 
+test.describe('what the guide keeps on this device', () => {
+  // Another account made later under the same name starts as never opened.
+  test('is forgotten when the account is deleted', async ({ page, context }) => {
+    await installFakeApi(context, emptyState());
+    await signUpAndOnboard(page);
+    await page.getByRole('button', { name: 'Dismiss the tour offer' }).click();
+    const stored = () => page.evaluate(() => localStorage.getItem('showrunner:guide:producer'));
+    await expect.poll(stored).not.toBeNull();
+
+    await gotoTab(page, 'Settings');
+    await page.locator('.settings__details-summary').filter({ hasText: 'Delete account' }).click();
+    await page.getByLabel(/Type your username/).fill('producer');
+    await page.getByRole('button', { name: 'Delete my account' }).click();
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({ timeout: 30_000 });
+    expect(await stored()).toBeNull();
+  });
+});
+
 test.describe('the guided tour', () => {
   test('walks every part of the app on the sample show and changes nothing else', async ({ page, context }) => {
     test.setTimeout(120_000);
@@ -213,6 +231,52 @@ test.describe('the guided tour', () => {
     await expect(dockTitle(page)).toHaveText('Saved as you work');
     await expect(dock(page)).toContainText('step 5 of');
     await expect(page.getByRole('heading', { name: 'Shows', level: 1 })).toBeVisible();
+  });
+
+  // Ended early, the sample show would otherwise sit in Shows with nothing said about it.
+  test('says the sample show is still there when it is ended early, and deletes it only on a press', async ({ page, context }) => {
+    const state = emptyState();
+    await installFakeApi(context, state);
+    await signUpAndOnboard(page);
+    await takeTheTour(page);
+    await nextUntil(page, 'Saved as you work');
+
+    await dock(page).getByRole('button', { name: 'End tour' }).press('Enter');
+    await expect(dock(page)).toContainText('Tour closed. Pick it up again from More, then Help & setup.');
+    await expect(dock(page)).toContainText('The sample show is still in your Shows.');
+    const ok = dock(page).getByRole('button', { name: 'OK' });
+    await expect(ok).toBeFocused();
+    await expect(page.locator('.sync-status--saved')).toBeVisible();
+    await expect.poll(() => state.shows.length).toBe(1);
+
+    // Tab reaches the delete button from OK, and Enter on it is the only thing that removes the show.
+    await page.keyboard.press('Tab');
+    const remove = dock(page).getByRole('button', { name: 'Delete the sample show' });
+    await expect(remove).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(dock(page)).toHaveCount(0);
+    expect(await focusKept(page)).toBe(true);
+    await expect(page.getByText('No shows yet')).toBeVisible();
+    // Stopped, not finished: it can still be picked up.
+    await expect(page.getByRole('complementary', { name: 'Getting started' })).toContainText('You stopped the tour at step 5.');
+
+    // The ordinary delete: gone from the account once it has saved.
+    await expect(page.locator('.sync-status--saved')).toBeVisible();
+    await expect.poll(() => state.shows.length).toBe(0);
+  });
+
+  test('keeps the sample show when the note is just closed', async ({ page, context }) => {
+    const state = emptyState();
+    await installFakeApi(context, state);
+    await signUpAndOnboard(page);
+    await takeTheTour(page);
+    await nextUntil(page, 'Saved as you work');
+    await dock(page).getByRole('button', { name: 'End tour' }).click();
+    await dock(page).getByRole('button', { name: 'OK' }).click();
+    await expect(dock(page)).toHaveCount(0);
+    await expect(page.getByText('No shows yet')).toHaveCount(0);
+    await expect(page.locator('.sync-status--saved')).toBeVisible();
+    await expect.poll(() => state.shows.length).toBe(1);
   });
 
   test('asks before putting the sample show back when it is started again', async ({ page, context }) => {
@@ -495,6 +559,27 @@ test.describe('Help & setup', () => {
     await expect(page.getByRole('heading', { name: 'Friday Laughs', level: 1 })).toBeVisible();
     await expect(dock(page)).toContainText('Flyer and post: step 1 of 3');
     await expect(page.locator('[data-tour="show-flyer"][data-tour-on]')).toBeVisible();
+  });
+
+  // With nobody on the bill there is no Post copy or headshot button yet.
+  test('the lineup steps on a show with nobody on it point at adding someone first', async ({ page, context }) => {
+    await installFakeApi(context, emptyState());
+    await signUpAndOnboard(page);
+    await createShow(page, 'Friday Laughs');
+    await openHelp(page);
+    const promo = wizardRow(page, 'Flyer and Post copy');
+    if ((await promo.locator('.help-wizard__header').getAttribute('aria-expanded')) !== 'true') await promo.locator('.help-wizard__header').click();
+    await promo.locator('.help-step').filter({ hasText: 'Copy the lineup for a post' }).getByRole('button', { name: 'Open a show' }).click();
+    await expect(page.getByRole('heading', { name: 'Friday Laughs', level: 1 })).toBeVisible();
+    await expect(dockTitle(page)).toHaveText('Copy the lineup for a post');
+    await expect(dock(page).locator('.guide-dock__body')).toContainText('add someone to the lineup first');
+    await expect(page.locator('[data-tour-on]')).toHaveCount(1);
+    await expect(page.locator('[data-tour="lineup-name"][data-tour-on]')).toBeVisible();
+
+    await nextStep(page).click();
+    await expect(dockTitle(page)).toHaveText('Download headshots');
+    await expect(dock(page).locator('.guide-dock__body')).toContainText('add someone to the lineup first');
+    await expect(page.locator('[data-tour="lineup-name"][data-tour-on]')).toBeVisible();
   });
 
   test('a wizard step keeps the control it points at clear of the card', async ({ page, context }) => {

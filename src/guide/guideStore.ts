@@ -87,6 +87,18 @@ export function writeGuide(username: string, state: GuideState): void {
   }
 }
 
+/**
+ * Drop what the guide remembers about an account that has been deleted, so
+ * an account made later under the same name starts as never opened.
+ */
+export function forgetGuide(username: string): void {
+  try {
+    localStorage.removeItem(guideKey(username));
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Change one thing from outside the guide: onboarding marking the offer. */
 export function updateGuide(username: string, change: (state: GuideState) => GuideState): void {
   writeGuide(username, change(readGuide(username)));

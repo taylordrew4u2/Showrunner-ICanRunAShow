@@ -26,7 +26,7 @@ import {
   stepById,
 } from './tourEngine';
 import { FIRST_STEP_ID } from './tourSteps';
-import { wizardById, wizardFacts, wizardStep, type WizardFacts, type WizardId } from './wizards';
+import { isOwnShow, wizardById, wizardFacts, wizardStep, type WizardFacts, type WizardId } from './wizards';
 
 export type GuideSession =
   | { kind: 'tour'; stepId: string }
@@ -72,6 +72,11 @@ export interface GuideApi {
   finishTour(options?: { deleteSample?: boolean }): void;
   /** Put the sample show back after it was deleted mid-tour. */
   addSample(): void;
+  /**
+   * The "Tour closed" note's "Delete the sample show": the same delete as the
+   * tour's last step, and the tour stays where it was stopped.
+   */
+  deleteSampleAfterTour(): void;
   startWizardStep(id: WizardId, stepId: string): void;
   nextWizardStep(): void;
   closeWizard(): void;
@@ -98,7 +103,7 @@ const DISABLED: GuideApi = {
   setMinimized: NOTHING,
   state: EMPTY_GUIDE,
   context: { desktop: false, locked: false, native: false, view: '', selectedShowId: null, runShowOpen: false, sampleId: null, hasRealShow: false },
-  facts: { realShows: [], settings: DEFAULT_SETTINGS, links: 0, lastBackupAt: null, ranShow: false, assistantConnections: null },
+  facts: { realShows: [], comics: [], settings: DEFAULT_SETTINGS, links: 0, lastBackupAt: null, ranShow: false, assistantConnections: null },
   closedNote: false,
   dismissClosedNote: NOTHING,
   startTour: async () => {},
@@ -108,6 +113,7 @@ const DISABLED: GuideApi = {
   endTour: NOTHING,
   finishTour: NOTHING,
   addSample: NOTHING,
+  deleteSampleAfterTour: NOTHING,
   startWizardStep: NOTHING,
   nextWizardStep: NOTHING,
   closeWizard: NOTHING,
@@ -212,7 +218,8 @@ export function GuideProvider({
   if (seenRunShow !== runShowOpen) {
     setSeenRunShow(runShowOpen);
     if (enabled) {
-      const onOwnShow = runShowOpen && selectedShowId !== null && selectedShowId !== sampleId;
+      // Any sample show, not only the newest one the tour uses.
+      const onOwnShow = runShowOpen && isOwnShow(shows, selectedShowId);
       setState((current) => {
         let next = current;
         if (onOwnShow && !current.facts.ranShow) next = { ...next, facts: { ...next.facts, ranShow: true } };
@@ -313,6 +320,12 @@ export function GuideProvider({
   const addSample = useCallback(() => {
     if (!enabled || sampleId) return;
     app.current.createSample();
+  }, [enabled, sampleId]);
+
+  const deleteSampleAfterTour = useCallback(() => {
+    if (!enabled) return;
+    if (sampleId) app.current.deleteShow(sampleId);
+    setClosedAt(null);
   }, [enabled, sampleId]);
 
   const startWizardStep = useCallback((id: WizardId, stepId: string) => {
@@ -441,6 +454,7 @@ export function GuideProvider({
     endTour,
     finishTour,
     addSample,
+    deleteSampleAfterTour,
     startWizardStep,
     nextWizardStep,
     closeWizard,
@@ -454,7 +468,7 @@ export function GuideProvider({
     connections: { busy: connectionsBusy, error: connectionsError, canCheck: !!countConnections },
   }), [
     enabled, reviewLabel, session, minimized, state, context, facts, closedNote, startTour, resumeTour, next, previous,
-    endTour, finishTour, addSample, startWizardStep, nextWizardStep, closeWizard, backToHelp, goToCurrent, visit,
+    endTour, finishTour, addSample, deleteSampleAfterTour, startWizardStep, nextWizardStep, closeWizard, backToHelp, goToCurrent, visit,
     dismissOffer, toggleChecked, setOpenWizard, checkConnections, connectionsBusy, connectionsError, countConnections,
   ]);
 
