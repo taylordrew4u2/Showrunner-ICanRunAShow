@@ -76,4 +76,29 @@ describe('mergeRolodexEdits', () => {
     expect(merged[0].name).toBe('Ada Renamed');
     expect(merged[1]).toBe(jo);
   });
+
+  // The sample mark only ever goes away (see PotentialComic.fromSample).
+  it('keeps a Rolodex edit that made a sample entry the producer’s own, alongside newer fields', () => {
+    const marked = { ...ada, fromSample: true as const };
+    const current = [{ ...marked, phone: '+1 555 0100' }];
+    const merged = mergeRolodexEdits([marked], [{ ...ada, email: 'new@example.com' }], current);
+    expect(merged).toEqual([{ ...ada, phone: '+1 555 0100', email: 'new@example.com' }]);
+    expect(merged[0]).not.toHaveProperty('fromSample');
+  });
+
+  it('keeps the mark gone when it was dropped elsewhere since a stale editor opened', () => {
+    const marked = { ...ada, fromSample: true as const };
+    const current = [{ ...ada }];
+    const merged = mergeRolodexEdits([marked], [{ ...marked, email: 'new@example.com' }], current);
+    expect(merged).toEqual([{ ...ada, email: 'new@example.com' }]);
+  });
+
+  it('keeps the mark when an editor did not touch it, and on entries the editor added', () => {
+    const marked = { ...ada, fromSample: true as const };
+    const current = [marked];
+    expect(mergeRolodexEdits([marked], [{ ...marked }], current)).toBe(current);
+    expect(mergeRolodexEdits([marked], [{ ...marked, email: 'new@example.com' }], current)[0]).toHaveProperty('fromSample', true);
+    const added = { ...jo, fromSample: true as const };
+    expect(mergeRolodexEdits([marked], [added, marked], current)[0]).toEqual(added);
+  });
 });

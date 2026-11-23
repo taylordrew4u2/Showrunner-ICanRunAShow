@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, type AppSettings, type Show } from '../types';
+import { reconcileRolodexProfiles, withoutSampleMark } from '../utils/rolodex';
 import { buildSampleShow } from '../utils/sampleShow';
 import { resolveShow } from './places';
 import {
@@ -136,6 +137,53 @@ describe('what the tour leaves behind on the sample show', () => {
     expect(done('rolodex', 'add', f)).toBe(true);
     expect(done('rolodex', 'profile', f)).toBe(true);
     expect(done('music', 'walk-on', f)).toBe(false);
+  });
+});
+
+// The trash holds twenty shows at most and can be emptied, so the sample show
+// is not always there to read. The entry itself remembers where it came from.
+describe('someone the Rolodex remembers was filed from a sample show', () => {
+  const ada = { id: 'c1', name: 'Ada', email: 'ada@example.com', walkOnMusic: 'media:w', fromSample: true as const };
+  const sampleWithAda: Show = { ...sample, performers: [{ id: 'p1', name: 'Ada', comicId: 'c1' }] as Show['performers'] };
+
+  it('is not counted once the sample show is gone from the shows and the trash', () => {
+    const f = facts({ shows: [], settings: { potentialComics: [ada], trash: [] } });
+    expect(done('rolodex', 'add', f)).toBe(false);
+    expect(done('rolodex', 'profile', f)).toBe(false);
+    expect(done('music', 'walk-on', f)).toBe(false);
+  });
+
+  it('is not counted beside a show of the producer’s own they are not on', () => {
+    const f = facts({ shows: [show()], settings: { potentialComics: [ada] } });
+    expect(done('rolodex', 'add', f)).toBe(false);
+  });
+
+  it('is counted once booked on a show of the producer’s own, even after the sample is gone', () => {
+    const own = show({ performers: [{ id: 'p2', name: 'Ada' }] as Show['performers'] });
+    // Booking them reconciles the show with the Rolodex, which links them and drops the mark.
+    const booked = reconcileRolodexProfiles([ada], [sampleWithAda, own]);
+    expect(booked.comics[0]).not.toHaveProperty('fromSample');
+    const ownOnly = booked.shows.filter((s) => !s.sample);
+    const f = facts({ shows: ownOnly, settings: { potentialComics: booked.comics, trash: [] } });
+    expect(done('rolodex', 'add', f)).toBe(true);
+    expect(done('rolodex', 'profile', f)).toBe(true);
+    expect(done('music', 'walk-on', f)).toBe(true);
+  });
+
+  it('is counted once the producer edits their entry in the Rolodex', () => {
+    const edited = withoutSampleMark({ ...ada, notes: 'Saw her at the open mic.' });
+    const f = facts({ shows: [], settings: { potentialComics: [edited], trash: [] } });
+    expect(done('rolodex', 'add', f)).toBe(true);
+    expect(done('rolodex', 'profile', f)).toBe(true);
+  });
+
+  it('leaves an entry filed before the mark existed to the sample show and the trash, as before', () => {
+    const legacy = { id: 'c1', name: 'Ada', email: 'ada@example.com' };
+    expect(done('rolodex', 'add', facts({ shows: [sampleWithAda], settings: { potentialComics: [legacy] } }))).toBe(false);
+    const trash = [{ id: 't1', type: 'show' as const, data: sampleWithAda, deletedAt: '2030-01-02T00:00:00.000Z' }];
+    expect(done('rolodex', 'add', facts({ shows: [], settings: { potentialComics: [legacy], trash } }))).toBe(false);
+    // With no sample anywhere there is nothing left to tell it by.
+    expect(done('rolodex', 'add', facts({ shows: [], settings: { potentialComics: [legacy], trash: [] } }))).toBe(true);
   });
 });
 

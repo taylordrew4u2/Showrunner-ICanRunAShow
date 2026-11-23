@@ -412,6 +412,18 @@ describe('what a request may touch', () => {
     expect(ok(settingsEdit(good, good))).toBe(false);
   });
 
+  // The owner's own note on an entry filed from the sample show (PotentialComic.fromSample).
+  it('keeps the sample mark from a co-producer: never served, never asked for', () => {
+    const comic = fullSettings().potentialComics[0];
+    const marked = { ...comic, fromSample: true as const };
+    const served = sanitizeSettings(fullSettings({ potentialComics: [marked] }));
+    expect(served?.potentialComics).toEqual([comic]);
+    expect(served?.potentialComics[0]).not.toHaveProperty('fromSample');
+    const row = comic as unknown as Record<string, unknown>;
+    expect(ok(settingsEdit(rowsEdit('potentialComics', [row], [{ ...row, fromSample: true }])))).toBe(false);
+    expect(ok(settingsEdit(rowsEdit('potentialComics', [], [{ ...row, fromSample: true }])))).toBe(false);
+  });
+
   it('refuses an edit that changes nothing, or too much', () => {
     expect(ok({ kind: 'edit', shows: [], settings: null })).toBe(false);
     expect(ok(settingsEdit())).toBe(false);

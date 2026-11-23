@@ -7,7 +7,7 @@
 // Rolodex is saved. The settings blob is only ever replaced over the version
 // that was read; an edit made meanwhile in the app is never overwritten.
 import type { PotentialComic } from '../../src/types';
-import { rolodexKey } from '../../src/utils/rolodex';
+import { rolodexKey, withoutSampleMark } from '../../src/utils/rolodex';
 import {
   args, AssistantToolError, forEachShow, integer, itemId, loadSettings, loadWritableSettings, saveSettings, text,
   type AssistantContext, type AssistantTool,
@@ -147,7 +147,8 @@ const updateComic: AssistantTool = {
     // entries the app's matching cannot tell apart.
     const taken = patch.name === undefined ? undefined : comics.find(c => c.id !== comic.id && rolodexKey(c.name) === rolodexKey(patch.name!));
     if (taken) throw new AssistantToolError(`${taken.name} is already in the Rolodex (id ${taken.id}). Ask the producer which entry to keep; this one keeps its name.`);
-    const updated: PotentialComic = { ...comic, ...patch };
+    // An edit the producer asked for makes the entry theirs (PotentialComic.fromSample).
+    const updated: PotentialComic = withoutSampleMark({ ...comic, ...patch });
     const next = comics.map(c => c.id === comic.id ? updated : c);
     await saveSettings(ctx, settings, { ...settings.settings, potentialComics: next });
     const notes = await syncBookings(ctx, next);

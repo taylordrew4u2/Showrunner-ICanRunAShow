@@ -13,7 +13,7 @@ import { applyColorScheme, loadColorScheme, type ColorScheme } from './utils/the
 import { vibrateTap } from './utils/haptics';
 import { getRolodexTerm } from './utils/terminology';
 import { expandOriginFrom } from './utils/expandOrigin';
-import { getComicProfilePatch, hostSocialEdits, reconcileRolodexProfiles, resolvePerformerComic, slotReassigned, syncShowsWithRolodex, type RolodexSyncOptions } from './utils/rolodex';
+import { getComicProfilePatch, hostSocialEdits, reconcileRolodexProfiles, resolvePerformerComic, saveToRolodex, slotReassigned, syncShowsWithRolodex, withoutSampleMark, type RolodexSyncOptions } from './utils/rolodex';
 import { normalizeComicSettings } from './utils/sharedComicSettings';
 import { mergeSettingsEdit } from './utils/mergeSettingsEdit';
 import { mergeShowEdit } from './utils/mergeShowEdit';
@@ -2353,16 +2353,10 @@ export default function App() {
     saveSettings(updatedSettings);
   }
 
-  function handleSavePerformerToRolodex(comic: PotentialComic) {
+  function handleSavePerformerToRolodex(comic: PotentialComic, fromSample = false) {
     if (!session) return;
     const current = latestSettingsRef.current;
-    const existing = current.potentialComics.find(c => c.id === comic.id)
-      ?? resolvePerformerComic(comic, current.potentialComics);
-    // A booking with no headshot must not blank the one already on the entry.
-    const updated = existing
-      ? current.potentialComics.map(c => c.id === existing.id ? { ...c, ...comic, id: c.id, photo: comic.photo ?? c.photo } : c)
-      : [comic, ...current.potentialComics];
-    const next = { ...current, potentialComics: updated };
+    const next = { ...current, potentialComics: saveToRolodex(current.potentialComics, comic, fromSample) };
     setSettings(next);
     saveSettings(next);
   }
@@ -2582,8 +2576,10 @@ export default function App() {
     void revokeProfileLink(request, creds).catch(() => deleteProfilePhoto(request, creds));
   }
 
-  function handleUpdateRolodexComic(updated: PotentialComic, extra: Partial<AppSettings> = {}) {
+  function handleUpdateRolodexComic(edited: PotentialComic, extra: Partial<AppSettings> = {}) {
     if (!session) return;
+    // Edited in the Rolodex itself: theirs now, whichever show filed them.
+    const updated = withoutSampleMark(edited);
     const current = latestSettingsRef.current;
     const before = current.potentialComics.find(c => c.id === updated.id);
     const updatedSettings = {
@@ -3574,7 +3570,7 @@ export default function App() {
                     setSettings(updated);
                     saveSettings(updated);
                   }}
-                  onSaveToRolodex={handleSavePerformerToRolodex}
+                  onSaveToRolodex={(comic) => handleSavePerformerToRolodex(comic, !!(shows.find(show => show.id === selectedShow.id) ?? selectedShow).sample)}
                   onSaveScheduleTemplate={handleSaveScheduleTemplate}
                   onDeleteScheduleTemplate={handleDeleteScheduleTemplate}
                   onDuplicate={handleDuplicateShow}

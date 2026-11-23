@@ -411,6 +411,38 @@ describe('planEdit', () => {
     expect(keys).toEqual(expect.arrayContaining(['performers/p1/comicId', 'performers/p1/name', 'performers/p1/email']));
   });
 
+  // The owner's note on an entry filed from the sample show (PotentialComic.fromSample).
+  it('drops the sample mark when a co-producer books them on a show, without listing it as a change', async () => {
+    const pat: PotentialComic = { id: 'c9', name: 'Pat Doe', email: 'pat@example.com', fromSample: true };
+    const settings = fullSettings({ potentialComics: [fullSettings().potentialComics[0], pat] });
+    const original = fullShow({ artists: [], performers: [fullPerformer()] });
+    const { state, index, ctx } = await owner([original], settings);
+    const asked = viewOfShow(original, index);
+    const plan = ok(planEdit(editOf([updateOf(asked, { performers: [{ ...asked.performers[0], comicId: 'c9' }] })]), state, ctx()));
+    const filed = plan.after.settings.potentialComics.find((c) => c.id === 'c9');
+    expect(filed).toMatchObject({ id: 'c9', name: 'Pat Doe', email: 'pat@example.com' });
+    expect(filed).not.toHaveProperty('fromSample');
+    const keys = plan.changes.flatMap((g) => g.changes.map((c) => c.key));
+    expect(keys.some((key) => key.includes('fromSample'))).toBe(false);
+    expect(JSON.stringify(plan.changes)).not.toMatch(/sample/i);
+  });
+
+  it('keeps the sample mark through a co-producer’s edit to the entry, which never sees it', async () => {
+    const pat: PotentialComic = { id: 'c9', name: 'Pat Doe', email: 'pat@example.com', fromSample: true };
+    const settings = fullSettings({ potentialComics: [pat] });
+    const { index } = await owner([], settings);
+    const view = viewOfSettings(settings, index);
+    const seen = view.potentialComics[0] as unknown as Record<string, unknown>;
+    expect(seen).not.toHaveProperty('fromSample');
+    const merged = mergeRequestSettings(
+      { target: 'settings', baseRevision: null, fields: [rowsEdit('potentialComics', 'id', [seen], [{ ...seen, notes: 'Opens strong.' }])] },
+      settings,
+      view,
+      index,
+    );
+    expect(merged.value.potentialComics[0]).toEqual({ ...pat, notes: 'Opens strong.' });
+  });
+
   it('names the rows its own bookkeeping makes from the request, so two plans read the same', async () => {
     const original = fullShow({ artists: [], performers: [] });
     const settings = fullSettings({ potentialComics: [] });

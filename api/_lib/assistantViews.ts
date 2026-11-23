@@ -10,6 +10,7 @@
 import type { Artist, Performer, PotentialComic, ScheduleItem, Show } from '../../src/types';
 import { recapMoney } from '../../src/utils/recapMoney';
 import { isSurpriseGuest } from '../../src/utils/surpriseGuests';
+import { withoutSampleMark } from '../../src/utils/rolodex';
 import { cipherHash } from './showWrites';
 
 /** The small listing form, as list_shows has always returned it. */
@@ -114,7 +115,9 @@ export function comicDetail(comic: PotentialComic) {
  * entry itself rather than the whole blob.
  */
 export function comicRevision(comic: PotentialComic): Promise<string> {
-  return cipherHash(JSON.stringify(comic));
+  // The app's note that an entry came from the sample show is not the
+  // assistant's to see, and dropping it is not an edit to refuse one over.
+  return cipherHash(JSON.stringify(withoutSampleMark(comic)));
 }
 
 /** One line per detail that has a value, for a document an assistant reads whole. */

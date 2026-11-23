@@ -1,5 +1,5 @@
 import type { PotentialComic } from '../types';
-import { COMIC_PROFILE_FIELDS, getComicProfilePatch } from './rolodex';
+import { COMIC_PROFILE_FIELDS, getComicProfilePatch, withoutSampleMark } from './rolodex';
 
 /** Apply a captured editor's changes without replacing newer canonical fields. */
 export function mergeRolodexEdits(
@@ -29,8 +29,13 @@ export function mergeRolodexEdits(
     const changesCurrent = COMIC_PROFILE_FIELDS.some(field =>
       Object.hasOwn(patch, field) && !Object.is(comic[field], patch[field]),
     );
-    if (changesCurrent) {
-      kept.push({ ...comic, ...patch });
+    // The sample note only ever goes (PotentialComic.fromSample): an editor
+    // that dropped it made the entry the producer's own, and one that still
+    // has it cannot bring back a note dropped since it was opened.
+    const madeOwn = !!before.fromSample && !edited.fromSample && !!comic.fromSample;
+    if (changesCurrent || madeOwn) {
+      const merged = changesCurrent ? { ...comic, ...patch } : comic;
+      kept.push(madeOwn ? withoutSampleMark(merged) : merged);
       changed = true;
     } else {
       kept.push(comic);

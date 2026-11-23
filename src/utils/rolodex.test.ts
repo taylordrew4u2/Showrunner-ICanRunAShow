@@ -13,6 +13,8 @@ import {
   syncShowsWithRolodex,
   performerToComic,
   rolodexKey,
+  saveToRolodex,
+  withoutSampleMark,
 } from './rolodex';
 import { retypeHost } from './showHosts';
 import type { Performer, PotentialComic, Show } from '../types';
@@ -691,5 +693,110 @@ describe('a host and the Rolodex', () => {
     // And never over a handle the entry already has.
     const joTyped = show('monday', [], { host: 'Jo Park', hostSocial: '@adifferentjo' });
     expect(hostSocialEdits(joTyped, { ...joTyped, hostComicId: 'c-jo' }, comics)).toBe(comics);
+  });
+});
+
+// Someone put on a sample show is filed in the Rolodex like anyone else, and
+// the entry remembers it, so the Help & setup wizards can tell the tour's
+// people from the producer's own long after the sample show is gone.
+describe('an entry filed from a sample show', () => {
+  const sample = (performers: Performer[], over: Partial<Show> = {}) => show('sample', performers, { sample: true, ...over });
+
+  it('is marked when it is filed from a sample show’s lineup', () => {
+    const { comics } = reconcileRolodexProfiles([], [sample([performer({ id: 's1', name: 'Ada Cole' })])]);
+    expect(comics).toHaveLength(1);
+    expect(comics[0]).toMatchObject({ name: 'Ada Cole', fromSample: true });
+  });
+
+  it('is never marked when it is filed from a show of the producer’s own', () => {
+    const { comics } = reconcileRolodexProfiles([], [show('friday', [performer({ id: 'f1', name: 'Ada Cole' })])]);
+    expect(comics).toHaveLength(1);
+    expect(comics[0]).not.toHaveProperty('fromSample');
+  });
+
+  it('marks only the people the sample brought, when shows of both kinds are filed at once', () => {
+    const { comics } = reconcileRolodexProfiles([], [
+      sample([performer({ id: 's1', name: 'Ada Cole' })]),
+      show('friday', [performer({ id: 'f1', name: 'Grace Hopper' })]),
+    ]);
+    expect(comics.find((c) => c.name === 'Ada Cole')).toHaveProperty('fromSample', true);
+    expect(comics.find((c) => c.name === 'Grace Hopper')).not.toHaveProperty('fromSample');
+  });
+
+  it('is not marked when the same name is on a show of the producer’s own too', () => {
+    const { comics } = reconcileRolodexProfiles([], [
+      sample([performer({ id: 's1', name: 'Ada Cole' })]),
+      show('friday', [performer({ id: 'f1', name: 'ada cole' })]),
+    ]);
+    expect(comics).toHaveLength(1);
+    expect(comics[0]).not.toHaveProperty('fromSample');
+  });
+
+  it('never marks someone already in the Rolodex who is then put on the sample', () => {
+    const ada = comic({ id: 'ada', name: 'Ada Cole' });
+    const { comics, shows } = reconcileRolodexProfiles([ada], [sample([performer({ id: 's1', name: 'Ada Cole' })])]);
+    expect(comics).toEqual([ada]);
+    expect(shows[0].performers[0].comicId).toBe('ada');
+  });
+
+  it('loses the mark once they are booked on a show of the producer’s own, by link or by name', () => {
+    const ada = comic({ id: 'ada', name: 'Ada Cole', fromSample: true });
+    for (const booked of [performer({ id: 'f1', name: 'Ada Cole', comicId: 'ada' }), performer({ id: 'f1', name: ' ada cole ' })]) {
+      const { comics, shows } = reconcileRolodexProfiles([ada], [sample([performer({ id: 's1', name: 'Ada Cole', comicId: 'ada' })]), show('friday', [booked])]);
+      expect(comics).toEqual([{ id: 'ada', name: 'Ada Cole' }]);
+      expect(shows[1].performers[0].comicId).toBe('ada');
+    }
+  });
+
+  it('loses the mark once they are an artist or a host on a show of the producer’s own', () => {
+    const ada = comic({ id: 'ada', name: 'Ada Cole', fromSample: true });
+    const asArtist = show('friday', [], { artists: [{ ...performer({ id: 'a1', name: 'Ada Cole', comicId: 'ada' }) }] as Show['artists'] });
+    const asHost = show('friday', [], { host: 'Ada Cole', hostComicId: 'ada' });
+    const asCoHost = show('friday', [], { coHost: 'Ada Cole', coHostComicId: 'ada' });
+    for (const own of [asArtist, asHost, asCoHost]) {
+      expect(reconcileRolodexProfiles([ada], [own]).comics[0]).not.toHaveProperty('fromSample');
+    }
+  });
+
+  it('keeps the mark while they are only ever on sample shows', () => {
+    const ada = comic({ id: 'ada', name: 'Ada Cole', fromSample: true });
+    const shows = [sample([performer({ id: 's1', name: 'Ada Cole', comicId: 'ada' })], { host: 'Ada Cole', hostComicId: 'ada' })];
+    const result = reconcileRolodexProfiles([ada], shows);
+    expect(result.comics[0]).toHaveProperty('fromSample', true);
+    // Nothing to write back when nothing changed.
+    expect(result.comics).toEqual([ada]);
+  });
+
+  it('loses the mark when the producer edits the entry in the Rolodex', () => {
+    const ada = comic({ id: 'ada', name: 'Ada Cole', fromSample: true });
+    expect(withoutSampleMark(ada)).toEqual({ id: 'ada', name: 'Ada Cole' });
+    expect(withoutSampleMark(ada)).not.toHaveProperty('fromSample');
+    const own = comic({ id: 'grace', name: 'Grace' });
+    expect(withoutSampleMark(own)).toBe(own);
+  });
+
+  it('never shows the mark on a booking', () => {
+    const ada = comic({ id: 'ada', name: 'Ada Cole', fromSample: true });
+    expect(comicToPerformer(ada)).not.toHaveProperty('fromSample');
+    const { shows } = reconcileRolodexProfiles([ada], [sample([performer({ id: 's1', name: 'Ada Cole' })])]);
+    expect(shows[0].performers[0]).not.toHaveProperty('fromSample');
+  });
+});
+
+// "Save to Rolodex" on a performer's drawer, for someone whose entry is gone.
+describe('saving a performer to the Rolodex from a show', () => {
+  it('marks a new entry saved from a sample show, and not one from the producer’s own', () => {
+    const ada = comic({ id: 'ada', name: 'Ada Cole' });
+    expect(saveToRolodex([], ada, true)).toEqual([{ ...ada, fromSample: true }]);
+    expect(saveToRolodex([], ada, false)).toEqual([ada]);
+  });
+
+  it('fills in an entry already there without marking it or dropping its mark', () => {
+    const own = comic({ id: 'ada', name: 'Ada Cole', photo: 'media:own' });
+    expect(saveToRolodex([own], comic({ id: 'ada', name: 'Ada Cole', email: 'ada@example.com' }), true))
+      .toEqual([{ ...own, email: 'ada@example.com' }]);
+    const marked = comic({ id: 'ada', name: 'Ada Cole', fromSample: true });
+    expect(saveToRolodex([marked], comic({ id: 'ada', name: 'Ada Cole', email: 'ada@example.com' }), true)[0])
+      .toHaveProperty('fromSample', true);
   });
 });
