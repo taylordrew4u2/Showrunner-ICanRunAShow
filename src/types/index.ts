@@ -198,6 +198,15 @@ export interface PotentialComic {
   walkOnStartSec?: number;
   walkOnEndSec?: number;
   videoLink?: string;
+  /**
+   * Filed only because they were put on a sample show (see reconcileRolodexProfiles in
+   * utils/rolodex). Never shown: it keeps the tour's people out of the Help &
+   * setup wizards' "done" checks, and goes the moment the producer makes the
+   * entry their own, by booking them on a show of theirs or editing the
+   * entry in the Rolodex. Absent on everything else, and on every entry
+   * filed before it existed. Kept from co-producers and assistants.
+   */
+  fromSample?: true;
 }
 
 export interface EmailListEntry {

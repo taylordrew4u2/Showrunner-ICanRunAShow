@@ -8,8 +8,9 @@ import mcp, { INSTRUCTIONS } from '../../api/mcp';
 import { applySchema } from '../../api/_lib/db';
 import { pkceChallenge } from '../../api/_lib/chatgptAuth';
 import { ASSISTANT_TOOLS } from '../../api/_lib/assistantTools';
+import { comicRevision } from '../../api/_lib/assistantViews';
 import { DEFAULT_SETTINGS, type AppSettings, type Contract, type Show } from '../types';
-import { encryptWithKey } from './encryption';
+import { decryptWithKey, encryptWithKey } from './encryption';
 
 // What the ChatGPT and Claude directories read from the live server when the
 // connector is scanned: who the server is, its instructions, and for every
@@ -208,6 +209,32 @@ it('answers every tool with a result that matches the schema it declares', async
   await call('delete_show', { id: created.show.id, expected_revision: created.revision, confirm: true });
 
   expect([...called].sort()).toEqual(ASSISTANT_TOOLS.map(t => t.definition.name).sort());
+});
+
+// PotentialComic.fromSample is the app's own bookkeeping: an assistant reads
+// the entry exactly as it would without it, and its edit is the producer's.
+it('keeps the sample mark out of what an assistant reads, and drops it when the assistant edits the entry', async () => {
+  const [sam, jo] = settings.potentialComics;
+  const marked: AppSettings = { ...settings, potentialComics: [{ ...sam, fromSample: true }, jo] };
+  await run('INSERT INTO user_settings (user_id, encrypted_data) VALUES (?, ?)', 'producer', encryptWithKey(marked, key));
+  await run('INSERT INTO user_shows (id, user_id, encrypted_data) VALUES (?, ?, ?)', show.id, 'producer', encryptWithKey(show, key));
+  const token = await connect(ALL);
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const result = await rpc(token, 'tools/call', { name, arguments: args }) as ToolResult;
+    expect(result.isError, `${name}: ${result.content?.[0]?.text}`).toBeUndefined();
+    expect(result.content[0].text).not.toMatch(/sample/i);
+    return result.structuredContent as Record<string, unknown> & { revision: string };
+  };
+  await call('list_rolodex', {});
+  await call('search', { query: 'Sam' });
+  await call('fetch', { id: 'comic:c-sam' });
+  const read = await call('get_comic', { id: 'c-sam' });
+  expect(read.revision).toBe(await comicRevision(sam));
+  await call('update_comic', { id: 'c-sam', expected_revision: read.revision, patch: { notes: 'Great closer' } });
+  const saved = (await run("SELECT encrypted_data FROM user_settings WHERE user_id = 'producer'")).rows[0].encrypted_data as string;
+  const comics = decryptWithKey<AppSettings>(saved, key).potentialComics;
+  expect(comics[0]).toEqual({ ...sam, notes: 'Great closer' });
+  expect(comics[1]).toEqual(jo);
 });
 
 it('tells ChatGPT which sign-in would allow a refused call, keeping the permissions already given', async () => {

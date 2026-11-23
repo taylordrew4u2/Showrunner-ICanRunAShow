@@ -355,6 +355,23 @@ describe('exportUserData', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  // PotentialComic.fromSample: a backup is the whole account, the owner's own notes included.
+  it('keeps the note on an entry filed from the sample show, there and back', async () => {
+    const marked = { id: 'c1', name: 'Ada Cole', fromSample: true as const };
+    const settings = { ...DEFAULT_SETTINGS, potentialComics: [marked, { id: 'c2', name: 'Grace' }] };
+    const written = mockExport([]);
+    await exportUserData(CREDS, { shows: [], unreadable: [], settings });
+    const backup = JSON.parse(written[0]);
+    expect(backup.settings.potentialComics).toEqual(settings.potentialComics);
+
+    // Read back the way the app reads a saved account.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ encryptedData: encryptWithKey(backup.settings, CREDS.key) }),
+    }));
+    const loaded = await loadEncryptedSettings({ ...CREDS });
+    expect(loaded.potentialComics).toEqual([marked, { id: 'c2', name: 'Grace' }]);
+  });
+
   it('leaves the key out entirely when every row read cleanly', async () => {
     const written = mockExport([row(show({ id: 'a' }))]);
 

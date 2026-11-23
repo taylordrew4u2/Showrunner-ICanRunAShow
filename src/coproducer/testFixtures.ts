@@ -190,7 +190,8 @@ export function fullSettings(over: Partial<AppSettings> = {}): Required<AppSetti
     }),
     deletedAt: '2026-06-01T10:00:00.000Z',
   };
-  const comic: Required<PotentialComic> = {
+  // Every field a co-producer is served. The sample mark is not one (schema.ts).
+  const comic: Required<Omit<PotentialComic, 'fromSample'>> = {
     id: 'c1',
     name: 'Sam Lee',
     notes: 'Opens strong.',

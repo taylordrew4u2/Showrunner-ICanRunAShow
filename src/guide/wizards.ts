@@ -9,7 +9,8 @@
  *
  * The sample show never counts towards any step, and nor does anything that
  * is in the account only because of it, such as someone filed in the Rolodex
- * from its lineup during the tour.
+ * from its lineup during the tour, even after the sample show is deleted and
+ * gone from the trash (see ownComics).
  */
 import { DEFAULT_SETTINGS, type AppSettings, type PotentialComic, type Show } from '../types';
 import { signatureSummary } from '../utils/contracts';
@@ -535,18 +536,25 @@ function billed(shows: readonly Show[]): { ids: Set<string>; names: Set<string> 
 /**
  * The Rolodex without anyone who is there only because of a sample show.
  *
- * Anyone put on a bill is filed in the Rolodex, the sample's included. Such a
+ * Anyone put on a bill is filed in the Rolodex, the sample's included. An
+ * entry filed from a sample show says so (PotentialComic.fromSample) until
+ * the producer books them on a show of their own or edits the entry, so it
+ * stays out even once the sample show is gone from the trash.
+ *
+ * Entries filed before that note existed have none, so for them the sample
+ * shows still in the account, or in the trash, are read instead: such a
  * person counts once they are on a show of the producer's own too. Someone
  * the producer filed by hand and then also tried out on the sample is left
- * out until then: the Rolodex keeps no note of how each person got there.
+ * out until then.
  */
 export function ownComics(comics: readonly PotentialComic[], shows: readonly Show[]): PotentialComic[] {
+  const unmarked = comics.filter((comic) => !comic.fromSample);
   const samples = shows.filter((show) => show.sample);
-  if (samples.length === 0) return [...comics];
+  if (samples.length === 0) return unmarked;
   const onSample = billed(samples);
   const onOwn = billed(shows.filter((show) => !show.sample));
   const on = (bill: { ids: Set<string>; names: Set<string> }, comic: PotentialComic) => bill.ids.has(comic.id) || bill.names.has(rolodexKey(comic.name));
-  return comics.filter((comic) => !on(onSample, comic) || on(onOwn, comic));
+  return unmarked.filter((comic) => !on(onSample, comic) || on(onOwn, comic));
 }
 
 /** Whether a step has nothing to read and is ticked by hand instead. */

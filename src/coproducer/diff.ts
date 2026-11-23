@@ -360,7 +360,10 @@ const SETTINGS_LISTS: ReadonlyMap<string, ListSpec> = new Map<string, ListSpec>(
     label: (ctx) => ctx.rolodexPlural || 'Rolodex',
     idKey: 'id',
     title: named('Unnamed'),
-    fields: table(PERSON_FIELDS),
+    // The owner's own note on an entry filed from the sample show. A
+    // co-producer is never served it, and booking that person on a show
+    // drops it as bookkeeping, not as a change to approve.
+    fields: table({ ...PERSON_FIELDS, fromSample: NEVER }),
   }],
   ['emailList', {
     label: fixed('Email list'),

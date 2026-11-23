@@ -106,10 +106,13 @@ export function resolvePerformerComic(
 /**
  * File new people without replacing existing profiles. A dangling explicit
  * link is left intact: removing a Rolodex entry should not recreate it.
+ * `fromSample` names the bookings that are on a sample show: an entry filed
+ * from one of those is marked as such (see PotentialComic.fromSample).
  */
 export function addPerformersToRolodex(
   comics: PotentialComic[],
   performers: Performer[],
+  fromSample?: ReadonlySet<Performer>,
 ): PotentialComic[] | null {
   const known = new Set(comics.map((comic) => rolodexKey(comic.name)));
   const additions: PotentialComic[] = [];
@@ -117,9 +120,58 @@ export function addPerformersToRolodex(
     const key = rolodexKey(performer.name ?? '');
     if (performer.comicId || !key || known.has(key)) continue;
     known.add(key);
-    additions.push(performerToComic(performer));
+    const filed = performerToComic(performer);
+    additions.push(fromSample?.has(performer) ? { ...filed, fromSample: true } : filed);
   }
   return additions.length ? [...additions, ...comics] : null;
+}
+
+/**
+ * The entry as the producer's own: without the note that it was filed from a
+ * sample show. Anything the producer does with the person outside a sample
+ * makes them real; here, editing their entry in the Rolodex. The same object
+ * when there is no note, so an unchanged Rolodex stays unchanged.
+ */
+export function withoutSampleMark(comic: PotentialComic): PotentialComic {
+  if (!Object.hasOwn(comic, 'fromSample')) return comic;
+  const own = { ...comic };
+  delete own.fromSample;
+  return own;
+}
+
+/**
+ * Drop the sample note from everyone booked on a show of the producer's own,
+ * on the bill or as a host. Bookings on a sample show keep it.
+ */
+function clearSampleMarks(comics: PotentialComic[], shows: readonly Show[]): PotentialComic[] {
+  if (!comics.some((comic) => comic.fromSample)) return comics;
+  const booked = new Set<string>();
+  for (const show of shows) {
+    if (show.sample) continue;
+    for (const person of [...show.performers, ...(show.artists ?? [])]) {
+      if (person.comicId) booked.add(person.comicId);
+    }
+    for (const slot of HOST_SLOTS) {
+      const { comicId } = hostSlot(show, slot);
+      if (comicId) booked.add(comicId);
+    }
+  }
+  if (!comics.some((comic) => comic.fromSample && booked.has(comic.id))) return comics;
+  return comics.map((comic) => (comic.fromSample && booked.has(comic.id) ? withoutSampleMark(comic) : comic));
+}
+
+/**
+ * "Save to Rolodex" from a booking's drawer. An entry already there is filled
+ * in, keeping a headshot the booking lacks, and keeps whatever note it has; a
+ * new one saved from a sample show is marked as filed from it.
+ */
+export function saveToRolodex(comics: PotentialComic[], comic: PotentialComic, fromSample: boolean): PotentialComic[] {
+  const existing = comics.find((c) => c.id === comic.id) ?? resolvePerformerComic(comic, comics);
+  if (existing) {
+    // A booking with no headshot must not blank the one already on the entry.
+    return comics.map((c) => (c.id === existing.id ? { ...c, ...comic, id: c.id, photo: comic.photo ?? c.photo } : c));
+  }
+  return [fromSample ? { ...comic, fromSample: true } : comic, ...comics];
 }
 
 /**
@@ -389,7 +441,8 @@ export function reconcileRolodexProfiles(
   const renamedFrom = options.renamedFrom && new Map(options.renamedFrom.map((comic) => [comic.id, comic]));
   const released = shows.map((show) => releaseRetypedHosts(show, byId, renamedFrom));
   if (released.some((show, index) => show !== shows[index])) shows = released;
-  let reconciledComics = addPerformersToRolodex(comics, shows.flatMap((show) => show.performers)) ?? comics;
+  const onSample = new Set(shows.flatMap((show) => (show.sample ? show.performers : [])));
+  let reconciledComics = addPerformersToRolodex(comics, shows.flatMap((show) => show.performers), onSample) ?? comics;
   const backfills = new Map<string, PotentialComic>();
   for (const show of shows) {
     for (const performer of [...show.performers, ...show.artists]) {
@@ -447,8 +500,11 @@ export function reconcileRolodexProfiles(
     linksChanged = true;
     return { ...show, performers, artists, ...hosts };
   });
+  const finalShows = linksChanged ? linkedShows : shows;
+  // Anyone now booked on a show of the producer's own is theirs.
+  reconciledComics = clearSampleMarks(reconciledComics, finalShows);
   return {
     comics: reconciledComics,
-    shows: syncShowsWithRolodex(reconciledComics, linksChanged ? linkedShows : shows, options),
+    shows: syncShowsWithRolodex(reconciledComics, finalShows, options),
   };
 }
