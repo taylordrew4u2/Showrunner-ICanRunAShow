@@ -372,7 +372,7 @@ export const WIZARDS: readonly Wizard[] = [
       {
         id: 'review',
         title: 'Review what they ask for',
-        text: 'Requests appear under More. Approve or decline each one.',
+        text: 'Requests appear under More. Approve or decline each one. Anyone new they want to add comes with a 5 or 10 minute tape and their social media, so you can watch the tape first.',
         online: true,
         action: { label: 'Open More', place: { view: 'more' }, targets: [t('more-requests'), PAGE_TITLE] },
       },

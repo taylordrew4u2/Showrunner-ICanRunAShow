@@ -4,6 +4,8 @@ import { generateId } from '../../utils/id';
 import { ArtistProfile } from './ArtistProfile';
 import { PerformerProfile, ProfileDrawer } from './PerformerProfile';
 import { comicToArtist } from '../../utils/rolodex';
+import { NewComicForm, type NewComicEntry } from '../coproducer/NewComicForm';
+import { useReview } from '../../coproducer/ReviewContext';
 
 interface ArtistsSectionProps {
   artists: Artist[];
@@ -14,6 +16,9 @@ interface ArtistsSectionProps {
 
 export function ArtistsSection({ artists, potentialComics = [], onChange }: ArtistsSectionProps) {
   const artistTypeId = useId();
+  // A co-producer adds someone new with a name, a tape and their social
+  // media, and nothing else (NewComicForm).
+  const reviewing = useReview().active;
   const [name, setName] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showRolodex, setShowRolodex] = useState(false);
@@ -28,6 +33,10 @@ export function ArtistsSection({ artists, potentialComics = [], onChange }: Arti
     const a: Artist = { id: generateId(), name: name.trim() };
     onChange([...artists, a]);
     setName('');
+  }
+
+  function addNewcomer(entry: NewComicEntry) {
+    onChange([...artists, { id: generateId(), ...entry }]);
   }
 
   function addFromRolodex(comic: PotentialComic) {
@@ -60,15 +69,16 @@ export function ArtistsSection({ artists, potentialComics = [], onChange }: Arti
 
   return (
     <div className="section-body">
+      {reviewing && <NewComicForm who="Artist" onAdd={addNewcomer} />}
       <div className="section-add-row">
-        <input
+        {!reviewing && <input
           className="section-field__input"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addArtist())}
           placeholder="Artist name"
-        />
-        <button className="btn btn--primary btn--sm" onClick={addArtist}>Add</button>
+        />}
+        {!reviewing && <button className="btn btn--primary btn--sm" onClick={addArtist}>Add</button>}
         {/* Shown even when the Rolodex is empty — see PerformersSection. */}
         <button
           className="btn btn--secondary btn--sm"

@@ -26,6 +26,17 @@ describe('mergeRolodexEdits', () => {
     expect(current[0].email).toBe('ada@example.com');
   });
 
+  // PotentialComic.tapeMinutes is part of the profile, merged like the video link it describes.
+  it('merges a tape’s length like any other profile field', () => {
+    const taped: PotentialComic = { ...ada, videoLink: 'https://example.com/tape', tapeMinutes: 5 };
+    const current = [{ ...taped, notes: 'Current note' }];
+    expect(mergeRolodexEdits([taped], [{ ...taped, tapeMinutes: 10 }], current)).toEqual([{ ...current[0], tapeMinutes: 10 }]);
+    // An editor that never touched it cannot undo a newer one.
+    const newer = [{ ...taped, tapeMinutes: 10 as const }];
+    expect(mergeRolodexEdits([taped], [{ ...taped, email: 'new@example.com' }], newer)).toEqual([{ ...newer[0], email: 'new@example.com' }]);
+    expect(mergeRolodexEdits([taped], [{ ...taped, tapeMinutes: undefined }], current)[0]).not.toHaveProperty('tapeMinutes', 5);
+  });
+
   it('applies explicit field clears, including properties omitted by serialization', () => {
     const incoming = { ...ada, photo: undefined, credits: undefined };
     delete incoming.socialMedia;

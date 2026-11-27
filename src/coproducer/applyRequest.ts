@@ -38,6 +38,7 @@ import { normalizeComicSettings } from '../utils/sharedComicSettings';
 import { stripLegacySettingsMedia, stripLegacyShowMedia } from '../utils/stripMedia';
 import { MAX_TRASH_ITEMS, stripShowMediaForTrash } from '../utils/trash';
 import { describeConflict, diffSettings, diffShow, visibleText, type DiffContext } from './diff';
+import { knownPeople, newPeopleProblems, ownerRefusal } from './newComics';
 import { groupKeyForSettings, groupKeyForShow, sameMeaning, sameValue, seg } from './paths';
 import { viewOfSettings, viewOfShow, type OwnerState, type PseudonymIndex } from './redaction';
 import { changedMediaIds, EDITABLE_SETTINGS_FIELDS, isShowKey } from './schema';
@@ -656,6 +657,12 @@ function fingerprintOf(changes: ChangeGroup[], conflicts: Conflict[], notes: str
  */
 export function planEdit(payload: EditPayload, state: OwnerState, ctx: PlanContext): PlanResult {
   if (payload?.kind !== 'edit' || forbidden(payload)) return { ok: false, reason: PLAN_REASONS.notAllowed };
+
+  // Someone new comes with a name, a tape and social media, and nothing
+  // else (newComics.ts). The co-producer's app and the server both hold a
+  // request to that; this is the same rule against the account as it is now.
+  const unmet = newPeopleProblems(payload, knownPeople(state.shows, state.settings));
+  if (unmet.length > 0) return { ok: false, reason: ownerRefusal(unmet) };
 
   // 1. Files: each one the request points at is one it carries, or one the account already has.
   const known = liveMediaIds(state.shows, state.settings);

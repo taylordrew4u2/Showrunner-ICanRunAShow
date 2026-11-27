@@ -106,16 +106,38 @@ function Where({ path, label }: { path: string[]; label: string }) {
   );
 }
 
-/** One side's value: the text, or "Nothing". */
-function Text({ text }: { text: string | null }) {
-  return text === null ? <Nothing /> : <>{text}</>;
+/**
+ * A web address the list may send a browser to: http or https only, with no
+ * sign-in inside it. Checked here as well as where the diff set it, because
+ * this is the last thing between a co-producer's text and an href.
+ */
+function safeLink(href: string | undefined): string | null {
+  if (!href || !/^https?:\/\//i.test(href)) return null;
+  try {
+    const url = new URL(href);
+    return (url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** One side's value: the text, or "Nothing". A tape's link opens in a new tab, away from the app. */
+function Text({ text, href }: { text: string | null; href?: string }) {
+  if (text === null) return <Nothing />;
+  const link = safeLink(href);
+  if (!link) return <>{text}</>;
+  return (
+    <a className="change-list__link" href={link} target="_blank" rel="noopener noreferrer">
+      {text}
+    </a>
+  );
 }
 
 /** The proposed side of a change, in red, with "Pending approval" on it. */
 function Proposed({ change, text }: { change: FieldChange; text: string | null }) {
   return (
     <>
-      {change.change === 'removed' ? 'Removed' : <Text text={text} />}
+      {change.change === 'removed' ? 'Removed' : <Text text={text} href={change.link?.after} />}
       <PendingPill />
     </>
   );
@@ -134,7 +156,7 @@ function Change({ change, resolve, nowLabel, proposedLabel }: {
       <div className="change-list__side">
         <dt>{nowLabel}</dt>
         <dd>
-          <Text text={before} />
+          <Text text={before} href={change.link?.before} />
           {pictures && image?.before && (
             <span className="change-list__thumbs">
               <Thumb media={image.before} resolve={resolve!} alt={`${nowLabel}: ${change.label}`} />

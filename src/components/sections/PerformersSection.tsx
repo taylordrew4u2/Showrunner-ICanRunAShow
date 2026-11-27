@@ -14,6 +14,8 @@ import {
 } from '../../utils/surpriseGuests';
 import { PerformerProfile, ProfileDrawer } from './PerformerProfile';
 import { ContactLink } from '../coproducer/ContactLink';
+import { NewComicForm, type NewComicEntry } from '../coproducer/NewComicForm';
+import { useReview } from '../../coproducer/ReviewContext';
 import { LineupTabs, lineupTabIds, SurpriseGuestsIntro, type LineupTab } from './LineupTabs';
 import { Icon } from '../Icon';
 import type { SignerStatus } from '../../utils/contracts';
@@ -61,6 +63,9 @@ export function PerformersSection({
   contractStatus,
   onAnnounce,
 }: PerformersSectionProps) {
+  // A co-producer adds someone new with a name, a tape and their social
+  // media, and nothing else (NewComicForm).
+  const reviewing = useReview().active;
   const [name, setName] = useState('');
   const [instagram, setInstagram] = useState('');
   const [email, setEmail] = useState('');
@@ -146,6 +151,15 @@ export function PerformersSection({
     setName('');
     setInstagram('');
     setEmail('');
+  }
+
+  /** Co-producer view: someone new, with all a request may say about them. */
+  function addNewcomer(entry: NewComicEntry) {
+    const p: Performer = { id: generateId(), ...entry, ...(guestsTab ? { surpriseGuest: true } : {}) };
+    onChange([...performers, p]);
+    setAddingOpen(true);
+    // Nothing is filed until the owner approves, so nothing is said to be.
+    setFiled(null);
   }
 
   function addFromRolodex(comic: PotentialComic) {
@@ -433,7 +447,8 @@ export function PerformersSection({
               step that is usually just a name — and the profile editor takes
               both of them afterwards anyway, off a performer who is already on
               the bill. They wait behind "Contact details" now. */}
-          <div className="lineup-add__name-row">
+          {reviewing && <NewComicForm who={guestsTab ? 'Surprise guest' : 'Performer'} onAdd={addNewcomer} />}
+          {!reviewing && <div className="lineup-add__name-row">
             <input
               className="section-field__input lineup-add__name"
               data-tour="lineup-name"
@@ -446,7 +461,7 @@ export function PerformersSection({
             <button className="btn btn--primary btn--sm lineup-add__submit" onClick={addPerformer}>
               Add
             </button>
-          </div>
+          </div>}
 
           <div className="lineup-add__links">
             {/* Always here, even with nobody on file. Hiding it left a first-time
@@ -461,17 +476,17 @@ export function PerformersSection({
             >
               From Rolodex
             </button>
-            <button
+            {!reviewing && <button
               type="button"
               className="lineup-add__link"
               onClick={() => setDetailsOpen(v => !v)}
               aria-expanded={detailsOpen}
             >
               {detailsOpen ? 'Hide contact details' : 'Contact details'}
-            </button>
+            </button>}
           </div>
 
-          {detailsOpen && (
+          {detailsOpen && !reviewing && (
             <div className="section-add-row">
               <input
                 className="section-field__input"

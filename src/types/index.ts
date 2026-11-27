@@ -30,6 +30,8 @@ export interface Performer {
   walkOnEndSec?: number;
   credits?: string;
   videoLink?: string; // hosted video URL (YouTube, Vimeo, Drive, etc.)
+  /** How long the set in the video is (see PotentialComic.tapeMinutes). */
+  tapeMinutes?: 5 | 10;
   /**
    * Booked, but kept off anything the public sees until they are on stage:
    * the post copy, the viewer link's lineup and its "up next". A fact about
@@ -197,7 +199,14 @@ export interface PotentialComic {
   walkOnMusicLink?: string;
   walkOnStartSec?: number;
   walkOnEndSec?: number;
+  /** A link to a video of them: their tape. */
   videoLink?: string;
+  /**
+   * How long the set in that video is: a five-minute tape or a ten-minute
+   * one. A co-producer adding someone new must say which (see
+   * coproducer/newComics); the owner may leave it unset.
+   */
+  tapeMinutes?: 5 | 10;
   /**
    * Filed only because they were put on a sample show (see reconcileRolodexProfiles in
    * utils/rolodex). Never shown: it keeps the tour's people out of the Help &

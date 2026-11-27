@@ -64,7 +64,8 @@ import { clientAddress, rateLimit } from './_lib/ratelimit';
 import { cipherHash } from './_lib/showWrites';
 import { signTokenOwnership } from './_lib/tokenOwnership';
 import { buildOutline } from '../src/coproducer/outline';
-import { ALLOWED_MEDIA_TYPES, changedMediaIds, sniffMediaType, validatePayload } from '../src/coproducer/schema';
+import { knownPeople, type KnownPeople } from '../src/coproducer/newComics';
+import { ALLOWED_MEDIA_TYPES, changedMediaIds, NEW_PERSON_PROBLEM, sniffMediaType, validatePayload } from '../src/coproducer/schema';
 import {
   COPRODUCER_LIMITS,
   type ApprovalResult,
@@ -731,6 +732,38 @@ async function checkMedia(db: Executor, link: BearerLink, payload: RequestPayloa
   }
 }
 
+const NOBODY: KnownPeople = knownPeople([], null);
+
+/**
+ * The strict schema over a request, with the rule for people a co-producer
+ * brings in (src/coproducer/newComics.ts) held against the owner's own
+ * account: someone new comes with a name, a tape and social media and nothing
+ * else, and someone already there is booked as before.
+ *
+ * Who is new is read from the account alone, never from what the request
+ * says was there before. Knowing more people only ever clears a refusal, so
+ * the account is read no further than a request needs: not at all for one
+ * that names nobody the owner has, the settings for one that books from the
+ * Rolodex, and the shows only for a name the Rolodex does not explain (an
+ * act already on a bill with no entry, or booked under an older name).
+ */
+async function checkPayload(db: Client, link: BearerLink, raw: unknown, appOrigins: string[]): Promise<ReturnType<typeof validatePayload>> {
+  let checked = validatePayload(raw, { appOrigins, people: NOBODY });
+  if (checked.payload || !checked.problems.every((problem) => NEW_PERSON_PROBLEM.test(problem.problem))) return checked;
+  const found = await ownerSettings(db, link);
+  checked = validatePayload(raw, { appOrigins, people: knownPeople([], found?.settings ?? null) });
+  if (checked.payload) return checked;
+  const rows = (await db.execute({ sql: 'SELECT encrypted_data FROM user_shows WHERE user_id = ?', args: [link.userId] })).rows;
+  const shows: Show[] = [];
+  for (const row of rows) {
+    try {
+      const show = await decryptShow<Show>(String(row[0]), keysOf(link));
+      if (show && typeof show === 'object') shows.push(show);
+    } catch { /* A show that does not open names nobody. */ }
+  }
+  return validatePayload(raw, { appOrigins, people: knownPeople(shows, found?.settings ?? null) });
+}
+
 /** C8: ask for something. Checked against the strict schema, then stored encrypted under the account key. */
 const createRequest: Handler<BearerLink> = async (req, db, link) => {
   const body = await readBody(req, COPRODUCER_LIMITS.maxRequestBodyChars);
@@ -747,7 +780,7 @@ const createRequest: Handler<BearerLink> = async (req, db, link) => {
   ) {
     refuse('bad_request', 400);
   }
-  const checked = validatePayload(rawPayload, { appOrigins: [appOrigin(req), reviewOrigin(req)] });
+  const checked = await checkPayload(db, link, rawPayload, [appOrigin(req), reviewOrigin(req)]);
   if (!checked.payload) refuse('bad_request', 400, { problems: checked.problems.slice(0, 20) });
   const payload = checked.payload;
   const outline = buildOutline(payload);

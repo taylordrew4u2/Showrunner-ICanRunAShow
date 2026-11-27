@@ -128,6 +128,52 @@ describe('the fake /api/coproducer', () => {
     expect((await call('route=decide', { owner: true, method: 'POST', body: { id: requestId, decision: 'rejected' } })).body).toEqual({ error: 'already_decided' });
   });
 
+  // As the real route does (serverCoproducer.test.ts): src/coproducer/newComics.ts.
+  it('takes someone new only with a name, a tape and social media, and books who is already there', async () => {
+    const { state, call } = await setUp();
+    const sam = { id: 'c1', name: 'Sam Lee', email: 'sam@example.com' };
+    state.settings = encryptWithKey({ potentialComics: [sam] }, KEY);
+    state.shows.push({ id: 'show1', encryptedData: encryptWithKey({ id: 'show1', performers: [], artists: [{ id: 'a1', name: 'The House Band', notes: 'Loud' }] }, KEY) });
+    const token = fake.addCoproducerLink(state, { userId: 'producer', key: KEY, legacyKey: LEGACY });
+    const ask = (payload: EditPayload) => call('route=requests', { token, method: 'POST', body: { kind: 'edit', payload, mediaIds: [] } });
+    const rolodexAdd = (row: Record<string, unknown>): EditPayload => ({
+      kind: 'edit', shows: [],
+      settings: { target: 'settings', baseRevision: null, fields: [{ field: 'potentialComics', kind: 'rows', idField: 'id', baseOrder: ['c1'], proposedOrder: [String(row.id), 'c1'], base: [], proposed: [[String(row.id), row]] }] },
+    });
+    const lineup = (list: 'performers' | 'artists', row: Record<string, unknown>): EditPayload => ({
+      kind: 'edit', settings: null,
+      shows: [{ target: 'show', op: 'update', showId: 'show1', baseRevision: null, keys: [list], base: { [list]: [] }, proposed: { [list]: [row] } } as unknown as EditPayload['shows'][number]],
+    });
+    const jo = { id: 'c-jo', name: 'Jo Park', videoLink: 'https://youtu.be/jo', tapeMinutes: 5, socialMedia: '@jopark' };
+    const problems = (answer: Answer) => (answer.body.problems as { problem: string }[]).map((p) => p.problem);
+
+    const bare = await ask(rolodexAdd({ id: 'c-jo', name: 'Jo Park' }));
+    expect(bare.status).toBe(400);
+    expect(problems(bare)).toEqual([
+      'someone new needs a tape: an http or https link to a video of their set',
+      'someone new needs a tape length of 5 or 10 minutes',
+      'someone new needs their social media: a handle or a profile link',
+    ]);
+    expect((await ask(rolodexAdd({ ...jo, tapeMinutes: 7 }))).status).toBe(400);
+    expect(problems(await ask(rolodexAdd({ ...jo, email: 'jo@example.com' })))).toEqual(['not allowed for someone new: only a name, a tape and social media']);
+    expect((await ask(lineup('performers', { id: 'p1', name: 'Walk In' }))).status).toBe(400);
+    expect(problems(await ask(lineup('performers', { id: 'p1', name: 'Sam Lee', comicId: 'made-up' })))).toEqual(['not someone in the Rolodex']);
+
+    // Made by hand, lying about who was already there: read from the owner's data, as the real route reads it.
+    const lying = (base: unknown[], proposed: unknown[]): EditPayload => ({
+      kind: 'edit', settings: null,
+      shows: [{ target: 'show', op: 'update', showId: 'show1', baseRevision: null, keys: ['artists'], base: { artists: base }, proposed: { artists: proposed } } as unknown as EditPayload['shows'][number]],
+    });
+    expect(problems(await ask(lying([{ id: 'a1', name: 'The House Band', comicId: 'zzz' }], [{ id: 'a1', name: 'Brand New Band', comicId: 'zzz', email: 'n@b.co' }])))).toEqual(['not someone in the Rolodex']);
+    expect((await ask(lying([{ id: 'a1', name: 'The House Band' }, { id: 'a-s', name: 'Sneak In' }], [{ id: 'a1', name: 'The House Band' }, { id: 'a-s', name: 'Sneak In', email: 'x@y.co' }]))).status).toBe(400);
+    expect((await ask({ ...rolodexAdd({ id: 'c-sneak', name: 'Sneak In', email: 'x@y.co' }), settings: { target: 'settings', baseRevision: null, fields: [{ field: 'potentialComics', kind: 'rows', idField: 'id', baseOrder: ['c-sneak', 'c1'], proposedOrder: ['c-sneak', 'c1'], base: [], proposed: [['c-sneak', { id: 'c-sneak', name: 'Sneak In', email: 'x@y.co' }]] }] } })).status).toBe(400);
+    expect(problems(await ask(rolodexAdd({ ...jo, socialMedia: '.' })))).toEqual(['someone new needs their social media: a handle or a profile link']);
+
+    expect((await ask(rolodexAdd(jo))).status).toBe(201);
+    expect((await ask(lineup('performers', { ...sam, id: 'p1', comicId: 'c1' }))).status).toBe(201);
+    expect((await ask(lineup('artists', { id: 'a2', name: 'the house band', notes: 'Again' }))).status).toBe(201);
+  });
+
   it('seeds and decides requests for specs, and hands an approval’s result back', async () => {
     const { state, call } = await setUp();
     const token = fake.addCoproducerLink(state, { userId: 'producer', key: KEY, legacyKey: LEGACY });

@@ -32,6 +32,8 @@ function profile(person: Performer | PotentialComic) {
     notes: person.notes,
     credits: person.credits,
     videoLink: person.videoLink,
+    // How long the set in that video is, 5 or 10 minutes. Read-only here: set in the app.
+    tapeMinutes: person.tapeMinutes,
     walkOnMusicName: person.walkOnMusicName,
     walkOnMusicArtist: person.walkOnMusicArtist,
     walkOnMusicLink: person.walkOnMusicLink,
@@ -173,7 +175,8 @@ export function comicText(comic: PotentialComic, bookings: { showName: string; d
     detail.name,
     ...lines([
       ['Social', detail.socialMedia], ['Email', detail.email], ['Phone', detail.phone], ['Credits', detail.credits],
-      ['Video', detail.videoLink], ['Walk-on', [detail.walkOnMusicName, detail.walkOnMusicArtist].filter(Boolean).join(' — ')],
+      ['Video', detail.videoLink], ['Tape length', detail.tapeMinutes ? `${detail.tapeMinutes} minutes` : undefined],
+      ['Walk-on', [detail.walkOnMusicName, detail.walkOnMusicArtist].filter(Boolean).join(' — ')],
       ['Notes', detail.notes],
     ]),
     ...(bookings.length ? ['', 'Booked on', ...bookings.map(b => `- ${b.showName} (${b.date || 'date not set'})${b.surpriseGuest ? ' [surprise guest]' : ''}`)] : []),

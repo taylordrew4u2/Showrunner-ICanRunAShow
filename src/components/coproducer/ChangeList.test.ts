@@ -174,4 +174,34 @@ describe('the list of changes', () => {
     // No previews without a resolver.
     expect(html).not.toContain('<img');
   });
+
+  // A tape the owner watches before approving someone new.
+  it('makes a tape’s link a link that opens away from the app, and nothing else one', () => {
+    const tape = 'https://youtu.be/jo-tape';
+    const line = change({ key: 'potentialComics/c-jo/videoLink', label: 'Tape link', before: null, after: tape, change: 'added', link: { after: tape } });
+    const html = render({ groups: [group([line, change()])] });
+    expect(html).toContain(`<a class="change-list__link" href="${tape}" target="_blank" rel="noopener noreferrer">${tape}</a>`);
+    expect(html.match(/<a /g)).toHaveLength(1);
+    // Only http and https, whatever a request says.
+    for (const bad of ['javascript:alert(1)', 'data:text/html,hi', 'https://user:pw@example.com/', 'not a link']) {
+      const unsafe = render({ groups: [group([{ ...line, after: bad, link: { after: bad } }])] });
+      expect(unsafe, bad).not.toContain('<a ');
+    }
+  });
+
+  it('shows a new Rolodex entry’s tape link, its length and their social media as the diff describes them', () => {
+    const settings = fullSettings();
+    const jo = { id: 'c-jo', name: 'Jo Park', videoLink: 'https://youtu.be/jo-tape', tapeMinutes: 5 as const, socialMedia: '@jopark' };
+    const before = settings.potentialComics.map((comic) => comic.id);
+    const groups = describePayload({
+      kind: 'edit', shows: [],
+      settings: { target: 'settings', baseRevision: null, fields: [{ field: 'potentialComics', kind: 'rows', idField: 'id', baseOrder: before, proposedOrder: ['c-jo', ...before], base: [], proposed: [['c-jo', jo]] }] },
+    }, { state: { shows: [], settings } });
+    const html = render({ groups });
+    const text = textOf(html);
+    expect(text).toContain('Tape link Now Nothing Pending approval https://youtu.be/jo-tape');
+    expect(text).toContain('Tape length Now Nothing Pending approval 5 minutes');
+    expect(text).toContain('Social Now Nothing Pending approval @jopark');
+    expect(html).toContain('<a class="change-list__link" href="https://youtu.be/jo-tape" target="_blank" rel="noopener noreferrer">');
+  });
 });

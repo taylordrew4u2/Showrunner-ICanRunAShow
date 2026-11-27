@@ -14,6 +14,7 @@
 import type { AppSettings, Show } from '../types';
 import { getRolodexTerm } from '../utils/terminology';
 import type { DiffContext } from './diff';
+import { describeNewPersonProblem, knownPeople, newPeopleProblems } from './newComics';
 import { sameMeaning, sameValue } from './paths';
 import { changedMediaIds, EDITABLE_SETTINGS_FIELDS, isShowKey } from './schema';
 import {
@@ -44,6 +45,17 @@ export function reviewDiffContext(truth: Pick<ReviewTruth, 'shows' | 'settings'>
     musicLibrary: truth.settings.musicLibrary,
     rolodexPlural: getRolodexTerm(truth.settings).plural,
   };
+}
+
+/**
+ * Why an edit cannot be sent yet: a sentence for each person it brings in
+ * without a name, a tape and their social media, or with more than those.
+ * The same rule the server and the owner's app hold it to (newComics.ts),
+ * asked here so nothing is sent that would only be refused.
+ */
+export function sendBlocks(payload: EditPayload, truth: Pick<ReviewTruth, 'shows' | 'settings'>): string[] {
+  const problems = newPeopleProblems(payload, knownPeople(truth.shows, truth.settings));
+  return [...new Set(problems.map(describeNewPersonProblem))];
 }
 
 type Loose = Record<string, unknown>;

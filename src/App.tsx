@@ -115,7 +115,7 @@ import { createCoproducerClient, onLinkEnded } from './coproducer/client';
 import { enterReviewMode, getReviewSession, isReviewMode, makeReviewSession, type ReviewSession } from './coproducer/reviewMode';
 import { mainOrigin, onReviewOrigin } from './coproducer/origins';
 import { loadReviewData, refreshReviewData, type LoadedReview } from './coproducer/loadReviewData';
-import { reviewDiffContext, type ReviewTruth } from './coproducer/capture';
+import { reviewDiffContext, sendBlocks, type ReviewTruth } from './coproducer/capture';
 import { sendFailureFor } from './coproducer/captureState';
 import { describePayload } from './coproducer/diff';
 import { copyText } from './coproducer/gates';
@@ -127,6 +127,7 @@ import { buildPendingOverlay } from './coproducer/pendingOverlay';
 import { useReviewContextValue } from './coproducer/useReviewContextValue';
 import { CoproduceGate } from './components/coproducer/CoproduceGate';
 import { ProposalDialog } from './components/coproducer/ProposalDialog';
+import { NewComicForm, type NewComicEntry } from './components/coproducer/NewComicForm';
 import { ReviewBanner } from './components/coproducer/ReviewBanner';
 import { UnsentBar } from './components/coproducer/UnsentBar';
 import { PendingDrawer } from './components/coproducer/PendingDrawer';
@@ -1283,7 +1284,9 @@ export default function App() {
           setProposalDialog({ step: 'failed', failure, retry: RETRYABLE_SENDS.has(failure) ? send : undefined, discard });
         });
     };
-    setProposalDialog({ step: 'restore-draft', groups, savedAt: draft.savedAt, send, discard });
+    const truth = reviewTruthRef.current;
+    const blocked = truth ? sendBlocks(draft.payload, truth) : [];
+    setProposalDialog({ step: 'restore-draft', groups, savedAt: draft.savedAt, blocked, send: blocked.length > 0 ? () => {} : send, discard });
   }
 
   function closeProposalDialog() {
@@ -2313,6 +2316,17 @@ export default function App() {
     saveSettings(updatedSettings);
     setNewComicName('');
     setNewComicNotes('');
+  }
+
+  /** Co-producer view: someone new for the Rolodex, with all a request may say about them (NewComicForm). */
+  function handleProposeComic(entry: NewComicEntry) {
+    if (!session) return;
+    const updatedSettings = {
+      ...settings,
+      potentialComics: [{ id: generateId(), ...entry }, ...settings.potentialComics],
+    };
+    setSettings(updatedSettings);
+    saveSettings(updatedSettings);
   }
 
   function handleAddEmailToList() {
@@ -3673,7 +3687,8 @@ export default function App() {
 
                 {/* A form rather than a div: a name box beside an Add button
                     should take Enter, which is how everyone tries it first. */}
-                <form
+                {reviewing && <NewComicForm who={rolodexTerm.singular} onAdd={handleProposeComic} />}
+                {!reviewing && <form
                   className="rolodex__form"
                   data-tour="rolodex-add"
                   onSubmit={(e) => { e.preventDefault(); handleAddPotentialComic(); }}
@@ -3705,7 +3720,7 @@ export default function App() {
                   >
                     Add
                   </button>
-                </form>
+                </form>}
 
                 {settings.potentialComics.length === 0 ? (
                   <div className="empty-state">

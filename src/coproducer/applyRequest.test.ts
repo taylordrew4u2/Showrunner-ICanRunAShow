@@ -448,13 +448,124 @@ describe('planEdit', () => {
     const settings = fullSettings({ potentialComics: [] });
     const { state, index, ctx } = await owner([original], settings);
     const asked = viewOfShow(original, index);
-    const newcomer = { id: 'p-new', name: 'Brand New Act' };
+    // Someone new, with what a co-producer must send about them (newComics.ts).
+    const newcomer = { id: 'p-new', name: 'Brand New Act', videoLink: 'https://youtu.be/brandnew', tapeMinutes: 5 as const, socialMedia: '@brandnewact' };
     const payload = editOf([updateOf(asked, { performers: [newcomer] })]);
     const first = ok(planEdit(payload, state, ctx()));
     const second = ok(planEdit(payload, state, ctx()));
     expect(first.after.settings.potentialComics.map((c) => c.id)).toEqual(['coprod-req1-new-1']);
     expect(first.after.shows[0].performers[0].comicId).toBe('coprod-req1-new-1');
     expect(second.fingerprint).toBe(first.fingerprint);
+  });
+
+  describe('someone new', () => {
+    const TAPE = 'https://youtu.be/jopark-tape';
+    const jo = { id: 'c-jo', name: 'Jo Park', videoLink: TAPE, tapeMinutes: 10 as const, socialMedia: '@jopark' };
+
+    it('files an approved new Rolodex entry with their name, tape and social media, and nothing else', async () => {
+      const settings = fullSettings();
+      const { state, index, ctx } = await owner([fullShow()], settings);
+      const seen = viewOfSettings(settings, index).potentialComics as unknown as Record<string, unknown>[];
+      const plan = ok(planEdit(editOf([], [rowsEdit('potentialComics', 'id', seen, [jo, ...seen])]), state, ctx()));
+      expect(plan.settingsChanged).toBe(true);
+      expect(plan.after.settings.potentialComics[0]).toEqual(jo);
+      expect(plan.after.settings.potentialComics.slice(1)).toEqual(settings.potentialComics);
+      const lines = plan.changes.flatMap((g) => g.changes).filter((c) => c.key.startsWith('potentialComics/c-jo'));
+      expect(lines.map((c) => [c.label, c.after])).toEqual([
+        ['Added', 'Jo Park'], ['Name', 'Jo Park'], ['Social', '@jopark'], ['Tape link', TAPE], ['Tape length', '10 minutes'],
+        // The owner's card lists everything approval writes, ids too.
+        ['Id', 'c-jo'],
+      ]);
+      expect(lines.find((c) => c.label === 'Tape link')?.link).toEqual({ after: TAPE });
+    });
+
+    it('books them on a show too, the booking and the entry sharing the three things', async () => {
+      const original = fullShow({ artists: [], performers: [] });
+      const settings = fullSettings();
+      const { state, index, ctx } = await owner([original], settings);
+      const seen = viewOfSettings(settings, index).potentialComics as unknown as Record<string, unknown>[];
+      const slot = { ...jo, id: 'p-jo', comicId: 'c-jo' };
+      const payload = editOf([updateOf(viewOfShow(original, index), { performers: [slot] })], [rowsEdit('potentialComics', 'id', seen, [jo, ...seen])]);
+      const plan = ok(planEdit(payload, state, ctx()));
+      expect(plan.after.settings.potentialComics.find((c) => c.id === 'c-jo')).toEqual(jo);
+      expect(plan.after.shows[0].performers).toHaveLength(1);
+      expect(plan.after.shows[0].performers[0]).toMatchObject(slot);
+    });
+
+    it('refuses a hand-made request that adds someone without them, or with more', async () => {
+      const original = fullShow({ artists: [], performers: [] });
+      const settings = fullSettings();
+      const { state, index, ctx } = await owner([original], settings);
+      const seen = viewOfSettings(settings, index).potentialComics as unknown as Record<string, unknown>[];
+      const asked = viewOfShow(original, index);
+      const refused = (payload: EditPayload) => {
+        const plan = planEdit(payload, state, ctx());
+        return plan.ok ? 'approved' : plan.reason;
+      };
+      const reason = 'This adds Jo Park without what a new person needs: a name, a 5 or 10 minute tape and their social media, and nothing else. It can’t be approved. Ask them to send it again.';
+      const add = (row: Record<string, unknown>) => editOf([], [rowsEdit('potentialComics', 'id', seen, [row, ...seen])]);
+      expect(refused(add({ id: 'c-jo', name: 'Jo Park' }))).toBe(reason);
+      expect(refused(add({ ...jo, videoLink: 'javascript:alert(1)' }))).toBe(reason);
+      expect(refused(add({ ...jo, tapeMinutes: 7 }))).toBe(reason);
+      expect(refused(add({ ...jo, email: 'jo@example.com' }))).toBe(reason);
+      // A bare name on a bill, which the owner's bookkeeping would file in the Rolodex.
+      expect(refused(editOf([updateOf(asked, { performers: [{ id: 'p-jo', name: 'Jo Park' }] })]))).toBe(reason);
+      expect(refused(editOf([updateOf(asked, { artists: [{ id: 'a-jo', name: 'Jo Park', notes: 'x' }] })]))).toBe(reason);
+      // A booking that claims an entry nobody has.
+      expect(refused(editOf([updateOf(asked, { performers: [{ id: 'p-jo', name: 'Jo Park', comicId: 'made-up', email: 'jo@example.com' }] })])))
+        .toBe('This books Jo Park from a Rolodex entry you no longer have. It can’t be approved. Ask them to send it again.');
+    });
+
+    it('refuses a hand-made request that lies about who was already there', async () => {
+      const extras = { email: 'n@b.co', notes: 'no tape' };
+      const original = fullShow({
+        artists: [{ id: 'a1', name: 'House Band' }],
+        performers: [{ id: 'p2', name: 'Walk On' }, { id: 'p1', name: 'Gone Person', comicId: 'gone' }],
+      });
+      const settings = fullSettings();
+      const sam = settings.potentialComics[0];
+      const { state, index, ctx } = await owner([original], settings);
+      const asked = viewOfShow(original, index);
+      const seen = viewOfSettings(settings, index).potentialComics as unknown as Record<string, unknown>[];
+      const performers = asked.performers;
+      const refused = (payload: EditPayload) => {
+        const plan = planEdit(payload, state, ctx());
+        return plan.ok ? 'approved' : plan.reason;
+      };
+      const lying = (list: 'performers' | 'artists', base: unknown[], proposed: unknown[]): EditPayload => {
+        const edit = updateOf(asked, { [list]: proposed });
+        (edit as unknown as { base: Record<string, unknown> }).base = { [list]: base };
+        return editOf([edit]);
+      };
+      const notTheirs = (name: string) => `This books ${name} from a Rolodex entry you no longer have. It can’t be approved. Ask them to send it again.`;
+      const noTape = (name: string) => `This adds ${name} without what a new person needs: a name, a 5 or 10 minute tape and their social media, and nothing else. It can’t be approved. Ask them to send it again.`;
+      // A made-up link on both sides of an unlinked booking.
+      expect(refused(lying('artists', [{ id: 'a1', name: 'House Band', comicId: 'zzz' }], [{ id: 'a1', name: 'Brand New Band', comicId: 'zzz', ...extras }]))).toBe(notTheirs('Brand New Band'));
+      expect(refused(lying('performers', [{ id: 'p2', name: 'Walk On', comicId: 'zzz' }, performers[1]], [{ id: 'p2', name: 'Brand New Comic', comicId: 'zzz', ...extras }, performers[1]]))).toBe(notTheirs('Brand New Comic'));
+      // A link whose Rolodex entry is gone.
+      expect(refused(editOf([updateOf(asked, { performers: [...performers, { id: 'p-s', name: 'Sneak In', comicId: 'gone', ...extras }] })]))).toBe(notTheirs('Sneak In'));
+      expect(refused(editOf([updateOf(asked, { performers: [performers[0], { ...performers[1], name: 'Sneak In' }] })]))).toBe(notTheirs('Sneak In'));
+      // A new name behind an entry the owner has books that entry's person, not the name.
+      const booked = ok(planEdit(editOf([updateOf(asked, { performers: [...performers, { id: 'p-s', name: 'Sneak In', comicId: sam.id, ...extras }] })]), state, ctx()));
+      expect(booked.after.shows[0].performers[2]).toMatchObject({ id: 'p-s', comicId: sam.id, name: sam.name, email: sam.email, notes: sam.notes });
+      expect(booked.after.settings.potentialComics.find((c) => c.id === sam.id)).toEqual(sam);
+      expect(booked.after.settings.potentialComics.map((c) => c.name)).not.toContain('Sneak In');
+      // Filing someone on a bill with more than their booking says.
+      expect(refused(editOf([], [rowsEdit('potentialComics', 'id', seen, [{ id: 'c-w', name: 'walk on', ...extras }, ...seen])]))).toBe(noTape('walk on'));
+      // The owner's own bookings, sent back as they are, still go through.
+      expect(refused(editOf([updateOf(asked, { performers: [performers[1], performers[0]] })]))).toBe('approved');
+    });
+
+    it('still books someone already in the Rolodex, whole profile and all', async () => {
+      const original = fullShow({ artists: [], performers: [] });
+      const settings = fullSettings();
+      const sam = settings.potentialComics[0];
+      const { state, index, ctx } = await owner([original], settings);
+      const slot = { ...sam, id: 'p-sam', comicId: sam.id };
+      const plan = ok(planEdit(editOf([updateOf(viewOfShow(original, index), { performers: [slot] })]), state, ctx()));
+      expect(plan.after.shows[0].performers[0]).toMatchObject({ id: 'p-sam', comicId: sam.id, email: sam.email });
+      expect(plan.after.settings.potentialComics).toEqual(settings.potentialComics);
+    });
   });
 
   it('has the same fingerprint for the same state, and a new one when the owner’s values move', async () => {

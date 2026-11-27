@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { AppSettings, Show } from '../types';
 import { normalizeComicSettings } from '../utils/sharedComicSettings';
-import { buildEditPayload, stagedMediaIds, type ReviewTruth } from './capture';
+import { buildEditPayload, sendBlocks, stagedMediaIds, type ReviewTruth } from './capture';
+import { knownPeople } from './newComics';
 import { validatePayload } from './schema';
 import { clone, FIXTURE_SECRETS, fullSettings, fullShow } from './testFixtures';
 import type { SettingsRowsEdit, SettingsValueEdit, ShowCreate, ShowDelete, ShowUpdate } from './types';
@@ -115,7 +116,7 @@ describe('buildEditPayload', () => {
     const w = working(t);
     w.settings.brandName = 'New Brand';
     w.settings.potentialComics = [
-      { id: 'c-new', name: 'Jo' },
+      { id: 'c-new', name: 'Jo', videoLink: 'https://youtu.be/jo', tapeMinutes: 5, socialMedia: '@jo' },
       { ...w.settings.potentialComics[0], notes: 'Closes strong.' },
     ];
     w.settings.emailList = [];
@@ -198,5 +199,29 @@ describe('buildEditPayload', () => {
     const payload = buildEditPayload(t, w)!;
     const staged = new Set(['99999999-aaaa-bbbb-cccc-000000000001', 'not-in-payload']);
     expect(stagedMediaIds(payload, staged)).toEqual(['99999999-aaaa-bbbb-cccc-000000000001']);
+  });
+
+  // Someone new comes with a name, a tape and social media (newComics.ts).
+  it('says why an edit that brings someone new cannot be sent yet, and nothing when it can', () => {
+    const t = truth();
+    const w = working(t);
+    w.settings.potentialComics = [{ id: 'c-new', name: 'Jo Park', socialMedia: '@jo' }, ...w.settings.potentialComics];
+    w.shows[0] = { ...w.shows[0], artists: [...w.shows[0].artists, { id: 'a-new', name: 'New Band', email: 'band@example.com' }] };
+    expect(sendBlocks(buildEditPayload(t, w)!, t)).toEqual([
+      'Jo Park needs a tape link and the tape’s length (5 or 10 minutes).',
+      'New Band needs a tape link, the tape’s length (5 or 10 minutes) and their social media. Also take off their email.',
+    ]);
+    const tape = { videoLink: 'https://youtu.be/tape', tapeMinutes: 5 as const, socialMedia: '@handle' };
+    w.settings.potentialComics[0] = { id: 'c-new', name: 'Jo Park', ...tape };
+    w.shows[0] = { ...w.shows[0], artists: [...t.shows[0].artists, { id: 'a-new', name: 'New Band', ...tape }] };
+    const payload = buildEditPayload(t, w)!;
+    expect(sendBlocks(payload, t)).toEqual([]);
+    expect(validatePayload(payload, { ...ORIGINS, people: knownPeople(t.shows, t.settings) }).problems).toEqual([]);
+    // Booking someone already in the Rolodex, and editing them, holds nothing.
+    const again = working(t);
+    const sam = again.settings.potentialComics[0];
+    again.settings.potentialComics[0] = { ...sam, notes: 'Closes strong.' };
+    again.shows[0] = { ...again.shows[0], performers: [...again.shows[0].performers, { ...sam, id: 'p-again', comicId: sam.id }] };
+    expect(sendBlocks(buildEditPayload(t, again)!, t)).toEqual([]);
   });
 });

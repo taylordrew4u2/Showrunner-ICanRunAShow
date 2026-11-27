@@ -294,7 +294,7 @@ export function createOwnerInbox(
     setItem(id, { detail: 'loading' });
     try {
       const detail = await client.getInboxRequest(data.session, id);
-      const checked = validatePayload(ownerClient.decryptUntrusted(detail.payload, data.session), { appOrigins: appOrigins() });
+      const checked = validatePayload(ownerClient.decryptUntrusted(detail.payload, data.session), { appOrigins: appOrigins(), newPeopleCheckedByPlan: true });
       const payload = checked.payload;
       if (!payload || payload.kind !== item.row.kind) throw new Error('not a request');
       const outline = buildOutline(payload);
@@ -400,7 +400,7 @@ export function createOwnerInbox(
     const index = await buildPseudonymIndex(stateOf(data));
     // From here to the commit nothing is awaited: the plan is made on the
     // state the commit writes over.
-    const checked = validatePayload(item.payload, { appOrigins: appOrigins() });
+    const checked = validatePayload(item.payload, { appOrigins: appOrigins(), newPeopleCheckedByPlan: true });
     if (!checked.payload || checked.payload.kind !== 'edit') {
       setItem(item.row.id, { detail: 'unreadable', error: INBOX_TEXT.unreadable, plan: undefined, shown: undefined });
       return;

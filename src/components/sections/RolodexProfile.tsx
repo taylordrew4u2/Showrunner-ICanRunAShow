@@ -1,4 +1,5 @@
 import { HeadshotPanel } from '../HeadshotPanel';
+import { TapeLength } from './TapeLength';
 import { Icon } from '../Icon';
 import { TrimControls } from '../TrimControls';
 import { useId, useState } from 'react';
@@ -346,6 +347,11 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
               value={comic.videoLink || ''}
               onChange={e => update({ videoLink: e.target.value.trim() || undefined })}
               placeholder="Paste video link (YouTube, Vimeo, Drive…)"
+            />
+            <TapeLength
+              id={`${fieldId}-tape-length`}
+              value={comic.tapeMinutes}
+              onChange={(tapeMinutes) => update({ tapeMinutes })}
             />
             {comic.videoLink ? (
               <a href={comic.videoLink} target="_blank" rel="noopener noreferrer" className="perf-profile__music-link">

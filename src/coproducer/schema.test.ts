@@ -10,6 +10,7 @@ import {
   sniffMediaType,
   validatePayload,
 } from './schema';
+import { knownPeople } from './newComics';
 import { clone, fullSettings, fullShow } from './testFixtures';
 import {
   REMOVE_ONLY_ROW_FIELDS,
@@ -113,7 +114,10 @@ function everySettingsField(settings: AppSettings): EditPayload {
     if (REMOVE_ONLY_ROW_FIELDS.has(field)) continue;
     const value = (settings as unknown as Record<string, unknown>)[field];
     if (value === undefined) continue;
-    if (SETTINGS_ROW_FIELDS.has(field)) fields.push(rowsEdit(field, [], value as Record<string, unknown>[]));
+    // Everyone in the Rolodex is already there, each field changed: a co-producer
+    // may not add someone with a whole profile (see "someone new" below).
+    if (field === 'potentialComics') fields.push(rowsEdit(field, (value as { id: string }[]).map((row) => ({ id: row.id, name: 'Was' })), value as Record<string, unknown>[]));
+    else if (SETTINGS_ROW_FIELDS.has(field)) fields.push(rowsEdit(field, [], value as Record<string, unknown>[]));
     else fields.push({ field, kind: 'value', proposed: value });
   }
   return settingsEdit(...fields);
@@ -400,7 +404,9 @@ describe('what a request may touch', () => {
   });
 
   it('keeps the rows encoding honest', () => {
-    const comic = fullSettings().potentialComics[0] as unknown as Record<string, unknown>;
+    // Someone new: only what a co-producer may send about them.
+    const { id, name, socialMedia, videoLink, tapeMinutes } = fullSettings().potentialComics[0];
+    const comic: Record<string, unknown> = { id, name, socialMedia, videoLink, tapeMinutes };
     const good = rowsEdit('potentialComics', [], [comic]);
     expect(ok(settingsEdit(good))).toBe(true);
     expect(ok(settingsEdit({ ...good, idField: 'name' } as SettingsFieldEdit))).toBe(false);
@@ -550,5 +556,170 @@ describe('what a file says it is', () => {
     expect(sniffMediaType(b64('plain text, nothing more'))).toBeNull();
     expect(sniffMediaType('')).toBeNull();
     expect(sniffMediaType('!!!not base64!!!')).toBeNull();
+  });
+});
+
+// The rule for people a co-producer brings in (newComics.ts), in refuse mode.
+describe('someone new', () => {
+  const settings = fullSettings();
+  const show = fullShow();
+  const people = knownPeople([show], settings);
+  const withPeople = { ...ctx, people };
+  const TAPE = 'https://youtu.be/abc123';
+  const jo: Record<string, unknown> = { id: 'n1', name: 'Jo Park', videoLink: TAPE, tapeMinutes: 5, socialMedia: '@jopark' };
+  const existing = settings.potentialComics as unknown as Record<string, unknown>[];
+  const add = (row: Record<string, unknown>) => settingsEdit(rowsEdit('potentialComics', existing, [row, ...existing]));
+  const said = (payload: unknown, context: Parameters<typeof validatePayload>[1] = withPeople) =>
+    validatePayload(payload, context).problems.map((p) => `${p.path}: ${p.problem}`);
+  const without = (key: string) => {
+    const row = { ...jo };
+    delete row[key];
+    return row;
+  };
+  const booked = (list: 'performers' | 'artists', row: Record<string, unknown>) =>
+    update({ [list]: show[list] }, { [list]: [...show[list], row] } as Partial<Show>, [list]);
+
+  it('serves a tape length of 5 or 10 and drops any other', () => {
+    const comic = settings.potentialComics[0];
+    const serve = (tapeMinutes: unknown) => sanitizeSettings({ ...settings, potentialComics: [{ ...comic, tapeMinutes }] })!.potentialComics[0];
+    expect(serve(5).tapeMinutes).toBe(5);
+    expect(serve(10).tapeMinutes).toBe(10);
+    expect(serve(7)).not.toHaveProperty('tapeMinutes');
+    expect(serve('10')).not.toHaveProperty('tapeMinutes');
+    const performer = show.performers[0];
+    expect(sanitizeShow({ ...show, performers: [{ ...performer, tapeMinutes: 5 }] })!.performers[0].tapeMinutes).toBe(5);
+    expect(sanitizeShow({ ...show, performers: [{ ...performer, tapeMinutes: 7 }] })!.performers[0]).not.toHaveProperty('tapeMinutes');
+  });
+
+  it('accepts a new Rolodex entry with a name, a tape, its length and social media', () => {
+    expect(said(add(jo))).toEqual([]);
+    expect(said(add({ ...jo, tapeMinutes: 10, socialMedia: 'https://facebook.com/profile.php?id=7' }))).toEqual([]);
+    // The same without the owner's data to hand.
+    expect(said(add(jo), ctx)).toEqual([]);
+  });
+
+  it('refuses one without a name, a tape, a length or social media', () => {
+    const at = 'settings.fields[0].proposed[0][1]';
+    expect(said(add({ ...jo, name: '  ' }))).toEqual([`${at}.name: someone new needs a name`]);
+    expect(said(add(without('videoLink')))).toEqual([`${at}.videoLink: someone new needs a tape: an http or https link to a video of their set`]);
+    expect(said(add(without('tapeMinutes')))).toEqual([`${at}.tapeMinutes: someone new needs a tape length of 5 or 10 minutes`]);
+    expect(said(add(without('socialMedia')))).toEqual([`${at}.socialMedia: someone new needs their social media: a handle or a profile link`]);
+    expect(said(add({ id: 'n1', name: 'Jo Park' }))).toHaveLength(3);
+    expect(said(add({ id: 'n1', name: 'Jo Park' }), ctx)).toHaveLength(3);
+  });
+
+  it('refuses a tape that is not an http or https link, or one into the app itself', () => {
+    for (const bad of ['watch my tape', 'javascript:alert(1)', 'ftp://example.com/tape.mp4', `${APP}/api/settings`, '']) {
+      expect(ok(add({ ...jo, videoLink: bad })), bad).toBe(false);
+    }
+  });
+
+  it('refuses a tape of any length but 5 or 10 minutes', () => {
+    expect(said(add({ ...jo, tapeMinutes: 7 }))).toEqual(['settings.fields[0].proposed[0][1].tapeMinutes: not 5 or 10']);
+    for (const bad of [0, 15, '5', true]) expect(ok(add({ ...jo, tapeMinutes: bad })), String(bad)).toBe(false);
+    // Nor on someone already there, or on a booking.
+    const sam = existing[0];
+    expect(ok(settingsEdit(rowsEdit('potentialComics', existing, [{ ...sam, tapeMinutes: 7 }])))).toBe(false);
+    expect(ok(update({ performers: show.performers }, { performers: [{ ...show.performers[0], tapeMinutes: 7 }] } as unknown as Partial<Show>))).toBe(false);
+  });
+
+  it('refuses any other field on someone new', () => {
+    const at = 'settings.fields[0].proposed[0][1]';
+    const extras: Record<string, unknown> = {
+      email: 'jo@example.com', phone: '555 0100', notes: 'Pay 50', credits: 'TV', photo: 'media:abcdefgh#1',
+      walkOnMusic: 'media:abcdefgh#1', walkOnMusicName: 'Song', walkOnMusicArtist: 'Band', walkOnMusicTimestamp: '0:30',
+      walkOnMusicLink: 'https://example.com/track', walkOnStartSec: 1, walkOnEndSec: 9,
+    };
+    for (const [key, value] of Object.entries(extras)) {
+      expect(said(add({ ...jo, [key]: value })), key).toEqual([`${at}.${key}: not allowed for someone new: only a name, a tape and social media`]);
+    }
+    expect(ok(add({ ...jo, pay: 100 }))).toBe(false);
+  });
+
+  it('still lets someone already in the Rolodex be edited as before', () => {
+    const edited: Record<string, unknown> = { ...existing[0], email: 'new@example.com', notes: 'Moved to Leeds.' };
+    delete edited.videoLink;
+    delete edited.tapeMinutes;
+    expect(said(settingsEdit(rowsEdit('potentialComics', existing, [edited])))).toEqual([]);
+  });
+
+  it('lets someone in the Rolodex be booked with their whole profile', () => {
+    const sam = { ...existing[0], id: 'slot-new', comicId: existing[0].id };
+    expect(said(booked('performers', sam))).toEqual([]);
+    expect(said(booked('artists', { ...sam, artistType: 'Musician' }))).toEqual([]);
+  });
+
+  it('accepts a new name on a bill with the three things, with or without a new Rolodex entry', () => {
+    const slot = { ...jo, id: 'slot-new', comicId: 'n1' };
+    const both = { ...booked('performers', slot), settings: add(jo).settings };
+    expect(said(both)).toEqual([]);
+    expect(said(booked('artists', { ...jo, id: 'slot-new', artistType: 'Band' }))).toEqual([]);
+  });
+
+  it('refuses a new name on a bill without them, or with more', () => {
+    const at = `shows[0].proposed.performers[${show.performers.length}]`;
+    expect(said(booked('performers', { id: 'slot-new', name: 'Walk In' }))).toEqual([
+      `${at}.videoLink: someone new needs a tape: an http or https link to a video of their set`,
+      `${at}.tapeMinutes: someone new needs a tape length of 5 or 10 minutes`,
+      `${at}.socialMedia: someone new needs their social media: a handle or a profile link`,
+    ]);
+    expect(said(booked('performers', { ...jo, id: 'slot-new', email: 'jo@example.com' }))).toEqual([
+      `${at}.email: not allowed for someone new: only a name, a tape and social media`,
+    ]);
+    expect(said(booked('artists', { id: 'slot-new', name: 'New Band' }))).toHaveLength(3);
+    // A booking of the new entry in the same request is held to the same.
+    const slot = { ...jo, id: 'slot-new', comicId: 'n1', photo: 'media:abcdefgh#1' };
+    expect(said({ ...booked('performers', slot), settings: add(jo).settings }, ctx)).toEqual([
+      `${at}.photo: not allowed for someone new: only a name, a tape and social media`,
+    ]);
+  });
+
+  it('leaves the rule to the owner’s plan in the owner’s inbox, which says why instead (applyRequest.test.ts)', () => {
+    const inbox = { ...ctx, newPeopleCheckedByPlan: true as const };
+    expect(said(add({ id: 'n1', name: 'Jo Park', email: 'jo@example.com' }), inbox)).toEqual([]);
+    // Types are still types there.
+    expect(said(add({ ...jo, tapeMinutes: 7 }), inbox)).toEqual(['settings.fields[0].proposed[0][1].tapeMinutes: not 5 or 10']);
+  });
+
+  // Who is new is read from the owner's data, never from what the request says was there.
+  it('refuses a request that lies about who was already there', () => {
+    const extras = { email: 'n@b.co', notes: 'no tape' };
+    const mine: Show = { ...show, performers: [{ id: 'p1', name: 'Gone Person', comicId: 'gone' }], artists: [{ id: 'a1', name: 'House Band' }] };
+    const owned = { ...ctx, people: knownPeople([mine], settings) };
+    const NOT_THEIRS = 'not someone in the Rolodex';
+    // A made-up link on both sides of an unlinked booking.
+    expect(said(update({ artists: [{ id: 'a1', name: 'House Band', comicId: 'zzz' }] } as Partial<Show>, { artists: [{ id: 'a1', name: 'Brand New Band', comicId: 'zzz', ...extras }] } as Partial<Show>), owned))
+      .toEqual([`shows[0].proposed.artists[0].comicId: ${NOT_THEIRS}`]);
+    // A link whose Rolodex entry is gone, under a new name.
+    expect(said(update({ performers: mine.performers }, { performers: [...mine.performers, { id: 'p-s', name: 'Sneak In', comicId: 'gone', ...extras }] }), owned))
+      .toEqual([`shows[0].proposed.performers[1].comicId: ${NOT_THEIRS}`]);
+    expect(said(update({ performers: mine.performers }, { performers: [{ ...mine.performers[0], notes: 'Back in May' }] }), owned)).toEqual([]);
+    // A row the request says was already in the Rolodex, or already on the bill.
+    const ids = existing.map((row) => row.id as string);
+    const sneak = { id: 'c-sneak', name: 'Sneak In', email: 'x@y.co' };
+    const lying: SettingsFieldEdit = { field: 'potentialComics', kind: 'rows', idField: 'id', baseOrder: ['c-sneak', ...ids], proposedOrder: ['c-sneak', ...ids], base: [], proposed: [['c-sneak', sneak]] };
+    expect(said(settingsEdit(lying))).toHaveLength(4);
+    const before = { id: 'p-s', name: 'Sneak In' };
+    expect(said(update({ performers: [...show.performers, before] }, { performers: [...show.performers, { ...before, email: 'x@y.co' }] }))).toHaveLength(4);
+    // Filing someone on a bill with more than their booking says.
+    const walkOn = { ...ctx, people: knownPeople([{ ...show, performers: [{ id: 'p2', name: 'Walk On' }] }], settings) };
+    expect(said(add({ id: 'c-w', name: 'walk on', ...extras }), walkOn)).toHaveLength(5);
+    expect(said(add({ id: 'c-w', name: 'walk on' }), walkOn)).toEqual([]);
+  });
+
+  it('refuses social media that is not a handle or a profile link', () => {
+    for (const socialMedia of ['.', '-', 'https://', 'javascript:alert(1)', 'https://instagram.com/', 'https://instagram.com/p/abc']) {
+      expect(said(add({ ...jo, socialMedia })), socialMedia).toEqual(['settings.fields[0].proposed[0][1].socialMedia: someone new needs their social media: a handle or a profile link']);
+    }
+  });
+
+  it('refuses a booking that points at nobody, and every unknown name on a new show', () => {
+    expect(said(booked('performers', { ...existing[0], id: 'slot-new', comicId: 'made-up' }))).toEqual([
+      `shows[0].proposed.performers[${show.performers.length}].comicId: not someone in the Rolodex`,
+    ]);
+    const fresh = newShow({ id: 'brand-new', performers: [{ id: 'p-new', name: 'Fresh Face' }], artists: [] });
+    expect(said(create(fresh))).toHaveLength(3);
+    const tidy = newShow({ id: 'brand-new', performers: [{ ...jo, id: 'p-new' } as unknown as Show['performers'][number]], artists: [] });
+    expect(said(create(tidy))).toEqual([]);
   });
 });

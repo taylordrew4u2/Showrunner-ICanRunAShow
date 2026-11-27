@@ -23,6 +23,7 @@
  */
 import type { AppSettings, Show } from '../types';
 import { healShow } from '../utils/showHealing';
+import { isTapeMinutes, newPeopleProblems, type KnownPeople } from './newComics';
 import { sameValue } from './paths';
 import { checkUntrusted, FORBIDDEN_KEYS } from './untrusted';
 import {
@@ -43,6 +44,19 @@ export interface SchemaProblem { path: string; problem: string }
 export interface ValidateContext {
   /** Origins a URL field may not point at, except a public page: the app's own and the review origin. */
   appOrigins: string[];
+  /**
+   * Who the owner already has (newComics.knownPeople), so a bare name on a
+   * bill can be told new from already there. The server and the co-producer's
+   * app bring it. Without it the rule for new people is still kept by every
+   * new Rolodex entry and the bookings that point at one.
+   */
+  people?: KnownPeople;
+  /**
+   * The owner's inbox only: leave the rule for new people to planEdit, which
+   * holds every request to it against the account as it is now and tells the
+   * owner why one cannot be approved, rather than calling it unreadable.
+   */
+  newPeopleCheckedByPlan?: true;
 }
 
 // ── Leaves and shapes ─────────────────────────────────────────────────────
@@ -57,6 +71,7 @@ type Leaf =
   | { t: 'count'; max: number }
   | { t: 'seconds' }
   | { t: 'minutes' }
+  | { t: 'tapeMinutes' }
   | { t: 'order' }
   | { t: 'flag' }
   | { t: 'enum'; values: readonly string[] }
@@ -76,6 +91,8 @@ const TIMESTAMP: Leaf = { t: 'timestamp' };
 const MONEY: Leaf = { t: 'money' };
 const SECONDS: Leaf = { t: 'seconds' };
 const MINUTES: Leaf = { t: 'minutes' };
+/** A tape's length: 5 or 10, and nothing else. */
+const TAPE_LENGTH: Leaf = { t: 'tapeMinutes' };
 const ORDER: Leaf = { t: 'order' };
 const FLAG: Leaf = { t: 'flag' };
 const MEDIA: Leaf = { t: 'media' };
@@ -119,6 +136,7 @@ const PERSON_FIELDS = {
   walkOnEndSec: SECONDS,
   credits: LONG,
   videoLink: URL_LEAF,
+  tapeMinutes: TAPE_LENGTH,
   surpriseGuest: FLAG,
 };
 const PERFORMER = object(PERSON_FIELDS);
@@ -241,6 +259,7 @@ const COMIC = object({
   walkOnStartSec: SECONDS,
   walkOnEndSec: SECONDS,
   videoLink: URL_LEAF,
+  tapeMinutes: TAPE_LENGTH,
 });
 const EMAIL_ENTRY = object({ id: req(ROW_ID), email: req(SHORT), addedAt: req(TIMESTAMP) });
 const TEMPLATE_ITEM = object({ time: req(SHORT), description: req(LONG), performer: SHORT, durationMin: MINUTES });
@@ -367,6 +386,7 @@ const NUMBER_KINDS = new Set(['money', 'count', 'seconds', 'minutes', 'order']);
 /** Whether a value has the right type for a leaf (drop mode's only question). */
 function leafTypeOk(leaf: Leaf, value: unknown): boolean {
   if (leaf.t === 'flag') return typeof value === 'boolean';
+  if (leaf.t === 'tapeMinutes') return isTapeMinutes(value);
   if (NUMBER_KINDS.has(leaf.t)) return typeof value === 'number' && Number.isFinite(value);
   if (leaf.t === 'enum') return typeof value === 'string' && leaf.values.includes(value);
   return STRING_KINDS.has(leaf.t) && typeof value === 'string';
@@ -480,7 +500,7 @@ class Checker {
     if (shape.t === 'object') return this.object(shape, value, path, changed, hasBase, base);
     if (shape.t === 'list') return this.list(shape, value, path, changed, hasBase, base);
     if (!leafTypeOk(shape, value)) {
-      this.fail(path, shape.t === 'enum' ? 'not one of the allowed values' : `wrong type for ${shape.t}`);
+      this.fail(path, shape.t === 'enum' ? 'not one of the allowed values' : shape.t === 'tapeMinutes' ? 'not 5 or 10' : `wrong type for ${shape.t}`);
       return;
     }
     if (changed && (!hasBase || !sameValue(value, base))) this.changedLeaf(shape, value, path);
@@ -843,6 +863,26 @@ function checkEdit(c: Checker, payload: Record<string, unknown>): void {
   if (showCount === 0 && fieldCount === 0) c.fail('', 'changes nothing');
 }
 
+const NEW_PERSON_FIELD = { name: 'name', tape: 'videoLink', length: 'tapeMinutes', social: 'socialMedia' } as const;
+const NEW_PERSON_NEEDS = {
+  name: 'someone new needs a name',
+  tape: 'someone new needs a tape: an http or https link to a video of their set',
+  length: 'someone new needs a tape length of 5 or 10 minutes',
+  social: 'someone new needs their social media: a handle or a profile link',
+} as const;
+
+/** Matches the problems checkNewPeople reports, and no other: the ones knowing more of the owner's people can clear. */
+export const NEW_PERSON_PROBLEM = /^(?:someone new needs |not allowed for someone new|not someone in the Rolodex$)/;
+
+/** The rule for people a co-producer brings in (newComics.ts), as schema problems. */
+function checkNewPeople(c: Checker, payload: EditPayload): void {
+  for (const problem of newPeopleProblems(payload, c.ctx.people)) {
+    if (problem.unknownLink) c.fail(join(problem.path, 'comicId'), 'not someone in the Rolodex');
+    for (const need of problem.missing) c.fail(join(problem.path, NEW_PERSON_FIELD[need]), NEW_PERSON_NEEDS[need]);
+    for (const key of problem.extra) c.fail(join(problem.path, key), 'not allowed for someone new: only a name, a tape and social media');
+  }
+}
+
 function actionText(c: Checker, value: unknown, path: string, min: number, max: number): void {
   if (typeof value !== 'string') {
     c.fail(path, 'not text');
@@ -977,6 +1017,8 @@ export function validatePayload(
     c.fail('', 'not an object');
   } else if (value.kind === 'edit') {
     checkEdit(c, value);
+    // Only on a payload that is otherwise sound: the rule reads its rows.
+    if (c.problems.length === 0 && !ctx.newPeopleCheckedByPlan) checkNewPeople(c, value as unknown as EditPayload);
   } else if (value.kind === 'share' || value.kind === 'download') {
     exactKeys(c, value, '', ['kind', 'action']);
     checkAction(c, value.kind, value.action);

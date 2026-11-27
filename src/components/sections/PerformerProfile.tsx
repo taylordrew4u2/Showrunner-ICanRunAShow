@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { TapeLength } from './TapeLength';
 import type { Performer, PotentialComic } from '../../types';
 import { HeadshotPanel } from '../HeadshotPanel';
 import { audioUploadSizeError } from '../../utils/media';
@@ -573,6 +574,11 @@ export function PerformerProfile({ showId, performer, onBack, backLabel = 'Perfo
               value={performer.videoLink || ''}
               onChange={e => update({ videoLink: e.target.value.trim() || undefined })}
               placeholder="Paste video link (YouTube, Vimeo, Drive…)"
+            />
+            <TapeLength
+              id={`${fieldId}-tape-length`}
+              value={performer.tapeMinutes}
+              onChange={(tapeMinutes) => update({ tapeMinutes })}
             />
             {performer.videoLink ? (
               <a href={performer.videoLink} target="_blank" rel="noopener noreferrer" className="perf-profile__music-link">

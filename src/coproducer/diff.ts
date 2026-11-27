@@ -18,6 +18,7 @@
  * Pure and synchronous, with no DOM: the server can import it.
  */
 import type { AppSettings, MusicTrack, Show } from '../types';
+import { isTapeMinutes, isTapeUrl, tapeLengthLabel } from './newComics';
 import { groupKeyForSettings, groupKeyForShow, sameValue, seg, SETTINGS_WORKSPACE_FIELDS } from './paths';
 import type {
   ChangeGroup,
@@ -123,6 +124,8 @@ type Hint =
   | 'sceneStatus'
   | 'agreementType'
   | 'signed'
+  | 'link'
+  | 'tapeMinutes'
   | 'cues'
   | 'questions';
 interface FieldSpec {
@@ -151,7 +154,8 @@ const PERSON_FIELDS: Record<string, FieldSpec | string> = {
   phone: 'Phone',
   notes: 'Notes',
   credits: 'Credits',
-  videoLink: 'Video link',
+  videoLink: { label: 'Tape link', hint: 'link' },
+  tapeMinutes: { label: 'Tape length', hint: 'tapeMinutes' },
   walkOnMusic: { label: 'Walk-on track', hint: 'audio', name: 'walkOnMusicName' },
   walkOnMusicName: 'Walk-on track name',
   walkOnMusicArtist: 'Walk-on artist',
@@ -575,6 +579,8 @@ function formatValue(raw: unknown, hint: Hint = 'text'): string | null {
       return raw === 'venue' ? 'Venue' : raw === 'producer' ? 'Producer' : plain(raw);
     case 'signed':
       return isRow(raw) ? signedText(raw) : plain(raw);
+    case 'tapeMinutes':
+      return isTapeMinutes(raw) ? tapeLengthLabel(raw) : plain(raw);
     default:
       return plain(raw);
   }
@@ -684,6 +690,13 @@ function fieldChange(
   const pair = formatPair(before, after, spec, beforeRow, afterRow);
   const change: FieldChange = { key, path, label, before: pair.before, after: pair.after, change: changeKind(pair.before, pair.after) };
   if (pair.media) change.media = pair.media;
+  if (spec.hint === 'link') {
+    // Only an address a browser may safely be sent to; anything else stays text.
+    const link: NonNullable<FieldChange['link']> = {};
+    if (isTapeUrl(before)) link.before = before;
+    if (isTapeUrl(after)) link.after = after;
+    if (link.before || link.after) change.link = link;
+  }
   return change;
 }
 

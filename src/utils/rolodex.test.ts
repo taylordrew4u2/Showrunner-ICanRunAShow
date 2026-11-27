@@ -37,6 +37,19 @@ describe('rolodexKey', () => {
   });
 });
 
+// PotentialComic.tapeMinutes: the tape's length is part of the shared profile.
+describe('a tape’s length', () => {
+  const tape = { videoLink: 'https://youtu.be/ada-tape', tapeMinutes: 10 as const };
+
+  it('travels with the person: filed from a booking, booked from the Rolodex, and kept in step', () => {
+    expect(performerToComic(performer({ id: 'p1', name: 'Ada Cole', ...tape }))).toMatchObject(tape);
+    expect(comicToPerformer(comic({ id: 'c1', name: 'Ada Cole', ...tape }))).toMatchObject({ comicId: 'c1', ...tape });
+    expect(getComicProfilePatch({ name: 'Ada', tapeMinutes: 5 }, { name: 'Ada', tapeMinutes: 10 })).toEqual({ tapeMinutes: 10 });
+    const filed = addPerformersToRolodex([], [performer({ id: 'p1', name: 'Ada Cole', socialMedia: '@ada', ...tape })]);
+    expect(filed?.[0]).toMatchObject({ name: 'Ada Cole', socialMedia: '@ada', ...tape });
+  });
+});
+
 describe('performerToComic', () => {
   it('carries the whole profile across, not just the name', () => {
     const result = performerToComic(performer({

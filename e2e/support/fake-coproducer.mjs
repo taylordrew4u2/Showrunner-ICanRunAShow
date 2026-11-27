@@ -125,12 +125,13 @@ let modules = null;
  */
 export async function loadCoproducerModules() {
   if (!modules) {
-    const [schema, outline, untrusted] = await Promise.all([
+    const [schema, outline, untrusted, newComics] = await Promise.all([
       import('../../src/coproducer/schema'),
       import('../../src/coproducer/outline'),
       import('../../src/coproducer/untrusted'),
+      import('../../src/coproducer/newComics'),
     ]);
-    modules = { schema, outline, untrusted };
+    modules = { schema, outline, untrusted, newComics };
   }
   return modules;
 }
@@ -856,7 +857,19 @@ export async function handleCoproducer(ctx) {
       if (!Array.isArray(mediaIds) || mediaIds.length > MAX_MEDIA_IDS || mediaIds.some((id) => typeof id !== 'string' || !MEDIA_ID.test(id)) || new Set(mediaIds).size !== mediaIds.length) {
         refuse(400, 'bad_request');
       }
-      const checked = modules.schema.validatePayload(b.payload, { appOrigins: [MAIN_ORIGIN, REVIEW_ORIGIN] });
+      // As checkPayload: someone new comes with a name, a tape and social
+      // media and nothing else, held against the owner's Rolodex and shows.
+      // The real server reads those only as far as a request needs; the
+      // answer is the same with all of them to hand.
+      const ownShows = [];
+      for (const row of state.shows) {
+        try {
+          const show = decrypt(row.encryptedData, keys);
+          if (isBag(show)) ownShows.push(show);
+        } catch { /* A show that does not open names nobody. */ }
+      }
+      const people = modules.newComics.knownPeople(ownShows, ownSettings());
+      const checked = modules.schema.validatePayload(b.payload, { appOrigins: [MAIN_ORIGIN, REVIEW_ORIGIN], people });
       if (!checked.payload) refuse(400, 'bad_request', { problems: checked.problems.slice(0, 20) });
       const payload = checked.payload;
       // Files both ways, as checkMedia.

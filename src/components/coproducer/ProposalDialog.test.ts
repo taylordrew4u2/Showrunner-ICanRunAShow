@@ -110,4 +110,23 @@ describe('the proposal dialog', () => {
     expect(buttonsOf(render({ step: 'failed', failure: 'offline', retry: noop }))).toEqual(['Try again', 'OK']);
     expect(buttonsOf(render({ step: 'failed', failure: 'too_many_open' }))).toEqual(['OK', 'See everything pending']);
   });
+
+  // Someone new in the change without a name, a tape and social media (newComics.ts).
+  it('holds Send for approval, and says who needs what, while someone new is missing something', () => {
+    const blocked = ['Jo Park needs a tape link and the tape’s length (5 or 10 minutes).', 'Al is new, so only a name, a tape and social media can be sent. Take off their email.'];
+    const html = render({ step: 'review', groups, blocked, send: noop, keepEditing: noop, discard: noop });
+    expect(html).toMatch(/<div class="proposal-dialog__blocked" role="alert" id="proposal-dialog-blocked">/);
+    expect(textOf(html)).toContain("This can't be sent yet. Jo Park needs a tape link and the tape’s length (5 or 10 minutes). Al is new, so only a name, a tape and social media can be sent. Take off their email.");
+    expect(html).toMatch(/<button type="button" class="btn btn--primary" disabled="" aria-describedby="proposal-dialog-blocked">Send for approval<\/button>/);
+    // The way back is still there.
+    expect(buttonsOf(html)).toEqual(['Keep editing', 'Discard my changes', 'Send for approval']);
+    const draft = render({ step: 'restore-draft', groups, savedAt: new Date().toISOString(), blocked, send: noop, discard: noop });
+    expect(draft).toMatch(/disabled="" aria-describedby="proposal-dialog-blocked">Send for approval/);
+  });
+
+  it('leaves Send for approval alone when nothing holds it', () => {
+    const html = render({ step: 'review', groups, blocked: [], send: noop, keepEditing: noop, discard: noop });
+    expect(html).not.toContain('proposal-dialog__blocked');
+    expect(html).toMatch(/<button type="button" class="btn btn--primary">Send for approval<\/button>/);
+  });
 });
