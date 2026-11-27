@@ -185,7 +185,7 @@ export function HelpPage({ onBack }: { onBack: () => void }) {
       />
       {reviewing && guide.reviewLabel && (
         <p className="help-page__review" role="note">
-          {`You are helping with ${guide.reviewLabel}’s shows. Anything you change here is sent to them to approve.`}
+          {`You are helping with ${guide.reviewLabel}’s shows. Anything you change here is sent to them to approve. To add someone new you need their name, a link to a 5 or 10 minute tape and their social media.`}
         </p>
       )}
       {!reviewing && <TourSection guide={guide} />}

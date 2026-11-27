@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { AppSettings, Show } from '../types';
 import { onStagingChange, stagedMediaIdSet, stagingInFlight } from '../utils/mediaStore';
 import { clearUnsentDraft, saveUnsentDraft } from './boot';
-import { buildEditPayload, reviewDiffContext, stagedMediaIds, type ReviewTruth } from './capture';
+import { buildEditPayload, reviewDiffContext, sendBlocks, stagedMediaIds, type ReviewTruth } from './capture';
 import { INITIAL_CAPTURE, reduceCapture, sendFailureFor, type CaptureEffect, type CaptureEvent, type CaptureState } from './captureState';
 import { describePayload } from './diff';
 import type { ProposalDialogState, SendFailure } from './ReviewContext';
@@ -76,7 +76,7 @@ function createCaptureMachine(first: ProposalCaptureArgs, publish: (state: Captu
   const read = () => latest;
   let current: CaptureState = INITIAL_CAPTURE;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let reviewed: { payload: EditPayload; groups: ChangeGroup[] } | null = null;
+  let reviewed: { payload: EditPayload; groups: ChangeGroup[]; blocked: string[] } | null = null;
 
   function measure(): { payload: EditPayload | null; groups: ChangeGroup[] } {
     const { truthRef, shows, settings } = read();
@@ -98,7 +98,8 @@ function createCaptureMachine(first: ProposalCaptureArgs, publish: (state: Captu
   function send(): void {
     const { client, onDialog } = read();
     const sending = reviewed;
-    if (!sending || !client) {
+    // Someone new without a name, a tape and social media: never sent, however Send was reached.
+    if (!sending || !client || sending.blocked.length > 0) {
       run({ type: 'sendFailed', failure: 'invalid' });
       onDialog(failedStep('invalid'));
       return;
@@ -134,10 +135,13 @@ function createCaptureMachine(first: ProposalCaptureArgs, publish: (state: Captu
           run({ type: 'built', count: 0 });
           return;
         }
-        reviewed = { payload: measured.payload, groups: measured.groups };
+        const truth = read().truthRef.current;
+        const blocked = truth ? sendBlocks(measured.payload, truth) : [];
+        reviewed = { payload: measured.payload, groups: measured.groups, blocked };
         read().onDialog({
           step: 'review',
           groups: measured.groups,
+          blocked,
           send: () => run({ type: 'sendStarted' }),
           keepEditing: () => run({ type: 'reviewClosed' }),
           discard: () => run({ type: 'discardRequested' }),

@@ -237,6 +237,32 @@ it('keeps the sample mark out of what an assistant reads, and drops it when the 
   expect(comics[1]).toEqual(jo);
 });
 
+// PotentialComic.tapeMinutes: an assistant already reads the video link, and
+// reads how long the set in it is beside it. It cannot set the length, and
+// its edits to the entry leave it alone.
+it('shows an assistant a tape’s length beside its link, and keeps it through the assistant’s edit', async () => {
+  const [sam, jo] = settings.potentialComics;
+  const taped = { ...sam, videoLink: 'https://youtu.be/sam-tape', tapeMinutes: 10 as const };
+  const withTape: AppSettings = { ...settings, potentialComics: [taped, jo] };
+  await run('INSERT INTO user_settings (user_id, encrypted_data) VALUES (?, ?)', 'producer', encryptWithKey(withTape, key));
+  await run('INSERT INTO user_shows (id, user_id, encrypted_data) VALUES (?, ?, ?)', show.id, 'producer', encryptWithKey(show, key));
+  const token = await connect(ALL);
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const result = await rpc(token, 'tools/call', { name, arguments: args }) as ToolResult;
+    expect(result.isError, `${name}: ${result.content?.[0]?.text}`).toBeUndefined();
+    return result;
+  };
+  const read = (await call('get_comic', { id: 'c-sam' })).structuredContent as { comic: Record<string, unknown>; revision: string };
+  expect(read.comic).toMatchObject({ videoLink: 'https://youtu.be/sam-tape', tapeMinutes: 10 });
+  expect((await call('fetch', { id: 'comic:c-sam' })).content[0].text).toContain('Tape length: 10 minutes');
+  // Not something a tool takes.
+  const refused = await rpc(token, 'tools/call', { name: 'update_comic', arguments: { id: 'c-sam', expected_revision: read.revision, patch: { tapeMinutes: 5 } } }) as ToolResult;
+  expect(refused.isError).toBe(true);
+  await call('update_comic', { id: 'c-sam', expected_revision: read.revision, patch: { notes: 'Great closer' } });
+  const saved = (await run("SELECT encrypted_data FROM user_settings WHERE user_id = 'producer'")).rows[0].encrypted_data as string;
+  expect(decryptWithKey<AppSettings>(saved, key).potentialComics[0]).toEqual({ ...taped, notes: 'Great closer' });
+});
+
 it('tells ChatGPT which sign-in would allow a refused call, keeping the permissions already given', async () => {
   await seed();
   const token = await connect('shows:read shows:write');

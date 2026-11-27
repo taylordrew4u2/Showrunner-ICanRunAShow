@@ -6,7 +6,7 @@ import { withWalkOnSongs } from './walkOnSongs';
 
 /** Personal fields belong to one comic; show-slot ids and contracts do not. */
 export const COMIC_PROFILE_FIELDS = [
-  'name', 'photo', 'socialMedia', 'email', 'phone', 'notes', 'credits', 'videoLink',
+  'name', 'photo', 'socialMedia', 'email', 'phone', 'notes', 'credits', 'videoLink', 'tapeMinutes',
   'walkOnMusic', 'walkOnMusicName', 'walkOnMusicArtist', 'walkOnMusicTimestamp',
   'walkOnMusicLink', 'walkOnStartSec', 'walkOnEndSec',
 ] as const satisfies readonly (keyof Performer & keyof PotentialComic)[];

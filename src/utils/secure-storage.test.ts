@@ -372,6 +372,24 @@ describe('exportUserData', () => {
     expect(loaded.potentialComics).toEqual([marked, { id: 'c2', name: 'Grace' }]);
   });
 
+  // PotentialComic.tapeMinutes and Performer.tapeMinutes: a tape's link and its length.
+  it('keeps a tape’s link and length, on a Rolodex entry and on a booking, there and back', async () => {
+    const taped = { id: 'c1', name: 'Ada Cole', videoLink: 'https://youtu.be/ada-tape', tapeMinutes: 5 as const, socialMedia: '@ada' };
+    const settings = { ...DEFAULT_SETTINGS, potentialComics: [taped] };
+    const booked = show({ id: 'a', performers: [{ ...taped, id: 'p1', comicId: 'c1', tapeMinutes: 10 as const }] });
+    const written = mockExport([row(booked)]);
+    await exportUserData(CREDS, { shows: [booked], unreadable: [], settings });
+    const backup = JSON.parse(written[0]);
+    expect(backup.settings.potentialComics).toEqual([taped]);
+    expect(backup.shows[0].performers[0]).toMatchObject({ videoLink: 'https://youtu.be/ada-tape', tapeMinutes: 10 });
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ encryptedData: encryptWithKey(backup.settings, CREDS.key) }),
+    }));
+    const loaded = await loadEncryptedSettings({ ...CREDS });
+    expect(loaded.potentialComics).toEqual([taped]);
+  });
+
   it('leaves the key out entirely when every row read cleanly', async () => {
     const written = mockExport([row(show({ id: 'a' }))]);
 

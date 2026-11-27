@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { TapeLength } from './TapeLength';
 import type { Artist } from '../../types';
 import { audioUploadSizeError } from '../../utils/media';
 import { uploadMedia } from '../../utils/mediaStore';
@@ -242,6 +243,11 @@ export function ArtistProfile({ artist, onBack, onChange, onDelete }: ArtistProf
               value={artist.videoLink || ''}
               onChange={e => onChange({ ...artist, videoLink: e.target.value.trim() || undefined })}
               placeholder="Paste video link (YouTube, Vimeo, Drive…)"
+            />
+            <TapeLength
+              id={`${fieldId}-tape-length`}
+              value={artist.tapeMinutes}
+              onChange={(tapeMinutes) => onChange({ ...artist, tapeMinutes })}
             />
             {artist.videoLink && (
               <a href={artist.videoLink} target="_blank" rel="noopener noreferrer" className="perf-profile__music-link">

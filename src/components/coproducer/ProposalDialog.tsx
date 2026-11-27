@@ -48,6 +48,7 @@ const FAILURES: Record<SendFailure, { text: string; buttons: FailureButton[] }> 
 };
 
 const TITLE_ID = 'proposal-dialog-title';
+const BLOCKED_ID = 'proposal-dialog-blocked';
 
 /**
  * Every step of sending something to the owner for approval: reviewing an
@@ -66,13 +67,29 @@ export function ProposalDialog({ state, onClose, onSeePending, resolveMedia = re
   const { confirm, confirmDialog } = useConfirm();
   const list = (groups: Parameters<typeof ChangeList>[0]['groups']) => <ChangeList groups={groups} resolveMedia={resolveMedia} />;
 
-  const sendButton = (send: () => void) => (
+  // Held while offline, and while someone new in the change is missing
+  // their name, tape or social media: the list above the buttons says who.
+  const sendButton = (send: () => void, blocked: readonly string[] = []) => (
     <>
       {!online && <span className="proposal-dialog__offline" role="status">You're offline</span>}
-      <button type="button" className="btn btn--primary" onClick={send} disabled={!online}>
+      <button
+        type="button"
+        className="btn btn--primary"
+        onClick={send}
+        disabled={!online || blocked.length > 0}
+        aria-describedby={blocked.length > 0 ? BLOCKED_ID : undefined}
+      >
         Send for approval
       </button>
     </>
+  );
+  const blockedNote = (blocked: readonly string[] = []) => blocked.length > 0 && (
+    <div className="proposal-dialog__blocked" role="alert" id={BLOCKED_ID}>
+      <p>This can't be sent yet.</p>
+      <ul>
+        {blocked.map((line) => <li key={line}>{line}</li>)}
+      </ul>
+    </div>
   );
 
   let title: string;
@@ -90,6 +107,7 @@ export function ProposalDialog({ state, onClose, onSeePending, resolveMedia = re
         <>
           <p className="proposal-dialog__body">Nothing changes until the owner approves. Here's what's there now and what you're asking for:</p>
           {list(state.groups)}
+          {blockedNote(state.blocked)}
         </>
       );
       const discardAll = async () => {
@@ -101,7 +119,7 @@ export function ProposalDialog({ state, onClose, onSeePending, resolveMedia = re
           {/* Keep editing first, so it takes the dialog's first focus rather than the discard. */}
           <button type="button" className="btn btn--secondary" onClick={keepEditing}>Keep editing</button>
           <button type="button" className="btn btn--ghost" onClick={() => void discardAll()}>Discard my changes</button>
-          {sendButton(send)}
+          {sendButton(send, state.blocked)}
         </>
       );
       break;
@@ -174,12 +192,13 @@ export function ProposalDialog({ state, onClose, onSeePending, resolveMedia = re
             You have changes from {Number.isNaN(saved) ? 'earlier' : timeAgo(saved)} that weren't sent. Here they are:
           </p>
           {list(state.groups)}
+          {blockedNote(state.blocked)}
         </>
       );
       actions = (
         <>
           <button type="button" className="btn btn--secondary" onClick={discard}>Discard</button>
-          {sendButton(send)}
+          {sendButton(send, state.blocked)}
         </>
       );
       break;

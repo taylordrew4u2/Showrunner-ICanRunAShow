@@ -998,3 +998,228 @@ describe('a co-producer writes nothing of the owner’s', () => {
     expect(await snapshot()).toEqual(before);
   });
 });
+
+// Someone a co-producer brings in comes with a name, a tape and social media,
+// and nothing else (src/coproducer/newComics.ts). The server holds a request
+// to that against the owner's own account.
+describe('asking to add someone new (co-producer)', () => {
+  const TAPE = 'https://youtu.be/jopark-tape';
+  const jo = { id: 'c-jo', name: 'Jo Park', videoLink: TAPE, tapeMinutes: 5, socialMedia: '@jopark' };
+  const settings = fullSettings();
+  const sam = settings.potentialComics[0];
+  const before = settings.potentialComics.map((comic) => comic.id);
+
+  function rolodexAdd(row: Record<string, unknown>): EditPayload {
+    return {
+      kind: 'edit',
+      shows: [],
+      settings: {
+        target: 'settings', baseRevision: null,
+        fields: [{ field: 'potentialComics', kind: 'rows', idField: 'id', baseOrder: before, proposedOrder: [String(row.id), ...before], base: [], proposed: [[String(row.id), row]] }],
+      },
+    };
+  }
+  function lineup(list: 'performers' | 'artists', row: Record<string, unknown>, show = simpleShow()): EditPayload {
+    return {
+      kind: 'edit',
+      shows: [{ target: 'show', op: 'update', showId: show.id, baseRevision: null, keys: [list], base: { [list]: show[list] }, proposed: { [list]: [...show[list], row] } } as unknown as EditPayload['shows'][number]],
+      settings: null,
+    };
+  }
+  const NOW_ISO = '2026-09-01T12:00:00.000Z';
+  const problemsOf = async (res: Response) => ((await res.json()) as { problems?: { path: string; problem: string }[] }).problems?.map((p) => p.problem) ?? [];
+
+  async function account() {
+    await saveSettings(settings);
+    await saveShow(simpleShow());
+    return (await makeLink()).token;
+  }
+
+  it('accepts a new Rolodex entry with a name, a tape link, its length and social media', async () => {
+    const token = await account();
+    const view = await asked(token, rolodexAdd(jo));
+    const [[stored]] = await rows('SELECT payload FROM coproducer_requests WHERE id = ?', view.id);
+    expect(decryptWithKey(String(stored), KEY)).toEqual(rolodexAdd(jo));
+    await asked(token, rolodexAdd({ ...jo, id: 'c-al', name: 'Al', tapeMinutes: 10, socialMedia: 'https://facebook.com/profile.php?id=7' }));
+  });
+
+  it('refuses one missing any of them, and stores nothing', async () => {
+    const token = await account();
+    const without = (key: string) => {
+      const row: Record<string, unknown> = { ...jo };
+      delete row[key];
+      return row;
+    };
+    const cases: [Record<string, unknown>, string][] = [
+      [{ ...jo, name: ' ' }, 'someone new needs a name'],
+      [without('videoLink'), 'someone new needs a tape: an http or https link to a video of their set'],
+      [without('tapeMinutes'), 'someone new needs a tape length of 5 or 10 minutes'],
+      [without('socialMedia'), 'someone new needs their social media: a handle or a profile link'],
+      [{ ...jo, socialMedia: 'ask me later' }, 'someone new needs their social media: a handle or a profile link'],
+    ];
+    for (const [row, problem] of cases) {
+      const res = await ask(token, rolodexAdd(row));
+      expect(res.status, problem).toBe(400);
+      expect(await problemsOf(res)).toEqual([problem]);
+    }
+    expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
+  });
+
+  it('refuses a tape that is not an http or https link, and a length that is not 5 or 10', async () => {
+    const token = await account();
+    for (const videoLink of ['my tape', 'javascript:alert(1)', 'ftp://example.com/tape.mp4', `${main}/api/settings`]) {
+      expect((await ask(token, rolodexAdd({ ...jo, videoLink }))).status, videoLink).toBe(400);
+    }
+    for (const tapeMinutes of [7, 0, 15, '5']) {
+      expect((await ask(token, rolodexAdd({ ...jo, tapeMinutes }))).status, String(tapeMinutes)).toBe(400);
+    }
+    expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
+  });
+
+  it('refuses any other field on someone new', async () => {
+    const token = await account();
+    for (const extra of [{ email: 'jo@example.com' }, { phone: '555 0100' }, { notes: 'Pay 50' }, { credits: 'TV' }, { photo: 'media:abcdefgh#1' }, { walkOnMusicName: 'Song' }]) {
+      const res = await ask(token, rolodexAdd({ ...jo, ...extra }));
+      expect(res.status, Object.keys(extra)[0]).toBe(400);
+      expect(await problemsOf(res)).toEqual(['not allowed for someone new: only a name, a tape and social media']);
+    }
+    expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
+  });
+
+  it('refuses a new name on a bill without them, and accepts it with them', async () => {
+    const token = await account();
+    const bare = await ask(token, lineup('performers', { id: 'p-new', name: 'Walk In' }));
+    expect(bare.status).toBe(400);
+    expect(await problemsOf(bare)).toHaveLength(3);
+    expect((await ask(token, lineup('artists', { id: 'a-new', name: 'New Band', notes: 'Loud' }))).status).toBe(400);
+    expect((await ask(token, lineup('performers', { ...jo, id: 'p-new', email: 'jo@example.com' }))).status).toBe(400);
+    // A booking that claims a Rolodex entry the owner does not have.
+    const madeUp = await ask(token, lineup('performers', { ...sam, id: 'p-new', comicId: 'made-up' }));
+    expect(await problemsOf(madeUp)).toEqual(['not someone in the Rolodex']);
+    expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
+
+    await asked(token, lineup('artists', { ...jo, id: 'a-new', artistType: 'Band' }));
+    const both = lineup('performers', { ...jo, id: 'p-new', comicId: 'c-jo' });
+    both.settings = rolodexAdd(jo).settings;
+    await asked(token, both);
+  });
+
+  it('still books someone already in the Rolodex, and edits them, as before', async () => {
+    const token = await account();
+    // Their profile as the Rolodex has it, less the files (a file must be one the account holds).
+    const row: Record<string, unknown> = { ...sam };
+    delete row.photo;
+    delete row.walkOnMusic;
+    await asked(token, lineup('performers', { ...row, id: 'p-new', comicId: sam.id }));
+    await asked(token, {
+      kind: 'edit',
+      shows: [],
+      settings: {
+        target: 'settings', baseRevision: null,
+        fields: [{ field: 'potentialComics', kind: 'rows', idField: 'id', baseOrder: before, proposedOrder: before, base: [[sam.id, row]], proposed: [[sam.id, { ...row, email: 'new@example.com', notes: 'Moved.' }]] }],
+      },
+    });
+  });
+
+  it('knows an act already on one of the owner’s bills with no Rolodex entry, so a copy of that show still goes through', async () => {
+    await saveSettings(settings);
+    const legacy = simpleShow('show1', { artists: [{ id: 'a1', name: 'The House Band', notes: 'Loud' }] });
+    await saveShow(legacy);
+    const { token } = await makeLink();
+    const copy: Show = {
+      id: 'show2', name: 'Copy', date: '', time: '', location: '', venueName: '', status: 'upcoming',
+      performers: [], artists: [{ ...legacy.artists[0], id: 'a2' }], schedule: [], hosts: [], djSongs: [], staff: [], expenses: [],
+      createdAt: NOW_ISO, updatedAt: NOW_ISO,
+    };
+    await asked(token, { kind: 'edit', shows: [{ target: 'show', op: 'create', showId: 'show2', show: copy }], settings: null });
+    // The same act is nobody the owner has once it is on no bill.
+    await saveShow(simpleShow('show1', { artists: [] }));
+    expect((await ask(token, { kind: 'edit', shows: [{ target: 'show', op: 'create', showId: 'show3', show: { ...copy, id: 'show3' } }], settings: null })).status).toBe(400);
+  });
+
+  // A request made by hand can say anything about what was there before:
+  // who is new is read from the owner's account, never from the request.
+  describe('made by hand, lying about who was already there', () => {
+    const extras = { email: 'n@b.co', notes: 'no tape' };
+    const update = (list: 'performers' | 'artists', base: unknown[], proposed: unknown[]): EditPayload => ({
+      kind: 'edit',
+      shows: [{ target: 'show', op: 'update', showId: 'show1', baseRevision: null, keys: [list], base: { [list]: base }, proposed: { [list]: proposed } } as unknown as EditPayload['shows'][number]],
+      settings: null,
+    });
+    const NOT_THEIRS = ['not someone in the Rolodex'];
+
+    async function accountWith(show: Show) {
+      await saveSettings(settings);
+      await saveShow(show);
+      return (await makeLink()).token;
+    }
+
+    it('refuses a new name typed over an unlinked booking behind a made-up link on both sides', async () => {
+      const token = await accountWith(simpleShow('show1', { artists: [{ id: 'a1', name: 'House Band' }], performers: [{ id: 'p2', name: 'Walk On' }] }));
+      const band = await ask(token, update('artists', [{ id: 'a1', name: 'House Band', comicId: 'zzz' }], [{ id: 'a1', name: 'Brand New Band', comicId: 'zzz', ...extras }]));
+      expect(band.status).toBe(400);
+      expect(await problemsOf(band)).toEqual(NOT_THEIRS);
+      const comic = await ask(token, update('performers', [{ id: 'p2', name: 'Walk On', comicId: 'zzz' }], [{ id: 'p2', name: 'Brand New Comic', comicId: 'zzz', ...extras }]));
+      expect(comic.status).toBe(400);
+      expect(await problemsOf(comic)).toEqual(NOT_THEIRS);
+      // The honest version of the same rename.
+      const honest = await ask(token, update('artists', [{ id: 'a1', name: 'House Band' }], [{ id: 'a1', name: 'Brand New Band', ...extras }]));
+      expect(honest.status).toBe(400);
+      expect(await problemsOf(honest)).toHaveLength(5);
+      expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
+    });
+
+    it('refuses a new name behind a link whose Rolodex entry is gone', async () => {
+      const gone = { id: 'p1', name: 'Gone Person', comicId: 'gone' };
+      const token = await accountWith(simpleShow('show1', { performers: [gone] }));
+      for (const proposed of [
+        [gone, { id: 'p-s', name: 'Sneak In', comicId: 'gone', ...extras }],
+        [{ ...gone, name: 'Sneak In' }],
+      ]) {
+        const res = await ask(token, update('performers', [gone], proposed));
+        expect(res.status).toBe(400);
+        expect(await problemsOf(res)).toEqual(NOT_THEIRS);
+      }
+      expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
+      // The owner's own booking is still theirs to edit and to copy.
+      await asked(token, update('performers', [gone], [{ ...gone, notes: 'Back in May' }, { ...gone, id: 'p9' }]));
+    });
+
+    it('refuses a Rolodex entry or a name on a bill the owner does not have, whatever the request says was there', async () => {
+      const token = await account();
+      const sneak = { id: 'c-sneak', name: 'Sneak In', email: 'x@y.co' };
+      for (const base of [[], [['c-sneak', { id: 'c-sneak', name: 'Sneak In' }]]] as [string, unknown][][]) {
+        const res = await ask(token, {
+          kind: 'edit', shows: [],
+          settings: { target: 'settings', baseRevision: null, fields: [{ field: 'potentialComics', kind: 'rows', idField: 'id', baseOrder: ['c-sneak', ...before], proposedOrder: ['c-sneak', ...before], base, proposed: [['c-sneak', sneak]] }] },
+        });
+        expect(res.status).toBe(400);
+        expect(await problemsOf(res)).toHaveLength(4);
+      }
+      const real = simpleShow().performers;
+      const onBill = await ask(token, update('performers', [...real, { id: 'p-s', name: 'Sneak In' }], [...real, { id: 'p-s', name: 'Sneak In', email: 'x@y.co' }]));
+      expect(onBill.status).toBe(400);
+      expect(await problemsOf(onBill)).toHaveLength(4);
+      expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
+    });
+
+    it('files someone already on a bill only as their booking has them', async () => {
+      const token = await accountWith(simpleShow('show1', { performers: [{ id: 'p2', name: 'Walk On', phone: '555 0100' }] }));
+      const more = await ask(token, rolodexAdd({ id: 'c-w', name: 'walk on', email: 'a@b.co', notes: 'n' }));
+      expect(more.status).toBe(400);
+      expect(await problemsOf(more)).toHaveLength(5);
+      expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
+      await asked(token, rolodexAdd({ id: 'c-w', name: 'Walk On', phone: '555 0100' }));
+    });
+
+    it('refuses social media that is not a handle or a profile link', async () => {
+      const token = await account();
+      for (const socialMedia of ['.', '-', 'https://', 'javascript:alert(1)', 'https://instagram.com/', 'https://instagram.com/p/abc']) {
+        const res = await ask(token, rolodexAdd({ ...jo, socialMedia }));
+        expect(res.status, socialMedia).toBe(400);
+        expect(await problemsOf(res)).toEqual(['someone new needs their social media: a handle or a profile link']);
+      }
+      expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
+    });
+  });
+});

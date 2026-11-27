@@ -75,11 +75,18 @@ export type SendFailure =
   | 'invalid'
   | 'server';
 
+/**
+ * Why an edit cannot be sent as it stands: one line per person it brings in
+ * without a name, a tape and their social media, or with more than those
+ * (newComics.ts). Empty or absent when it can go.
+ */
+export type SendBlocks = readonly string[];
+
 /** The proposal dialog's steps: reviewing an edit, sending it, sent, a share or download asked for, a failure, or a draft left unsent. */
 export type ProposalDialogState =
-  | { step: 'review'; groups: ChangeGroup[]; send(): void; keepEditing(): void; discard(): void }
+  | { step: 'review'; groups: ChangeGroup[]; blocked?: SendBlocks; send(): void; keepEditing(): void; discard(): void }
   | { step: 'sending'; groups: ChangeGroup[] }
   | { step: 'sent'; groups: ChangeGroup[] }
   | { step: 'asked'; groups: ChangeGroup[] }
   | { step: 'failed'; failure: SendFailure; retry?(): void; discard?(): void }
-  | { step: 'restore-draft'; groups: ChangeGroup[]; savedAt: string; send(): void; discard(): void };
+  | { step: 'restore-draft'; groups: ChangeGroup[]; savedAt: string; blocked?: SendBlocks; send(): void; discard(): void };

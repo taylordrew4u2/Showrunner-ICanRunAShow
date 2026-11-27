@@ -236,6 +236,8 @@ export interface FieldChange {
   change: 'added' | 'removed' | 'changed' | 'moved';
   /** Set when the value is a file: media refs or data URLs, for previews of both sides. */
   media?: { kind: MediaKind; before?: string; after?: string };
+  /** Set when the value is a web address to open (a tape): each side's http or https URL, checked. */
+  link?: { before?: string; after?: string };
 }
 /** Shares and downloads: the item itself, shown in place of "Now". */
 export interface HandOver {

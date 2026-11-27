@@ -137,6 +137,19 @@
   color: var(--danger-text);
 }
 
+/* A tape's link: the same colour as the value it is, underlined so it reads
+   as something to open. */
+.change-list__link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.change-list__link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
 .change-list__thumbs {
   display: flex;
   gap: var(--space-2);
@@ -582,4 +595,102 @@ body.has-modal .unsent-bar {
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--warning);
+}
+
+/* ── Adding someone new (co-producer view) ─────────────────────────────── */
+
+.new-comic {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.new-comic__intro,
+.new-comic__hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.new-comic__field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.new-comic__label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.new-comic__length {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.new-comic__length legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+}
+
+.new-comic__choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.new-comic__error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--danger-text);
+}
+
+.new-comic [aria-invalid='true'] {
+  outline: 2px solid var(--danger-text);
+  outline-offset: 1px;
+}
+
+.new-comic__summary {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--danger-text);
+}
+
+.new-comic__summary:empty {
+  display: none;
+}
+
+.new-comic__add {
+  justify-self: start;
+}
+
+/* The review step, held: who still needs what before it can be sent. */
+.proposal-dialog__blocked {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--danger-text);
+  border-radius: var(--radius-md, 8px);
+  color: var(--danger-text);
+  font-size: var(--text-md);
+}
+
+.proposal-dialog__blocked p {
+  margin: 0 0 var(--space-1);
+  font-weight: 700;
+}
+
+.proposal-dialog__blocked ul {
+  margin: 0;
+  padding-left: var(--space-5, 1.25rem);
 }

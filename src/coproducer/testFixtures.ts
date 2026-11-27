@@ -69,6 +69,7 @@ const person: Required<Performer> = {
   walkOnEndSec: 60.5,
   credits: 'As seen on TV.',
   videoLink: 'https://example.com/video',
+  tapeMinutes: 10,
   surpriseGuest: false,
 };
 
@@ -208,6 +209,7 @@ export function fullSettings(over: Partial<AppSettings> = {}): Required<AppSetti
     walkOnStartSec: 30,
     walkOnEndSec: 60.5,
     videoLink: 'https://example.com/video',
+    tapeMinutes: 10,
   };
   const expense: Required<Expense> = { id: 'ge1', category: 'Marketing', itemName: 'Posters', cost: 40, date: '2026-07-10', notes: 'Two sizes.' };
   const email: Required<EmailListEntry> = { id: 'em1', email: 'fan@example.com', addedAt: '2026-07-03T10:00:00.000Z' };

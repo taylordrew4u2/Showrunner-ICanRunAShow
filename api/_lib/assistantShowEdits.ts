@@ -60,7 +60,7 @@ function showing(show: Show, section: SectionKey): Show {
   return { ...show, hiddenSections: show.hiddenSections.filter(key => key !== section) };
 }
 
-const profileLimits: Record<Exclude<keyof ComicProfile, 'photo' | 'walkOnMusic' | 'walkOnStartSec' | 'walkOnEndSec'>, number> = {
+const profileLimits: Record<Exclude<keyof ComicProfile, 'photo' | 'walkOnMusic' | 'walkOnStartSec' | 'walkOnEndSec' | 'tapeMinutes'>, number> = {
   name: 200, socialMedia: 500, email: 320, phone: 50, notes: 5000, credits: 2000, videoLink: 2048,
   walkOnMusicName: 300, walkOnMusicArtist: 300, walkOnMusicLink: 2048, walkOnMusicTimestamp: 20,
 };

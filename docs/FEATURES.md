@@ -31,7 +31,7 @@ The full feature list. The [README](../README.md) has the short version.
 
 - Multiple shows with status tracking (upcoming, in-progress, completed, cancelled)
 - A show opens on its performers: the lineup comes first, with the running order beside it on a laptop and below it on a phone
-- Per-show lineup with performer profiles: headshot, social media, email, credits, walk-on track, and video link
+- Per-show lineup with performer profiles: headshot, social media, email, credits, walk-on track, and video link with its tape length
 - A flyer on every show: upload, view full size, download, replace or remove. Stored encrypted like headshots, and never removed by the storage sweep while a show uses it
 - Headshots are resized in the browser and stored encrypted in the media store; the photo becomes the face on that performer's Run Show button
 - Clickable contacts: social handles link straight to the profile (bare handles resolve to Instagram); one tap to email a performer
@@ -67,6 +67,8 @@ The full feature list. The [README](../README.md) has the short version.
 ## Co-producers
 
 - Co-producers: give another producer a link to see everything in your account. Their changes, and any links they want to share, come to you under Requests, showing what's there now and what they asked for, and only go in if you approve them. Their downloads, copying and printing wait for your approval in the app too, though anything they can see can still be saved by someone determined. Withdraw a link any time in Settings, along with any links you approved for them to share.
+- A co-producer can only add someone new, to the Rolodex or to a show's performers or artists, with three things: their name, a tape (a link to a video of their set, marked as a 5 or a 10 minute tape) and their social media. Their add form asks for exactly those and nothing else, and says what is missing instead of adding; a change that brings in someone without them cannot be sent, the server refuses one made by hand (who is new is read from your own Rolodex and shows, never from what the request says was there before), and nothing else about a new person (email, phone, notes, credits, headshot, walk-on) can ride along. The request shows you the tape as a link that opens in a new tab, its length and the handle, and approving it files the person with just those. Social media has to be a handle or a link to a profile: a stray full stop, a site's front page or a link to a single post does not count. Booking someone already in your Rolodex, and editing people who are already there, work as before: that includes a co-producer renaming an existing Rolodex entry, which reaches you as a change showing the old name beside the new one, not as someone new. None of this applies to you
+- Every profile has a Tape length (5 or 10 minutes) under its video link
 
 ## Running it from the stage
 
