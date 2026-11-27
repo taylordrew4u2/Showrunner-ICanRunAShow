@@ -874,6 +874,16 @@ const NEW_PERSON_NEEDS = {
 /** Matches the problems checkNewPeople reports, and no other: the ones knowing more of the owner's people can clear. */
 export const NEW_PERSON_PROBLEM = /^(?:someone new needs |not allowed for someone new|not someone in the Rolodex$)/;
 
+/**
+ * Whether a refusal is, among anything else, for a tape that is not there:
+ * someone new with none, or a tape link that is not a link at all (which is
+ * refused before anyone is asked who is new). What the no-tape sign is said for.
+ */
+export function refusedForNoTape(problems: readonly { path: string; problem: string }[]): boolean {
+  return problems.some((problem) =>
+    problem.problem === NEW_PERSON_NEEDS.tape || (problem.problem === 'not an allowed link' && /(?:^|\.)videoLink$/.test(problem.path)));
+}
+
 /** The rule for people a co-producer brings in (newComics.ts), as schema problems. */
 function checkNewPeople(c: Checker, payload: EditPayload): void {
   for (const problem of newPeopleProblems(payload, c.ctx.people)) {

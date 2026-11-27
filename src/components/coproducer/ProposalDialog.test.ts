@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ProposalDialogState, SendFailure } from '../../coproducer/ReviewContext';
 import type { ChangeGroup } from '../../coproducer/types';
-import { ProposalDialog } from './ProposalDialog';
+import { pressSend, ProposalDialog } from './ProposalDialog';
 
 const groups: ChangeGroup[] = [{
   key: 'show:show1',
@@ -128,5 +128,74 @@ describe('the proposal dialog', () => {
     const html = render({ step: 'review', groups, blocked: [], send: noop, keepEditing: noop, discard: noop });
     expect(html).not.toContain('proposal-dialog__blocked');
     expect(html).toMatch(/<button type="button" class="btn btn--primary">Send for approval<\/button>/);
+  });
+
+  // Someone new with no tape: the owner's sign, every time Send is tried.
+  describe('with someone new who has no tape', () => {
+    const SIGN = "Sorry, you can't submit without a tape. Missing for: Ada Park.";
+    const blocked = ['Ada Park needs a tape link and the tape’s length (5 or 10 minutes).'];
+    const noTape = ['Ada Park'];
+
+    it('puts the sign at the top of the review, naming them', () => {
+      const html = render({ step: 'review', groups, blocked, noTape, send: noop, keepEditing: noop, discard: noop });
+      const sign = html.match(/<p class="no-tape-sign" role="alert" id="proposal-dialog-no-tape" data-attempt="0">(.*?)<\/p>/)![1];
+      expect(textOf(sign)).toBe(SIGN);
+      expect(sign).toMatch(/<svg[^>]*aria-hidden="true"/);
+      // Above everything else in the dialog but its title.
+      expect(html.indexOf('no-tape-sign')).toBeLessThan(html.indexOf('proposal-dialog__body'));
+      expect(html.indexOf('proposal-dialog__title')).toBeLessThan(html.indexOf('no-tape-sign'));
+      const many = render({ step: 'review', groups, blocked, noTape: ['Ada Park', 'Bo Lee'], send: noop, keepEditing: noop, discard: noop });
+      expect(textOf(many)).toContain("Sorry, you can't submit without a tape. Missing for: Ada Park and Bo Lee.");
+    });
+
+    it('leaves Send for approval pressable so that pressing it says so again, but never sends', () => {
+      const html = render({ step: 'review', groups, blocked, noTape, send: noop, keepEditing: noop, discard: noop });
+      const button = html.match(/<button[^>]*>Send for approval<\/button>/)![0];
+      expect(button).toContain('aria-disabled="true"');
+      expect(button).not.toContain(' disabled=""');
+      expect(button).toContain('aria-describedby="proposal-dialog-no-tape proposal-dialog-blocked"');
+      expect(buttonsOf(html)).toEqual(['Keep editing', 'Discard my changes', 'Send for approval']);
+
+      const send = vi.fn();
+      const sign = vi.fn();
+      for (let press = 0; press < 3; press += 1) pressSend({ online: true, blocked, noTape }, send, sign);
+      expect(send).not.toHaveBeenCalled();
+      expect(sign).toHaveBeenCalledTimes(3);
+      // Offline too: the sign, not a send.
+      pressSend({ online: false, blocked, noTape }, send, sign);
+      expect(send).not.toHaveBeenCalled();
+      expect(sign).toHaveBeenCalledTimes(4);
+    });
+
+    it('is the same for changes left unsent last time', () => {
+      const html = render({ step: 'restore-draft', groups, savedAt: new Date().toISOString(), blocked, noTape, send: noop, discard: noop });
+      expect(textOf(html)).toContain(SIGN);
+      expect(html).toMatch(/aria-disabled="true"[^>]*>Send for approval/);
+    });
+
+    it('sends as before once nobody is missing a tape', () => {
+      const send = vi.fn();
+      const sign = vi.fn();
+      pressSend({ online: true, blocked: [], noTape: [] }, send, sign);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(sign).not.toHaveBeenCalled();
+      // Held for another reason, or offline: nothing goes, and no sign about tapes.
+      pressSend({ online: true, blocked: ['Al is new, so only a name, a tape and social media can be sent. Take off their email.'], noTape: [] }, send, sign);
+      pressSend({ online: false, blocked: [], noTape: [] }, send, sign);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(sign).not.toHaveBeenCalled();
+      const html = render({ step: 'review', groups, blocked: [], noTape: [], send: noop, keepEditing: noop, discard: noop });
+      expect(html).not.toContain('no-tape-sign');
+      expect(html).toMatch(/<button type="button" class="btn btn--primary">Send for approval<\/button>/);
+    });
+
+    it('shows the server’s refusal for the same reason as the same sign', () => {
+      const html = render({ step: 'failed', failure: 'no_tape', discard: noop });
+      expect(titleOf(html)).toBe("That didn't send");
+      const sign = html.match(/<p class="no-tape-sign" role="alert"[^>]*>(.*?)<\/p>/)![1];
+      expect(textOf(sign)).toBe("Sorry, you can't submit without a tape.");
+      expect(sign).toMatch(/<svg[^>]*aria-hidden="true"/);
+      expect(buttonsOf(html)).toEqual(['Discard my change', 'OK']);
+    });
   });
 });

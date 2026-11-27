@@ -149,6 +149,32 @@ function listed(items: string[]): string {
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }
 
+/**
+ * The sign: what a co-producer is told, in the owner's own words, every time
+ * they try to add or send someone new who has no tape. No link, or a link
+ * that is not an http or https one, is no tape. Said in the add form, the
+ * review step, the unsent bar and by the server; written here and nowhere else.
+ */
+export const NO_TAPE_SIGN = "Sorry, you can't submit without a tape.";
+/** The notice that stands by the tape field before anything is tried. */
+export const TAPE_REQUIRED_NOTICE = 'A tape is required. No tape, no submission.';
+
+/** The sign when this new person has no tape, or null when they have one. */
+export function noTapeMessage(row: unknown): string | null {
+  return checkNewComic(row).missing.includes('tape') ? NO_TAPE_SIGN : null;
+}
+
+/** Whoever among the problems has no tape, each once, as the sign names them. */
+export function noTapeNames(problems: readonly Pick<NewPersonProblem, 'who' | 'missing'>[]): string[] {
+  const names = problems.filter((problem) => problem.missing.includes('tape')).map((problem) => problem.who || 'someone with no name yet');
+  return [...new Set(names)];
+}
+
+/** The sign, naming who it applies to when that is known: '… Missing for: Ada Park.' */
+export function noTapeSign(names: readonly string[] = []): string {
+  return names.length > 0 ? `${NO_TAPE_SIGN} Missing for: ${listed([...names])}.` : NO_TAPE_SIGN;
+}
+
 /** 'a tape link, the tape’s length (5 or 10 minutes) and their social media'. */
 export function needsText(missing: readonly NewComicNeed[]): string {
   return listed(missing.map((need) => NEED_WORDS[need]));

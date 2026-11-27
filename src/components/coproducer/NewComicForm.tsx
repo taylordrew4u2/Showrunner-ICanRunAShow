@@ -2,13 +2,16 @@ import { useId, useRef, useState } from 'react';
 import {
   checkNewComic,
   needsText,
+  NO_TAPE_SIGN,
   normalizeSocial,
   normalizeTapeUrl,
   TAPE_MINUTES,
+  TAPE_REQUIRED_NOTICE,
   tapeLengthLabel,
   type NewComicNeed,
   type TapeMinutes,
 } from '../../coproducer/newComics';
+import { NoTapeSign } from './NoTapeSign';
 import './coproducer.css';
 
 /** What the form holds while it is being filled in. */
@@ -37,29 +40,58 @@ export function readNewComic(values: NewComicValues): { entry: NewComicEntry } |
 
 const FIELD_ERRORS: Record<NewComicNeed, string> = {
   name: 'Add their name.',
-  tape: 'Add a link to their tape. It starts with http:// or https://.',
+  tape: NO_TAPE_SIGN,
   length: 'Choose 5 or 10 minutes.',
   social: 'Add their handle or a link to their profile.',
 };
+
+/** The form between presses: what is typed, what the last press of Add found missing, and how many presses were refused. */
+export interface NewComicFormState {
+  values: NewComicValues;
+  /** Null until Add is pressed, and again once someone is added. */
+  refused: NewComicNeed[] | null;
+  attempts: number;
+}
+// eslint-disable-next-line react-refresh/only-export-components
+export const NEW_COMIC_START: NewComicFormState = { values: EMPTY_NEW_COMIC, refused: null, attempts: 0 };
+
+/**
+ * One press of Add, or Enter. With everything there: the entry to add, and a
+ * clean form. Otherwise nothing to add, however often it is pressed: what is
+ * missing, one more refused attempt (each puts the no-tape sign up afresh),
+ * and where to go, which is the tape field whenever there is no tape.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function pressAdd(state: NewComicFormState): { state: NewComicFormState; entry: NewComicEntry | null; focus: NewComicNeed } {
+  const result = readNewComic(state.values);
+  if ('entry' in result) return { state: NEW_COMIC_START, entry: result.entry, focus: 'name' };
+  return {
+    state: { ...state, refused: result.missing, attempts: state.attempts + 1 },
+    entry: null,
+    focus: result.missing.includes('tape') ? 'tape' : result.missing[0],
+  };
+}
 
 /**
  * The only way a co-producer adds someone new: a name, a tape (its link, and
  * whether it is five or ten minutes) and their social media. Nothing else is
  * asked for, and nothing is added until all of it is there: pressing Add
  * without it says what is missing, beside each field and in one line by the
- * button, and leaves the page as it was. The owner's own forms are untouched.
+ * button, and leaves the page as it was. A tape is asked for before anything
+ * is pressed, and every press without one puts the sign up again, at the top
+ * of the form and beside the tape field, until a link that works is typed.
+ * The owner's own forms are untouched.
  */
 export function NewComicForm({ who, onAdd, initial }: {
   /** What this page calls the person: 'Performer', 'Artist', the Rolodex's own word. */
   who: string;
   onAdd: (entry: NewComicEntry) => void;
   /** For tests: the form as it stands after a refused Add. */
-  initial?: { values: NewComicValues; refused: NewComicNeed[] };
+  initial?: Pick<NewComicFormState, 'values' | 'refused'> & { attempts?: number };
 }) {
   const id = useId();
-  const [values, setValues] = useState<NewComicValues>(initial?.values ?? EMPTY_NEW_COMIC);
-  /** What the last press of Add found missing. Null until Add is pressed, and again once someone is added. */
-  const [refused, setRefused] = useState<NewComicNeed[] | null>(initial?.refused ?? null);
+  const [form, setForm] = useState<NewComicFormState>({ ...NEW_COMIC_START, ...initial });
+  const { values, refused, attempts } = form;
   const nameRef = useRef<HTMLInputElement>(null);
   const tapeRef = useRef<HTMLInputElement>(null);
   const lengthRef = useRef<HTMLInputElement>(null);
@@ -75,29 +107,29 @@ export function NewComicForm({ who, onAdd, initial }: {
   const error = (need: NewComicNeed) => bad(need) && (
     <p className="new-comic__error" id={errorId(need)}>{FIELD_ERRORS[need]}</p>
   );
-  const set = (patch: Partial<NewComicValues>) => setValues((current) => ({ ...current, ...patch }));
+  const set = (patch: Partial<NewComicValues>) => setForm((current) => ({ ...current, values: { ...current.values, ...patch } }));
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    const result = readNewComic(values);
-    if ('missing' in result) {
-      setRefused(result.missing);
-      refs[result.missing[0]].current?.focus();
-      return;
-    }
-    onAdd(result.entry);
-    setValues(EMPTY_NEW_COMIC);
-    setRefused(null);
-    nameRef.current?.focus();
+    const pressed = pressAdd(form);
+    if (pressed.entry) onAdd(pressed.entry);
+    setForm(pressed.state);
+    refs[pressed.focus].current?.focus();
   }
 
   const shown = refused?.filter((need) => stillMissing.includes(need)) ?? [];
 
   return (
     <form className="new-comic" noValidate onSubmit={submit} aria-describedby={`${id}-intro`}>
-      <p className="new-comic__intro" id={`${id}-intro`}>
-        Someone new needs a name, a tape and their social media. The owner sees these before approving.
-      </p>
+      <div className="new-comic__top">
+        {/* Always in the page, and a new sign in it for each refused press, so every press is read out. */}
+        <div className="new-comic__sign" aria-live="assertive" aria-atomic="true">
+          {bad('tape') && <NoTapeSign key={attempts} attempt={attempts} alert={false} also={bad('length') ? FIELD_ERRORS.length : undefined} />}
+        </div>
+        <p className="new-comic__intro" id={`${id}-intro`}>
+          Someone new needs a name, a tape and their social media. The owner sees these before approving.
+        </p>
+      </div>
       <div className="new-comic__field">
         <label className="new-comic__label" htmlFor={`${id}-name`}>{who} name</label>
         <input
@@ -127,9 +159,12 @@ export function NewComicForm({ who, onAdd, initial }: {
           autoComplete="off"
           aria-required="true"
           aria-invalid={bad('tape') || undefined}
-          aria-describedby={described('tape', `${id}-tape-hint`)}
+          aria-describedby={described('tape', `${id}-tape-notice ${id}-tape-hint`)}
         />
-        <p className="new-comic__hint" id={`${id}-tape-hint`}>A link to a video of their set.</p>
+        <p className="new-comic__notice" id={`${id}-tape-notice`}>{TAPE_REQUIRED_NOTICE}</p>
+        <p className="new-comic__hint" id={`${id}-tape-hint`}>
+          A link to a video of their set.{bad('tape') && values.tape.trim() !== '' && ' A tape link starts with http:// or https://.'}
+        </p>
         {error('tape')}
       </div>
       <fieldset className="new-comic__length" aria-describedby={described('length')}>

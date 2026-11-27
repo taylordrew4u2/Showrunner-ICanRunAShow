@@ -131,6 +131,9 @@ describe('sendFailureFor', () => {
     expect(sendFailureFor(err(409, 'too_many_staged_files'), true)).toBe('too_many_files');
     expect(sendFailureFor(err(400, 'unknown_media'), true)).toBe('unknown_media');
     expect(sendFailureFor(err(400, 'bad_request'), true)).toBe('invalid');
+    // Refused for someone new with no tape: the server says so in the sign's own words.
+    expect(sendFailureFor(Object.assign(err(400, 'bad_request'), { detail: "Sorry, you can't submit without a tape." }), true)).toBe('no_tape');
+    expect(sendFailureFor(Object.assign(err(400, 'bad_request'), { detail: 'something else' }), true)).toBe('invalid');
     expect(sendFailureFor(err(409, 'media_in_use'), true)).toBe('server');
     expect(sendFailureFor(err(502), true)).toBe('server');
     expect(sendFailureFor(Object.assign(new Error('x'), { name: 'ServerNotConfiguredError' }), true)).toBe('server');

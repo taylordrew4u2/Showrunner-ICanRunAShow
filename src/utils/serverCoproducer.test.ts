@@ -1065,6 +1065,40 @@ describe('asking to add someone new (co-producer)', () => {
     expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
   });
 
+  it('says the no-tape sign in words when it refuses someone new for having no tape, and keeps the problem codes', async () => {
+    const token = await account();
+    const SIGN = "Sorry, you can't submit without a tape.";
+    const TAPE_PROBLEM = 'someone new needs a tape: an http or https link to a video of their set';
+    const answered = async (res: Response) => {
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string; message?: string; problems: { problem: string }[] };
+      expect(body.error).toBe('bad_request');
+      return { message: body.message, problems: body.problems.map((p) => p.problem) };
+    };
+    const noLink: Record<string, unknown> = { ...jo };
+    delete noLink.videoLink;
+    for (const row of [noLink, { ...jo, videoLink: '' }, { id: 'c-jo', name: 'Jo Park' }]) {
+      const said = await answered(await ask(token, rolodexAdd(row)));
+      expect(said.message, JSON.stringify(row)).toBe(SIGN);
+      expect(said.problems).toContain(TAPE_PROBLEM);
+    }
+    // A tape link that is not an http or https link is no tape either; its code is the schema's own.
+    for (const videoLink of ['my tape', 'javascript:alert(1)', 'ftp://example.com/tape.mp4']) {
+      const said = await answered(await ask(token, rolodexAdd({ ...jo, videoLink })));
+      expect(said.message, videoLink).toBe(SIGN);
+      expect(said.problems).toEqual(['not an allowed link']);
+    }
+    // A new name on a bill with no tape is told the same.
+    expect((await answered(await ask(token, lineup('performers', { id: 'p-new', name: 'Walk In' })))).message).toBe(SIGN);
+    // Refused for anything else, the sign is not said.
+    for (const row of [{ ...jo, tapeMinutes: 7 }, { ...jo, socialMedia: 'ask me later' }, { ...jo, email: 'jo@example.com' }, { ...jo, name: ' ' }]) {
+      const said = await answered(await ask(token, rolodexAdd(row)));
+      expect(said.message, JSON.stringify(row)).toBeUndefined();
+      expect(said.problems).not.toContain(TAPE_PROBLEM);
+    }
+    expect(await count('SELECT COUNT(*) FROM coproducer_requests')).toBe(0);
+  });
+
   it('refuses a tape that is not an http or https link, and a length that is not 5 or 10', async () => {
     const token = await account();
     for (const videoLink of ['my tape', 'javascript:alert(1)', 'ftp://example.com/tape.mp4', `${main}/api/settings`]) {

@@ -115,7 +115,7 @@ import { createCoproducerClient, onLinkEnded } from './coproducer/client';
 import { enterReviewMode, getReviewSession, isReviewMode, makeReviewSession, type ReviewSession } from './coproducer/reviewMode';
 import { mainOrigin, onReviewOrigin } from './coproducer/origins';
 import { loadReviewData, refreshReviewData, type LoadedReview } from './coproducer/loadReviewData';
-import { reviewDiffContext, sendBlocks, type ReviewTruth } from './coproducer/capture';
+import { noTapePeople, reviewDiffContext, sendBlocks, type ReviewTruth } from './coproducer/capture';
 import { sendFailureFor } from './coproducer/captureState';
 import { describePayload } from './coproducer/diff';
 import { copyText } from './coproducer/gates';
@@ -1286,7 +1286,8 @@ export default function App() {
     };
     const truth = reviewTruthRef.current;
     const blocked = truth ? sendBlocks(draft.payload, truth) : [];
-    setProposalDialog({ step: 'restore-draft', groups, savedAt: draft.savedAt, blocked, send: blocked.length > 0 ? () => {} : send, discard });
+    const noTape = truth ? noTapePeople(draft.payload, truth) : [];
+    setProposalDialog({ step: 'restore-draft', groups, savedAt: draft.savedAt, blocked, noTape, send: blocked.length > 0 ? () => {} : send, discard });
   }
 
   function closeProposalDialog() {
@@ -3158,6 +3159,7 @@ export default function App() {
                 count={capture.count}
                 staging={capture.staging}
                 heldBackAt={heldBackAt}
+                noTape={capture.noTape}
                 onReview={capture.requestReview}
                 onDiscard={capture.discard}
               />

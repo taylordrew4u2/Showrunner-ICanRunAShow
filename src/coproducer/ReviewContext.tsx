@@ -73,6 +73,7 @@ export type SendFailure =
   | 'unsupported_media'
   | 'unknown_media'
   | 'invalid'
+  | 'no_tape'
   | 'server';
 
 /**
@@ -82,11 +83,14 @@ export type SendFailure =
  */
 export type SendBlocks = readonly string[];
 
+/** Everyone new in an edit who has no tape, by name: the no-tape sign is up while there is anyone. */
+export type NoTape = readonly string[];
+
 /** The proposal dialog's steps: reviewing an edit, sending it, sent, a share or download asked for, a failure, or a draft left unsent. */
 export type ProposalDialogState =
-  | { step: 'review'; groups: ChangeGroup[]; blocked?: SendBlocks; send(): void; keepEditing(): void; discard(): void }
+  | { step: 'review'; groups: ChangeGroup[]; blocked?: SendBlocks; noTape?: NoTape; send(): void; keepEditing(): void; discard(): void }
   | { step: 'sending'; groups: ChangeGroup[] }
   | { step: 'sent'; groups: ChangeGroup[] }
   | { step: 'asked'; groups: ChangeGroup[] }
   | { step: 'failed'; failure: SendFailure; retry?(): void; discard?(): void }
-  | { step: 'restore-draft'; groups: ChangeGroup[]; savedAt: string; blocked?: SendBlocks; send(): void; discard(): void };
+  | { step: 'restore-draft'; groups: ChangeGroup[]; savedAt: string; blocked?: SendBlocks; noTape?: NoTape; send(): void; discard(): void };

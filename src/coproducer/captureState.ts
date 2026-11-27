@@ -15,6 +15,7 @@
  * - A send that failed for want of a connection is tried once more, by
  *   itself, when the browser comes back online.
  */
+import { NO_TAPE_SIGN } from './newComics';
 import type { SendFailure } from './ReviewContext';
 
 export type CaptureEvent =
@@ -174,7 +175,7 @@ export function reduceCapture(state: CaptureState, event: CaptureEvent): Capture
 
 /** The SendFailure an answer from POST ?route=requests means. */
 export function sendFailureFor(err: unknown, online: boolean): SendFailure {
-  const e = (err ?? {}) as { status?: number; code?: string; reason?: string; name?: string };
+  const e = (err ?? {}) as { status?: number; code?: string; reason?: string; name?: string; detail?: string };
   if (e.code === 'unsupported_media' || e.reason === 'unsupported_media') return 'unsupported_media';
   if (e.name === 'ServerNotConfiguredError' || e.code === 'review_mode') return 'server';
   if (!online || e.status === undefined) return 'offline';
@@ -185,6 +186,8 @@ export function sendFailureFor(err: unknown, online: boolean): SendFailure {
   if (e.status === 409 && e.code === 'too_many_open_requests') return 'too_many_open';
   if (e.status === 409 && e.code === 'too_many_staged_files') return 'too_many_files';
   if (e.status === 400 && e.code === 'unknown_media') return 'unknown_media';
+  // Refused for someone new with no tape: the server says the sign itself.
+  if (e.status === 400 && e.detail === NO_TAPE_SIGN) return 'no_tape';
   if (e.status === 400) return 'invalid';
   return 'server';
 }

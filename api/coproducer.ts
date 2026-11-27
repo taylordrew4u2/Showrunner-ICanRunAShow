@@ -64,8 +64,8 @@ import { clientAddress, rateLimit } from './_lib/ratelimit';
 import { cipherHash } from './_lib/showWrites';
 import { signTokenOwnership } from './_lib/tokenOwnership';
 import { buildOutline } from '../src/coproducer/outline';
-import { knownPeople, type KnownPeople } from '../src/coproducer/newComics';
-import { ALLOWED_MEDIA_TYPES, changedMediaIds, NEW_PERSON_PROBLEM, sniffMediaType, validatePayload } from '../src/coproducer/schema';
+import { knownPeople, NO_TAPE_SIGN, type KnownPeople } from '../src/coproducer/newComics';
+import { ALLOWED_MEDIA_TYPES, changedMediaIds, NEW_PERSON_PROBLEM, refusedForNoTape, sniffMediaType, validatePayload } from '../src/coproducer/schema';
 import {
   COPRODUCER_LIMITS,
   type ApprovalResult,
@@ -781,7 +781,11 @@ const createRequest: Handler<BearerLink> = async (req, db, link) => {
     refuse('bad_request', 400);
   }
   const checked = await checkPayload(db, link, rawPayload, [appOrigin(req), reviewOrigin(req)]);
-  if (!checked.payload) refuse('bad_request', 400, { problems: checked.problems.slice(0, 20) });
+  if (!checked.payload) {
+    // The problems are for a program; someone new with no tape is also told so in the owner's words.
+    const message = refusedForNoTape(checked.problems) ? { message: NO_TAPE_SIGN } : {};
+    refuse('bad_request', 400, { problems: checked.problems.slice(0, 20), ...message });
+  }
   const payload = checked.payload;
   const outline = buildOutline(payload);
   const payloadCipher = await encryptShow(payload, link.key);

@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { AppSettings, Show } from '../types';
 import { onStagingChange, stagedMediaIdSet, stagingInFlight } from '../utils/mediaStore';
 import { clearUnsentDraft, saveUnsentDraft } from './boot';
-import { buildEditPayload, reviewDiffContext, sendBlocks, stagedMediaIds, type ReviewTruth } from './capture';
+import { buildEditPayload, noTapePeople, reviewDiffContext, sendBlocks, stagedMediaIds, type ReviewTruth } from './capture';
 import { INITIAL_CAPTURE, reduceCapture, sendFailureFor, type CaptureEffect, type CaptureEvent, type CaptureState } from './captureState';
 import { describePayload } from './diff';
 import type { ProposalDialogState, SendFailure } from './ReviewContext';
@@ -33,6 +33,8 @@ export interface ProposalCapture {
   /** An upload is staging: Send and Discard wait for it. */
   staging: boolean;
   sending: boolean;
+  /** Everyone new in the unsent changes who has no tape, by name: the bar's no-tape sign. */
+  noTape: readonly string[];
 }
 
 export interface ProposalCaptureArgs {
@@ -58,7 +60,7 @@ export const CAPTURE_SETTLE_MS = 300;
 
 const RETRYABLE: ReadonlySet<SendFailure> = new Set(['offline', 'server']);
 const DISCARDABLE: ReadonlySet<SendFailure> = new Set([
-  'offline', 'server', 'too_big', 'too_many_open', 'storage_full_link', 'storage_full_account', 'unknown_media', 'invalid',
+  'offline', 'server', 'too_big', 'too_many_open', 'storage_full_link', 'storage_full_account', 'unknown_media', 'invalid', 'no_tape',
 ]);
 
 function changeCount(groups: ChangeGroup[]): number {
@@ -76,7 +78,14 @@ function createCaptureMachine(first: ProposalCaptureArgs, publish: (state: Captu
   const read = () => latest;
   let current: CaptureState = INITIAL_CAPTURE;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let reviewed: { payload: EditPayload; groups: ChangeGroup[]; blocked: string[] } | null = null;
+  let reviewed: { payload: EditPayload; groups: ChangeGroup[]; blocked: string[]; noTape: string[] } | null = null;
+  /** Who in the working copy, as last measured, is new and has no tape. */
+  let noTape: string[] = [];
+
+  function tapeless(payload: EditPayload | null): string[] {
+    const truth = read().truthRef.current;
+    return payload && truth ? noTapePeople(payload, truth) : [];
+  }
 
   function measure(): { payload: EditPayload | null; groups: ChangeGroup[] } {
     const { truthRef, shows, settings } = read();
@@ -100,8 +109,9 @@ function createCaptureMachine(first: ProposalCaptureArgs, publish: (state: Captu
     const sending = reviewed;
     // Someone new without a name, a tape and social media: never sent, however Send was reached.
     if (!sending || !client || sending.blocked.length > 0) {
-      run({ type: 'sendFailed', failure: 'invalid' });
-      onDialog(failedStep('invalid'));
+      const failure: SendFailure = sending && sending.noTape.length > 0 ? 'no_tape' : 'invalid';
+      run({ type: 'sendFailed', failure });
+      onDialog(failedStep(failure));
       return;
     }
     onDialog({ step: 'sending', groups: sending.groups });
@@ -126,6 +136,7 @@ function createCaptureMachine(first: ProposalCaptureArgs, publish: (state: Captu
       case 'build': {
         clearTimeout(timer);
         const { payload, groups } = measure();
+        noTape = tapeless(payload);
         run({ type: 'built', count: payload ? Math.max(1, changeCount(groups)) : 0 });
         return;
       }
@@ -137,11 +148,13 @@ function createCaptureMachine(first: ProposalCaptureArgs, publish: (state: Captu
         }
         const truth = read().truthRef.current;
         const blocked = truth ? sendBlocks(measured.payload, truth) : [];
-        reviewed = { payload: measured.payload, groups: measured.groups, blocked };
+        noTape = tapeless(measured.payload);
+        reviewed = { payload: measured.payload, groups: measured.groups, blocked, noTape };
         read().onDialog({
           step: 'review',
           groups: measured.groups,
           blocked,
+          noTape,
           send: () => run({ type: 'sendStarted' }),
           keepEditing: () => run({ type: 'reviewClosed' }),
           discard: () => run({ type: 'discardRequested' }),
@@ -176,6 +189,7 @@ function createCaptureMachine(first: ProposalCaptureArgs, publish: (state: Captu
       latest = args;
     },
     state: () => current,
+    noTape: () => noTape,
     linkId: () => latest.linkId,
     /** Measure once the working copy has been still for a moment. */
     settleLater(): void {
@@ -275,5 +289,6 @@ export function useProposalCapture(args: ProposalCaptureArgs): ProposalCapture {
     dismiss: () => machine.run({ type: 'reviewClosed' }),
     staging: active && state.staging,
     sending: active && state.sending,
+    noTape: active && state.dirty ? machine.noTape() : [],
   };
 }

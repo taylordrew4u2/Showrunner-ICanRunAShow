@@ -870,7 +870,11 @@ export async function handleCoproducer(ctx) {
       }
       const people = modules.newComics.knownPeople(ownShows, ownSettings());
       const checked = modules.schema.validatePayload(b.payload, { appOrigins: [MAIN_ORIGIN, REVIEW_ORIGIN], people });
-      if (!checked.payload) refuse(400, 'bad_request', { problems: checked.problems.slice(0, 20) });
+      if (!checked.payload) {
+        // As the real server: someone new with no tape is told so in the owner's words.
+        const message = modules.schema.refusedForNoTape(checked.problems) ? { message: modules.newComics.NO_TAPE_SIGN } : {};
+        refuse(400, 'bad_request', { problems: checked.problems.slice(0, 20), ...message });
+      }
       const payload = checked.payload;
       // Files both ways, as checkMedia.
       const refs = payload.kind === 'edit' ? modules.schema.changedMediaIds(payload) : [];
