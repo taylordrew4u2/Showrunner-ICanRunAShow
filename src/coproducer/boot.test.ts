@@ -139,4 +139,29 @@ describe('unsent drafts', () => {
     storage.setItem('showrunner:coproducer:unsent:v1', JSON.stringify({ wrapped: false, data: '{"__proto__":{}}' }));
     expect(await loadUnsentDraft('link-1')).toBeNull();
   });
+
+  // Someone new with no tape cannot be sent, but the change is not thrown
+  // away: it comes back so the co-producer is told why, with Send held.
+  it('keeps a draft that is held only for someone new, tape or no tape', async () => {
+    const ada = { id: 'c-ada', name: 'Ada Park', socialMedia: '@adapark', tapeMinutes: 5 };
+    const adds = (row: Record<string, unknown>): EditPayload => ({
+      kind: 'edit',
+      shows: [],
+      settings: {
+        target: 'settings',
+        baseRevision: null,
+        fields: [{ field: 'potentialComics', kind: 'rows', idField: 'id', baseOrder: [], proposedOrder: ['c-ada'], base: [], proposed: [['c-ada', row]] }],
+      },
+    });
+    for (const row of [ada, { ...ada, videoLink: '' }, { ...ada, videoLink: 'javascript:alert(1)' }, { ...ada, videoLink: 'my best set' }, { id: 'c-ada', name: 'Ada Park' }]) {
+      const held = adds(row);
+      await saveUnsentDraft({ linkId: 'link-1', savedAt: 'x', payload: held, mediaIds: [] });
+      expect(await loadUnsentDraft('link-1'), JSON.stringify(row)).toEqual({ linkId: 'link-1', savedAt: 'x', payload: held, mediaIds: [] });
+    }
+    // Anything else wrong with it and it is still not a change that can be read.
+    for (const row of [{ ...ada, viewToken: 'x' }, { ...ada, videoLink: 7 }, { ...ada, website: 'javascript:alert(1)' }]) {
+      await saveUnsentDraft({ linkId: 'link-1', savedAt: 'x', payload: adds(row), mediaIds: [] });
+      expect(await loadUnsentDraft('link-1'), JSON.stringify(row)).toBeNull();
+    }
+  });
 });

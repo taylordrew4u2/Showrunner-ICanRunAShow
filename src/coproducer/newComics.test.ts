@@ -7,6 +7,10 @@ import {
   needsText,
   newComicOk,
   newPeopleProblems,
+  NO_TAPE_SIGN,
+  noTapeMessage,
+  noTapeNames,
+  noTapeSign,
   normalizeSocial,
   normalizeTapeUrl,
   ownerRefusal,
@@ -337,5 +341,39 @@ describe('in words', () => {
     expect(ownerRefusal(newPeopleProblems(edit([], rolodexAdd({ id: 'n1', name: 'Jo Park' }))))).toContain('This adds Jo Park without what a new person needs');
     expect(ownerRefusal([{ path: '', who: 'Sam Lee', missing: [], extra: [], unknownLink: true }])).toBe('This books Sam Lee from a Rolodex entry you no longer have. It can’t be approved. Ask them to send it again.');
     expect(describeNewPersonProblem({ path: '', who: 'Sam Lee', missing: [], extra: [], unknownLink: true })).toBe('Sam Lee is booked from a Rolodex entry that isn’t there. Take them off and add them again.');
+  });
+});
+
+describe('the sign for someone new with no tape', () => {
+  it('is the owner’s sentence, word for word', () => {
+    expect(NO_TAPE_SIGN).toBe("Sorry, you can't submit without a tape.");
+  });
+
+  it('is the message for a missing tape link', () => {
+    expect(noTapeMessage({ ...good, videoLink: undefined })).toBe(NO_TAPE_SIGN);
+    expect(noTapeMessage({ ...good, videoLink: '' })).toBe(NO_TAPE_SIGN);
+    expect(noTapeMessage({ id: 'n1', name: 'Jo Park' })).toBe(NO_TAPE_SIGN);
+  });
+
+  it('is the message for a tape link that is not an http or https link', () => {
+    for (const videoLink of ['my best set', 'javascript:alert(1)', 'ftp://tapes.example.com/jo.mp4', 'https://', 'youtu.be/abc', ' https://youtu.be/abc ', 42]) {
+      expect(noTapeMessage({ ...good, videoLink }), String(videoLink)).toBe(NO_TAPE_SIGN);
+    }
+  });
+
+  it('is not said of someone with a tape, whatever else they are missing', () => {
+    expect(noTapeMessage(good)).toBeNull();
+    expect(noTapeMessage({ ...good, tapeMinutes: undefined })).toBeNull();
+    expect(noTapeMessage({ ...good, socialMedia: '' })).toBeNull();
+  });
+
+  it('names each person it applies to, once', () => {
+    const problem = (who: string, missing: ('name' | 'tape' | 'length' | 'social')[]) => ({ path: 'x', who, missing, extra: [] });
+    const names = noTapeNames([problem('Ada Park', ['tape', 'length']), problem('Ada Park', ['tape']), problem('Bo Lee', ['social']), problem('', ['name', 'tape'])]);
+    expect(names).toEqual(['Ada Park', 'someone with no name yet']);
+    expect(noTapeSign(['Ada Park'])).toBe("Sorry, you can't submit without a tape. Missing for: Ada Park.");
+    expect(noTapeSign(['Ada Park', 'Bo Lee', 'Cy'])).toBe("Sorry, you can't submit without a tape. Missing for: Ada Park, Bo Lee and Cy.");
+    expect(noTapeSign([])).toBe(NO_TAPE_SIGN);
+    expect(noTapeSign()).toBe(NO_TAPE_SIGN);
   });
 });

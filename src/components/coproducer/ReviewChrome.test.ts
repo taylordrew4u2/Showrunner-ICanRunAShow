@@ -92,6 +92,16 @@ describe('the unsent bar', () => {
     expect(bar(1)).toContain('>Discard</button>');
   });
 
+  it('puts up the no-tape sign, naming who, while someone new in the changes has no tape', () => {
+    const withSign = renderToStaticMarkup(createElement(UnsentBar, { count: 2, staging: false, heldBackAt: null, noTape: ['Ada Park'], onReview: noop, onDiscard: noop }));
+    const sign = withSign.match(/<p class="no-tape-sign" role="alert"[^>]*>(.*?)<\/p>/)![1];
+    expect(textOf(sign)).toBe("Sorry, you can't submit without a tape. Missing for: Ada Park.");
+    expect(sign).toMatch(/<svg[^>]*aria-hidden="true"/);
+    expect(textOf(withSign)).toContain('2 changes not sent yet');
+    expect(bar(2)).not.toContain('no-tape-sign');
+    expect(renderToStaticMarkup(createElement(UnsentBar, { count: 2, staging: false, heldBackAt: null, noTape: [], onReview: noop, onDiscard: noop }))).not.toContain('no-tape-sign');
+  });
+
   it('says a file is still uploading', () => {
     expect(textOf(bar(1, true))).toContain('Uploading… your file has to finish before you can send.');
   });

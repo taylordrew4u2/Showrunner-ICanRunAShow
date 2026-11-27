@@ -32,6 +32,15 @@ describe('api request', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('carries what a refusal says in words, when the server says something', async () => {
+    vi.stubGlobal('fetch', mockFetch(400, { error: 'bad_request', message: "Sorry, you can't submit without a tape." }));
+    await expect(api.post('/api/coproducer?route=requests', {})).rejects.toMatchObject({
+      status: 400,
+      code: 'bad_request',
+      detail: "Sorry, you can't submit without a tape.",
+    } satisfies Partial<ApiError>);
+  });
+
   it('sends auth headers when provided', async () => {
     const fetchMock = mockFetch(200, { shows: [] });
     vi.stubGlobal('fetch', fetchMock);

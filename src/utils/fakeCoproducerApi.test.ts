@@ -154,6 +154,10 @@ describe('the fake /api/coproducer', () => {
       'someone new needs a tape length of 5 or 10 minutes',
       'someone new needs their social media: a handle or a profile link',
     ]);
+    // As the real server: the no-tape sign in words, beside the problem codes, and only for a missing tape.
+    expect(bare.body.message).toBe("Sorry, you can't submit without a tape.");
+    expect((await ask(rolodexAdd({ ...jo, videoLink: 'my tape' }))).body.message).toBe("Sorry, you can't submit without a tape.");
+    expect((await ask(rolodexAdd({ ...jo, socialMedia: '.' }))).body.message).toBeUndefined();
     expect((await ask(rolodexAdd({ ...jo, tapeMinutes: 7 }))).status).toBe(400);
     expect(problems(await ask(rolodexAdd({ ...jo, email: 'jo@example.com' })))).toEqual(['not allowed for someone new: only a name, a tape and social media']);
     expect((await ask(lineup('performers', { id: 'p1', name: 'Walk In' }))).status).toBe(400);

@@ -11,7 +11,7 @@
  */
 import { clearLocal, openLocal, sealLocal } from '../utils/session-vault';
 import { mainOrigin, reviewOrigin } from './origins';
-import { validatePayload } from './schema';
+import { NEW_PERSON_PROBLEM, refusedForNoTape, validatePayload } from './schema';
 import { COPRODUCER_TOKEN_GLOBAL, COPRODUCER_TOKEN_PATTERN, type EditPayload } from './types';
 import { parseUntrusted } from './untrusted';
 
@@ -84,7 +84,7 @@ export function saveUnsentDraft(draft: UnsentDraft): Promise<void> {
   return sealLocal(UNSENT_KEY, JSON.stringify(draft));
 }
 
-/** The draft kept for this link, or null: none, another link's, or one that no longer reads as a change. */
+/** The draft kept for this link, or null: none, another link's, or one that no longer reads as a change. One held for someone new without a tape is kept. */
 export async function loadUnsentDraft(linkId: string): Promise<UnsentDraft | null> {
   const text = await openLocal(UNSENT_KEY);
   if (text === null) return null;
@@ -94,8 +94,16 @@ export async function loadUnsentDraft(linkId: string): Promise<UnsentDraft | nul
     const mediaIds = Array.isArray(value.mediaIds) && value.mediaIds.every((id) => typeof id === 'string') ? value.mediaIds : null;
     if (!mediaIds) return null;
     const checked = validatePayload(value.payload, { appOrigins: [mainOrigin(), reviewOrigin() || location.origin] });
-    if (!checked.payload || checked.payload.kind !== 'edit') return null;
-    return { linkId, savedAt: value.savedAt, payload: checked.payload, mediaIds };
+    if (checked.payload) return checked.payload.kind === 'edit' ? { linkId, savedAt: value.savedAt, payload: checked.payload, mediaIds } : null;
+    // Refused only for someone new who does not keep the rule, or for a tape
+    // link that is not a link: sound in every other way (the rule is asked of
+    // nothing else, and a link is refused as one only once it is known to be
+    // text). It cannot be sent, and is kept all the same, so the co-producer
+    // gets the change back with the sign saying why it is held.
+    const held = checked.problems.every((problem) => NEW_PERSON_PROBLEM.test(problem.problem) || refusedForNoTape([problem]));
+    const payload = value.payload as Partial<EditPayload> | undefined;
+    if (!held || payload?.kind !== 'edit') return null;
+    return { linkId, savedAt: value.savedAt, payload: payload as EditPayload, mediaIds };
   } catch {
     return null;
   }

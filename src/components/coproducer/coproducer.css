@@ -694,3 +694,81 @@ body.has-modal .unsent-bar {
   margin: 0;
   padding-left: var(--space-5, 1.25rem);
 }
+
+/* ── The no-tape sign (co-producer view) ───────────────────────────────── */
+
+/* "Sorry, you can't submit without a tape." A warning mark beside the words,
+   a heavy border and the danger pair of colours, which keep their contrast
+   in both themes. It does not move, fade or time out. */
+.no-tape-sign {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
+  border: 2px solid var(--danger-text);
+  border-radius: var(--radius-md, 8px);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.no-tape-sign__icon {
+  flex: none;
+  margin-top: 1px;
+}
+
+.no-tape-sign__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.no-tape-sign__also {
+  font-weight: 600;
+}
+
+/* At the top of the add form. The slot is always in the page, and takes no
+   room until a sign is in it. */
+.new-comic__sign .no-tape-sign {
+  margin-bottom: var(--space-2);
+}
+
+/* Beside the tape field, before anything is tried: plain, not an error. */
+.new-comic__notice {
+  margin: 0;
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--border);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* A mark before each field's own error, so it is not told by colour alone. */
+.new-comic__error::before {
+  content: '\26A0\FE0E\00A0';
+  content: '\26A0\FE0E\00A0' / '';
+}
+
+/* In the unsent bar: across its full width, above the count and the buttons. */
+.unsent-bar .no-tape-sign {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+/* Send for approval while a tape is missing: it reads as held, and can still
+   be pressed, which puts the sign up again. */
+.proposal-dialog__actions .btn[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* At the top of the review step, and kept there: on a phone the list scrolls
+   under it, so it is still in sight from the Send button at the bottom. */
+#proposal-dialog-no-tape {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}

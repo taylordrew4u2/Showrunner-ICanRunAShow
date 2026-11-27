@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useConfirm } from '../useConfirm';
 import { localConfirm } from './localConfirm';
+import { NoTapeSign } from './NoTapeSign';
 import './coproducer.css';
 
 /** "8:42 PM" from an ISO time; anything else as it was given. */
@@ -15,12 +16,14 @@ function shownAt(value: string): string {
  * itself: edits wait here, across screens, until they are reviewed and sent
  * as one request, or discarded.
  */
-export function UnsentBar({ count, staging, heldBackAt, onReview, onDiscard }: {
+export function UnsentBar({ count, staging, heldBackAt, noTape = [], onReview, onDiscard }: {
   count: number;
   /** A file is still uploading: nothing can be sent or discarded until it lands. */
   staging: boolean;
   /** When truth is held back for unsent changes: the time the account is shown as of. */
   heldBackAt: string | null;
+  /** Everyone new in the unsent changes who has no tape: the no-tape sign stays up while there is anyone. */
+  noTape?: readonly string[];
   onReview: () => void;
   /** Called once the co-producer has confirmed. */
   onDiscard: () => void;
@@ -44,6 +47,7 @@ export function UnsentBar({ count, staging, heldBackAt, onReview, onDiscard }: {
 
   return (
     <div className="unsent-bar" role="region" aria-label="Changes not sent yet">
+      {noTape.length > 0 && <NoTapeSign names={noTape} />}
       <p className="unsent-bar__text">
         <span>{count === 1 ? '1 change' : `${count} changes`} not sent yet</span>
         {staging && <span className="unsent-bar__line" role="status">Uploading… your file has to finish before you can send.</span>}

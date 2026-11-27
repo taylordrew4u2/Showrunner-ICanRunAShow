@@ -14,6 +14,8 @@ export interface ApiError extends Error {
   code?: string;
   /** A refusal's finer reason, when the server gives one (co-producer storage: 'link_full' or 'account_full'). */
   reason?: string;
+  /** What the refusal says in words, when the server says something (a co-producer's request refused for no tape). */
+  detail?: string;
 }
 
 interface Opts {
@@ -131,7 +133,7 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
     }
 
     if (!res.ok) {
-      let parsed: { error?: string; reason?: unknown } | null = null;
+      let parsed: { error?: string; reason?: unknown; message?: unknown } | null = null;
       try {
         parsed = await res.json();
       } catch {
@@ -141,6 +143,7 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
       err.status = res.status;
       err.code = parsed?.error;
       if (typeof parsed?.reason === 'string') err.reason = parsed.reason;
+      if (typeof parsed?.message === 'string') err.detail = parsed.message;
       if (res.status === 401 && opts.authHash && !opts.bearer) credentialRefused?.(opts.authHash);
       throw err;
     }

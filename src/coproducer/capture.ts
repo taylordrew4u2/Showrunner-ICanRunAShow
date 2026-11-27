@@ -14,7 +14,7 @@
 import type { AppSettings, Show } from '../types';
 import { getRolodexTerm } from '../utils/terminology';
 import type { DiffContext } from './diff';
-import { describeNewPersonProblem, knownPeople, newPeopleProblems } from './newComics';
+import { describeNewPersonProblem, knownPeople, newPeopleProblems, noTapeNames } from './newComics';
 import { sameMeaning, sameValue } from './paths';
 import { changedMediaIds, EDITABLE_SETTINGS_FIELDS, isShowKey } from './schema';
 import {
@@ -56,6 +56,11 @@ export function reviewDiffContext(truth: Pick<ReviewTruth, 'shows' | 'settings'>
 export function sendBlocks(payload: EditPayload, truth: Pick<ReviewTruth, 'shows' | 'settings'>): string[] {
   const problems = newPeopleProblems(payload, knownPeople(truth.shows, truth.settings));
   return [...new Set(problems.map(describeNewPersonProblem))];
+}
+
+/** Everyone new in an edit who has no tape, by name: who the no-tape sign is for. Empty when there is nobody. */
+export function noTapePeople(payload: EditPayload, truth: Pick<ReviewTruth, 'shows' | 'settings'>): string[] {
+  return noTapeNames(newPeopleProblems(payload, knownPeople(truth.shows, truth.settings)));
 }
 
 type Loose = Record<string, unknown>;

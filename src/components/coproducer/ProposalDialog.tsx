@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { ProposalDialogState, SendFailure } from '../../coproducer/ReviewContext';
+import { NO_TAPE_SIGN } from '../../coproducer/newComics';
 import { resolveMediaUrl } from '../../utils/mediaStore';
 import { timeAgo } from '../../utils/relativeTime';
 import { Modal } from '../Modal';
 import { useConfirm } from '../useConfirm';
 import { ChangeList } from './ChangeList';
 import { localConfirm } from './localConfirm';
+import { NoTapeSign } from './NoTapeSign';
 import './coproducer.css';
 
 /** False while the browser says it is offline. */
@@ -45,10 +47,28 @@ const FAILURES: Record<SendFailure, { text: string; buttons: FailureButton[] }> 
   },
   unknown_media: { text: 'A file in this change has expired. Discard it and add the file again.', buttons: ['discard'] },
   invalid: { text: "Something in this change can't be sent. Discard it and try again.", buttons: ['discard'] },
+  // The server refused it for someone new with no tape: shown as the sign itself.
+  no_tape: { text: NO_TAPE_SIGN, buttons: ['discard', 'ok'] },
 };
 
 const TITLE_ID = 'proposal-dialog-title';
 const BLOCKED_ID = 'proposal-dialog-blocked';
+const NO_TAPE_ID = 'proposal-dialog-no-tape';
+
+/**
+ * One press of Send for approval. With someone new who has no tape it never
+ * sends: it puts the no-tape sign up again instead, online or not. Otherwise
+ * it sends unless something else holds it.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function pressSend(
+  held: { online: boolean; blocked?: readonly string[]; noTape?: readonly string[] },
+  send: () => void,
+  showSign: () => void,
+): void {
+  if ((held.noTape?.length ?? 0) > 0) showSign();
+  else if (held.online && (held.blocked?.length ?? 0) === 0) send();
+}
 
 /**
  * Every step of sending something to the owner for approval: reviewing an
@@ -66,22 +86,31 @@ export function ProposalDialog({ state, onClose, onSeePending, resolveMedia = re
   const online = useOnline();
   const { confirm, confirmDialog } = useConfirm();
   const list = (groups: Parameters<typeof ChangeList>[0]['groups']) => <ChangeList groups={groups} resolveMedia={resolveMedia} />;
+  /** How often Send was pressed with someone's tape missing: each press is a new sign, read out again. */
+  const [signAttempts, setSignAttempts] = useState(0);
 
   // Held while offline, and while someone new in the change is missing
   // their name, tape or social media: the list above the buttons says who.
-  const sendButton = (send: () => void, blocked: readonly string[] = []) => (
+  // With a tape missing the button can still be pressed, so that pressing it
+  // says so again rather than doing nothing: it is marked disabled, not made so.
+  const sendButton = (send: () => void, blocked: readonly string[] = [], noTape: readonly string[] = []) => (
     <>
       {!online && <span className="proposal-dialog__offline" role="status">You're offline</span>}
       <button
         type="button"
         className="btn btn--primary"
-        onClick={send}
-        disabled={!online || blocked.length > 0}
-        aria-describedby={blocked.length > 0 ? BLOCKED_ID : undefined}
+        onClick={() => pressSend({ online, blocked, noTape }, send, () => setSignAttempts((count) => count + 1))}
+        disabled={noTape.length > 0 ? undefined : !online || blocked.length > 0}
+        aria-disabled={noTape.length > 0 ? true : undefined}
+        aria-describedby={[noTape.length > 0 && NO_TAPE_ID, blocked.length > 0 && BLOCKED_ID].filter(Boolean).join(' ') || undefined}
       >
         Send for approval
       </button>
     </>
+  );
+  /** The sign at the top of the dialog, naming everyone it applies to. */
+  const noTapeNote = (noTape: readonly string[] = []) => noTape.length > 0 && (
+    <NoTapeSign key={signAttempts} attempt={signAttempts} names={noTape} id={NO_TAPE_ID} />
   );
   const blockedNote = (blocked: readonly string[] = []) => blocked.length > 0 && (
     <div className="proposal-dialog__blocked" role="alert" id={BLOCKED_ID}>
@@ -105,6 +134,7 @@ export function ProposalDialog({ state, onClose, onSeePending, resolveMedia = re
       close = keepEditing;
       body = (
         <>
+          {noTapeNote(state.noTape)}
           <p className="proposal-dialog__body">Nothing changes until the owner approves. Here's what's there now and what you're asking for:</p>
           {list(state.groups)}
           {blockedNote(state.blocked)}
@@ -119,7 +149,7 @@ export function ProposalDialog({ state, onClose, onSeePending, resolveMedia = re
           {/* Keep editing first, so it takes the dialog's first focus rather than the discard. */}
           <button type="button" className="btn btn--secondary" onClick={keepEditing}>Keep editing</button>
           <button type="button" className="btn btn--ghost" onClick={() => void discardAll()}>Discard my changes</button>
-          {sendButton(send, state.blocked)}
+          {sendButton(send, state.blocked, state.noTape)}
         </>
       );
       break;
@@ -165,9 +195,9 @@ export function ProposalDialog({ state, onClose, onSeePending, resolveMedia = re
       const failure = FAILURES[state.failure] ?? FAILURES.server;
       const { retry, discard } = state;
       title = "That didn't send";
-      body = <p className="proposal-dialog__body" role="alert">{failure.text}</p>;
+      body = state.failure === 'no_tape' ? <NoTapeSign /> : <p className="proposal-dialog__body" role="alert">{failure.text}</p>;
       // A share or download that failed has no change to discard: OK closes it instead.
-      const wanted = failure.buttons.map((button) => (button === 'discard' && !discard ? 'ok' : button));
+      const wanted = [...new Set(failure.buttons.map((button) => (button === 'discard' && !discard ? 'ok' : button)))];
       actions = wanted.map((button) => {
         if (button === 'retry') {
           return retry && <button key="retry" type="button" className="btn btn--primary" onClick={retry}>Try again</button>;
@@ -188,6 +218,7 @@ export function ProposalDialog({ state, onClose, onSeePending, resolveMedia = re
       title = "Changes you didn't send";
       body = (
         <>
+          {noTapeNote(state.noTape)}
           <p className="proposal-dialog__body">
             You have changes from {Number.isNaN(saved) ? 'earlier' : timeAgo(saved)} that weren't sent. Here they are:
           </p>
@@ -198,7 +229,7 @@ export function ProposalDialog({ state, onClose, onSeePending, resolveMedia = re
       actions = (
         <>
           <button type="button" className="btn btn--secondary" onClick={discard}>Discard</button>
-          {sendButton(send, state.blocked)}
+          {sendButton(send, state.blocked, state.noTape)}
         </>
       );
       break;
