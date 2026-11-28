@@ -13,6 +13,8 @@ import { useConfirm } from '../useConfirm';
 import { useComicProfileDraft } from './useComicProfileDraft';
 import { useReview } from '../../coproducer/ReviewContext';
 import { ContactLink } from '../coproducer/ContactLink';
+import { RolodexAvatar } from '../RolodexAvatar';
+import { rolodexFacts } from '../../utils/rolodexDisplay';
 
 interface RolodexProfileProps {
   comic: PotentialComic;
@@ -36,6 +38,7 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
   const [mediaError, setMediaError] = useState<string | null>(null);
   // Resolves `media:` store references to a playable URL (passthrough otherwise).
   const walkOnUrl = useMediaUrl(comic.walkOnMusic);
+  const facts = rolodexFacts(comic).join(' · ');
 
   function attachWalkOn(result: string, file: File) {
     update({
@@ -90,12 +93,20 @@ export function RolodexProfile({ comic, onBack, onChange, onDelete }: RolodexPro
   }
 
   return (
-    <div className="perf-profile">
+    <div className="perf-profile perf-profile--rolodex">
       <div className="perf-profile__topbar">
         <button className="btn btn--ghost btn--sm" onClick={onBack}>← Back</button>
       </div>
 
-      <h2 className="perf-profile__heading">{comic.name}</h2>
+      {/* The head of the drawer is the row it was opened from, set larger:
+          the same face, the same name, the same quiet line. */}
+      <div className="rolodex-head">
+        <RolodexAvatar name={comic.name} photo={comic.photo} size="lg" />
+        <div className="rolodex-head__text">
+          <h2 className="perf-profile__heading">{comic.name}</h2>
+          {facts && <p className="rolodex-head__facts">{facts}</p>}
+        </div>
+      </div>
       <p className="perf-profile__sync-hint">Changes update this comic in the Rolodex and every show.</p>
 
       <div className="perf-profile__card">

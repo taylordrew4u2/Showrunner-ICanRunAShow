@@ -3,9 +3,9 @@ import type { PotentialComic, ProfileRequest } from '../types';
 import { describeGaps, performerReadiness } from '../utils/performerReadiness';
 import { profileUrl, type ProfileLinkStatus } from '../utils/profileLink';
 import { describeChanges, type ProfileChange } from '../utils/signatureImport';
-import { useMediaUrl } from '../utils/useMediaUrl';
+import { rolodexFacts } from '../utils/rolodexDisplay';
+import { RolodexAvatar } from './RolodexAvatar';
 import { useConfirm } from './useConfirm';
-import { avatarTint } from '../utils/avatarTint';
 import { copyText } from '../coproducer/gates';
 import { useReview } from '../coproducer/ReviewContext';
 import { AskButton } from './coproducer/AskButton';
@@ -66,6 +66,7 @@ export function RolodexRow({
   pendingPhoto,
   request,
   onWithdraw,
+  selected,
 }: {
   comic: PotentialComic;
   onEdit: () => void;
@@ -87,10 +88,15 @@ export function RolodexRow({
   linkError?: string;
   /** The headshot that came with their reply, opened, if they sent one. */
   pendingPhoto?: string;
+  /** Their profile is the one open in the drawer. */
+  selected?: boolean;
 }) {
-  const photoUrl = useMediaUrl(comic.photo);
   const { gaps } = performerReadiness(comic);
-  const walkOn = [comic.walkOnMusicName, comic.walkOnMusicArtist].filter(Boolean).join(' — ');
+  // One quiet line of what is on file. A profile link is shown as its handle;
+  // what was typed stays one hover (or one tap into the profile) away.
+  const facts = rolodexFacts(comic).join(' · ');
+  const factsInFull = [comic.socialMedia?.trim(), ...rolodexFacts(comic).slice(comic.socialMedia?.trim() ? 1 : 0)]
+    .filter(Boolean).join(' · ');
   const { confirm, confirmDialog } = useConfirm();
   // Co-producer view never holds a link: it asks the owner to pass one on.
   const review = useReview();
@@ -135,47 +141,50 @@ export function RolodexRow({
   }
 
   return (
-    <article className="rolodex__item">
+    <article className={`rolodex__item${selected ? ' rolodex__item--selected' : ''}`}>
       <div className="rolodex__item-main">
         <button className="rolodex__open-profile" type="button" onClick={onEdit}
           aria-label={`Open ${comic.name}'s full profile`}>
-        {photoUrl ? (
-          <img className="rolodex__photo" src={photoUrl} alt="" />
-        ) : (
-          <span className="rolodex__photo-placeholder avatar-tint" style={avatarTint(comic.name)}>{comic.name.charAt(0).toUpperCase()}</span>
-        )}
+        <RolodexAvatar name={comic.name} photo={comic.photo} />
         <span className="rolodex__item-content">
-          <span className="rolodex__name">
+          {/* The whole name is on the title too: a long one is cut with an
+              ellipsis, and the button's own label always says it in full. */}
+          <span className="rolodex__name" title={comic.name}>
             <PendingRowMark groupKey="settings:potentialComics" rowKey={`potentialComics/${seg(comic.id)}`}>{comic.name}</PendingRowMark>
           </span>
-          {/* Stated as what is missing rather than a percentage: "Needs an
-              email" is something you can act on, and 50% is not.
-
-              It belongs under the name, with the rest of what is known about
-              this person, rather than out on the row as its own column. On a
-              phone that column plus the two buttons left the name nothing:
-              a list of contacts rendered as single initials with no names
-              at all. */}
-          {gaps.length > 0 && (
-            <span className="rolodex__gaps" title={`Missing: ${describeGaps(gaps)}`}>
-              Needs {describeGaps(gaps).toLowerCase()}
+          {/* One line under the name. What is known leads; what is missing
+              follows it in the same quiet voice, stated as the thing to go
+              and get ("Needs email" is something you can act on, and 50% is
+              not). It used to be a bordered badge on a line of its own, on
+              most rows, beside two bordered buttons: three boxes competing
+              with every name. */}
+          {(facts || gaps.length > 0 || (linkStatus === 'waiting' && !linkUrl)) && (
+            <span className="rolodex__line">
+              {facts && <span className="rolodex__meta" title={factsInFull}>{facts}</span>}
+              {gaps.length > 0 && (
+                <span className="rolodex__gaps" title={`Missing: ${describeGaps(gaps)}`}>
+                  Needs {describeGaps(gaps).toLowerCase()}
+                </span>
+              )}
+              {linkStatus === 'waiting' && !linkUrl && (
+                <span className="rolodex__gaps rolodex__gaps--waiting">Asked for details</span>
+              )}
             </span>
           )}
-          {linkStatus === 'waiting' && !linkUrl && (
-            <span className="rolodex__gaps rolodex__gaps--waiting">Asked for details</span>
-          )}
-          {comic.socialMedia && <span className="rolodex__meta">{comic.socialMedia}</span>}
-          {walkOn && <span className="rolodex__meta">{walkOn}</span>}
-          {comic.notes && <span className="rolodex__notes">{comic.notes}</span>}
+          {comic.notes && <span className="rolodex__notes" title={comic.notes}>{comic.notes}</span>}
         </span>
         </button>
-        {/* Offered where there is a gap to close and nothing already out
+        {/* What can be asked of them. Its own box so a phone can give it the
+            line under the name while Edit stays at the end of the first.
+
+            Offered where there is a gap to close and nothing already out
             asking. A link for someone whose profile is complete is a chore
             for them and a chase for you, and there is nothing at the end of
             it. */}
+        <div className="rolodex__actions">
         {gaps.length > 0 && linkStatus === null && (
           <button
-            className="btn btn--ghost btn--sm"
+            className="btn btn--ghost btn--sm rolodex__action"
             type="button"
             onClick={onRequestDetails}
             disabled={linkBusy}
@@ -187,11 +196,11 @@ export function RolodexRow({
             so the row never carries more than two buttons on a phone. */}
         {review.active && linkStatus === 'waiting' && request && (
           <>
-            <AskButton kind="share" action={{ type: 'existing-profile-link', requestId: request.id }} className="btn btn--ghost btn--sm">
+            <AskButton kind="share" action={{ type: 'existing-profile-link', requestId: request.id }} className="btn btn--ghost btn--sm rolodex__action">
               Share link
             </AskButton>
             {onWithdraw && (
-              <button className="btn btn--ghost btn--sm" type="button" onClick={() => void withdraw()} disabled={withdrawing}>
+              <button className="btn btn--ghost btn--sm rolodex__action" type="button" onClick={() => void withdraw()} disabled={withdrawing}>
                 Withdraw
               </button>
             )}
@@ -199,14 +208,16 @@ export function RolodexRow({
         )}
         {!review.active && linkStatus === 'waiting' && !linkUrl && url && (
           <button
-            className="btn btn--ghost btn--sm"
+            className="btn btn--ghost btn--sm rolodex__action"
             type="button"
             onClick={() => setRevealed((r) => !r)}
+            aria-expanded={revealed}
           >
             {revealed ? 'Hide link' : 'Show link'}
           </button>
         )}
-        <button className="btn btn--secondary btn--sm" type="button" onClick={onEdit}>
+        </div>
+        <button className="btn btn--secondary btn--sm rolodex__action rolodex__action--edit" type="button" onClick={onEdit}>
           Edit
         </button>
       </div>
