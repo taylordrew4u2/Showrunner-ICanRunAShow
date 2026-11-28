@@ -36,6 +36,12 @@
   --rule-input: #8a857c;
   /* The one "this is the card that matters" signal. */
   --rule-feature: 2px solid var(--text);
+  /* Monogram discs in the Rolodex: four tints a breath off the paper, dealt
+     by name (utils/rolodexDisplay.ts). Ink on any of them is over 12:1. */
+  --monogram-tint-1: #e8e2d3;
+  --monogram-tint-2: #dfe4d9;
+  --monogram-tint-3: #dde1e6;
+  --monogram-tint-4: #e9ddd5;
 
   --primary: #141413;
   --primary-pressed: #34322f;
@@ -83,6 +89,10 @@
   --border: #2a2725;
   --border-strong: #46423d;
   --rule-input: #6e6a63;
+  --monogram-tint-1: #2b2720;
+  --monogram-tint-2: #232a22;
+  --monogram-tint-3: #22272d;
+  --monogram-tint-4: #2e2420;
 
   --primary: #f2efe9;
   /* Pressed ivory goes a shade down, never to paper-white. */

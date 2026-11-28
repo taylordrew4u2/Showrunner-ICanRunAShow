@@ -665,9 +665,24 @@ html {
 
 /* ── Rolodex Page ──────────────────────────────────────────────────── */
 
+/* An address book, set like one. Names in the serif on the open page, a
+   hairline under each, one quiet line of what is on file, and the controls
+   in the margin where they wait to be wanted. The list used to be a boxed
+   stack of filled bars, each carrying a bordered badge and two bordered
+   buttons, so the chrome outweighed the names it was there to hold.
+
+   One measure on a phone and a tablet; two columns once the window can
+   hold two full entries side by side, so a desktop shows twice the book
+   instead of a 700px strip with empty paper either side. */
 .rolodex-page {
-  max-width: 700px;
+  max-width: 720px;
   margin: 0 auto;
+}
+
+@media (min-width: 1100px) {
+  .rolodex-page {
+    max-width: 1120px;
+  }
 }
 
 /* ── Rolodex Shared ────────────────────────────────────────────────── */
@@ -679,9 +694,16 @@ html {
    appears, which is what the phone was already doing. */
 .rolodex__form {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-2-5);
-  margin-bottom: var(--space-3);
+  max-width: 34rem;
+  margin-bottom: var(--space-8);
+}
+
+/* On the page rather than in a filled well: the field is drawn by its rule,
+   like the search box on Shows. */
+.rolodex__form .rolodex__input {
+  background: transparent;
 }
 
 /* Placed rather than flowed. Notes sits between the name and Add in the
@@ -714,113 +736,597 @@ html {
   box-shadow: var(--focus-ring);
 }
 
-.rolodex__empty {
+.rolodex__propose .section-field__input {
+  background: transparent;
+}
+
+/* Co-producer view: the longer add form sits where the owner's name field
+   does, on the same measure, with air under it before the book begins. Two
+   fields to a line once there is room, in the order they are tabbed. */
+.rolodex__propose {
+  max-width: 46rem;
+  margin-bottom: var(--space-10);
+}
+
+@media (min-width: 720px) {
+  .rolodex__propose .new-comic {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-5);
+    align-items: start;
+  }
+
+  .rolodex__propose .new-comic__intro,
+  .rolodex__propose .new-comic__summary,
+  .rolodex__propose .new-comic__add {
+    grid-column: 1 / -1;
+  }
+}
+
+/* How many people are in the book, and how many still have a detail to get.
+   Set as the list's running head, with the one firm rule on the page under
+   it; every rule below it is a hairline. */
+.rolodex__summary {
   margin: 0;
-  color: var(--text-muted);
+  padding-bottom: var(--space-2-5);
+  border-bottom: 1px solid var(--border-strong);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-soft);
 }
 
 /* A rolodex holds everyone you might book, which for a producer running shows
-   every night is hundreds of people. Separate floating cards with air between
-   them put three of them on a screen; joined rows put twelve, and twelve is
-   how many you compare when you are building a bill. */
+   every night is hundreds of people: joined rows, not floating cards, so a
+   screen holds enough of them to compare when you are building a bill. */
 .rolodex__list {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }
 
+@media (min-width: 1100px) {
+  /* Cells in a row share a height, so the hairlines under them stay level
+     across the gutter whatever each entry carries. */
+  .rolodex__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-12);
+  }
+}
+
+/* The person is one row. The link that is out asking, and the answers when
+   they come back, hang off it rather than becoming rows of their own. */
 .rolodex__item {
-  border: 0;
-  border-radius: 0;
-  background: var(--surface-strong);
-  padding: var(--space-2-5) var(--space-3-5);
+  min-width: 0;
+  padding: var(--space-1-5) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Face and name, then what can be asked of them, then Edit: one line. */
+.rolodex__item-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: var(--space-1);
+  min-width: 0;
+}
+
+/* The face and details are one keyboard-accessible profile target. It bleeds
+   a little past the text edge so its hover wash has a margin and the avatar
+   still lines up with the page title above it. */
+.rolodex__open-profile {
   display: flex;
   align-items: center;
-  gap: var(--space-2-5);
-  transition: border-color var(--duration-normal) ease, background var(--duration-normal) ease;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: 60px;
+  margin-inline-start: calc(-1 * var(--space-2));
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--duration-normal) ease;
 }
 
-.rolodex__item + .rolodex__item {
-  box-shadow: inset 0 1px 0 var(--border);
-}
-
-.rolodex__item:hover {
+.rolodex__open-profile:hover {
   background: var(--surface);
 }
 
-/* What you cannot do with this person yet, said as the thing to go and get.
-   Quiet by default — most of a rolodex has a gap somewhere, and a list of red
-   badges is a list you stop reading. */
-.rolodex__gaps {
-  /* Sits under the name now, inside the name block, so it is no longer a
-     flex item of the row and has no business claiming a column of it. */
-  display: inline-block;
-  margin-top: 3px;
-  padding: 2px var(--space-1-5);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  font-size: var(--text-xs);
-  color: var(--text-soft);
-  white-space: nowrap;
+.rolodex__open-profile:active,
+.rolodex__item--selected .rolodex__open-profile {
+  background: var(--surface-strong);
+}
+
+.rolodex__open-profile:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* One disc for a headshot and for the initials that stand in for one. */
+.rolodex__avatar {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
 }
 
 .rolodex__photo {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
   object-fit: cover;
-  flex-shrink: 0;
-  border: 1px solid var(--border);
 }
 
-.rolodex__photo-placeholder {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  /* A shade off the row it sits in, not the same one. Matching the row, the
-     initial floated on the line with no disc under it at all. */
-  background: var(--surface);
-  border: 1px solid var(--border);
+/* Initials on a tint. Four of them, a breath off the paper (sand, sage,
+   slate, clay; see --monogram-tint-* in luxe.css), dealt by name so a person
+   keeps theirs. Enough to tell neighbours apart down a column; nowhere near
+   enough to compete with a real photograph two rows up. */
+.rolodex__monogram {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-md);
-  font-weight: 800;
-  color: var(--text-muted);
+  background: var(--monogram-tint-1);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  font-variant-numeric: lining-nums;
+  user-select: none;
+}
+
+.rolodex__monogram[data-tone="2"] { background: var(--monogram-tint-2); }
+.rolodex__monogram[data-tone="3"] { background: var(--monogram-tint-3); }
+.rolodex__monogram[data-tone="4"] { background: var(--monogram-tint-4); }
+
+.rolodex__avatar--lg {
+  width: 64px;
+  height: 64px;
+}
+
+.rolodex__monogram.rolodex__avatar--lg {
+  font-size: 1.5rem;
 }
 
 .rolodex__item-content {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
+/* A long name is cut at the edge, never wrapped under the buttons; it is on
+   the title and in the button's label in full.
+
+   Cut at the end it is read to, whichever way it is written. The name, the
+   line under it and the note each take their direction from their own first
+   letter, so a name in Arabic or Hebrew is laid out right to left and loses
+   its last words to the ellipsis rather than its first, and they stay on
+   the same left edge as every other name in the column. */
 .rolodex__name {
+  display: block;
   margin: 0;
   font-weight: 700;
   font-size: var(--text-base);
+  unicode-bidi: plaintext;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The quiet line: what is on file, then what is not. It wraps before it
+   hides anything that is missing, and only the facts give way to an
+   ellipsis. */
+.rolodex__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2-5);
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
 }
 
 .rolodex__meta {
-  margin: var(--space-0-5) 0 0;
-  font-size: var(--text-xs);
+  min-width: 0;
+  max-width: 100%;
   color: var(--text-muted);
-  white-space: nowrap;
+  unicode-bidi: plaintext;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* What you cannot do with this person yet, said as the thing to go and get.
+   Plain words behind a small open ring. Most of a rolodex has a gap
+   somewhere, and a column of badges is a column you stop reading. */
+.rolodex__gaps {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.rolodex__gaps::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+/* Out asking: the ring is filled in. */
+.rolodex__gaps--waiting::before {
+  background: currentColor;
 }
 
 .rolodex__notes {
-  margin: var(--space-0-5) 0 0;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: 1.4;
-  white-space: nowrap;
+  display: block;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  unicode-bidi: plaintext;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The row's own controls, in the margin and in type rather than in boxes.
+   The ask is the one with something to do, so it carries the ink and a
+   hairline underline; Edit is the same door the row itself already is. */
+.rolodex__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.rolodex__actions:empty {
+  display: none;
+}
+
+.rolodex__item .rolodex__action {
+  min-width: var(--tap-min);
+  padding-inline: var(--space-2-5);
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 4px;
+}
+
+/* Always the last column, whether or not there is an ask beside it, so the
+   Edits run down the margin in one line. */
+.rolodex__item .rolodex__action--edit {
+  grid-column: 3;
+  color: var(--text-muted);
+  text-decoration-color: transparent;
+}
+
+.rolodex__item .rolodex__action:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+  text-decoration-color: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rolodex__open-profile {
+    transition: none;
+  }
+
+  .rolodex__item .rolodex__action:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ── Asking someone for their own details ────────────────────────────────
+   The row grows a second line for the link, and a third for the answers
+   when they come back, both set in under the name they belong to. */
+.rolodex__link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-1) 0 var(--space-2);
+  padding-inline-start: calc(44px + var(--space-3));
+}
+
+/* Readonly and selectable: on a desktop the producer pastes it into a DM,
+   and the clipboard is not always allowed to do that for them. */
+.rolodex__link-url {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: var(--space-1) var(--space-1-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.rolodex__link-hint {
+  flex: 1 1 100%;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+/* Two columns are each narrower than the one they replace. There the address
+   gives way, not the buttons: it is selected and copied whole however much
+   of it shows, and a Withdraw pushed onto a line of its own made the row,
+   and the empty cell beside it, a line taller for nothing. */
+@media (min-width: 1100px) {
+  .rolodex__link {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .rolodex__link-hint {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+}
+
+.rolodex__import-photo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1-5) 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.rolodex__import-photo img {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+.rolodex__link-error {
+  margin: var(--space-1) 0 var(--space-2);
+  padding-inline-start: calc(44px + var(--space-3));
+  font-size: var(--text-sm);
+  color: var(--danger-text);
+}
+
+.rolodex__import {
+  margin: var(--space-1) 0 var(--space-2);
+  margin-inline-start: calc(44px + var(--space-3));
+  padding: var(--space-2-5) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.rolodex__import-head {
+  display: block;
+  margin-bottom: var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.rolodex__import-list {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.rolodex__import-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.rolodex__import-label {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-soft);
+}
+
+/* What is on file now, struck through — the one thing that would be lost. */
+.rolodex__import-was {
+  color: var(--text-soft);
+  text-decoration: line-through;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rolodex__import-new {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rolodex__import-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+@media (max-width: 768px) {
+  .rolodex__import-list li {
+    flex-wrap: wrap;
+  }
+  .rolodex__import-new {
+    flex-basis: 100%;
+  }
+}
+
+/* ── The Rolodex row on a phone ───────────────────────────────────────── */
+
+/* A rolodex you cannot read the names in is not a rolodex, and on a phone
+   the buttons beside a name once squeezed it down to a single initial. So
+   the name keeps the first line, and the ask, when there is one, takes a
+   line of its own below, set in under the name, with Edit at the end of it.
+   An entry with nothing left to ask for is just its two lines, Edit at the
+   end of the first. */
+@media (max-width: 619px) {
+  .rolodex__item-main {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .rolodex__open-profile {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .rolodex__item .rolodex__action--edit {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: var(--tap-min);
+  }
+
+  .rolodex__actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    padding-inline-start: calc(44px + var(--space-3) - var(--space-2-5));
+  }
+
+  .rolodex__actions .rolodex__action {
+    min-height: var(--tap-min);
+  }
+
+  /* With an ask on the second line, Edit goes to the end of that line, so
+     the row is tabbed the way it is read: the person, the ask, Edit. Left at
+     the end of the first line it was reached last and sat above the ask
+     reached before it. The name gets the whole first line for it. */
+  .rolodex__item-main:has(> .rolodex__actions:not(:empty)) > .rolodex__open-profile {
+    grid-column: 1 / -1;
+  }
+
+  .rolodex__item-main:has(> .rolodex__actions:not(:empty)) > .rolodex__actions {
+    grid-column: 1;
+  }
+
+  .rolodex__item-main:has(> .rolodex__actions:not(:empty)) > .rolodex__action--edit {
+    grid-row: 2;
+  }
+
+  /* Full width again: a link is long, and a phone has no margin to spare. */
+  .rolodex__link,
+  .rolodex__link-error {
+    padding-inline-start: 0;
+  }
+
+  .rolodex__import {
+    margin-inline-start: 0;
+  }
+}
+
+/* Nobody filed yet: the same open page the list will be, not a card. */
+.rolodex__empty-state.empty-state {
+  align-items: flex-start;
+  text-align: start;
+  padding: var(--space-8) 0 var(--space-10);
+  border: 0;
+  border-top: 1px solid var(--border-strong);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rolodex__empty-state .empty-state__title {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+/* ── The head of a Rolodex profile ────────────────────────────────────── */
+
+/* The drawer opens on the row it came from, set larger: the same disc, the
+   same name, the same quiet line. Scoped to the Rolodex's own profile; a
+   show's performer drawer shares the classes and is not touched. */
+.rolodex-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  margin-bottom: var(--space-5);
+}
+
+.rolodex-head__text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A long name wraps here, in full: this is the one place it must be read. */
+.perf-profile--rolodex .perf-profile__heading {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.rolodex-head__facts {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Back, in type: the way out is a word at the head of the sheet, lined up
+   with the name under it, not a boxed button above a headline. */
+.perf-profile--rolodex .perf-profile__topbar .btn {
+  margin-inline-start: calc(-1 * var(--space-3-5));
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.perf-profile--rolodex .perf-profile__topbar .btn:hover:not(:disabled) {
+  border-color: transparent;
+  color: var(--text);
+}
+
+/* On a phone the sheet runs to the edge of the screen and Back sits almost
+   against it, so a ring drawn outside the button lost its left side off the
+   glass. Drawn just inside the button's own edge it is whole. */
+@media (max-width: 619px) {
+  .perf-profile--rolodex .perf-profile__topbar .btn:focus-visible {
+    outline-width: 2px;
+    outline-offset: -2px;
+  }
+}
+
+/* The two small buttons on this page that are not in a row are full-size
+   targets too, under a finger and at a phone's width alike, the way the row's
+   own are: Back on a profile, and Add on the co-producer's form. */
+@media (pointer: coarse), (max-width: 619px) {
+  .perf-profile--rolodex .perf-profile__topbar .btn,
+  .rolodex__propose .new-comic__add {
+    min-height: var(--tap-min);
+  }
 }
 
 /* ── Email List page ───────────────────────────────────────────────── */
@@ -927,34 +1433,6 @@ html {
      just typed, so it reads fine narrow. */
   .shows-toolbar__sort {
     flex: 0 0 auto;
-  }
-
-  /* Name and Add on one line, the way the lineup's add row does it. Filing
-     someone is a name and a tap; stacking Add under a full-width field made a
-     two-control form read as a three-step one. Notes, when it appears, takes
-     the line below rather than squeezing either of them. */
-  /* Stays a row. Stacked into a column, one rolodex entry ran to ~250px on a
-     phone — a 46px avatar on its own line, then the name, then the notes, then
-     an Edit button under them — so six people took two and a half screens of a
-     list whose whole job is to let you scan for a name.
-
-     Same treatment as a show row: the avatar leads, the name and the note sit
-     beside it on one line each, and the row itself opens the profile. */
-  .rolodex__item {
-    align-items: center;
-    gap: var(--space-2-5);
-  }
-
-  .rolodex__item-content {
-    min-width: 0;
-  }
-
-  .rolodex__name,
-  .rolodex__meta,
-  .rolodex__notes {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 }
 
@@ -3953,182 +4431,6 @@ a.live-viewer__host-handle {
   color: var(--danger);
 }
 
-/* ── Asking someone for their own details ────────────────────────────────
-   The row grows a second line for the link, and a third for the answers
-   when they come back. The person is still one row; the ask and the reply
-   hang off it rather than becoming rows of their own. */
-.rolodex__item {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.rolodex__item-main {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2-5);
-  min-width: 0;
-}
-
-.rolodex__gaps--waiting {
-  color: var(--text-muted);
-  border-style: dashed;
-}
-
-.rolodex__link {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-  margin-top: var(--space-2);
-}
-
-/* Readonly and selectable: on a desktop the producer pastes it into a DM,
-   and the clipboard is not always allowed to do that for them. */
-.rolodex__link-url {
-  flex: 1 1 260px;
-  min-width: 0;
-  padding: var(--space-1) var(--space-1-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-}
-
-.rolodex__link-hint {
-  flex: 1 1 100%;
-  font-size: var(--text-xs);
-  color: var(--text-soft);
-}
-
-.rolodex__import-photo {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: var(--space-1-5) 0;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.rolodex__import-photo img {
-  flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  object-fit: cover;
-}
-
-.rolodex__link-error {
-  margin: var(--space-1-5) 0 0;
-  font-size: var(--text-sm);
-  color: var(--danger-text);
-}
-
-.rolodex__import {
-  margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-2-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-}
-
-.rolodex__import-head {
-  display: block;
-  margin-bottom: var(--space-1-5);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.rolodex__import-list {
-  margin: 0 0 var(--space-2);
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.rolodex__import-list li {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1-5);
-  min-width: 0;
-  font-size: var(--text-sm);
-}
-
-.rolodex__import-label {
-  flex: 0 0 auto;
-  min-width: 4.5rem;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-soft);
-}
-
-/* What is on file now, struck through — the one thing that would be lost. */
-.rolodex__import-was {
-  color: var(--text-soft);
-  text-decoration: line-through;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rolodex__import-new {
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rolodex__import-actions {
-  display: flex;
-  gap: var(--space-1);
-}
-
-@media (max-width: 768px) {
-  .rolodex__import-list li {
-    flex-wrap: wrap;
-  }
-  .rolodex__import-new {
-    flex-basis: 100%;
-  }
-}
-
-/* ── The Rolodex row on a phone ───────────────────────────────────────── */
-
-/* The row is a flex line of photo, name, what is missing, "Ask for details"
-   and "Edit". The name block was the only item allowed to shrink, so on a
-   phone it shrank to nothing: three contacts rendered as "D", "P" and "M"
-   with no names at all, while "Ask for details" wrapped onto three lines and
-   ran into the Edit button beside it. A rolodex you cannot read the names in
-   is not a rolodex.
-
-   So the name takes the first line outright, and everything else takes the
-   line below, where there is room for it. */
-@media (max-width: 619px) {
-  .rolodex__item-main {
-    flex-wrap: wrap;
-    row-gap: var(--space-2);
-  }
-
-  /* Wide enough that nothing can share the line with it: the photo is 34px
-     plus its gap, and this claims the rest. The buttons take the line below,
-     where they have room to be read and tapped. */
-  .rolodex__item-content {
-    min-width: calc(100% - 34px - var(--space-2-5) - 2px);
-  }
-
-  .rolodex__item-main > .btn {
-    white-space: nowrap;
-  }
-}
-
 /* Keep cue controls readable on the narrowest phones, including Resume. */
 @media (max-width: 360px) {
   .rs-transport .rs-btn {
@@ -4137,33 +4439,6 @@ a.live-viewer__host-handle {
     gap: var(--space-1);
     min-width: 0;
   }
-}
-
-/* The comic's face and details are one keyboard-accessible profile target. */
-.rolodex__open-profile {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2-5);
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  padding: var(--space-2);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.rolodex__open-profile:hover { background: var(--surface); }
-.rolodex__open-profile:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.rolodex__open-profile .rolodex__item-content { min-width: 0; }
-.rolodex__open-profile .rolodex__name,
-.rolodex__open-profile .rolodex__meta,
-.rolodex__open-profile .rolodex__notes { display: block; }
-@media (max-width: 619px) {
-  .rolodex__open-profile { flex-basis: 100%; }
 }
 
 /* ── Producer-only controls on the free plan ─────────────────────────── */

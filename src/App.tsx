@@ -63,6 +63,7 @@ import { uploadMedia } from './utils/mediaStore';
 import { dataUrlToFile } from './utils/media';
 import { ProfilePage } from './components/ProfilePage';
 import { RolodexRow } from './components/RolodexRow';
+import { rolodexSummary } from './utils/rolodexDisplay';
 import {
   createProfileLink,
   profileLinkStatus,
@@ -3689,7 +3690,11 @@ export default function App() {
 
                 {/* A form rather than a div: a name box beside an Add button
                     should take Enter, which is how everyone tries it first. */}
-                {reviewing && <NewComicForm who={rolodexTerm.singular} onAdd={handleProposeComic} />}
+                {reviewing && (
+                  <div className="rolodex__propose">
+                    <NewComicForm who={rolodexTerm.singular} onAdd={handleProposeComic} />
+                  </div>
+                )}
                 {!reviewing && <form
                   className="rolodex__form"
                   data-tour="rolodex-add"
@@ -3725,13 +3730,15 @@ export default function App() {
                 </form>}
 
                 {settings.potentialComics.length === 0 ? (
-                  <div className="empty-state">
+                  <div className="empty-state rolodex__empty-state">
                     <h2 className="empty-state__title">No {rolodexTerm.plural.toLowerCase()} yet</h2>
                     <p className="empty-state__text">
                       Add someone above, or save a performer from a show to keep their details here.
                     </p>
                   </div>
                 ) : (
+                  <>
+                  <p className="rolodex__summary">{rolodexSummary(settings.potentialComics, rolodexTerm)}</p>
                   <div className="rolodex__list">
                     {settings.potentialComics.map((comic) => {
                       const pending = pendingProfileImport(comic);
@@ -3751,10 +3758,12 @@ export default function App() {
                           pendingPhoto={pending?.photo}
                           onSkipImport={() => handleSkipProfile(comic)}
                           linkError={linkErrorFor === comic.id ? (linkError ?? undefined) : undefined}
+                          selected={selectedComicId === comic.id}
                         />
                       );
                     })}
                   </div>
+                  </>
                 )}
 
                 {/* Rolodex edit drawer. A dialog, like the show page's: as two
